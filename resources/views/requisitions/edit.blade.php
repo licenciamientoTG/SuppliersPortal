@@ -732,8 +732,8 @@
                             initializeProductSelect2();
                         }
                     },
-                    error: function() {
-                        Swal.fire('Error', 'No se pudieron cargar los productos.', 'error');
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos.', 'error');
                     },
                     complete: function() {
                         $('#modal_product_id').prop('disabled', false);

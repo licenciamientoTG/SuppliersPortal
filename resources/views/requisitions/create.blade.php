@@ -613,8 +613,8 @@
                         initializeProductSelect2();
                     }
                 },
-                error: function() {
-                    Swal.fire('Error', 'No se pudieron cargar los productos del catálogo.', 'error');
+                error: function(xhr) {
+                    Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos del catálogo.', 'error');
                 },
                 complete: function() {
                     $('#modal_product_id').prop('disabled', false);

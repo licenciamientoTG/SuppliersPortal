@@ -807,7 +807,7 @@ $(function() {
                     console.error('Error al verificar productos:', xhr);
                     Swal.fire({
                         title: '¡Error!',
-                        text: 'Error al verificar productos disponibles en el catálogo.',
+                        text: xhr.responseJSON?.message || 'Error al verificar productos disponibles en el catálogo.',
                         icon: 'error',
                         confirmButtonText: 'Entendido'
                     });
@@ -929,8 +929,8 @@ $(function() {
                     initializeProductSelect2();
                 }
             },
-            error: function() {
-                Swal.fire('Error', 'No se pudieron cargar los productos del catálogo.', 'error');
+            error: function(xhr) {
+                Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos del catálogo.', 'error');
             },
             complete: function() {
                 $('#modal_product_id').prop('disabled', false);

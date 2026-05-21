@@ -479,20 +479,52 @@ class ProductServiceController extends Controller
      */
     public function apiActiveForRequisitions(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $companyId = (int) $request->input('company_id');
+        $costCenterId = (int) $request->input('cost_center_id');
+
+        if (! $companyId || ! $costCenterId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La compania y el centro de costo son obligatorios.',
+                'products' => [],
+            ], 400);
+        }
+
+        $assignedCompany = $user?->companies()
+            ->where('companies.id', $companyId)
+            ->exists();
+
+        if (! $assignedCompany) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para consultar esta compania.',
+                'products' => [],
+            ], 403);
+        }
+
+        $assignedCostCenter = $user?->costCenters()
+            ->where('cost_centers.id', $costCenterId)
+            ->where('cost_centers.company_id', $companyId)
+            ->where('cost_centers.status', 'ACTIVO')
+            ->whereNull('cost_centers.deleted_at')
+            ->where('cost_center_user.is_active', true)
+            ->exists();
+
+        if (! $assignedCostCenter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para consultar este centro de costo.',
+                'products' => [],
+            ], 403);
+        }
+
         $query = ProductService::active()
             ->with(['category', 'costCenter', 'defaultVendor']);
 
         // Filtrar por compañía (OBLIGATORIO)
-        if ($request->has('company_id') && $request->company_id) {
-            $query->where('company_id', $request->company_id);
-        } else {
-            return response()->json(['products' => []]);
-        }
-
-        // Filtrar por centro de costo (OPCIONAL)
-        if ($request->has('cost_center_id') && $request->cost_center_id) {
-            $query->where('cost_center_id', $request->cost_center_id);
-        }
+        $query->where('company_id', $companyId)
+            ->where('cost_center_id', $costCenterId);
 
         // Búsqueda por término (para Select2)
         if ($request->has('search') && $request->search) {

@@ -445,7 +445,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
         Route::get('/api/active', [ProductServiceController::class, 'apiActive'])->name('api.active');
         Route::post('/from-requisition', [ProductServiceController::class, 'storeFromRequisition'])->name('store-from-requisition');
-        Route::get('/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])->name('api.active-for-requisitions');
     });
 
     // ========================================================================
@@ -463,6 +462,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
     });
 
     // Expense Categories
+    Route::middleware('module.access:requisitions')->get('/products-services/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])
+        ->name('products-services.api.active-for-requisitions');
+
     Route::middleware('module.access:requisitions')->prefix('expense-categories')->name('expense-categories.')->group(function () {
         Route::post('/', [ExpenseCategoryController::class, 'store'])->name('store');
         Route::get('/select', [ExpenseCategoryController::class, 'getForSelect'])->name('select');
