@@ -42,100 +42,14 @@
             }
         }
 
-        /* Capa de partículas animadas */
-        .particles-layer {
+        /* Capa de partículas tsParticles */
+        #tsparticles {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: -2;
-            opacity: 0.7;
-        }
-
-        .floating-particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(169, 202, 72, 0.6);
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(169, 202, 72, 0.3);
-        }
-
-        .floating-particle:nth-child(1) {
-            left: 10%;
-            animation: floatUp 12s infinite linear;
-            animation-delay: 0s;
-        }
-        .floating-particle:nth-child(2) {
-            left: 20%;
-            animation: floatUp 16s infinite linear;
-            animation-delay: 2s;
-            width: 6px;
-            height: 6px;
-        }
-        .floating-particle:nth-child(3) {
-            left: 30%;
-            animation: floatUp 14s infinite linear;
-            animation-delay: 4s;
-        }
-        .floating-particle:nth-child(4) {
-            left: 40%;
-            animation: floatUp 18s infinite linear;
-            animation-delay: 6s;
-            width: 8px;
-            height: 8px;
-        }
-        .floating-particle:nth-child(5) {
-            left: 50%;
-            animation: floatUp 20s infinite linear;
-            animation-delay: 8s;
-        }
-        .floating-particle:nth-child(6) {
-            left: 60%;
-            animation: floatUp 15s infinite linear;
-            animation-delay: 10s;
-            width: 5px;
-            height: 5px;
-        }
-        .floating-particle:nth-child(7) {
-            left: 70%;
-            animation: floatUp 13s infinite linear;
-            animation-delay: 1s;
-        }
-        .floating-particle:nth-child(8) {
-            left: 80%;
-            animation: floatUp 17s infinite linear;
-            animation-delay: 3s;
-            width: 7px;
-            height: 7px;
-        }
-        .floating-particle:nth-child(9) {
-            left: 90%;
-            animation: floatUp 19s infinite linear;
-            animation-delay: 5s;
-        }
-        .floating-particle:nth-child(10) {
-            left: 85%;
-            animation: floatUp 11s infinite linear;
-            animation-delay: 7s;
-        }
-
-        @keyframes floatUp {
-            0% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100px) rotate(360deg);
-                opacity: 0;
-            }
         }
 
         /* Contenedor principal con parallax */
@@ -301,6 +215,8 @@
         }
 
         .modern-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
             width: 20px;
             height: 20px;
             border: 2px solid #A9CA48;
@@ -308,15 +224,26 @@
             background: transparent;
             cursor: pointer;
             position: relative;
+            flex-shrink: 0;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .modern-checkbox:checked {
+            background: #A9CA48;
+            box-shadow: 0 0 8px rgba(169, 202, 72, 0.5);
         }
 
         .modern-checkbox:checked::after {
-            content: '✓';
+            content: '';
             position: absolute;
-            top: -2px;
-            left: 2px;
-            color: #A9CA48;
-            font-weight: bold;
+            left: 5px;
+            top: 1px;
+            width: 5px;
+            height: 10px;
+            border: 2px solid #1a4b96;
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg);
         }
 
         .button-section {
@@ -421,19 +348,8 @@
     <!-- Fondo oscuro animado -->
     <div class="dark-background"></div>
 
-    <!-- Partículas flotantes -->
-    <div class="particles-layer">
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-        <div class="floating-particle"></div>
-    </div>
+    <!-- Partículas tsParticles -->
+    <div id="tsparticles"></div>
 
     <div class="main-container" id="mainContainer">
         <div class="header">
@@ -492,13 +408,13 @@
                     </div>
 
                     <!-- Checkbox Recuérdame -->
-                    <div class="remember-section">
+                    <!-- <div class="remember-section">
                         <input type="checkbox"
                                name="remember"
                                id="remember_me"
                                class="modern-checkbox" />
                         <label for="remember_me">Recuérdame</label>
-                    </div>
+                    </div> -->
 
                     <!-- Botones -->
                     <div class="button-section">
@@ -525,7 +441,85 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
     <script>
+        // Inicialización de tsParticles v2 con efecto magnético de atracción/repulsión
+        tsParticles.load("tsparticles", {
+            fpsLimit: 60,
+            background: { color: { value: "transparent" } },
+            particles: {
+                number: {
+                    value: 120,
+                    density: { enable: true, area: 900 }
+                },
+                color: {
+                    value: ["#A9CA48", "#ffffff", "#4a8fd4", "#7BC525"]
+                },
+                shape: { type: "circle" },
+                opacity: {
+                    value: 0.5,
+                    random: true,
+                    animation: {
+                        enable: true,
+                        speed: 1,
+                        minimumValue: 0.2,
+                        sync: false
+                    }
+                },
+                size: {
+                    value: 3,
+                    random: true,
+                    animation: {
+                        enable: true,
+                        speed: 2,
+                        minimumValue: 1,
+                        sync: false
+                    }
+                },
+                links: {
+                    enable: true,
+                    distance: 130,
+                    color: "#A9CA48",
+                    opacity: 0.25,
+                    width: 1
+                },
+                move: {
+                    enable: true,
+                    speed: 0.8,
+                    direction: "none",
+                    random: true,
+                    straight: false,
+                    outModes: { default: "out" }
+                }
+            },
+            interactivity: {
+                detectsOn: "window",
+                events: {
+                    onHover: {
+                        enable: true,
+                        mode: ["repulse", "grab"]
+                    },
+                    onClick: {
+                        enable: true,
+                        mode: "push"
+                    }
+                },
+                modes: {
+                    repulse: {
+                        distance: 160,
+                        duration: 0.6,
+                        speed: 1
+                    },
+                    grab: {
+                        distance: 200,
+                        links: { opacity: 0.6 }
+                    },
+                    push: { quantity: 4 }
+                }
+            },
+            detectRetina: true
+        });
+
         // Efecto parallax con el mouse
         document.addEventListener('mousemove', function(e) {
             const mouseX = (e.clientX / window.innerWidth) - 0.5;

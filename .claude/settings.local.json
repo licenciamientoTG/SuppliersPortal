@@ -26,7 +26,9 @@
       "Bash(php *)",
       "Bash(git *)",
       "Bash(grep -n \"xss\\\\|sanitize\\\\|e\\(\\\\$\\\\|htmlspecialchars\" resources/views/sat_retenciones/ -r)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ]
   }
 }
