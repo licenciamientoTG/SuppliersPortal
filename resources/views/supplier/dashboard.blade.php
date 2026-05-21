@@ -99,6 +99,7 @@
             </h5>
         </div>
         <div class="card-body">
+            @if($rfqs->isNotEmpty())
             <div class="table-responsive">
                 <table id="rfqs-table" class="table table-hover table-sm align-middle">
                     <thead class="table-light">
@@ -114,7 +115,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($rfqs as $rfq)
+                        @foreach($rfqs as $rfq)
                         @php
                             // Obtener respuesta del proveedor para esta RFQ
                             $myResponse = $rfq->rfqResponses
@@ -255,17 +256,16 @@
                                 @endif
                             </td>
                         </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-5">
-                                <i class="ti ti-file-off fs-1 text-muted mb-3 d-block"></i>
-                                <p class="text-muted mb-0">No tienes RFQs asignadas</p>
-                            </td>
-                        </tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
+            @else
+            <div class="text-center py-5">
+                <i class="ti ti-file-off fs-1 text-muted mb-3 d-block"></i>
+                <p class="text-muted mb-0">No tienes RFQs asignadas</p>
+            </div>
+            @endif
         </div>
     </div>
 
@@ -313,7 +313,13 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
-    $('#rfqs-table').DataTable({
+    const $rfqsTable = $('#rfqs-table');
+
+    if (!$rfqsTable.length) {
+        return;
+    }
+
+    $rfqsTable.DataTable({
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-MX.json'
         },
