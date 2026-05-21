@@ -1,46 +1,47 @@
-﻿NF-001,Seguridad,Autenticacion,"intentar acceso a rutas protegidas sin sesion y con sesion expirada",Seguridad,"toda ruta protegida responde redirect/login o 401/403 segun corresponda",Parcial
-NF-002,Seguridad,"Autorizacion por rol","intentar acceso cruzado entre supplier, buyer, receiver, accounting, superadmin, authorizer",Seguridad,"no existe fuga de datos ni acceso a acciones ajenas",Parcial
-NF-003,Seguridad,"API externa empleados","invocar routes/api.php sin api.key, con key invalida y con key valida",Seguridad,"solo requests con key valida ejecutan la accion","No identificada"
-NF-004,Seguridad,"Password reset y verification","evaluar throttle, expiracion y reuso de tokens",Seguridad,"no se acepta token expirado/reutilizado; throttle activo","No identificada"
-NF-005,Seguridad,"Upload de archivos","subir XML, PDF, imagenes y documentos con mime falso, extension alterada y tamanos maximos",Seguridad,"sistema rechaza archivos invalidos y registra error controlado","No identificada"
-NF-006,Seguridad,"Descarga de archivos","probar acceso directo a remisiones, attachments RFQ, storage proxy y documentos proveedor de terceros",Seguridad,"acceso solo al actor autorizado; path traversal bloqueado","No identificada"
-NF-007,Seguridad,"Inyeccion y sanitizacion","busquedas datatable, comentarios, motivos, nombres de archivos y campos libres con payloads de SQLi/XSS",Seguridad,"no se ejecuta script ni se rompe la consulta; salida escapada","No identificada"
-NF-008,Seguridad,"Integridad de sesiones","validar cambio de password, lock/unlock, logout y cierre de cuenta",Seguridad,"rotacion o invalidacion de sesion cuando aplique","No identificada"
-NF-009,Seguridad,"Datos sensibles","revisar visibilidad de RFC, datos bancarios, UUID, remisiones y correos",Seguridad,"minima exposicion por rol y pagina","No identificada"
-NF-010,Seguridad,"Dev logs","validar que visor de logs no sea publico ni indexable",Seguridad,"acceso totalmente restringido","No identificada"
-NF-011,Seguridad,"EFOS/TRESS/API keys","ejecutar comandos sin variables requeridas",Configuracion,"falla controlada, mensaje claro, sin stacktrace sensible","No identificada"
-NF-012,Seguridad,CSRF,"intentar POST/PUT/DELETE sin token en flujos web",Seguridad,"rechazo consistente en operaciones mutables","No identificada"
-NF-020,Rendimiento,"Listados principales","medir users, suppliers, employees, purchase-orders, receptions, invoices, annual_budgets con dataset grande",Carga,"p95 aceptable definido por QA; sin timeouts ni memory leaks","No identificada"
-NF-021,Rendimiento,"Requisition Livewire","medir latencia al agregar/quitar partidas y recalcular formularios",Carga,"interaccion fluida con dataset nominal y alto","No identificada"
-NF-022,Rendimiento,"RFQ comparison","comparar RFQ con muchas partidas y proveedores",Carga,"pagina usable y consultas estables","No identificada"
-NF-023,Rendimiento,"Budget availability","ejecutar check-availability concurrente desde requisiciones y OCD",Carga,"respuesta consistente y sin sobregiros por carrera","No identificada"
-NF-024,Rendimiento,Recepciones,"registrar recepcion con multiples partidas y evidencias",Carga,"respuesta sin timeout; archivos persistidos correctamente","No identificada"
-NF-025,Rendimiento,"Sync EFOS","procesar CSV grande del SAT",Carga,"job concluye dentro de ventana operativa y sin agotar memoria","No identificada"
-NF-026,Rendimiento,"Sync TRESS","procesar CSV grande de empleados",Carga,"tiempo de importacion controlado; sin duplicados ni bloqueos","No identificada"
-NF-027,Rendimiento,"Scheduler nocturno","cierre masivo de OC/OCD y envio de alertas",Carga,"sin solapamientos; finaliza dentro de la ventana de cron","No identificada"
-NF-030,Confiabilidad,"Transacciones criticas","inducir falla intermedia en registro de supplier, RFQ, OCD, recepcion e invoice",Resiliencia,"rollback completo; no quedan registros huerfanos","No identificada"
-NF-031,Confiabilidad,"Idempotencia de commands/jobs","ejecutar sync EFOS, sync tipo de cambio, TRESS y cierre inactivo dos veces seguidas",Resiliencia,"segunda ejecucion no rompe datos ni duplica efectos",Parcial
-NF-032,Confiabilidad,Concurrencia,"doble submit, doble approve, doble reception, doble link-invoice",Resiliencia,"una sola operacion prevalece; la otra falla controladamente","No identificada"
-NF-033,Confiabilidad,"Queue y notificaciones","simular falla de envio de mail o job fallido",Resiliencia,"error observable, reintento controlado, sistema no queda inconsistente","No identificada"
-NF-034,Confiabilidad,"Integridad de estados","forzar transiciones invalidas entre estados de requisicion, RFQ, OC/OCD y recepcion",Resiliencia,"bloqueo consistente y mensaje funcional",Parcial
-NF-035,Confiabilidad,"Scheduler withoutOverlapping","lanzar dos instancias del mismo command programado",Resiliencia,"no hay ejecucion paralela del mismo proceso","No identificada"
-NF-036,Confiabilidad,"Archivos faltantes","remision/documento/adjunto inexistente despues de haber sido referenciado",Recuperacion,"UX controlada; 404 o mensaje claro; no error 500","No identificada"
-NF-040,Usabilidad,"Formularios criticos","revisar claridad de mensajes y validaciones en registro, requisicion, RFQ, OCD, recepcion e invoice",Usabilidad,"mensajes comprensibles y accionables","No identificada"
-NF-041,Usabilidad,Navegacion,"menu, breadcrumbs, acciones primarias y estados vacios en modulos clave",Usabilidad,"flujo entendible para usuario objetivo","No identificada"
-NF-042,Usabilidad,Responsive,"supplier dashboard, RFQ supplier, deliveries, invoices, receptions pending y forms principales en movil/tablet",Compatibilidad,"operable en resoluciones objetivo sin clipping critico","No identificada"
-NF-043,Accesibilidad,"Formularios y tablas","labels, foco, contraste, keyboard nav, mensajes de error asociados",Accesibilidad,"cumplimiento minimo WCAG AA en pantallas criticas","No identificada"
-NF-044,Compatibilidad,Navegadores,"Chrome, Edge y Firefox en flujos staff y supplier",Compatibilidad,"sin regresiones visuales o funcionales criticas","No identificada"
-NF-045,Compatibilidad,Descargas,"XML, PDF, remisiones, attachments",Compatibilidad,"archivos descargan con nombre, mime y contenido correctos",Parcial
-NF-050,Mantenibilidad,"Observabilidad de negocio","revisar activity log y campos de auditoria en rechazos, aprobaciones, recepciones, promociones y ajustes",Auditoria,"toda accion critica deja huella util para soporte",Parcial
-NF-051,Mantenibilidad,"Logs operativos","revisar logs de exchange rate y close inactive; errores en jobs/commands",Auditoria,"mensajes suficientes para diagnostico y soporte","No identificada"
-NF-052,Mantenibilidad,"Seeders y migraciones","levantar entorno desde cero con migraciones y seeders",Configuracion,"entorno reproducible sin intervencion manual oculta","No identificada"
-NF-053,Mantenibilidad,"Paridad de motor DB","ejecutar flujos criticos en SQLite de tests y SQL Server/staging","Compatibilidad tecnica","reglas SQL especificas no rompen en entorno real","No identificada"
-NF-054,Mantenibilidad,"Cobertura automatizada","medir cobertura real por modulo y detectar huecos de regresion","Calidad interna","tablero de cobertura alineado a esta matriz","No identificada"
-NF-055,"Portabilidad operativa","Filesystems configurados","public, tress y almacenamiento de uploads",Configuracion,"rutas, permisos y enlaces funcionan en todos los ambientes","No identificada"
-NF-060,"Integridad de datos","Relaciones y borrados","probar deletes con entidades en uso: suppliers, categories, stations, cost centers, budgets, orders",Integridad,"no quedan huerfanos ni cascadas no deseadas","No identificada"
-NF-061,"Integridad de datos","Precision monetaria","revisar redondeo en presupuestos, RFQ, OC/OCD, recepciones y provisiones",Integridad,"sumas y diferencias cuadran a precision esperada","No identificada"
-NF-062,"Integridad de datos","Fechas y zonas horarias","validacion de dailyAt, between, fechas de recepcion, vencimientos y trazas",Integridad,"no hay desfaces de horario ni cierre fuera de ventana","No identificada"
-NF-063,Cumplimiento,"CFDI e invoice parsing","UUID, RFC, total, xml/pdf asociados y mensajes de rechazo",Cumplimiento,"parseo y validacion fiscal consistentes",Parcial
-NF-064,Cumplimiento,EFOS,"fuentes inaccesibles, CSV alterado, columnas faltantes",Cumplimiento,"falla controlada y no corrompe catalogo EFOS local",Parcial
-NF-065,Disponibilidad,"Dependencias externas","caida de API de tipo de cambio, SMTP, storage o SAT",Recuperacion,"degradacion controlada, alertas y reintentos definidos","No identificada"
-NF-066,Recuperacion,"Backup funcional de evidencia","restaurar docs, remisiones e invoices desde respaldo de staging",Recuperacion,"archivos recuperables y rutas vigentes","No identificada"
+Columna1	Columna2	Columna3	Columna4	Columna5	Columna6	Columna7
+NF-001	Seguridad	Autenticacion	intentar acceso a rutas protegidas sin sesion y con sesion expirada	Seguridad	toda ruta protegida responde redirect/login o 401/403 segun corresponda	Parcial
+NF-002	Seguridad	Autorizacion por rol	"intentar acceso cruzado entre supplier, buyer, receiver, accounting, superadmin, authorizer"	Seguridad	no existe fuga de datos ni acceso a acciones ajenas	Parcial
+NF-003	Seguridad	API externa empleados	"invocar routes/api.php sin api.key, con key invalida y con key valida"	Seguridad	solo requests con key valida ejecutan la accion	No identificada
+NF-004	Seguridad	Password reset y verification	"evaluar throttle, expiracion y reuso de tokens"	Seguridad	no se acepta token expirado/reutilizado; throttle activo	No identificada
+NF-005	Seguridad	Upload de archivos	"subir XML, PDF, imagenes y documentos con mime falso, extension alterada y tamanos maximos"	Seguridad	sistema rechaza archivos invalidos y registra error controlado	No identificada
+NF-006	Seguridad	Descarga de archivos	"probar acceso directo a remisiones, attachments RFQ, storage proxy y documentos proveedor de terceros"	Seguridad	acceso solo al actor autorizado; path traversal bloqueado	No identificada
+NF-007	Seguridad	Inyeccion y sanitizacion	"busquedas datatable, comentarios, motivos, nombres de archivos y campos libres con payloads de SQLi/XSS"	Seguridad	no se ejecuta script ni se rompe la consulta; salida escapada	No identificada
+NF-008	Seguridad	Integridad de sesiones	"validar cambio de password, lock/unlock, logout y cierre de cuenta"	Seguridad	rotacion o invalidacion de sesion cuando aplique	No identificada
+NF-009	Seguridad	Datos sensibles	"revisar visibilidad de RFC, datos bancarios, UUID, remisiones y correos"	Seguridad	minima exposicion por rol y pagina	No identificada
+NF-010	Seguridad	Dev logs	validar que visor de logs no sea publico ni indexable	Seguridad	acceso totalmente restringido	No identificada
+NF-011	Seguridad	EFOS/TRESS/API keys	ejecutar comandos sin variables requeridas	Configuracion	"falla controlada, mensaje claro, sin stacktrace sensible"	No identificada
+NF-012	Seguridad	CSRF	intentar POST/PUT/DELETE sin token en flujos web	Seguridad	rechazo consistente en operaciones mutables	No identificada
+NF-020	Rendimiento	Listados principales	"medir users, suppliers, employees, purchase-orders, receptions, invoices, annual_budgets con dataset grande"	Carga	p95 aceptable definido por QA; sin timeouts ni memory leaks	No identificada
+NF-021	Rendimiento	Requisition Livewire	medir latencia al agregar/quitar partidas y recalcular formularios	Carga	interaccion fluida con dataset nominal y alto	No identificada
+NF-022	Rendimiento	RFQ comparison	comparar RFQ con muchas partidas y proveedores	Carga	pagina usable y consultas estables	No identificada
+NF-023	Rendimiento	Budget availability	ejecutar check-availability concurrente desde requisiciones y OCD	Carga	respuesta consistente y sin sobregiros por carrera	No identificada
+NF-024	Rendimiento	Recepciones	registrar recepcion con multiples partidas y evidencias	Carga	respuesta sin timeout; archivos persistidos correctamente	No identificada
+NF-025	Rendimiento	Sync EFOS	procesar CSV grande del SAT	Carga	job concluye dentro de ventana operativa y sin agotar memoria	No identificada
+NF-026	Rendimiento	Sync TRESS	procesar CSV grande de empleados	Carga	tiempo de importacion controlado; sin duplicados ni bloqueos	No identificada
+NF-027	Rendimiento	Scheduler nocturno	cierre masivo de OC/OCD y envio de alertas	Carga	sin solapamientos; finaliza dentro de la ventana de cron	No identificada
+NF-030	Confiabilidad	Transacciones criticas	"inducir falla intermedia en registro de supplier, RFQ, OCD, recepcion e invoice"	Resiliencia	rollback completo; no quedan registros huerfanos	No identificada
+NF-031	Confiabilidad	Idempotencia de commands/jobs	"ejecutar sync EFOS, sync tipo de cambio, TRESS y cierre inactivo dos veces seguidas"	Resiliencia	segunda ejecucion no rompe datos ni duplica efectos	Parcial
+NF-032	Confiabilidad	Concurrencia	"doble submit, doble approve, doble reception, doble link-invoice"	Resiliencia	una sola operacion prevalece; la otra falla controladamente	No identificada
+NF-033	Confiabilidad	Queue y notificaciones	simular falla de envio de mail o job fallido	Resiliencia	"error observable, reintento controlado, sistema no queda inconsistente"	No identificada
+NF-034	Confiabilidad	Integridad de estados	"forzar transiciones invalidas entre estados de requisicion, RFQ, OC/OCD y recepcion"	Resiliencia	bloqueo consistente y mensaje funcional	Parcial
+NF-035	Confiabilidad	Scheduler withoutOverlapping	lanzar dos instancias del mismo command programado	Resiliencia	no hay ejecucion paralela del mismo proceso	No identificada
+NF-036	Confiabilidad	Archivos faltantes	remision/documento/adjunto inexistente despues de haber sido referenciado	Recuperacion	UX controlada; 404 o mensaje claro; no error 500	No identificada
+NF-040	Usabilidad	Formularios criticos	"revisar claridad de mensajes y validaciones en registro, requisicion, RFQ, OCD, recepcion e invoice"	Usabilidad	mensajes comprensibles y accionables	No identificada
+NF-041	Usabilidad	Navegacion	"menu, breadcrumbs, acciones primarias y estados vacios en modulos clave"	Usabilidad	flujo entendible para usuario objetivo	No identificada
+NF-042	Usabilidad	Responsive	"supplier dashboard, RFQ supplier, deliveries, invoices, receptions pending y forms principales en movil/tablet"	Compatibilidad	operable en resoluciones objetivo sin clipping critico	No identificada
+NF-043	Accesibilidad	Formularios y tablas	"labels, foco, contraste, keyboard nav, mensajes de error asociados"	Accesibilidad	cumplimiento minimo WCAG AA en pantallas criticas	No identificada
+NF-044	Compatibilidad	Navegadores	"Chrome, Edge y Firefox en flujos staff y supplier"	Compatibilidad	sin regresiones visuales o funcionales criticas	No identificada
+NF-045	Compatibilidad	Descargas	"XML, PDF, remisiones, attachments"	Compatibilidad	"archivos descargan con nombre, mime y contenido correctos"	Parcial
+NF-050	Mantenibilidad	Observabilidad de negocio	"revisar activity log y campos de auditoria en rechazos, aprobaciones, recepciones, promociones y ajustes"	Auditoria	toda accion critica deja huella util para soporte	Parcial
+NF-051	Mantenibilidad	Logs operativos	revisar logs de exchange rate y close inactive; errores en jobs/commands	Auditoria	mensajes suficientes para diagnostico y soporte	No identificada
+NF-052	Mantenibilidad	Seeders y migraciones	levantar entorno desde cero con migraciones y seeders	Configuracion	entorno reproducible sin intervencion manual oculta	No identificada
+NF-053	Mantenibilidad	Paridad de motor DB	ejecutar flujos criticos en SQLite de tests y SQL Server/staging	Compatibilidad tecnica	reglas SQL especificas no rompen en entorno real	No identificada
+NF-054	Mantenibilidad	Cobertura automatizada	medir cobertura real por modulo y detectar huecos de regresion	Calidad interna	tablero de cobertura alineado a esta matriz	No identificada
+NF-055	Portabilidad operativa	Filesystems configurados	"public, tress y almacenamiento de uploads"	Configuracion	"rutas, permisos y enlaces funcionan en todos los ambientes"	No identificada
+NF-060	Integridad de datos	Relaciones y borrados	"probar deletes con entidades en uso: suppliers, categories, stations, cost centers, budgets, orders"	Integridad	no quedan huerfanos ni cascadas no deseadas	No identificada
+NF-061	Integridad de datos	Precision monetaria	"revisar redondeo en presupuestos, RFQ, OC/OCD, recepciones y provisiones"	Integridad	sumas y diferencias cuadran a precision esperada	No identificada
+NF-062	Integridad de datos	Fechas y zonas horarias	"validacion de dailyAt, between, fechas de recepcion, vencimientos y trazas"	Integridad	no hay desfaces de horario ni cierre fuera de ventana	No identificada
+NF-063	Cumplimiento	CFDI e invoice parsing	"UUID, RFC, total, xml/pdf asociados y mensajes de rechazo"	Cumplimiento	parseo y validacion fiscal consistentes	Parcial
+NF-064	Cumplimiento	EFOS	"fuentes inaccesibles, CSV alterado, columnas faltantes"	Cumplimiento	falla controlada y no corrompe catalogo EFOS local	Parcial
+NF-065	Disponibilidad	Dependencias externas	"caida de API de tipo de cambio, SMTP, storage o SAT"	Recuperacion	"degradacion controlada, alertas y reintentos definidos"	No identificada
+NF-066	Recuperacion	Backup funcional de evidencia	"restaurar docs, remisiones e invoices desde respaldo de staging"	Recuperacion	archivos recuperables y rutas vigentes	No identificada

@@ -463,7 +463,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     });
 
     // Expense Categories
-    Route::middleware('module.access:budget_control')->prefix('expense-categories')->name('expense-categories.')->group(function () {
+    Route::middleware('module.access:requisitions')->prefix('expense-categories')->name('expense-categories.')->group(function () {
         Route::post('/', [ExpenseCategoryController::class, 'store'])->name('store');
         Route::get('/select', [ExpenseCategoryController::class, 'getForSelect'])->name('select');
         Route::get('/by-budget', [ExpenseCategoryController::class, 'byBudget'])->name('by-budget');

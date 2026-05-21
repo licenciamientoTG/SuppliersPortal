@@ -225,12 +225,33 @@ class ExpenseCategoryController extends Controller
                 ], 400);
             }
 
-            $costCenter = CostCenter::find($costCenterId);
+            $costCenter = CostCenter::query()
+                ->whereKey($costCenterId)
+                ->where('status', 'ACTIVO')
+                ->whereNull('deleted_at')
+                ->first();
+
             if (! $costCenter) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Centro de costo no encontrado',
+                    'message' => 'Centro de costo no encontrado o inactivo',
                 ], 404);
+            }
+
+            $user = $request->user();
+            $assignedToUser = $user?->costCenters()
+                ->where('cost_centers.id', $costCenter->id)
+                ->where('cost_centers.status', 'ACTIVO')
+                ->whereNull('cost_centers.deleted_at')
+                ->where('cost_center_user.is_active', true)
+                ->exists();
+
+            if (! $assignedToUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso para consultar este centro de costo.',
+                    'categories' => [],
+                ], 403);
             }
 
             if ($costCenter->budget_type === 'FREE_CONSUMPTION') {
