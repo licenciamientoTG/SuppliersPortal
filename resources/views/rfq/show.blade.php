@@ -808,9 +808,11 @@
                             <i class="ti ti-send me-1"></i>Enviar a Proveedores
                         </button>
                     @endif
-                    <a href="{{ route('requisitions.show', $rfq->requisition) }}" class="btn btn-outline-primary">
+                    <button type="button"
+                        class="btn btn-outline-primary js-open-requisition-modal"
+                        data-url="{{ route('rfq.requisition-modal', $rfq) }}">
                         <i class="ti ti-file-text me-1"></i>Ver Requisición
-                    </a>
+                    </button>
                     @if($rfq->status !== 'CANCELLED')
                         <button type="button" class="btn btn-outline-danger" id="cancelRfqBtn2">
                             <i class="ti ti-ban me-1"></i>Cancelar RFQ
@@ -823,6 +825,17 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+<div class="modal fade" id="requisitionInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" id="requisition-modal-content">
+            <div class="modal-body p-5 text-center text-muted">
+                <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                <p class="mb-0">Cargando requisición...</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -862,6 +875,37 @@ $(document).ready(function() {
 
     $('#sendRfqBtn, #sendRfqBtn2').on('click', confirmSend);
     $('#cancelRfqBtn, #cancelRfqBtn2').on('click', confirmCancel);
+    $('.js-open-requisition-modal').on('click', function() {
+        const url = $(this).data('url');
+        const $modal = $('#requisitionInfoModal');
+        const $content = $('#requisition-modal-content');
+
+        $content.html(`
+            <div class="modal-body p-5 text-center text-muted">
+                <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                <p class="mb-0">Cargando requisición...</p>
+            </div>
+        `);
+
+        $modal.modal('show');
+        $content.load(url, function(response, status) {
+            if (status === 'error') {
+                $content.html(`
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-danger">
+                            <i class="ti ti-alert-circle me-2"></i>Error al cargar la requisición
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger mb-0">
+                            No fue posible cargar la requisición de origen. Intenta de nuevo.
+                        </div>
+                    </div>
+                `);
+            }
+        });
+    });
 
     function sendRFQ() {
         Swal.fire({ title: 'Enviando...', html: 'Por favor espera', allowOutsideClick: false, didOpen: () => Swal.showLoading() });

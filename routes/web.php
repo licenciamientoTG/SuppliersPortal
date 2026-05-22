@@ -401,6 +401,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
         Route::post('/{rfq}/send-single', 'sendSingle')->name('send.single');
         Route::post('/{rfq}/send', 'send')->name('send');
+        Route::get('/{rfq}/requisition-modal', 'requisitionModal')->name('requisition-modal');
         Route::get('/{rfq}', 'show')->name('show')->where('rfq', '[0-9]+');
         Route::post('/{rfq}/cancel', 'cancelRFQ')->name('cancel');
     });

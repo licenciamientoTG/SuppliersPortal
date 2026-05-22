@@ -443,6 +443,26 @@ class RfqController extends Controller
     }
 
     /**
+     * Devuelve la requisición origen de una RFQ para mostrarse en modal.
+     */
+    public function requisitionModal(Rfq $rfq): View
+    {
+        $rfq->load([
+            'requisition.department',
+            'requisition.requester',
+            'requisition.items',
+            'requisition.costCenter',
+            'requisition.receivingLocation',
+        ]);
+
+        abort_unless($rfq->requisition, 404, 'La RFQ no tiene una requisición asociada.');
+
+        return view('rfq.inbox.partials.req_info', [
+            'requisition' => $rfq->requisition,
+        ]);
+    }
+
+    /**
      * Enviar RFQ a los proveedores
      * 
      * @param Rfq $rfq
