@@ -32,9 +32,9 @@ class RegisterSupplierRequest extends FormRequest
             'supplier_type' => ['required','in:product,service,product_service'],
             'tax_regime'    => ['required','in:individual,corporation,resico'],
             'address'       => ['required','string','max:1000'],
-            'phone_number'  => ['required','string','max:20'],
+            'phone_number'  => ['required','string','regex:/^\d{10}$/'],
             'contact_person'=> ['required','string','max:255'],
-            'contact_phone' => ['nullable','string','max:20'],
+            'contact_phone' => ['nullable','string','regex:/^\d{10}$/'],
 
             // Nuevas validaciones REPSE
             'provides_specialized_services' => ['required', 'boolean'],
@@ -51,7 +51,7 @@ class RegisterSupplierRequest extends FormRequest
                 'otros'
             ])],
             'otros_descripcion' => ['nullable', 'string', 'max:255', 'required_if:specialized_services_types.*,otros'],
-            'economic_activity'     => ['nullable', 'string', 'max:150'],
+            'economic_activity'     => ['required', 'string', 'max:150'],
             'default_payment_terms' => ['required', Rule::in(array_column(PaymentTerm::cases(), 'value'))],
         ];
     }
@@ -75,9 +75,10 @@ class RegisterSupplierRequest extends FormRequest
             'rfc.regex'           => 'El formato del RFC no es válido.',
             'address.required'     => 'La dirección es obligatoria.',
             'phone_number.required'=> 'El teléfono de la empresa es obligatorio.',
-            'phone_number.regex'  => 'El teléfono debe tener exactamente 10 dígitos.',
+            'phone_number.regex'  => 'El teléfono de la empresa debe tener exactamente 10 dígitos numéricos (sin espacios ni guiones).',
             'contact_person.required' => 'La persona de contacto es obligatoria.',
-            'contact_phone.regex' => 'El teléfono de contacto debe tener exactamente 10 dígitos.',
+            'contact_phone.regex' => 'El teléfono de contacto debe tener exactamente 10 dígitos numéricos (sin espacios ni guiones).',
+            'economic_activity.required' => 'La actividad económica es obligatoria.',
             'supplier_type.required' => 'El tipo de proveedor es obligatorio.',
             'supplier_type.in'    => 'Seleccione un tipo de proveedor válido.',
             'tax_regime.required' => 'El régimen fiscal es obligatorio.',
