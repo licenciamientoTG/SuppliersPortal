@@ -187,7 +187,7 @@
                     @endif
 
                     {{-- Notas Internas (solo para Compras) --}}
-                    @if($productService->internal_notes && (auth()->user()->hasRole('purchases') || auth()->user()->hasRole('superadmin')))
+                    @if($productService->internal_notes && (auth()->user()->hasRole('buyer') || auth()->user()->hasRole('superadmin')))
                     <div class="row">
                         <div class="col-md-3">
                             <strong>Notas Internas:</strong>

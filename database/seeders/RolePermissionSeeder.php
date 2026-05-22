@@ -60,11 +60,27 @@ class RolePermissionSeeder extends Seeder
             'edit_own_profile',
             'view_own_orders',
 
-            // NUEVOS PERMISOS PARA CATÁLOGO
+            // Catálogo de productos y servicios
             'manage_products',
             'manage_categories',
             'manage_services',
             'approve_products',
+
+            // Requisiciones
+            'view_requisitions',
+            'create_requisitions',
+
+            // Recepciones
+            'view_receptions',
+            'confirm_receptions',
+
+            // Control presupuestal
+            'view_budget',
+            'manage_budget',
+
+            // Revisión documental
+            'view_documents',
+            'review_documents',
         ];
 
         DB::transaction(function () use ($permissions) {

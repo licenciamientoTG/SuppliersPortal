@@ -64,6 +64,18 @@ class RolesCatalogController extends Controller
         'Catálogo' => [
             'manage_products', 'manage_categories', 'manage_services', 'approve_products',
         ],
+        'Requisiciones' => [
+            'view_requisitions', 'create_requisitions',
+        ],
+        'Recepciones' => [
+            'view_receptions', 'confirm_receptions',
+        ],
+        'Presupuesto' => [
+            'view_budget', 'manage_budget',
+        ],
+        'Documentos' => [
+            'view_documents', 'review_documents',
+        ],
         'Personal' => [
             'edit_own_profile', 'view_own_orders',
         ],
@@ -107,6 +119,14 @@ class RolesCatalogController extends Controller
         'approve_products'        => 'Aprobar productos',
         'edit_own_profile'        => 'Editar perfil propio',
         'view_own_orders'         => 'Ver mis órdenes',
+        'view_requisitions'       => 'Ver requisiciones',
+        'create_requisitions'     => 'Crear requisiciones',
+        'view_receptions'         => 'Ver recepciones',
+        'confirm_receptions'      => 'Confirmar recepciones',
+        'view_budget'             => 'Ver presupuesto',
+        'manage_budget'           => 'Gestionar presupuesto',
+        'view_documents'          => 'Ver documentos',
+        'review_documents'        => 'Revisar documentos',
     ];
 
     public function index(): View

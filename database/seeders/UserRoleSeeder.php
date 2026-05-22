@@ -24,12 +24,16 @@ class UserRoleSeeder extends Seeder
         }
 
         $initialUsers = [
-            ['name' => 'Super Administrador', 'email' => 'tgsuperadmin@yopmail.com', 'role' => 'superadmin'],
-            ['name' => 'Compras User',        'email' => 'tgcompras@yopmail.com',    'role' => 'buyer'],
-            ['name' => 'Contabilidad User',   'email' => 'tgcontabilidad@yopmail.com', 'role' => 'accounting'],
-            ['name' => 'Proveedor User',      'email' => 'tgproveedor@yopmail.com',   'role' => 'supplier'],
-            ['name' => 'Autorizador User',    'email' => 'tgautorizador@yopmail.com', 'role' => 'authorizer'],
-            ['name' => 'Jefe de Departamento User', 'email' => 'tgjefedepartamento@yopmail.com', 'role' => 'department_head'],
+            ['name' => 'Super Administrador',   'email' => 'tgsuperadmin@yopmail.com',       'role' => 'superadmin'],
+            ['name' => 'Compras User',          'email' => 'tgcompras@yopmail.com',           'role' => 'buyer'],
+            ['name' => 'Contabilidad User',     'email' => 'tgcontabilidad@yopmail.com',      'role' => 'accounting'],
+            ['name' => 'Proveedor User',        'email' => 'tgproveedor@yopmail.com',         'role' => 'supplier'],
+            ['name' => 'Autorizador User',      'email' => 'tgautorizador@yopmail.com',       'role' => 'authorizer'],
+            ['name' => 'Jefe de Departamento',  'email' => 'tgjefedepartamento@yopmail.com',  'role' => 'department_head'],
+            ['name' => 'Staff User',            'email' => 'tgstaff@yopmail.com',             'role' => 'staff'],
+            ['name' => 'Receptor User',         'email' => 'tgreceptor@yopmail.com',          'role' => 'receiver'],
+            ['name' => 'Director General',      'email' => 'tgdirector@yopmail.com',          'role' => 'general_director'],
+            ['name' => 'Admin Catálogo',        'email' => 'tgcatalogo@yopmail.com',          'role' => 'catalog_admin'],
         ];
 
         foreach ($initialUsers as $data) {

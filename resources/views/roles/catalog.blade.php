@@ -23,6 +23,10 @@
         'Cotizaciones'       => 'text-bg-info',
         'Reportes'           => 'text-bg-secondary',
         'Catálogo'           => 'text-bg-dark',
+        'Requisiciones'      => 'text-bg-primary',
+        'Recepciones'        => 'text-bg-success',
+        'Presupuesto'        => 'text-bg-warning',
+        'Documentos'         => 'text-bg-info',
         'Personal'           => 'bg-light text-dark border',
     ];
 
