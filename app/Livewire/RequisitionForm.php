@@ -109,6 +109,10 @@ class RequisitionForm extends Component
             $this->isEditMode = false;
             $this->required_date = now()->addDays(7)->format('Y-m-d');
             $this->items = [];
+
+            if ($this->companies->count() === 1) {
+                $this->company_id = $this->companies->first()->id;
+            }
         }
     }
 
@@ -349,6 +353,11 @@ class RequisitionForm extends Component
 
         if ($defaultCostCenter && !$this->cost_center_id) {
             $this->cost_center_id = $defaultCostCenter->id;
+            return;
+        }
+
+        if ($this->costCenters->count() === 1 && !$this->cost_center_id) {
+            $this->cost_center_id = $this->costCenters->first()->id;
         }
     }
 
