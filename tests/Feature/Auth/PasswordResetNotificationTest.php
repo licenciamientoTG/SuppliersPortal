@@ -24,7 +24,7 @@ class PasswordResetNotificationTest extends TestCase
 
     public function test_reset_notification_has_spanish_subject(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->make();
         $notification = new ResetPasswordNotification('fake-token-123');
 
         $mail = $notification->toMail($user);
@@ -37,7 +37,7 @@ class PasswordResetNotificationTest extends TestCase
 
     public function test_reset_notification_uses_custom_blade_view(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->make();
         $notification = new ResetPasswordNotification('fake-token-123');
 
         $mail = $notification->toMail($user);
@@ -47,12 +47,16 @@ class PasswordResetNotificationTest extends TestCase
 
     public function test_reset_notification_passes_url_to_view(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->make();
         $notification = new ResetPasswordNotification('fake-token-123');
 
         $mail = $notification->toMail($user);
 
         $this->assertArrayHasKey('url', $mail->view[1]);
         $this->assertStringContainsString('fake-token-123', $mail->view[1]['url']);
+        $this->assertStringContainsString(
+            urlencode($user->email),
+            $mail->view[1]['url']
+        );
     }
 }
