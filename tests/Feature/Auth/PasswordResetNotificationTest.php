@@ -42,7 +42,7 @@ class PasswordResetNotificationTest extends TestCase
 
         $mail = $notification->toMail($user);
 
-        $this->assertEquals('emails.auth.reset-password', $mail->view[0]);
+        $this->assertEquals('emails.auth.reset-password', $mail->view);
     }
 
     public function test_reset_notification_passes_url_to_view(): void
@@ -52,11 +52,14 @@ class PasswordResetNotificationTest extends TestCase
 
         $mail = $notification->toMail($user);
 
-        $this->assertArrayHasKey('url', $mail->view[1]);
-        $this->assertStringContainsString('fake-token-123', $mail->view[1]['url']);
+        $this->assertArrayHasKey('url', $mail->viewData);
+        $this->assertStringContainsString('fake-token-123', $mail->viewData['url']);
         $this->assertStringContainsString(
             urlencode($user->email),
-            $mail->view[1]['url']
+            $mail->viewData['url']
         );
+
+        $rendered = view($mail->view, $mail->viewData)->render();
+        $this->assertStringContainsString($mail->viewData['url'], $rendered);
     }
 }

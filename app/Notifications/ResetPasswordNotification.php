@@ -11,10 +11,8 @@ class ResetPasswordNotification extends ResetPassword
     {
         $url = $this->resetUrl($notifiable);
 
-        $mail = new MailMessage();
-        $mail->subject('Recuperación de contraseña — Portal de Proveedores');
-        $mail->view = ['emails.auth.reset-password', ['url' => $url]];
-
-        return $mail;
+        return (new MailMessage)
+            ->subject('Recuperación de contraseña — Portal de Proveedores')
+            ->view('emails.auth.reset-password', ['url' => $url]);
     }
 }
