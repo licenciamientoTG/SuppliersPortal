@@ -32,7 +32,7 @@
                      alt="Preview">
                 <i id="photoDropIcon" class="ti ti-photo fs-32 text-muted{{ $currentPhotoUrl ? ' d-none' : '' }}"></i>
                 <span class="text-muted mt-1" style="font-size:12px;">Arrastra la foto aquí o haz clic</span>
-                <span class="text-muted" style="font-size:11px;">JPG, PNG o WEBP · Máx. 2 MB</span>
+                <span class="text-muted" style="font-size:11px;">JPG, PNG o WEBP · Máx. 3 MB</span>
                 <input type="file" name="photo" id="photoInput"
                        accept="image/png,image/jpeg,image/webp"
                        class="d-none">
