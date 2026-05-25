@@ -2,16 +2,18 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Enum\PurchaseType;
+use App\Enum\RequisitionStatus;
+use App\Models\BudgetCedula;
 use App\Models\Company;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
-use App\Enum\RequisitionStatus;
+use App\Services\BudgetCedulaCatalogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Livewire\Component;
 
 class RequisitionForm extends Component
 {
@@ -26,6 +28,7 @@ class RequisitionForm extends Component
     public $cost_center_id;
     public $required_date;
     public $description = '';
+    public $hasHydratedCostCenterOnce = false;
 
     // ===== COLECCIONES =====
     public $companies = [];
@@ -94,6 +97,8 @@ class RequisitionForm extends Component
                     'unit' => $item->unit,
                     'expense_category_id' => $item->expense_category_id,
                     'expense_category_name' => $item->expenseCategory->name ?? 'N/A',
+                    'budget_cedula_id' => $item->budget_cedula_id,
+                    'budget_cedula_name' => $item->budgetCedula->name ?? 'N/A',
                     'notes' => $item->notes ?? '',
                 ];
             })->toArray();
@@ -105,6 +110,10 @@ class RequisitionForm extends Component
             $this->isEditMode = false;
             $this->required_date = now()->addDays(7)->format('Y-m-d');
             $this->items = [];
+
+            if ($this->companies->count() === 1) {
+                $this->company_id = $this->companies->first()->id;
+            }
         }
     }
 
@@ -155,7 +164,7 @@ class RequisitionForm extends Component
             ->where('cost_centers.purchase_type', $this->purchase_type)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
-            ->where('cost_center_user.is_active', true)
+            ->wherePivot('is_active', true)
             ->exists();
 
         if (! $validCostCenter) {
@@ -200,6 +209,7 @@ class RequisitionForm extends Component
                         'product_code'        => $product->code,
                         'description'         => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
+                        'budget_cedula_id'    => $item['budget_cedula_id'],
                         'item_category'       => $product->product_type,
                         'quantity'            => $item['quantity'],
                         'unit'                => $item['unit'],
@@ -234,6 +244,7 @@ class RequisitionForm extends Component
                         'product_code'        => $product->code,
                         'description'         => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
+                        'budget_cedula_id'    => $item['budget_cedula_id'],
                         'item_category'       => $product->product_type,
                         'quantity'            => $item['quantity'],
                         'unit'               => $item['unit'],
@@ -324,6 +335,13 @@ class RequisitionForm extends Component
         }
     }
 
+    public function updatedCostCenterId($value)
+    {
+        if ($value) {
+            $this->hasHydratedCostCenterOnce = true;
+        }
+    }
+
     /**
      * Cargar centros de costo del usuario para una compañía.
      */
@@ -334,7 +352,7 @@ class RequisitionForm extends Component
             ->where('cost_centers.purchase_type', $purchaseType)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
-            ->where('cost_center_user.is_active', true)
+            ->wherePivot('is_active', true)
             ->orderBy('cost_centers.code')
             ->get();
 
@@ -343,6 +361,12 @@ class RequisitionForm extends Component
 
         if ($defaultCostCenter && !$this->cost_center_id) {
             $this->cost_center_id = $defaultCostCenter->id;
+            return;
+        }
+
+        if ($this->costCenters->count() === 1 && !$this->cost_center_id && !$this->hasHydratedCostCenterOnce) {
+            $this->cost_center_id = $this->costCenters->first()->id;
+            $this->hasHydratedCostCenterOnce = true;
         }
     }
 
@@ -357,7 +381,7 @@ class RequisitionForm extends Component
 
     public function addItem($itemData)
     {
-        if (empty($itemData['product_id']) || empty($itemData['expense_category_id'])) {
+        if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
             return;
         }
@@ -370,6 +394,8 @@ class RequisitionForm extends Component
             'unit' => $itemData['unit'],
             'expense_category_id' => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
+            'budget_cedula_id' => $itemData['budget_cedula_id'],
+            'budget_cedula_name' => $itemData['budget_cedula_name'],
             'notes' => $itemData['notes'] ?? '',
         ];
 
@@ -383,6 +409,11 @@ class RequisitionForm extends Component
             return;
         }
 
+        if (! $this->validateItemPayload($itemData)) {
+            $this->dispatch('item-error', message: 'Faltan campos obligatorios');
+            return;
+        }
+
         $this->items[$index] = [
             'product_id' => $itemData['product_id'],
             'product_name' => $itemData['product_name'],
@@ -391,6 +422,8 @@ class RequisitionForm extends Component
             'unit' => $itemData['unit'],
             'expense_category_id' => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
+            'budget_cedula_id' => $itemData['budget_cedula_id'],
+            'budget_cedula_name' => $itemData['budget_cedula_name'],
             'notes' => $itemData['notes'] ?? '',
         ];
 
@@ -418,5 +451,28 @@ class RequisitionForm extends Component
     public function render()
     {
         return view('livewire.requisition-form');
+    }
+
+    private function validateItemPayload(array $itemData): bool
+    {
+        if (empty($itemData['product_id']) || empty($itemData['expense_category_id']) || empty($itemData['budget_cedula_id'])) {
+            return false;
+        }
+
+        $cedula = BudgetCedula::query()
+            ->whereKey((int) $itemData['budget_cedula_id'])
+            ->where('expense_category_id', (int) $itemData['expense_category_id'])
+            ->first();
+
+        if (! $cedula || ! $this->cost_center_id) {
+            return false;
+        }
+
+        return app(BudgetCedulaCatalogService::class)->isValidCedulaForContext(
+            (int) $this->cost_center_id,
+            (int) $itemData['expense_category_id'],
+            (int) $itemData['budget_cedula_id'],
+            now()->year
+        );
     }
 }

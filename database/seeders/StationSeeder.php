@@ -678,6 +678,14 @@ class StationSeeder extends Seeder
             ],
         ];
 
-        Station::insert($stations);
+        foreach ($stations as $station) {
+            Station::updateOrCreate(
+                [
+                    'source_system' => $station['source_system'],
+                    'external_id' => $station['external_id'],
+                ],
+                $station
+            );
+        }
     }
 }

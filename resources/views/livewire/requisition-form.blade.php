@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     {{-- Mensajes de sesión --}}
     @if (session()->has('success'))
     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -38,11 +38,10 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" 
-                                    required>
+                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -64,7 +63,7 @@
                                     required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($purchaseTypes as $purchaseTypeOption)
-                                    <option value="{{ $purchaseTypeOption }}">{{ $purchaseTypeOption }}</option>
+                                    <option value="{{ $purchaseTypeOption }}" @selected((string) $purchase_type === (string) $purchaseTypeOption)>{{ $purchaseTypeOption }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -80,16 +79,16 @@
                             <span class="input-group-text">
                                 <i class="ti ti-chart-pie"></i>
                             </span>
-                            <select wire:model.live="cost_center_id" 
+                            <select wire:model.live="cost_center_id"
                                     id="cost_center_id"
-                                    class="form-select @error('cost_center_id') is-invalid @enderror" 
+                                    class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
                                     {{ empty($company_id) || empty($purchase_type) ? 'disabled' : '' }}>
                                 <option value="">
                                     {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compañía y tipo de compra primero' : 'Seleccionar centro de costo...' }}
                                 </option>
                                 @foreach ($costCenters as $cc)
-                                    <option value="{{ $cc->id }}">
+                                    <option value="{{ $cc->id }}" @selected((string) $cost_center_id === (string) $cc->id)>
                                         {{ $cc->code ? "[{$cc->code}] {$cc->name}" : $cc->name }}
                                     </option>
                                 @endforeach
@@ -98,7 +97,7 @@
                         @error('cost_center_id')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
-                        
+
                         {{-- Loading indicator --}}
                         <div wire:loading wire:target="company_id,purchase_type" class="mt-1">
                             <small class="text-muted">
@@ -109,7 +108,7 @@
 
                     {{-- Ubicación de recepción --}}
                     <div class="col-md-3">
-                        <label for="receiving_location_id" class="form-label">Ubicación recepción <span class="text-danger">*</span></label>
+                        <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-map-pin"></i>
@@ -120,7 +119,7 @@
                                     required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($receivingLocations as $loc)
-                                    <option value="{{ $loc->id }}">
+                                    <option value="{{ $loc->id }}" @selected((string) $receiving_location_id === (string) $loc->id)>
                                         {{ $loc->name }}{{ $loc->city ? ' — ' . $loc->city : '' }}
                                     </option>
                                 @endforeach
@@ -138,9 +137,9 @@
                             <span class="input-group-text">
                                 <i class="ti ti-calendar"></i>
                             </span>
-                            <input type="date" 
+                            <input type="date"
                                    wire:model.live="required_date"
-                                   id="required_date" 
+                                   id="required_date"
                                    class="form-control @error('required_date') is-invalid @enderror">
                         </div>
                         @error('required_date')
@@ -160,11 +159,11 @@
                             <span class="input-group-text">
                                 <i class="ti ti-file-text"></i>
                             </span>
-                            <input type="text" 
+                            <input type="text"
                                    wire:model.live="description"
-                                   id="description" 
+                                   id="description"
                                    class="form-control @error('description') is-invalid @enderror"
-                                   placeholder="Ej: Compra de equipo..." 
+                                   placeholder="Ej: Compra de equipo..."
                                    maxlength="{{ $descriptionMaxLength }}">
                         </div>
                         @error('description')
@@ -199,6 +198,7 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Categoría de gasto</th>
+                                <th>Subcategoría presupuestal</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
@@ -217,9 +217,13 @@
                                         <span class="badge bg-info">{{ $item['expense_category_name'] }}</span>
                                     </td>
                                     <td>
+                                        <div class="fw-semibold text-body">{{ $item['budget_cedula_name'] ?? '—' }}</div>
+                                        <small class="text-muted">Cédula presupuestal</small>
+                                    </td>
+                                    <td>
                                         @if(!empty($item['notes']))
-                                            <span class="text-primary cursor-help" 
-                                                  data-bs-toggle="tooltip" 
+                                            <span class="text-primary cursor-help"
+                                                  data-bs-toggle="tooltip"
                                                   title="{{ $item['notes'] }}">
                                                 <i class="ti ti-note"></i>
                                                 {{ Str::limit($item['notes'], 30) }}
@@ -229,14 +233,14 @@
                                         @endif
                                     </td>
                                     <td class="text-nowrap">
-                                        <button type="button" 
-                                                class="btn btn-sm btn-warning btn-edit-item" 
+                                        <button type="button"
+                                                class="btn btn-sm btn-warning btn-edit-item"
                                                 data-index="{{ $index }}"
                                                 title="Editar">
                                             <i class="ti ti-edit"></i>
                                         </button>
-                                        <button type="button" 
-                                                class="btn btn-sm btn-danger" 
+                                        <button type="button"
+                                                class="btn btn-sm btn-danger"
                                                 onclick="confirmDeleteItem({{ $index }})"
                                                 title="Eliminar">
                                             <i class="ti ti-trash"></i>
@@ -263,7 +267,7 @@
                 <i class="ti ti-x me-1"></i>Cancelar
             </a>
             <div class="d-flex gap-2">
-                <button type="button" 
+                <button type="button"
                         onclick="confirmSaveDraft()"
                         class="btn btn-outline-primary"
                         wire:loading.attr="disabled"
@@ -277,8 +281,8 @@
                         {{ $isEditMode ? 'Actualizando...' : 'Guardando...' }}
                     </span>
                 </button>
-                
-                <button type="button" 
+
+                <button type="button"
                         onclick="confirmSubmit()"
                         class="btn btn-primary"
                         wire:loading.attr="disabled"
@@ -375,8 +379,21 @@
                                 <i class="ti ti-subtask me-1"></i> Categoría de Gasto <span class="text-danger">*</span>
                             </label>
                             <select id="modal_expense_category" class="form-select select2-simple" required>
-                                <option value="">Seleccione primero un Centro de Costo...</option>
+                                <option value="">Seleccione primero un centro de costo...</option>
                             </select>
+                            <div class="form-text text-muted mt-2">Selecciona la categoría para desbloquear la subcategoría presupuestal.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_budget_cedula" class="form-label fw-bold text-muted">
+                                <i class="ti ti-list-details me-1"></i> Subcategoría Presupuestal <span class="text-danger">*</span>
+                            </label>
+                            <select id="modal_budget_cedula" class="form-select select2-simple" required disabled>
+                                <option value="">Selecciona primero una categoría de gasto...</option>
+                            </select>
+                            <div class="form-text text-muted" id="modal_budget_cedula_help">
+                                La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
+                            </div>
                         </div>
 
                         {{-- Observaciones --}}
@@ -450,12 +467,12 @@
         font-size: 0.95rem;
         line-height: 1.4;
     }
-    
+
     .rotating {
         display: inline-block;
         animation: rotate 1s linear infinite;
     }
-    
+
     @keyframes rotate {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
@@ -494,11 +511,11 @@ function confirmDeleteItem(index) {
  */
 function confirmSaveDraft() {
     const isEditMode = {{ $isEditMode ? 'true' : 'false' }};
-    const title = isEditMode ? '¿Actualizar Borrador?' : '¿Guardar como Borrador?';
-    const confirmText = isEditMode 
-        ? '<i class="ti ti-device-floppy me-1"></i> Sí, Actualizar' 
-        : '<i class="ti ti-device-floppy me-1"></i> Sí, Guardar Borrador';
-    
+    const title = isEditMode ? '¿Actualizar borrador?' : '¿Guardar como borrador?';
+    const confirmText = isEditMode
+        ? '<i class="ti ti-device-floppy me-1"></i> Sí, actualizar'
+        : '<i class="ti ti-device-floppy me-1"></i> Sí, guardar borrador';
+
     Swal.fire({
         title: title,
         html: `
@@ -506,15 +523,15 @@ function confirmSaveDraft() {
                 <p class="mb-3"><strong>Al guardar como borrador:</strong></p>
                 <ul class="text-muted small">
                     <li class="mb-2">
-                        <i class="ti ti-edit text-info"></i> 
+                        <i class="ti ti-edit text-info"></i>
                         Podrás <strong>editar, agregar o eliminar</strong> partidas después
                     </li>
                     <li class="mb-2">
-                        <i class="ti ti-send text-success"></i> 
+                        <i class="ti ti-send text-success"></i>
                         Podrás enviarlo a Compras cuando esté listo
                     </li>
                     <li class="mb-2">
-                        <i class="ti ti-trash text-danger"></i> 
+                        <i class="ti ti-trash text-danger"></i>
                         Podrás eliminarlo si ya no es necesario
                     </li>
                 </ul>
@@ -547,8 +564,8 @@ function confirmSaveDraft() {
  */
 function confirmSubmit() {
     const isEditMode = {{ $isEditMode ? 'true' : 'false' }};
-    const title = isEditMode ? '¿Actualizar y Enviar a Compras?' : '¿Enviar a Compras?';
-    
+    const title = isEditMode ? '¿Actualizar y enviar a Compras?' : '¿Enviar a Compras?';
+
     Swal.fire({
         title: title,
         html: `
@@ -556,27 +573,27 @@ function confirmSubmit() {
                 <p class="mb-3"><strong>Al enviar a Compras:</strong></p>
                 <ul class="text-muted small">
                     <li class="mb-2">
-                        <i class="ti ti-lock text-danger"></i> 
-                        <strong>Ya NO podrás editar</strong> la requisición, solo <strong class="text-danger">Cancelarla</strong>
+                        <i class="ti ti-lock text-danger"></i>
+                        <strong>Ya NO podrás editar</strong> la requisición, solo <strong class="text-danger">cancelarla</strong>
                     </li>
                     <li class="mb-2">
-                        <i class="ti ti-bell text-primary"></i> 
+                        <i class="ti ti-bell text-primary"></i>
                         <strong>Compras recibirá notificación</strong> para iniciar cotización
                     </li>
                     <li class="mb-2">
-                        <i class="ti ti-eye text-info"></i> 
-                        Podrás consultar el estatus pero <strong>no modificarla</strong>
+                        <i class="ti ti-eye text-info"></i>
+                        Podrás consultar el estatus, pero <strong>no modificarla</strong>
                     </li>
                 </ul>
                 <div class="alert alert-warning mt-3 mb-0">
                     <i class="ti ti-alert-triangle me-2"></i>
-                    <small><strong>¡Importante!</strong> Verifica que toda la información sea correcta antes de enviar.</small>
+                    <small><strong>Importante:</strong> verifica que toda la información sea correcta antes de enviar.</small>
                 </div>
             </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: '<i class="ti ti-send me-1"></i> Sí, Enviar a Compras',
+        confirmButtonText: '<i class="ti ti-send me-1"></i> Sí, enviar a Compras',
         cancelButtonText: '<i class="ti ti-arrow-left me-1"></i> Revisar de nuevo',
         confirmButtonColor: '#198754',
         cancelButtonColor: '#6c757d',
@@ -589,7 +606,7 @@ function confirmSubmit() {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
             const itemsCount = @this.items.length;
-            
+
             if (itemsCount === 0) {
                 Swal.fire({
                     icon: 'error',
@@ -600,7 +617,7 @@ function confirmSubmit() {
                 });
                 return;
             }
-            
+
             @this.call('submit');
         }
     });
@@ -613,7 +630,6 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
-    const livewireComponent = @this;
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
@@ -638,27 +654,6 @@ $(function() {
         });
     }
 
-    function initializeHeaderSelects() {
-        const headerSelects = [
-            { selector: '#company_id', property: 'company_id', placeholder: 'Buscar compañía...' },
-            { selector: '#cost_center_id', property: 'cost_center_id', placeholder: 'Buscar centro de costo...' },
-            { selector: '#purchase_type', property: 'purchase_type', placeholder: 'Buscar tipo de compra...' },
-        ];
-
-        headerSelects.forEach(config => {
-            const $select = $(config.selector);
-
-            if (!$select.length) {
-                return;
-            }
-
-            initializeSearchableSelect($select, config.placeholder);
-            $select.on('change.requisitionSelect2', function() {
-                livewireComponent.set(config.property, $(this).val() || '');
-            });
-        });
-    }
-
     function initializeExpenseCategorySelect() {
         initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
             dropdownParent: $('#itemModal')
@@ -666,7 +661,6 @@ $(function() {
     }
 
     function initializeRequisitionSelects() {
-        initializeHeaderSelects();
         initializeExpenseCategorySelect();
     }
 
@@ -674,8 +668,10 @@ $(function() {
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
-            if (el.querySelector?.('#company_id') || el.id === 'company_id' || el.id === 'purchase_type' || el.id === 'cost_center_id') {
-                setTimeout(() => initializeRequisitionSelects(), 0);
+            if (el.querySelector?.('#modal_expense_category') || el.id === 'modal_expense_category') {
+                setTimeout(() => {
+                    initializeRequisitionSelects();
+                }, 0);
             }
         });
     });
@@ -683,16 +679,17 @@ $(function() {
     // =====================================================
     // LISTENER: Cambio de Centro de Costo
     // =====================================================
-    $('#cost_center_id').on('change', function() {
+    $(document).off('change.requisitionCostCenter', '#cost_center_id').on('change.requisitionCostCenter', '#cost_center_id', function() {
         const costCenterId = $(this).val();
         $('#modal_expense_category').val(null).trigger('change');
-        
+        resetBudgetCedulaSelect();
+
         if (costCenterId) {
             loadExpenseCategories();
         } else {
             $('#modal_expense_category')
                 .empty()
-                .append('<option value="">Seleccione primero un Centro de Costo...</option>')
+                .append('<option value="">Seleccione primero un centro de costo...</option>')
                 .prop('disabled', true);
             initializeExpenseCategorySelect();
         }
@@ -701,7 +698,7 @@ $(function() {
     // =====================================================
     // 1. ABRIR MODAL PARA AGREGAR
     // =====================================================
-    $('#btnAddItem').on('click', function() {
+    $(document).off('click.requisitionAddItem', '#btnAddItem').on('click.requisitionAddItem', '#btnAddItem', function() {
         const companyId = $('#company_id').val();
         const costCenterId = $('#cost_center_id').val();
 
@@ -710,13 +707,13 @@ $(function() {
             return;
         }
 
-        // ✅ PASO 1: Verificar si hay productos activos para este centro de costo
+        // PASO 1: Verificar si hay productos activos para este centro de costo
         checkProductsAvailability(companyId, costCenterId).then(hasProducts => {
             if (!hasProducts) {
                 return;
             }
 
-            // ✅ PASO 2: Validar categorías ANTES de abrir el modal
+            // PASO 2: Validar categorías antes de abrir el modal
             loadExpenseCategories().then(hasCategories => {
                 if (hasCategories) {
                     openItemModal();
@@ -740,35 +737,35 @@ $(function() {
                 dataType: 'json',
                 success: function(response) {
                     if (response.products && response.products.length > 0) {
-                        console.log(`✅ ${response.products.length} producto(s) disponible(s)`);
+                        console.log(`Productos disponibles: ${response.products.length}`);
                         resolve(true);
                     } else {
                         Swal.fire({
-                            title: '⚠️ Sin Productos en el Catálogo',
+                            title: 'Sin productos en el catálogo',
                             html: `
                                 <div class="text-start">
                                     <div class="alert alert-warning mb-3">
                                         <i class="ti ti-alert-triangle me-2"></i>
                                         <strong>No se puede agregar partida</strong>
                                     </div>
-                                    
+
                                     <p class="mb-3">
-                                        No hay productos o servicios <strong>activos</strong> registrados en el 
+                                        No hay productos o servicios <strong>activos</strong> registrados en el
                                         catálogo para este centro de costo.
                                     </p>
-                                    
+
                                     <div class="card bg-light border-0 mb-3">
                                         <div class="card-body">
                                             <h6 class="card-title text-primary mb-2">
                                                 <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                                             </h6>
                                             <p class="small mb-0">
-                                                Solo puedes requisar productos que estén previamente registrados 
+                                                Solo puedes requisar productos que estén previamente registrados
                                                 y aprobados en el <strong>catálogo de productos y servicios</strong>.
                                             </p>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="card border-primary mb-0">
                                         <div class="card-body">
                                             <h6 class="card-title text-primary mb-2">
@@ -806,7 +803,7 @@ $(function() {
                 error: function(xhr) {
                     console.error('Error al verificar productos:', xhr);
                     Swal.fire({
-                        title: '¡Error!',
+                        title: 'Error',
                         text: xhr.responseJSON?.message || 'Error al verificar productos disponibles en el catálogo.',
                         icon: 'error',
                         confirmButtonText: 'Entendido'
@@ -840,22 +837,22 @@ $(function() {
     // =====================================================
     $(document).on('click', '.btn-edit-item', function() {
         const index = parseInt($(this).data('index'));
-        
+
         const item = @this.items[index];
-        
+
         if (!item) {
             Swal.fire('Error', 'No se pudo cargar la partida para editar.', 'error');
             return;
         }
-        
+
         const companyId = $('#company_id').val();
         const costCenterId = $('#cost_center_id').val();
-        
+
         checkProductsAvailability(companyId, costCenterId).then(hasProducts => {
             if (!hasProducts) {
                 return;
             }
-            
+
             loadExpenseCategories().then(hasCategories => {
                 if (hasCategories) {
                     openItemModalForEdit(index, item);
@@ -869,14 +866,14 @@ $(function() {
      */
     function openItemModalForEdit(index, item) {
         editingIndex = index;
-        
+
         $('#itemModalTitle').text('Editar Partida');
         $('#item_index').val(index);
         $('#budgetAlert').hide();
-        
+
         loadProductsForCostCenter();
         loadExpenseCategories();
-        
+
         setTimeout(() => {
             $('#modal_product_id').val(item.product_id).trigger('change');
             $('#modal_description').val(item.description);
@@ -885,7 +882,7 @@ $(function() {
             $('#modal_expense_category').val(item.expense_category_id).trigger('change');
             $('#modal_notes').val(item.notes || '');
         }, 500);
-        
+
         $('#itemModal').modal('show');
     }
 
@@ -1016,7 +1013,7 @@ $(function() {
 
             $select.prop('disabled', true)
                 .empty()
-                .append('<option value="">⏳ Cargando categorías...</option>');
+                .append('<option value="">Cargando categorías...</option>');
             initializeExpenseCategorySelect();
 
             $.ajax({
@@ -1032,7 +1029,7 @@ $(function() {
                     if (response.success && response.categories && response.categories.length > 0) {
                         response.categories.forEach(cat => {
                             const optionText = `${cat.code} - ${cat.name}`;
-                            
+
                             $select.append($('<option>', {
                                 value: cat.id,
                                 text: optionText,
@@ -1055,7 +1052,7 @@ $(function() {
                                     toast.addEventListener('mouseleave', Swal.resumeTimer)
                                 }
                             });
-                            
+
                             Toast.fire({
                                 icon: 'info',
                                 title: 'Centro de consumo libre',
@@ -1065,27 +1062,27 @@ $(function() {
 
                         resolve(true);
                     } else {
-                        $select.append('<option value="">⚠️ Sin categorías disponibles</option>');
+                        $select.append('<option value="">Sin categorías disponibles</option>');
                         initializeExpenseCategorySelect();
                         showBudgetError(response);
                         resolve(false);
                     }
                 },
                 error: function(xhr) {
-                    $select.empty().append('<option value="">❌ Error al cargar</option>');
+                    $select.empty().append('<option value="">Error al cargar</option>');
                     initializeExpenseCategorySelect();
-                    
+
                     if (xhr.status === 404 && xhr.responseJSON) {
                         showBudgetError(xhr.responseJSON);
                     } else {
                         Swal.fire({
-                            title: '¡Error!',
+                            title: 'Error',
                             text: 'Error al cargar las categorías de gasto.',
                             icon: 'error',
                             confirmButtonText: 'Entendido'
                         });
                     }
-                    
+
                     resolve(false);
                 }
             });
@@ -1098,32 +1095,32 @@ $(function() {
     function showBudgetError(response) {
         const errorType = response.error_type;
         const currentYear = new Date().getFullYear();
-        
+
         let title, html, icon;
-        
+
         if (errorType === 'NO_BUDGET') {
-            title = '⚠️ Presupuesto No Configurado';
+            title = 'Presupuesto no configurado';
             html = `
                 <div class="text-start">
                     <div class="alert alert-warning mb-3">
                         <i class="ti ti-alert-triangle me-2"></i>
                         <strong>No se puede crear la requisición</strong>
                     </div>
-                    
+
                     <p class="mb-3">${response.message}</p>
-                    
+
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
                                 <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                             </h6>
                             <p class="small mb-0">
-                                Todos los gastos deben estar dentro del <strong>plan financiero anual</strong>. 
+                                Todos los gastos deben estar dentro del <strong>plan financiero anual</strong>.
                                 Sin un presupuesto existente, no es posible crear requisiciones.
                             </p>
                         </div>
                     </div>
-                    
+
                     <div class="card border-primary mb-0">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
@@ -1140,28 +1137,28 @@ $(function() {
             `;
             icon = 'warning';
         } else if (errorType === 'NO_CATEGORIES') {
-            title = '⚠️ Distribución Presupuestal Incompleta';
+            title = 'Distribución presupuestal incompleta';
             html = `
                 <div class="text-start">
                     <div class="alert alert-info mb-3">
                         <i class="ti ti-info-circle me-2"></i>
-                        <strong>El presupuesto existe pero está incompleto</strong>
+                        <strong>El presupuesto existe, pero está incompleto</strong>
                     </div>
-                    
+
                     <p class="mb-3">${response.message}</p>
-                    
+
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
                                 <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                             </h6>
                             <p class="small mb-0">
-                                El presupuesto anual existe, pero no tiene <strong>distribuciones mensuales</strong> 
+                                El presupuesto anual existe, pero no tiene <strong>distribuciones mensuales</strong>
                                 asignadas a categorías de gasto. Sin esto, no se pueden crear requisiciones.
                             </p>
                         </div>
                     </div>
-                    
+
                     <div class="card border-primary mb-0">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
@@ -1178,14 +1175,14 @@ $(function() {
             `;
             icon = 'info';
         } else {
-            title = 'Sin Categorías Disponibles';
+            title = 'Sin categorías disponibles';
             html = `
                 <p>${response.message || 'No hay categorías de gasto disponibles para este centro de costo.'}</p>
                 <p class="text-muted small">${response.instructions || 'Contacta al administrador del sistema.'}</p>
             `;
             icon = 'warning';
         }
-        
+
         Swal.fire({
             title: title,
             html: html,
@@ -1200,12 +1197,139 @@ $(function() {
     }
 
     // =====================================================
-    // 6. GUARDAR PARTIDA → Llamar a Livewire
+    // 6. GUARDAR PARTIDA -> Llamar a Livewire
     // =====================================================
-    $('#btnSaveItem').on('click', function() {
+    function initializeBudgetCedulaSelect() {
+        initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcategoría presupuestal...', {
+            dropdownParent: $('#itemModal')
+        });
+    }
+
+    function getRequisitionFiscalYear() {
+        return {{ $isEditMode ? (int) ($requisition->fiscal_year ?? now()->year) : now()->year }};
+    }
+
+    function resetBudgetCedulaSelect(message = 'Selecciona primero una categoría de gasto...') {
+        const $cedula = $('#modal_budget_cedula');
+        $cedula.val(null);
+        $cedula.data('pending-value', null);
+        $cedula.empty().append(`<option value="">${message}</option>`).prop('disabled', true);
+        initializeBudgetCedulaSelect();
+    }
+
+    function loadBudgetCedulas(selectedCedulaId = null) {
+        return new Promise((resolve) => {
+            const costCenterId = $('#cost_center_id').val();
+            const categoryId = $('#modal_expense_category').val();
+            const $cedula = $('#modal_budget_cedula');
+
+            if (!costCenterId || !categoryId) {
+                resetBudgetCedulaSelect();
+                resolve(false);
+                return;
+            }
+
+            $cedula.prop('disabled', true)
+                .empty()
+                .append('<option value="">Cargando subcategorías...</option>');
+            initializeBudgetCedulaSelect();
+
+            $.ajax({
+                url: '{{ route("expense-categories.cedulas-by-cost-center") }}',
+                type: 'GET',
+                dataType: 'json',
+                data: {
+                    cost_center_id: costCenterId,
+                    expense_category_id: categoryId,
+                    fiscal_year: getRequisitionFiscalYear()
+                },
+                success: function(response) {
+                    $cedula.empty().append('<option value="">Seleccionar subcategoría...</option>');
+
+                    if (response.success && response.cedulas && response.cedulas.length > 0) {
+                        response.cedulas.forEach(cedula => {
+                            $cedula.append($('<option>', {
+                                value: cedula.id,
+                                text: cedula.name
+                            }));
+                        });
+
+                        $cedula.prop('disabled', false);
+                        initializeBudgetCedulaSelect();
+
+                        const pendingValue = selectedCedulaId || $cedula.data('pending-value');
+                        if (pendingValue) {
+                            $cedula.val(pendingValue).trigger('change');
+                            $cedula.data('pending-value', null);
+                        }
+
+                        resolve(true);
+                        return;
+                    }
+
+                    resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
+                    resolve(false);
+                },
+                error: function() {
+                    resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    initializeBudgetCedulaSelect();
+    resetBudgetCedulaSelect();
+
+    $('#modal_expense_category').on('change', function() {
+        loadBudgetCedulas();
+    });
+
+    openItemModal = function() {
+        editingIndex = null;
+
+        $('#itemModalTitle').text('Agregar Partida');
+        document.getElementById('itemForm').reset();
+        $('#item_index').val('');
+        $('#budgetAlert').hide();
+        $('#product_info').hide();
+        resetBudgetCedulaSelect();
+
+        loadProductsForCostCenter();
+        loadExpenseCategories();
+
+        $('#itemModal').modal('show');
+    }
+
+    openItemModalForEdit = function(index, item) {
+        editingIndex = index;
+
+        $('#itemModalTitle').text('Editar Partida');
+        $('#item_index').val(index);
+        $('#budgetAlert').hide();
+        resetBudgetCedulaSelect();
+
+        loadProductsForCostCenter();
+        loadExpenseCategories();
+
+        setTimeout(() => {
+            $('#modal_product_id').val(item.product_id).trigger('change');
+            $('#modal_description').val(item.description);
+            $('#modal_quantity').val(item.quantity);
+            $('#modal_unit').val(item.unit);
+            $('#modal_budget_cedula').data('pending-value', item.budget_cedula_id || null);
+            $('#modal_expense_category').val(item.expense_category_id).trigger('change');
+            $('#modal_notes').val(item.notes || '');
+        }, 500);
+
+        $('#itemModal').modal('show');
+    }
+
+    $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', function() {
         const productId = $('#modal_product_id').val();
         const quantity = parseFloat($('#modal_quantity').val());
         const categoryId = $('#modal_expense_category').val();
+        const budgetCedulaId = $('#modal_budget_cedula').val();
 
         if (!productId) {
             Swal.fire('Error', 'Selecciona un producto del catálogo (RN-001).', 'error');
@@ -1219,6 +1343,11 @@ $(function() {
 
         if (!categoryId) {
             Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
+            return;
+        }
+
+        if (!budgetCedulaId) {
+            Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
             return;
         }
 
@@ -1253,11 +1382,13 @@ $(function() {
             unit: $('#modal_unit').val(),
             expense_category_id: categoryId,
             expense_category_name: $('#modal_expense_category option:selected').text(),
+            budget_cedula_id: budgetCedulaId,
+            budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
             notes: $('#modal_notes').val() || ''
         };
 
         const editIndex = $('#item_index').val();
-        
+
         if (editIndex !== '' && editIndex !== null) {
             @this.updateItem(parseInt(editIndex), itemData);
         } else {
@@ -1282,7 +1413,7 @@ $(function() {
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
             }
         });
-        
+
         Toast.fire({
             icon: 'success',
             title: 'Partida agregada'
@@ -1301,7 +1432,7 @@ $(function() {
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
             }
         });
-        
+
         Toast.fire({
             icon: 'success',
             title: 'Partida actualizada'
@@ -1320,7 +1451,7 @@ $(function() {
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
             }
         });
-        
+
         Toast.fire({
             icon: 'success',
             title: 'Partida eliminada'
@@ -1339,7 +1470,7 @@ $(function() {
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
             }
         });
-        
+
         Toast.fire({
             icon: 'error',
             title: event.message || 'Ocurrió un error al procesar la partida'

@@ -222,50 +222,47 @@ class RfqComparisonController extends Controller
         }
 
         if ($responses->isNotEmpty()) {
+            $summary = new QuotationSummary([
+                'requisition_id' => $rfq->requisition_id,
+                'rfq_id' => $rfq->id,
+                'subtotal' => (float) $responses->sum('subtotal'),
+                'iva_amount' => (float) $responses->sum('iva_amount'),
+                'total' => (float) $responses->sum('total'),
+                'selected_supplier_id' => $supplierId,
+                'requested_by_user_id' => $rfq->requisition->requested_by,
+            ]);
+
+            $summary->setRelation('requisition', $rfq->requisition);
+            $summary->setRelation('requester', $rfq->requisition->requester);
+            $summary->setRelation('rfq', $rfq);
+
             try {
-                $summary = new QuotationSummary([
-                    'requisition_id' => $rfq->requisition_id,
-                    'rfq_id' => $rfq->id,
-                    'subtotal' => (float) $responses->sum('subtotal'),
-                    'iva_amount' => (float) $responses->sum('iva_amount'),
-                    'total' => (float) $responses->sum('total'),
-                    'selected_supplier_id' => $supplierId,
-                    'requested_by_user_id' => $rfq->requisition->requested_by,
-                ]);
-
-                $summary->setRelation('requisition', $rfq->requisition);
-                $summary->setRelation('requester', $rfq->requisition->requester);
-
                 $this->authorizerResolutionService->resolveForSummary($summary);
             } catch (Throwable $exception) {
                 $reasons[] = $exception->getMessage();
             }
 
-            $applicationYear = (int) now()->format('Y');
-            $applicationMonth = (int) now()->format('m');
-
-            $responses
-                ->groupBy(fn ($response) => $response->requisitionItem?->expense_category_id)
-                ->filter(fn ($items, $categoryId) => ! empty($categoryId))
-                ->each(function ($items, $categoryId) use ($rfq, $applicationYear, $applicationMonth, &$reasons, &$budgetMessages) {
-                    try {
+            try {
+                collect($this->budgetAllocationService->buildQuotationSummaryBudgetLines($summary))
+                    ->each(function (array $line) use (&$reasons, &$budgetMessages) {
                         $budgetCheck = $this->budgetAllocationService->checkAvailability(
-                            (int) $rfq->requisition->cost_center_id,
-                            $applicationYear,
-                            $applicationMonth,
-                            (int) $categoryId,
-                            (float) $items->sum('total')
+                            (int) $line['cost_center_id'],
+                            (int) $line['year'],
+                            (int) $line['month'],
+                            (int) $line['expense_category_id'],
+                            (float) $line['amount'],
+                            $line['budget_cedula_id'] ?? null
                         );
 
                         if (! $budgetCheck['available']) {
                             $budgetMessages[] = $budgetCheck['message'];
                             $reasons[] = $budgetCheck['message'];
                         }
-                    } catch (Throwable $exception) {
-                        $budgetMessages[] = $exception->getMessage();
-                        $reasons[] = $exception->getMessage();
-                    }
-                });
+                    });
+            } catch (Throwable $exception) {
+                $budgetMessages[] = $exception->getMessage();
+                $reasons[] = $exception->getMessage();
+            }
         }
 
         return [

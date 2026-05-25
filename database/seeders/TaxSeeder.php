@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\Tax;
 
 class TaxSeeder extends Seeder
 {
@@ -40,6 +40,11 @@ class TaxSeeder extends Seeder
 
         ];
 
-        DB::table('taxes')->insert($taxes);
+        foreach ($taxes as $tax) {
+            Tax::updateOrCreate(
+                ['name' => $tax['name']],
+                $tax
+            );
+        }
     }
 }

@@ -597,8 +597,11 @@ class ReceivingLocationSeeder extends Seeder
 
         // 2. Insertamos todo en la base de datos de forma masiva
         // Usamos chunk() como buena práctica por si la lista crece a cientos de estaciones en el futuro
-        foreach (array_chunk($insertData, 100) as $chunk) {
-            ReceivingLocation::insert($chunk);
+        foreach ($insertData as $location) {
+            ReceivingLocation::updateOrCreate(
+                ['code' => $location['code']],
+                $location
+            );
         }
     }
 }

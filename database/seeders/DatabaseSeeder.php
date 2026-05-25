@@ -26,7 +26,6 @@ class DatabaseSeeder extends Seeder
             BudgetCedulaSeeder::class,
             SupplierSeeder::class,
             ReceivingLocationSeeder::class,
-            QuotationPlannerTestSeeder::class,
             ApprovalLevelSeeder::class,
             AuthorizerRoleSeeder::class,
             SatRetencionSeeder::class,

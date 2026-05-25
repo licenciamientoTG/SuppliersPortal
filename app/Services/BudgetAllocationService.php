@@ -9,6 +9,7 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,8 @@ class BudgetAllocationService
         int $year,
         int $month,
         int $categoryId,
-        float $requiredAmount
+        float $requiredAmount,
+        ?int $budgetCedulaId = null
     ): array {
         $costCenter = CostCenter::find($costCenterId);
 
@@ -31,6 +33,33 @@ class BudgetAllocationService
 
         if ($costCenter->isFreeConsumption()) {
             return ['available' => true, 'message' => 'Centro de costo de consumo libre.'];
+        }
+
+        if ($budgetCedulaId) {
+            $distribution = $this->resolveDistributionByCedula(
+                $costCenterId,
+                $year,
+                $month,
+                $budgetCedulaId,
+                $categoryId
+            );
+
+            $available = (float) $distribution->getAvailableAmount();
+
+            return [
+                'available' => $available + 0.000001 >= $requiredAmount,
+                'message' => $available + 0.000001 >= $requiredAmount
+                    ? 'Presupuesto disponible.'
+                    : sprintf(
+                        'Presupuesto insuficiente en la subcategoría. Disponible: $%s, requerido: $%s.',
+                        number_format($available, 2),
+                        number_format($requiredAmount, 2)
+                    ),
+                'available_amount' => $available,
+                'assigned_amount' => (float) $distribution->assigned_amount,
+                'consumed_amount' => (float) $distribution->consumed_amount,
+                'committed_amount' => (float) $distribution->committed_amount,
+            ];
         }
 
         $distributions = $this->resolveDistributionsForCategory($costCenterId, $year, $month, $categoryId);
@@ -65,7 +94,7 @@ class BudgetAllocationService
     {
         DB::transaction(function () use ($order) {
             foreach ($this->getOrderBudgetLines($order) as $line) {
-                $commitments = $this->findCommitments($order, $line['expense_category_id']);
+                $commitments = $this->findCommitmentsForLine($order, $line);
 
                 foreach ($commitments as $commitment) {
                     if ($commitment->status === 'RECEIVED') {
@@ -95,7 +124,7 @@ class BudgetAllocationService
     {
         DB::transaction(function () use ($order) {
             foreach ($this->getOrderBudgetLines($order) as $line) {
-                $commitments = $this->findCommitments($order, $line['expense_category_id'])
+                $commitments = $this->findCommitmentsForLine($order, $line)
                     ->where('status', 'COMMITTED');
 
                 foreach ($commitments as $commitment) {
@@ -120,7 +149,7 @@ class BudgetAllocationService
     public function reserveQuotationSummary(QuotationSummary $summary): void
     {
         DB::transaction(function () use ($summary) {
-            foreach ($this->getQuotationSummaryBudgetLines($summary) as $line) {
+            foreach ($this->buildQuotationSummaryBudgetLines($summary) as $line) {
                 $this->commitLine($summary, $line);
             }
 
@@ -148,7 +177,7 @@ class BudgetAllocationService
     public function releaseQuotationSummary(QuotationSummary $summary): void
     {
         DB::transaction(function () use ($summary) {
-            foreach ($this->getQuotationSummaryBudgetLines($summary) as $line) {
+            foreach ($this->buildQuotationSummaryBudgetLines($summary) as $line) {
                 $this->releaseLine($summary, $line);
             }
 
@@ -187,9 +216,58 @@ class BudgetAllocationService
         });
     }
 
+    public function buildQuotationSummaryBudgetLines(QuotationSummary $summary): array
+    {
+        $summary->loadMissing('rfq.rfqResponses.requisitionItem', 'requisition.costCenter');
+
+        return $summary->rfq->rfqResponses
+            ->where('supplier_id', $summary->selected_supplier_id)
+            ->where('status', 'SUBMITTED')
+            ->map(function ($response) use ($summary) {
+                $requisitionItem = $response->requisitionItem;
+
+                if (! $requisitionItem?->expense_category_id || ! $requisitionItem?->budget_cedula_id) {
+                    throw new RuntimeException("La partida {$response->requisition_item_id} no tiene categoría y subcategoría presupuestal completas.");
+                }
+
+                if (! $response->quotation_date || $response->delivery_days === null) {
+                    throw new RuntimeException("La partida {$response->requisition_item_id} del proveedor seleccionado no tiene días de entrega capturados.");
+                }
+
+                $applicationMonth = Carbon::parse($response->quotation_date)
+                    ->addDays((int) $response->delivery_days)
+                    ->format('Y-m');
+
+                return [
+                    'cost_center_id' => (int) $summary->requisition->cost_center_id,
+                    'expense_category_id' => (int) $requisitionItem->expense_category_id,
+                    'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
+                    'amount' => (float) $response->total,
+                    'year' => (int) substr($applicationMonth, 0, 4),
+                    'month' => (int) substr($applicationMonth, 5, 2),
+                    'application_month' => $applicationMonth,
+                    'budget_type' => $summary->requisition->costCenter?->budget_type ?? 'ANNUAL',
+                ];
+            })
+            ->groupBy(fn (array $line) => implode('|', [
+                $line['cost_center_id'],
+                $line['expense_category_id'],
+                $line['budget_cedula_id'],
+                $line['application_month'],
+            ]))
+            ->map(function (Collection $lines) {
+                $first = $lines->first();
+                $first['amount'] = (float) $lines->sum('amount');
+
+                return $first;
+            })
+            ->values()
+            ->all();
+    }
+
     private function commitLine(Model $order, array $line): void
     {
-        $existing = $this->findCommitments($order, $line['expense_category_id'])
+        $existing = $this->findCommitmentsForLine($order, $line)
             ->where('status', '!=', 'RELEASED');
 
         if ($existing->isNotEmpty()) {
@@ -198,7 +276,37 @@ class BudgetAllocationService
 
         if ($line['budget_type'] !== 'ANNUAL') {
             $commitment = new BudgetCommitment;
-            $this->fillCommitment($commitment, $order, $line, 'COMMITTED', null, $line['amount']);
+            $this->fillCommitment($commitment, $order, $line, 'COMMITTED', $line['budget_cedula_id'] ?? null, $line['amount']);
+            $commitment->committed_at = now();
+            $commitment->save();
+
+            return;
+        }
+
+        if (! empty($line['budget_cedula_id'])) {
+            $distribution = $this->resolveDistributionByCedula(
+                $line['cost_center_id'],
+                $line['year'],
+                $line['month'],
+                (int) $line['budget_cedula_id'],
+                (int) $line['expense_category_id']
+            );
+
+            if (! $distribution->commitAmount((float) $line['amount'])) {
+                throw new RuntimeException(
+                    "No se pudo comprometer presupuesto para la cédula {$line['budget_cedula_id']}."
+                );
+            }
+
+            $commitment = new BudgetCommitment;
+            $this->fillCommitment(
+                $commitment,
+                $order,
+                $line,
+                'COMMITTED',
+                (int) $line['budget_cedula_id'],
+                (float) $line['amount']
+            );
             $commitment->committed_at = now();
             $commitment->save();
 
@@ -241,7 +349,7 @@ class BudgetAllocationService
 
     private function releaseLine(Model $order, array $line): void
     {
-        $commitments = $this->findCommitments($order, $line['expense_category_id'])
+        $commitments = $this->findCommitmentsForLine($order, $line)
             ->where('status', 'COMMITTED');
 
         foreach ($commitments as $commitment) {
@@ -250,7 +358,8 @@ class BudgetAllocationService
                     $line['cost_center_id'],
                     $line['year'],
                     $line['month'],
-                    (int) $commitment->budget_cedula_id
+                    (int) $commitment->budget_cedula_id,
+                    (int) $line['expense_category_id']
                 );
 
                 if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
@@ -269,7 +378,7 @@ class BudgetAllocationService
 
     private function consumeLine(Model $order, array $line): void
     {
-        $commitments = $this->findCommitments($order, $line['expense_category_id'])
+        $commitments = $this->findCommitmentsForLine($order, $line)
             ->where('status', 'COMMITTED');
 
         foreach ($commitments as $commitment) {
@@ -278,7 +387,8 @@ class BudgetAllocationService
                     $line['cost_center_id'],
                     $line['year'],
                     $line['month'],
-                    (int) $commitment->budget_cedula_id
+                    (int) $commitment->budget_cedula_id,
+                    (int) $line['expense_category_id']
                 );
 
                 if (! $distribution->commitToConsume((float) $commitment->committed_amount)) {
@@ -328,7 +438,8 @@ class BudgetAllocationService
         int $costCenterId,
         int $year,
         int $month,
-        int $cedulaId
+        int $cedulaId,
+        ?int $categoryId = null
     ): BudgetMonthlyDistribution {
         $budget = AnnualBudget::where('cost_center_id', $costCenterId)
             ->where('fiscal_year', $year)
@@ -342,6 +453,7 @@ class BudgetAllocationService
         $distribution = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)
             ->where('month', $month)
             ->where('budget_cedula_id', $cedulaId)
+            ->when($categoryId, fn ($query) => $query->where('expense_category_id', $categoryId))
             ->first();
 
         if (! $distribution) {
@@ -394,6 +506,7 @@ class BudgetAllocationService
                     return [
                         'cost_center_id' => (int) $order->cost_center_id,
                         'expense_category_id' => (int) $categoryId,
+                        'budget_cedula_id' => null,
                         'amount' => (float) $items->sum('total'),
                         'year' => (int) substr((string) $order->application_month, 0, 4),
                         'month' => (int) substr((string) $order->application_month, 5, 2),
@@ -407,15 +520,31 @@ class BudgetAllocationService
 
         if ($order instanceof PurchaseOrder) {
             $order->loadMissing('items.requisitionItem', 'requisition.costCenter');
+
+            $existingCommitments = BudgetCommitment::query()
+                ->where('purchase_order_id', $order->id)
+                ->orderBy('id')
+                ->get();
+
+            if ($existingCommitments->isNotEmpty()) {
+                return $this->mapCommitmentsToLines($existingCommitments, (string) ($order->requisition->costCenter?->budget_type ?? 'ANNUAL'));
+            }
+
             $applicationMonth = $order->created_at->format('Y-m');
 
             return $order->items
-                ->groupBy(fn ($item) => $item->requisitionItem?->expense_category_id)
-                ->filter(fn ($items, $categoryId) => ! empty($categoryId))
-                ->map(function ($items, $categoryId) use ($order, $applicationMonth) {
+                ->groupBy(fn ($item) => implode('|', [
+                    $item->requisitionItem?->expense_category_id,
+                    $item->requisitionItem?->budget_cedula_id,
+                    $applicationMonth,
+                ]))
+                ->map(function ($items) use ($order, $applicationMonth) {
+                    $firstItem = $items->first();
+
                     return [
                         'cost_center_id' => (int) $order->requisition->cost_center_id,
-                        'expense_category_id' => (int) $categoryId,
+                        'expense_category_id' => (int) $firstItem->requisitionItem?->expense_category_id,
+                        'budget_cedula_id' => $firstItem->requisitionItem?->budget_cedula_id ? (int) $firstItem->requisitionItem->budget_cedula_id : null,
                         'amount' => (float) $items->sum('total'),
                         'year' => (int) substr($applicationMonth, 0, 4),
                         'month' => (int) substr($applicationMonth, 5, 2),
@@ -423,6 +552,7 @@ class BudgetAllocationService
                         'budget_type' => $order->requisition->costCenter?->budget_type ?? 'ANNUAL',
                     ];
                 })
+                ->filter(fn (array $line) => ! empty($line['expense_category_id']))
                 ->values()
                 ->all();
         }
@@ -430,45 +560,67 @@ class BudgetAllocationService
         throw new RuntimeException('Tipo de orden no soportado para asignación presupuestal.');
     }
 
-    private function getQuotationSummaryBudgetLines(QuotationSummary $summary): array
+    private function mapCommitmentsToLines(Collection $commitments, string $budgetType): array
     {
-        $summary->loadMissing('rfq.rfqResponses.requisitionItem', 'requisition.costCenter');
-        $applicationMonth = now()->format('Y-m');
+        return $commitments
+            ->groupBy(fn (BudgetCommitment $commitment) => implode('|', [
+                $commitment->cost_center_id,
+                $commitment->expense_category_id,
+                $commitment->budget_cedula_id ?? 'null',
+                $commitment->application_month,
+            ]))
+            ->map(function (Collection $group) use ($budgetType) {
+                $first = $group->first();
 
-        return $summary->rfq->rfqResponses
-            ->where('supplier_id', $summary->selected_supplier_id)
-            ->groupBy(fn ($response) => $response->requisitionItem?->expense_category_id)
-            ->filter(fn ($items, $categoryId) => ! empty($categoryId))
-            ->map(function ($items, $categoryId) use ($summary, $applicationMonth) {
                 return [
-                    'cost_center_id' => (int) $summary->requisition->cost_center_id,
-                    'expense_category_id' => (int) $categoryId,
-                    'amount' => (float) $items->sum('total'),
-                    'year' => (int) substr($applicationMonth, 0, 4),
-                    'month' => (int) substr($applicationMonth, 5, 2),
-                    'application_month' => $applicationMonth,
-                    'budget_type' => $summary->requisition->costCenter?->budget_type ?? 'ANNUAL',
+                    'cost_center_id' => (int) $first->cost_center_id,
+                    'expense_category_id' => (int) $first->expense_category_id,
+                    'budget_cedula_id' => $first->budget_cedula_id ? (int) $first->budget_cedula_id : null,
+                    'amount' => (float) $group->sum('committed_amount'),
+                    'year' => (int) substr((string) $first->application_month, 0, 4),
+                    'month' => (int) substr((string) $first->application_month, 5, 2),
+                    'application_month' => (string) $first->application_month,
+                    'budget_type' => $budgetType,
                 ];
             })
             ->values()
             ->all();
     }
 
-    private function findCommitments(Model $order, int $expenseCategoryId): Collection
+    private function findCommitmentsForLine(Model $order, array $line): Collection
     {
-        $query = BudgetCommitment::query()->where('expense_category_id', $expenseCategoryId);
+        $query = $this->baseCommitmentQueryForOrder($order)
+            ->where('expense_category_id', $line['expense_category_id'])
+            ->where('application_month', $line['application_month']);
 
-        if ($order instanceof DirectPurchaseOrder) {
-            $query->where('direct_purchase_order_id', $order->id);
-        } elseif ($order instanceof PurchaseOrder) {
-            $query->where('purchase_order_id', $order->id);
-        } elseif ($order instanceof QuotationSummary) {
-            $query->where('quotation_summary_id', $order->id);
-        } else {
-            throw new RuntimeException('Tipo de orden no soportado para compromisos.');
+        if (array_key_exists('budget_cedula_id', $line)) {
+            if ($line['budget_cedula_id'] === null) {
+                $query->whereNull('budget_cedula_id');
+            } else {
+                $query->where('budget_cedula_id', $line['budget_cedula_id']);
+            }
         }
 
         return $query->orderBy('id')->get();
+    }
+
+    private function baseCommitmentQueryForOrder(Model $order)
+    {
+        $query = BudgetCommitment::query();
+
+        if ($order instanceof DirectPurchaseOrder) {
+            return $query->where('direct_purchase_order_id', $order->id);
+        }
+
+        if ($order instanceof PurchaseOrder) {
+            return $query->where('purchase_order_id', $order->id);
+        }
+
+        if ($order instanceof QuotationSummary) {
+            return $query->where('quotation_summary_id', $order->id);
+        }
+
+        throw new RuntimeException('Tipo de orden no soportado para compromisos.');
     }
 
     private function fillCommitment(

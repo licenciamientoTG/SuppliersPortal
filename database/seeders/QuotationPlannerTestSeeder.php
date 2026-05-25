@@ -3,68 +3,70 @@
 namespace Database\Seeders;
 
 use App\Enum\RequisitionStatus;
-use App\Models\User;
+use App\Models\BudgetCedula;
 use App\Models\Category;
+use App\Models\ExpenseCategory;
 use App\Models\ProductService;
+use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
-use App\Models\ExpenseCategory;
-use App\Models\ReceivingLocation;
+use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class QuotationPlannerTestSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info('🚀 Iniciando despliegue de datos estratégicos para TotalGas...');
+        $this->command->info('Iniciando carga de datos de prueba para el planificador de cotizacion...');
 
-        // ====================================================================
-        // 1. USUARIO ADMINISTRADOR (Paso de lista obligatorio)
-        // ====================================================================
         $admin = User::firstOrCreate(
             ['email' => 'admin@totalgas.com'],
             [
                 'name' => 'Admin Sistema',
-                'password' => bcrypt('password123')
+                'password' => bcrypt('password123'),
             ]
         );
 
-        $this->command->info('✅ Usuario admin verificado [ID: ' . $admin->id . ']');
+        $this->command->info('Usuario admin verificado [ID: ' . $admin->id . ']');
 
-        // ====================================================================
-        // 2. CATEGORÍA DE GASTO (Requerida por RN-010A)
-        // ====================================================================
-        $expenseCat = ExpenseCategory::firstOrCreate(
+        $expenseCategory = ExpenseCategory::firstOrCreate(
             ['code' => 'EXP-OP-001'],
             [
                 'name' => 'Gasto Operativo',
-                'description' => 'Operación general de estaciones de servicio',
+                'description' => 'Operacion general de estaciones de servicio',
                 'status' => 'ACTIVO',
                 'created_by' => $admin->id,
             ]
         );
 
-        $this->command->info('✅ Categoría de gasto verificada');
-
-        // ====================================================================
-        // 3. CATÁLOGO DE PRODUCTOS (Alineado a su migración técnica)
-        // ====================================================================
-        $testData = [
+        $budgetCedula = BudgetCedula::firstOrCreate(
             [
-                'category' => 'Equipo de Cómputo',
-                'products' => [
-                    ['name' => 'Mouse inalámbrico Logitech', 'code' => 'MOUSE-001'],
-                    ['name' => 'Teclado mecánico Keychron', 'code' => 'TECLADO-001'],
-                    ['name' => 'Monitor LG 27 pulgadas', 'code' => 'MONITOR-001'],
-                ]
+                'expense_category_id' => $expenseCategory->id,
+                'name' => 'Seeder Planificador de Cotizacion',
             ],
             [
-                'category' => 'Papelería',
+                'status' => 'ACTIVO',
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $this->command->info('Categoria y cedula presupuestal verificadas.');
+
+        $testData = [
+            [
+                'category' => 'Equipo de Computo',
+                'products' => [
+                    ['name' => 'Mouse inalambrico Logitech', 'code' => 'MOUSE-001'],
+                    ['name' => 'Teclado mecanico Keychron', 'code' => 'TECLADO-001'],
+                    ['name' => 'Monitor LG 27 pulgadas', 'code' => 'MONITOR-001'],
+                ],
+            ],
+            [
+                'category' => 'Papeleria',
                 'products' => [
                     ['name' => 'Resma papel bond carta', 'code' => 'PAPEL-001'],
                     ['name' => 'Plumas BIC azul caja 50', 'code' => 'PLUMA-001'],
-                ]
+                ],
             ],
         ];
 
@@ -79,7 +81,7 @@ class QuotationPlannerTestSeeder extends Seeder
                     ['code' => $productData['code']],
                     [
                         'short_name' => $productData['name'],
-                        'technical_description' => $productData['name'] . ' - Especificación técnica corporativa requerida por TotalGas.',
+                        'technical_description' => $productData['name'] . ' - Especificacion tecnica corporativa requerida por TotalGas.',
                         'product_type' => 'PRODUCTO',
                         'category_id' => $category->id,
                         'cost_center_id' => 1,
@@ -92,12 +94,9 @@ class QuotationPlannerTestSeeder extends Seeder
             }
         }
 
-        $this->command->info('✅ Catálogo de productos en posición.');
+        $this->command->info('Catalogo de productos verificado.');
 
-        // ====================================================================
-        // 4. REQUISICIÓN MAESTRA (Ajustado a su modelo Requisition)
-        // ====================================================================
-        $defaultLocation = ReceivingLocation::where('is_active', true)->first();
+        $defaultLocation = ReceivingLocation::where('is_active', true)->firstOrFail();
 
         $requisition = Requisition::create([
             'company_id' => 1,
@@ -107,18 +106,16 @@ class QuotationPlannerTestSeeder extends Seeder
             'folio' => Requisition::nextFolio(),
             'requested_by' => $admin->id,
             'required_date' => now()->addDays(15),
-            'description' => 'Requisición para pruebas del Planificador de Cotización',
+            'description' => 'Requisicion para pruebas del planificador de cotizacion',
             'status' => RequisitionStatus::IN_QUOTATION,
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
         ]);
 
-        $this->command->info('✅ Requisición creada: ' . $requisition->folio);
+        $this->command->info('Requisicion creada: ' . $requisition->folio);
 
-        // ====================================================================
-        // 5. PARTIDAS (Siguiendo su migración SIN PRECIOS)
-        // ====================================================================
         $products = ProductService::all();
+
         foreach ($products as $index => $product) {
             RequisitionItem::create([
                 'requisition_id' => $requisition->id,
@@ -127,47 +124,22 @@ class QuotationPlannerTestSeeder extends Seeder
                 'item_category' => 'PRODUCTO',
                 'product_code' => $product->code,
                 'description' => $product->short_name,
-                'expense_category_id' => $expenseCat->id,
+                'expense_category_id' => $expenseCategory->id,
+                'budget_cedula_id' => $budgetCedula->id,
                 'quantity' => 5,
                 'unit' => 'PZA',
-                'notes' => 'Partida generada para validación del Portal de Proveedores.',
+                'notes' => 'Partida generada para validacion del Portal de Proveedores.',
             ]);
         }
 
-        // ====================================================================
-        // 6. RESUMEN FINAL (Blindado contra RelationNotFoundException)
-        // ====================================================================
-        $this->command->newLine();
-        $this->command->info('═══════════════════════════════════════════════════════════');
-        $this->command->info('   ✅ OPERACIÓN EXITOSA: DATOS DE PRUEBA LISTOS');
-        $this->command->info('═══════════════════════════════════════════════════════════');
-        $this->command->info('ID:       ' . $requisition->id);
-        $this->command->info('Folio:    ' . $requisition->folio);
-        $this->command->info('Estado:   ' . $requisition->statusLabel());
-        $this->command->info('Partidas: ' . $requisition->items->count());
-        $this->command->newLine();
-        $this->command->warn('🔗 URL DEL PLANIFICADOR:');
-        $this->command->line('   http://localhost/requisitions/' . $requisition->id . '/quotation-planner');
-        $this->command->newLine();
-        $this->command->info('📋 DESGLOSE POR CATEGORÍA:');
-
-        // Cargamos las relaciones correctas para evitar errores
         $requisition->load(['items.productService.category']);
 
-        $itemsByCat = $requisition->items->groupBy(function ($item) {
-            return $item->productService->category->name ?? 'Sin Categoría';
-        });
-
-        foreach ($itemsByCat as $categoryName => $items) {
-            $this->command->line('');
-            $this->command->line('  📦 ' . $categoryName . ':');
-            foreach ($items as $item) {
-                $this->command->line('     • ' . $item->description . ' (' . (int)$item->quantity . ' ' . $item->unit . ')');
-            }
-        }
-
         $this->command->newLine();
-        $this->command->info('✅ Copia la URL de arriba y pégala en tu navegador');
-        $this->command->info('═══════════════════════════════════════════════════════════');
+        $this->command->info('Datos de prueba del planificador listos.');
+        $this->command->info('ID: ' . $requisition->id);
+        $this->command->info('Folio: ' . $requisition->folio);
+        $this->command->info('Estado: ' . $requisition->statusLabel());
+        $this->command->info('Partidas: ' . $requisition->items->count());
+        $this->command->line('URL: http://localhost/requisitions/' . $requisition->id . '/quotation-planner');
     }
 }

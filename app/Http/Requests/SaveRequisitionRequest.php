@@ -3,6 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Enum\PurchaseType;
+use App\Models\BudgetCedula;
+use App\Models\CostCenter;
+use App\Models\ProductService;
+use App\Models\RequisitionItem;
+use App\Services\BudgetCedulaCatalogService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -25,7 +30,6 @@ class SaveRequisitionRequest extends FormRequest
         $requisition = $this->route('requisition');
         $isUpdate = $requisition !== null;
 
-        // Determinar el company_id para la validación cruzada del centro de costos
         $companyId = $isUpdate
             ? $requisition->company_id
             : $this->company_id;
@@ -33,7 +37,6 @@ class SaveRequisitionRequest extends FormRequest
             ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
 
         $rules = [
-            // ======= Datos de la Requisición =======
             'purchase_type' => [
                 'required',
                 new Enum(PurchaseType::class),
@@ -77,7 +80,6 @@ class SaveRequisitionRequest extends FormRequest
                 'max:500',
             ],
 
-            // ======= Partidas de la Requisición =======
             'items' => [
                 $isUpdate ? 'sometimes' : 'required',
                 'required',
@@ -95,6 +97,12 @@ class SaveRequisitionRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:expense_categories,id',
+            ],
+
+            'items.*.budget_cedula_id' => [
+                'required',
+                'integer',
+                'exists:budget_cedulas,id',
             ],
 
             'items.*.quantity' => [
@@ -153,7 +161,7 @@ class SaveRequisitionRequest extends FormRequest
             ],
         ];
 
-        if (!$isUpdate) {
+        if (! $isUpdate) {
             $rules['company_id'] = [
                 'required',
                 'integer',
@@ -175,45 +183,33 @@ class SaveRequisitionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            // Requisición
             'company_id.required' => 'La compañía es obligatoria.',
             'company_id.exists' => 'La compañía seleccionada no existe.',
-
             'purchase_type.required' => 'El tipo de compra es obligatorio.',
             'cost_center_id.required' => 'El centro de costos es obligatorio.',
             'cost_center_id.exists' => 'El centro de costos no pertenece a la compañía seleccionada.',
-
             'department_id.required' => 'El departamento es obligatorio.',
             'department_id.exists' => 'El departamento seleccionado no existe.',
-
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
             'receiving_location_id.exists' => 'La ubicación de recepción seleccionada no existe.',
-
             'required_date.after_or_equal' => 'La fecha requerida no puede ser anterior a hoy.',
-
             'description.max' => 'La descripción no puede exceder 500 caracteres.',
-
-            // Partidas
             'items.required' => 'Debe agregar al menos una partida a la requisición (RN-003).',
             'items.min' => 'Debe agregar al menos una partida a la requisición (RN-003).',
-
             'items.*.product_service_id.required' => 'Debe seleccionar un producto del catálogo (RN-001).',
             'items.*.product_service_id.exists' => 'El producto seleccionado no existe en el catálogo.',
-
             'items.*.expense_category_id.required' => 'La categoría de gasto es obligatoria (RN-010A).',
             'items.*.expense_category_id.exists' => 'La categoría de gasto seleccionada no existe.',
-
+            'items.*.budget_cedula_id.required' => 'La subcategoría presupuestal es obligatoria.',
+            'items.*.budget_cedula_id.exists' => 'La subcategoría presupuestal seleccionada no existe.',
             'items.*.quantity.required' => 'La cantidad es obligatoria.',
             'items.*.quantity.numeric' => 'La cantidad debe ser un número.',
             'items.*.quantity.min' => 'La cantidad debe ser mayor a cero.',
             'items.*.quantity.max' => 'La cantidad no puede exceder 999,999.999',
-
             'items.*.description.max' => 'La descripción de la partida no puede exceder 1000 caracteres.',
             'items.*.unit.max' => 'La unidad de medida no puede exceder 30 caracteres.',
             'items.*.notes.max' => 'Las observaciones no pueden exceder 1000 caracteres.',
-
-            'items.*.suggested_vendor_id.exists' => 'El proveedor seleccionado no es válido o está listado como EFOS (empresas que facturan operaciones simuladas).',
-
+            'items.*.suggested_vendor_id.exists' => 'El proveedor seleccionado no es válido o está listado como EFOS.',
             'items.*.id.exists' => 'La partida seleccionada no existe.',
             'items.*.line_number.min' => 'El número de línea debe ser mayor a cero.',
         ];
@@ -225,17 +221,15 @@ class SaveRequisitionRequest extends FormRequest
             $requisition = $this->route('requisition');
             $isUpdate = $requisition !== null;
 
-            // En update, validar que la requisición pueda ser editada
-            if ($isUpdate && !$requisition->canBeEdited()) {
+            if ($isUpdate && ! $requisition->canBeEdited()) {
                 $validator->errors()->add(
                     'status',
-                    'No se puede editar una requisición en estado "' . $requisition->status->label() . '". Solo se pueden editar requisiciones en borrador o pausadas.'
+                    'No se puede editar una requisición en estado "'.$requisition->status->label().'". Solo se pueden editar requisiciones en borrador o pausadas.'
                 );
             }
 
-            // Validar que el centro de costos tenga presupuesto (RN-004)
             if ($this->cost_center_id) {
-                $costCenter = \App\Models\CostCenter::find($this->cost_center_id);
+                $costCenter = CostCenter::find($this->cost_center_id);
                 $purchaseType = $this->purchase_type
                     ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
 
@@ -257,10 +251,10 @@ class SaveRequisitionRequest extends FormRequest
                 }
 
                 $fiscalYear = ($isUpdate && $requisition)
-                    ? ($requisition->fiscal_year ?? $requisition->created_at->year)
+                    ? (int) ($requisition->fiscal_year ?? $requisition->created_at?->year ?? date('Y'))
                     : (int) date('Y');
 
-                if ($costCenter && !$costCenter->hasAnnualBudget($fiscalYear)) {
+                if ($costCenter && ! $costCenter->hasAnnualBudget($fiscalYear)) {
                     $validator->errors()->add(
                         'cost_center_id',
                         'El centro de costos no tiene presupuesto asignado para el año fiscal (RN-004).'
@@ -268,12 +262,11 @@ class SaveRequisitionRequest extends FormRequest
                 }
             }
 
-            // Validar que no haya partidas duplicadas (mismo producto)
             if ($this->items && is_array($this->items)) {
                 $productIds = array_column($this->items, 'product_service_id');
                 $duplicates = array_diff_assoc($productIds, array_unique($productIds));
 
-                if (!empty($duplicates)) {
+                if (! empty($duplicates)) {
                     $validator->errors()->add(
                         'items',
                         'No puede agregar el mismo producto más de una vez. Si necesita diferentes cantidades, ajuste la partida existente.'
@@ -281,11 +274,52 @@ class SaveRequisitionRequest extends FormRequest
                 }
             }
 
-            // En update, validar que las partidas con ID pertenezcan a esta requisición
+            if ($this->items && is_array($this->items) && $this->cost_center_id) {
+                $catalogService = app(BudgetCedulaCatalogService::class);
+                $fiscalYear = ($isUpdate && $requisition)
+                    ? (int) ($requisition->fiscal_year ?? $requisition->created_at?->year ?? date('Y'))
+                    : (int) date('Y');
+
+                foreach ($this->items as $index => $item) {
+                    $expenseCategoryId = (int) ($item['expense_category_id'] ?? 0);
+                    $budgetCedulaId = (int) ($item['budget_cedula_id'] ?? 0);
+
+                    if (! $expenseCategoryId || ! $budgetCedulaId) {
+                        continue;
+                    }
+
+                    $belongsToCategory = BudgetCedula::query()
+                        ->whereKey($budgetCedulaId)
+                        ->where('expense_category_id', $expenseCategoryId)
+                        ->exists();
+
+                    if (! $belongsToCategory) {
+                        $validator->errors()->add(
+                            "items.{$index}.budget_cedula_id",
+                            'La subcategoría presupuestal no pertenece a la categoría de gasto seleccionada.'
+                        );
+
+                        continue;
+                    }
+
+                    if (! $catalogService->isValidCedulaForContext(
+                        (int) $this->cost_center_id,
+                        $expenseCategoryId,
+                        $budgetCedulaId,
+                        $fiscalYear
+                    )) {
+                        $validator->errors()->add(
+                            "items.{$index}.budget_cedula_id",
+                            'La subcategoría presupuestal no está configurada para este centro de costo y ejercicio fiscal.'
+                        );
+                    }
+                }
+            }
+
             if ($isUpdate && $this->items && is_array($this->items)) {
                 foreach ($this->items as $index => $item) {
-                    if (isset($item['id']) && !empty($item['id'])) {
-                        $existingItem = \App\Models\RequisitionItem::find($item['id']);
+                    if (isset($item['id']) && ! empty($item['id'])) {
+                        $existingItem = RequisitionItem::find($item['id']);
 
                         if ($existingItem && (int) $existingItem->requisition_id !== (int) $requisition->id) {
                             $validator->errors()->add(
@@ -296,10 +330,9 @@ class SaveRequisitionRequest extends FormRequest
                     }
                 }
 
-                // Validar cantidades mínimas y máximas del catálogo
                 foreach ($this->items as $index => $item) {
                     if (isset($item['product_service_id']) && isset($item['quantity'])) {
-                        $product = \App\Models\ProductService::find($item['product_service_id']);
+                        $product = ProductService::find($item['product_service_id']);
 
                         if ($product) {
                             if ($product->minimum_quantity && $item['quantity'] < $product->minimum_quantity) {
@@ -326,8 +359,8 @@ class SaveRequisitionRequest extends FormRequest
     {
         $requisition = $this->route('requisition');
 
-        if ($requisition && !$requisition->canBeEdited()) {
-            abort(403, 'No se puede editar una requisición en estado "' . $requisition->status->label() . '".');
+        if ($requisition && ! $requisition->canBeEdited()) {
+            abort(403, 'No se puede editar una requisición en estado "'.$requisition->status->label().'".');
         }
 
         abort(403, 'No tiene permisos para editar esta requisición.');

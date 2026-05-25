@@ -472,6 +472,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/select', [ExpenseCategoryController::class, 'getForSelect'])->name('select');
         Route::get('/by-budget', [ExpenseCategoryController::class, 'byBudget'])->name('by-budget');
         Route::get('/by-cost-center', [ExpenseCategoryController::class, 'getByCostCenter'])->name('by-cost-center');
+        Route::get('/cedulas-by-cost-center', [ExpenseCategoryController::class, 'getCedulasByCostCenter'])->name('cedulas-by-cost-center');
     });
 }); // Fin del grupo auth + lock
 

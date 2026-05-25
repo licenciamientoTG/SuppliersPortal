@@ -2,25 +2,22 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use App\Models\ExpenseCategory;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class ExpenseCategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $now = Carbon::now();
-        $createdBy = 6; // Usuario administrador que crea las categorías
+        $createdBy = 6;
 
         $categories = [
             [
                 'code' => 'A',
                 'name' => 'Ingresos',
-                'description' => 'Ingresos generados por la operación',
+                'description' => 'Ingresos generados por la operacion',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -37,7 +34,7 @@ class ExpenseCategorySeeder extends Seeder
             ],
             [
                 'code' => 'C',
-                'name' => 'Nómina',
+                'name' => 'Nomina',
                 'description' => 'Sueldos, salarios y pagos al personal',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
@@ -55,8 +52,8 @@ class ExpenseCategorySeeder extends Seeder
             ],
             [
                 'code' => 'E',
-                'name' => 'Gastos de Operación',
-                'description' => 'Gastos necesarios para el funcionamiento diario de la operación',
+                'name' => 'Gastos de Operacion',
+                'description' => 'Gastos necesarios para el funcionamiento diario de la operacion',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -74,7 +71,7 @@ class ExpenseCategorySeeder extends Seeder
             [
                 'code' => 'H',
                 'name' => 'Gastos Fijos',
-                'description' => 'Gastos recurrentes fijos independientes del volumen de operación',
+                'description' => 'Gastos recurrentes fijos independientes del volumen de operacion',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -83,7 +80,7 @@ class ExpenseCategorySeeder extends Seeder
             [
                 'code' => 'I',
                 'name' => 'Ingresos No Operativos',
-                'description' => 'Ingresos no derivados de la operación principal (utilidad cambiaria, rentas, otros)',
+                'description' => 'Ingresos no derivados de la operacion principal (utilidad cambiaria, rentas, otros)',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -92,7 +89,7 @@ class ExpenseCategorySeeder extends Seeder
             [
                 'code' => 'J',
                 'name' => 'Depreciaciones y Amortizaciones',
-                'description' => 'Depreciación de activos fijos y amortización de intangibles',
+                'description' => 'Depreciacion de activos fijos y amortizacion de intangibles',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -101,7 +98,7 @@ class ExpenseCategorySeeder extends Seeder
             [
                 'code' => 'K',
                 'name' => 'CIF',
-                'description' => 'Costos indirectos de fabricación',
+                'description' => 'Costos indirectos de fabricacion',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -110,7 +107,7 @@ class ExpenseCategorySeeder extends Seeder
             [
                 'code' => 'L',
                 'name' => 'Partidas Extraordinarias Total 2.0',
-                'description' => 'Partidas extraordinarias y conceptos especiales fuera de la operación ordinaria',
+                'description' => 'Partidas extraordinarias y conceptos especiales fuera de la operacion ordinaria',
                 'status' => 'ACTIVO',
                 'created_by' => $createdBy,
                 'created_at' => $now,
@@ -127,9 +124,13 @@ class ExpenseCategorySeeder extends Seeder
             ],
         ];
 
-        // Insertar todas las categorías
-        DB::table('expense_categories')->insert($categories);
+        foreach ($categories as $category) {
+            ExpenseCategory::updateOrCreate(
+                ['code' => $category['code']],
+                $category
+            );
+        }
 
-        $this->command->info('✅ Se han insertado ' . count($categories) . ' categorías de gasto correctamente.');
+        $this->command->info('Se actualizaron o insertaron ' . count($categories) . ' categorias de gasto correctamente.');
     }
 }

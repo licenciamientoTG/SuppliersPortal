@@ -173,12 +173,41 @@ class RequisitionController extends Controller
      */
     public function create(): View
     {
-        $requisition = new Requisition([
-            'status' => 'draft',
-            'required_date' => now()->addDays(7)->toDateString(),
-        ]);
+        return view('requisitions.create-livewire');
+    }
 
-        return $this->loadFormData($requisition);
+    /**
+     * Store a newly created requisition in storage.
+     */
+    public function store(SaveRequisitionRequest $request): RedirectResponse
+    {
+        try {
+            return DB::transaction(function () use ($request) {
+                $data = $request->validated();
+                $action = $request->input('submit_action', 'draft');
+                $action = $action === 'submit' ? 'submit' : 'draft';
+                $data['fiscal_year'] = now()->year;
+
+                $requisition = $this->createRequisition($data, 'draft');
+                $this->processRequisitionItems($requisition, $data['items'] ?? []);
+
+                if ($action === 'submit') {
+                    $requisition->submitToCompras();
+                }
+
+                return redirect()
+                    ->route('requisitions.show', $requisition)
+                    ->with('success', $action === 'submit'
+                        ? 'Requisición creada y enviada a Compras.'
+                        : 'Requisición creada correctamente.');
+            });
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return back()
+                ->withInput()
+                ->with('error', 'Error al guardar la requisición: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -217,8 +246,7 @@ class RequisitionController extends Controller
             abort(403, 'No se puede editar una requisición en estado "' . $requisition->statusLabel() . '".');
         }
 
-        $requisition->load('items');
-        return $this->loadFormData($requisition);
+        return view('requisitions.edit-livewire', compact('requisition'));
     }
 
     /**
@@ -329,6 +357,7 @@ class RequisitionController extends Controller
             'department',
             'items.productService',
             'items.expenseCategory',
+            'items.budgetCedula',
             'items.suggestedVendor',
             'requester',
             'creator',
@@ -485,6 +514,7 @@ class RequisitionController extends Controller
             // === Datos definidos por el requisitor ===
             // RN-010A, RN-010B: Categoría de gasto OBLIGATORIA, definida por REQUISITOR
             'expense_category_id' => $itemData['expense_category_id'],
+            'budget_cedula_id' => $itemData['budget_cedula_id'],
 
             // Cantidad solicitada (mínimo 0.001)
             'quantity' => max(0.001, (float) ($itemData['quantity'] ?? 1)),
