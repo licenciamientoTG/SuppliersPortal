@@ -38,13 +38,10 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror"
-                                    data-url-costcenters="{{ route('cost-centers.api.by-company', ['company' => '__CID__']) }}"
-                                    data-selected-cc="{{ $cost_center_id ?? '' }}"
-                                    required>
+                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -66,7 +63,7 @@
                                     required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($purchaseTypes as $purchaseTypeOption)
-                                    <option value="{{ $purchaseTypeOption }}">{{ $purchaseTypeOption }}</option>
+                                    <option value="{{ $purchaseTypeOption }}" @selected((string) $purchase_type === (string) $purchaseTypeOption)>{{ $purchaseTypeOption }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -91,7 +88,7 @@
                                     {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compañía y tipo de compra primero' : 'Seleccionar centro de costo...' }}
                                 </option>
                                 @foreach ($costCenters as $cc)
-                                    <option value="{{ $cc->id }}">
+                                    <option value="{{ $cc->id }}" @selected((string) $cost_center_id === (string) $cc->id)>
                                         {{ $cc->code ? "[{$cc->code}] {$cc->name}" : $cc->name }}
                                     </option>
                                 @endforeach
@@ -122,7 +119,7 @@
                                     required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($receivingLocations as $loc)
-                                    <option value="{{ $loc->id }}">
+                                    <option value="{{ $loc->id }}" @selected((string) $receiving_location_id === (string) $loc->id)>
                                         {{ $loc->name }}{{ $loc->city ? ' — ' . $loc->city : '' }}
                                     </option>
                                 @endforeach
