@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\BudgetCedula;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -246,7 +247,15 @@ class BudgetCedulaSeeder extends Seeder
             ];
         }, $cedulas);
 
-        DB::table('budget_cedulas')->insert($rows);
+        foreach ($rows as $row) {
+            BudgetCedula::updateOrCreate(
+                [
+                    'expense_category_id' => $row['expense_category_id'],
+                    'name' => $row['name'],
+                ],
+                $row
+            );
+        }
 
         $this->command->info('✅ Se han insertado ' . count($rows) . ' cédulas presupuestarias correctamente.');
     }

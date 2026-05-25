@@ -102,63 +102,83 @@ class SupplierSeeder extends Seeder
         foreach ($availableUsers->take(count($seedProfiles))->values() as $index => $user) {
             $profile = $seedProfiles[$index];
 
-            Supplier::updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'company_name' => $profile['company_name'],
-                    'rfc' => $profile['rfc'],
-                    'address' => 'Direccion seed ' . ($index + 1),
-                    'phone_number' => '656000' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                    'email' => $user->email,
-                    'contact_person' => $user->name,
-                    'contact_phone' => '656100' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                    'supplier_type' => 'both',
-                    'tax_regime' => 'corporation',
-                    'bank_name' => 'BBVA',
-                    'account_number' => '123456' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                    'clabe' => '0123456789' . str_pad((string) ($index + 1), 8, '0', STR_PAD_LEFT),
-                    'currency' => $profile['currency'],
-                    'default_payment_terms' => 'NET_30',
-                    'status' => 'approved',
-                    'provides_specialized_services' => $profile['provides_specialized_services'],
-                    'economic_activity' => 'Servicios generales',
-                    'repse_registration_number' => $profile['repse_registration_number'] ?? null,
-                    'repse_expiry_date' => $profile['repse_expiry_date'] ?? null,
-                    'specialized_services_types' => $profile['specialized_services_types'] ?? null,
-                    'swift_bic' => $profile['swift_bic'] ?? null,
-                    'iban' => $profile['iban'] ?? null,
-                    'bank_address' => $profile['bank_address'] ?? null,
-                    'aba_routing' => $profile['aba_routing'] ?? null,
-                    'us_bank_name' => $profile['us_bank_name'] ?? null,
-                ]
-            );
+            $payload = [
+                'user_id' => $user->id,
+                'company_name' => $profile['company_name'],
+                'rfc' => $profile['rfc'],
+                'address' => 'Direccion seed ' . ($index + 1),
+                'phone_number' => '656000' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                'email' => $user->email,
+                'contact_person' => $user->name,
+                'contact_phone' => '656100' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                'supplier_type' => 'both',
+                'tax_regime' => 'corporation',
+                'bank_name' => 'BBVA',
+                'account_number' => '123456' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                'clabe' => '0123456789' . str_pad((string) ($index + 1), 8, '0', STR_PAD_LEFT),
+                'currency' => $profile['currency'],
+                'default_payment_terms' => 'NET_30',
+                'status' => 'approved',
+                'provides_specialized_services' => $profile['provides_specialized_services'],
+                'economic_activity' => 'Servicios generales',
+                'repse_registration_number' => $profile['repse_registration_number'] ?? null,
+                'repse_expiry_date' => $profile['repse_expiry_date'] ?? null,
+                'specialized_services_types' => $profile['specialized_services_types'] ?? null,
+                'swift_bic' => $profile['swift_bic'] ?? null,
+                'iban' => $profile['iban'] ?? null,
+                'bank_address' => $profile['bank_address'] ?? null,
+                'aba_routing' => $profile['aba_routing'] ?? null,
+                'us_bank_name' => $profile['us_bank_name'] ?? null,
+            ];
+
+            $supplier = Supplier::query()
+                ->where('rfc', $profile['rfc'])
+                ->orWhere('user_id', $user->id)
+                ->first();
+
+            if ($supplier) {
+                $supplier->fill($payload);
+                $supplier->save();
+            } else {
+                Supplier::create($payload);
+            }
         }
 
         $user4 = User::find(4);
 
         if ($user4 && ! $user4->supplier) {
-            Supplier::updateOrCreate(
-                ['user_id' => $user4->id],
-                [
-                    'company_name' => 'PROVEEDOR DE PRUEBAS UNITARIAS S.A.',
-                    'rfc' => 'PRUE900101ABC',
-                    'address' => 'Direccion pruebas unitarias',
-                    'phone_number' => '6569990000',
-                    'email' => $user4->email,
-                    'contact_person' => $user4->name,
-                    'contact_phone' => '6569990001',
-                    'supplier_type' => 'both',
-                    'tax_regime' => 'corporation',
-                    'bank_name' => 'BBVA',
-                    'account_number' => '9999000001',
-                    'clabe' => '012345678900000001',
-                    'currency' => 'MXN',
-                    'default_payment_terms' => 'NET_30',
-                    'status' => 'approved',
-                    'provides_specialized_services' => false,
-                    'economic_activity' => 'Pruebas unitarias',
-                ]
-            );
+            $payload = [
+                'user_id' => $user4->id,
+                'company_name' => 'PROVEEDOR DE PRUEBAS UNITARIAS S.A.',
+                'rfc' => 'PRUE900101ABC',
+                'address' => 'Direccion pruebas unitarias',
+                'phone_number' => '6569990000',
+                'email' => $user4->email,
+                'contact_person' => $user4->name,
+                'contact_phone' => '6569990001',
+                'supplier_type' => 'both',
+                'tax_regime' => 'corporation',
+                'bank_name' => 'BBVA',
+                'account_number' => '9999000001',
+                'clabe' => '012345678900000001',
+                'currency' => 'MXN',
+                'default_payment_terms' => 'NET_30',
+                'status' => 'approved',
+                'provides_specialized_services' => false,
+                'economic_activity' => 'Pruebas unitarias',
+            ];
+
+            $supplier = Supplier::query()
+                ->where('rfc', 'PRUE900101ABC')
+                ->orWhere('user_id', $user4->id)
+                ->first();
+
+            if ($supplier) {
+                $supplier->fill($payload);
+                $supplier->save();
+            } else {
+                Supplier::create($payload);
+            }
         }
     }
 }
