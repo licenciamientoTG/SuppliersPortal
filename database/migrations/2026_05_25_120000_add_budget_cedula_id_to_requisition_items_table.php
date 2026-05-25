@@ -9,11 +9,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('requisition_items', function (Blueprint $table) {
-            $table->unsignedBigInteger('budget_cedula_id')
-                ->nullable()
-                ->after('expense_category_id');
-        });
+        if (! Schema::hasColumn('requisition_items', 'budget_cedula_id')) {
+            Schema::table('requisition_items', function (Blueprint $table) {
+                $table->unsignedBigInteger('budget_cedula_id')
+                    ->nullable()
+                    ->after('expense_category_id');
+            });
+        }
 
         $this->backfillBudgetCedulaIds();
 
@@ -21,19 +23,43 @@ return new class extends Migration
             $table->unsignedBigInteger('budget_cedula_id')
                 ->nullable(false)
                 ->change();
-            $table->index('budget_cedula_id');
-            $table->foreign('budget_cedula_id')
-                ->references('id')
-                ->on('budget_cedulas')
-                ->onDelete('no action');
         });
+
+        if (! $this->hasIndex('requisition_items', 'requisition_items_budget_cedula_id_index')) {
+            Schema::table('requisition_items', function (Blueprint $table) {
+                $table->index('budget_cedula_id');
+            });
+        }
+
+        if (! $this->hasForeignKey('requisition_items', 'requisition_items_budget_cedula_id_foreign')) {
+            Schema::table('requisition_items', function (Blueprint $table) {
+                $table->foreign('budget_cedula_id')
+                    ->references('id')
+                    ->on('budget_cedulas')
+                    ->onDelete('no action');
+            });
+        }
     }
 
     public function down(): void
     {
+        if (! Schema::hasColumn('requisition_items', 'budget_cedula_id')) {
+            return;
+        }
+
+        if ($this->hasForeignKey('requisition_items', 'requisition_items_budget_cedula_id_foreign')) {
+            Schema::table('requisition_items', function (Blueprint $table) {
+                $table->dropForeign(['budget_cedula_id']);
+            });
+        }
+
+        if ($this->hasIndex('requisition_items', 'requisition_items_budget_cedula_id_index')) {
+            Schema::table('requisition_items', function (Blueprint $table) {
+                $table->dropIndex(['budget_cedula_id']);
+            });
+        }
+
         Schema::table('requisition_items', function (Blueprint $table) {
-            $table->dropForeign(['budget_cedula_id']);
-            $table->dropIndex(['budget_cedula_id']);
             $table->dropColumn('budget_cedula_id');
         });
     }
@@ -75,5 +101,46 @@ return new class extends Migration
                 'No fue posible resolver una cédula presupuestal para las partidas: '.implode(', ', $unresolvedItems)
             );
         }
+    }
+
+    private function hasIndex(string $table, string $indexName): bool
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'mysql') {
+            $database = DB::getDatabaseName();
+
+            return DB::table('information_schema.statistics')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->where('index_name', $indexName)
+                ->exists();
+        }
+
+        if ($driver === 'sqlite') {
+            $indexes = DB::select("PRAGMA index_list('{$table}')");
+
+            return collect($indexes)->contains(fn ($index) => ($index->name ?? null) === $indexName);
+        }
+
+        return false;
+    }
+
+    private function hasForeignKey(string $table, string $foreignKeyName): bool
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'mysql') {
+            $database = DB::getDatabaseName();
+
+            return DB::table('information_schema.table_constraints')
+                ->where('constraint_schema', $database)
+                ->where('table_name', $table)
+                ->where('constraint_name', $foreignKeyName)
+                ->where('constraint_type', 'FOREIGN KEY')
+                ->exists();
+        }
+
+        return false;
     }
 };
