@@ -50,7 +50,8 @@
         || request()->routeIs('taxes.*')
         || request()->routeIs('authorizer-roles.*')
         || request()->routeIs('approval-levels.*')
-        || request()->routeIs('sat-retenciones.*');
+        || request()->routeIs('sat-retenciones.*')
+        || request()->routeIs('roles.catalog');
 
     try {
         $activeRequisitionsCount = \App\Models\Requisition::whereNotIn('status', ['DRAFT', 'CANCELLED', 'COMPLETED'])->count();
@@ -449,6 +450,12 @@
                 <a href="{{ route('authorizer-roles.index') }}"
                     class="side-nav-link {{ request()->routeIs('authorizer-roles.*') ? 'active' : '' }}">
                     <span class="menu-text">Roles Autorizadores</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ route('roles.catalog') }}"
+                    class="side-nav-link {{ request()->routeIs('roles.catalog') ? 'active' : '' }}">
+                    <span class="menu-text">Roles y Permisos</span>
                 </a>
             </li>
             <li class="side-nav-item">

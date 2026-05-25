@@ -61,7 +61,7 @@ class EmployeeController extends Controller
     public function uploadPhoto(Employee $employee, Request $request): JsonResponse
     {
         $request->validate([
-            'photo' => ['required', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp'],
+            'photo' => ['required', 'image', 'max:3072', 'mimes:jpg,jpeg,png,webp'],
         ]);
 
         if ($employee->photo) {

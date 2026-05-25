@@ -478,74 +478,7 @@
             });
         });
     </script>
-    <script>
-        // Funcionalidad específica para campos REPSE
-        document.addEventListener('DOMContentLoaded', function() {
-            const repseYes = document.getElementById('repse_yes');
-            const repseNo = document.getElementById('repse_no');
-            const repseFields = document.getElementById('repse-fields');
-            const otrosCheckbox = document.getElementById('otros_checkbox');
-            const otrosInput = document.getElementById('otros-input');
-
-            // Toggle REPSE fields visibility
-            function toggleRepseFields() {
-                const showFields = repseYes && repseYes.checked;
-                repseFields.style.display = showFields ? 'grid' : 'none';
-
-                // Update required status for REPSE fields
-                const conditionalFields = repseFields.querySelectorAll('[data-conditional-required="repse"]');
-                conditionalFields.forEach(field => {
-                    field.setAttribute('data-required', showFields ? '1' : '0');
-                });
-
-                // Clear REPSE fields when hidden
-                if (!showFields) {
-                    const repseInputs = repseFields.querySelectorAll('input, select, textarea');
-                    repseInputs.forEach(input => {
-                        if (input.type === 'checkbox' || input.type === 'radio') {
-                            input.checked = false;
-                        } else {
-                            input.value = '';
-                        }
-                    });
-                    if (otrosInput) otrosInput.style.display = 'none';
-                }
-            }
-
-            // Toggle "otros" text input
-            function toggleOtrosInput() {
-                if (otrosInput && otrosCheckbox) {
-                    otrosInput.style.display = otrosCheckbox.checked ? 'block' : 'none';
-                    if (!otrosCheckbox.checked) {
-                        const otrosDescripcion = document.getElementById('otros_descripcion');
-                        if (otrosDescripcion) otrosDescripcion.value = '';
-                    }
-                }
-            }
-
-            if (repseYes) repseYes.addEventListener('change', toggleRepseFields);
-            if (repseNo) repseNo.addEventListener('change', toggleRepseFields);
-            if (otrosCheckbox) otrosCheckbox.addEventListener('change', toggleOtrosInput);
-
-            toggleRepseFields();
-            toggleOtrosInput();
-
-            // REPSE date validation
-            const repseExpiryDate = document.getElementById('repse_expiry_date');
-            if (repseExpiryDate) {
-                repseExpiryDate.addEventListener('blur', function() {
-                    const selectedDate = new Date(this.value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    if (this.value && selectedDate <= today) {
-                        this.setCustomValidity('La fecha de vencimiento debe ser posterior a hoy');
-                    } else {
-                        this.setCustomValidity('');
-                    }
-                });
-            }
-        });
-    </script>
+    {{-- Script de REPSE eliminado: su lógica está consolidada en el IIFE principal al final del body --}}
 </head>
 <body class="font-sans antialiased">
 
@@ -864,228 +797,6 @@
     </script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // ===== FORM STEP MANAGEMENT (3 steps) =====
-            let currentStep = Number(window.__supplierRegisterInitialStep || 1);
-            const totalSteps = 3;
-
-            const nextBtn = document.getElementById('next-btn');
-            const backBtn = document.getElementById('back-btn');
-            const submitBtn = document.getElementById('submit-btn');
-            const loginLink = document.getElementById('login-link');
-            const form = document.getElementById('supplier-form');
-
-            const dot1 = document.getElementById('dot-1');
-            const dot2 = document.getElementById('dot-2');
-            const dot3 = document.getElementById('dot-3');
-            const connector1 = document.getElementById('connector-1');
-            const connector2 = document.getElementById('connector-2');
-            const progressFill = document.getElementById('progress-fill');
-            const label1 = document.getElementById('label-1');
-            const label2 = document.getElementById('label-2');
-            const label3 = document.getElementById('label-3');
-
-            function updateProgress() {
-                // Connectors
-                if (currentStep >= 2) {
-                    if (progressFill) progressFill.style.width = '100%';
-                    if (connector1) connector1.classList.add('done');
-                } else {
-                    if (progressFill) progressFill.style.width = '0%';
-                    if (connector1) connector1.classList.remove('done');
-                }
-                if (currentStep >= 3) {
-                    if (connector2) connector2.classList.add('done');
-                } else {
-                    if (connector2) connector2.classList.remove('done');
-                }
-
-                // Dots
-                const dots = [dot1, dot2, dot3];
-                const labels = [label1, label2, label3];
-                dots.forEach((d, i) => {
-                    if (!d) return;
-                    d.className = i + 1 === currentStep ? 'step-dot active' : 'step-dot inactive';
-                });
-                labels.forEach((l, i) => {
-                    if (!l) return;
-                    l.className = i + 1 === currentStep ? 'step-label active' : 'step-label';
-                });
-
-                // Footer buttons
-                if (loginLink) loginLink.style.display = currentStep === 1 ? '' : 'none';
-                if (backBtn) backBtn.style.display = currentStep > 1 ? 'inline-flex' : 'none';
-                if (nextBtn) nextBtn.style.display = currentStep < totalSteps ? 'inline-flex' : 'none';
-                if (submitBtn) submitBtn.style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
-            }
-
-            function showStep(step) {
-                window.__supplierRegisterCurrentStep = step;
-                document.querySelectorAll('.step-section').forEach(section => {
-                    const isTarget = Number(section.dataset.step) === step;
-                    section.classList.toggle('hidden', !isTarget);
-                    section.classList.toggle('active', isTarget);
-                });
-                updateProgress();
-            }
-
-            function validateStep(step) {
-                const stepSection = document.querySelector(`[data-step="${step}"]`);
-                const requiredFields = stepSection.querySelectorAll('[data-required="1"]');
-                let isValid = true;
-
-                requiredFields.forEach(field => {
-                    field.style.borderColor = '#dee2e6';
-                    const errorMsg = field.parentNode.querySelector('.validation-error');
-                    if (errorMsg) errorMsg.remove();
-                });
-
-                requiredFields.forEach(field => {
-                    const value = field.value.trim();
-                    let fieldValid = true;
-                    let errorMessage = '';
-
-                    if (!value) {
-                        fieldValid = false;
-                        errorMessage = 'Este campo es obligatorio';
-                    } else {
-                        if (field.type === 'email') {
-                            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                            if (!emailRegex.test(value)) {
-                                fieldValid = false;
-                                errorMessage = 'Ingrese un correo electrónico válido';
-                            }
-                        }
-                        if (field.dataset.phone === '10') {
-                            if (value && !/^\d{10}$/.test(value)) {
-                                fieldValid = false;
-                                errorMessage = 'El teléfono debe tener exactamente 10 dígitos';
-                            }
-                        }
-                        if (field.id === 'rfc') {
-                            const rfcRegex = /^[A-Z]{3,4}\d{6}[A-Z0-9]{3}$/;
-                            if (!rfcRegex.test(value.toUpperCase())) {
-                                fieldValid = false;
-                                errorMessage = 'RFC inválido. Verifique el formato';
-                            }
-                        }
-                        if (field.id === 'password') {
-                            if (value.length < 8) {
-                                fieldValid = false;
-                                errorMessage = 'La contraseña debe tener al menos 8 caracteres';
-                            }
-                        }
-                        if (field.id === 'password_confirmation') {
-                            const password = document.getElementById('password').value;
-                            if (value !== password) {
-                                fieldValid = false;
-                                errorMessage = 'Las contraseñas no coinciden';
-                            }
-                        }
-                    }
-
-                    if (!fieldValid) {
-                        isValid = false;
-                        field.style.borderColor = '#ef4444';
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'validation-error input-error';
-                        errorDiv.textContent = errorMessage;
-                        field.parentNode.appendChild(errorDiv);
-                    }
-                });
-
-                return isValid;
-            }
-
-            function validateAllSteps() {
-                const allSteps = Array.from(document.querySelectorAll('[data-step]'));
-                let firstInvalidStep = null;
-                let allValid = true;
-
-                allSteps.forEach((stepSection) => {
-                    const stepNumber = Number(stepSection.dataset.step);
-                    if (!validateStep(stepNumber)) {
-                        allValid = false;
-                        if (firstInvalidStep === null) {
-                            firstInvalidStep = stepNumber;
-                        }
-                    }
-                });
-
-                if (!allValid && firstInvalidStep !== null) {
-                    showStep(firstInvalidStep);
-                    const firstInvalid = document.querySelector(`[data-step="${firstInvalidStep}"] :invalid`);
-                    if (firstInvalid && typeof firstInvalid.reportValidity === 'function') {
-                        firstInvalid.reportValidity();
-                    }
-                }
-
-                return allValid;
-            }
-
-            if (nextBtn) {
-                nextBtn.addEventListener('click', function() {
-                    if (validateStep(currentStep)) {
-                        if (currentStep < totalSteps) {
-                            currentStep++;
-                            showStep(currentStep);
-                        }
-                    }
-                });
-            }
-
-            if (backBtn) {
-                backBtn.addEventListener('click', function() {
-                    if (currentStep > 1) {
-                        currentStep--;
-                        showStep(currentStep);
-                    }
-                });
-            }
-
-            form.addEventListener('submit', function(e) {
-                if (!validateAllSteps()) {
-                    e.preventDefault();
-                    return false;
-                }
-                if (submitBtn) {
-                    submitBtn.textContent = 'Registrando...';
-                    submitBtn.disabled = true;
-                }
-            });
-
-            // RFC formatting
-            const rfcInput = document.getElementById('rfc');
-            if (rfcInput) {
-                rfcInput.addEventListener('input', function() {
-                    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                });
-            }
-
-            // Phone formatting
-            document.querySelectorAll('input[data-phone="10"]').forEach(input => {
-                input.addEventListener('input', function() {
-                    this.value = this.value.replace(/\D/g, '').slice(0, 10);
-                });
-            });
-
-            // Initialize
-            showStep(currentStep);
-
-            // Server-side errors: jump to the step that has errors
-            const errorFields = document.querySelectorAll('.input-error');
-            if (errorFields.length > 0) {
-                errorFields.forEach(error => {
-                    const stepSection = error.closest('.step-section');
-                    if (stepSection) {
-                        const stepNumber = parseInt(stepSection.dataset.step);
-                        if (stepNumber > currentStep) currentStep = stepNumber;
-                    }
-                });
-                showStep(currentStep);
-            }
-        });
-
         (function () {
             const form = document.getElementById('supplier-form');
             const steps = Array.from(document.querySelectorAll('[data-step]'));
@@ -1099,6 +810,25 @@
             let current = Number(window.__supplierRegisterInitialStep || 1);
             const totalSteps = 3;
 
+            // ====== HELPERS DE ERROR INLINE ======
+            function showFieldError(field, message) {
+                field.style.borderColor = '#ef4444';
+                const container = field.closest('.form-group') || field.parentNode;
+                const existing = container.querySelector('.js-val-error');
+                if (existing) { existing.textContent = message; return; }
+                const div = document.createElement('div');
+                div.className = 'input-error js-val-error';
+                div.textContent = message;
+                container.appendChild(div);
+            }
+
+            function clearFieldError(field) {
+                field.style.borderColor = '';
+                const container = field.closest('.form-group') || field.parentNode;
+                const existing = container.querySelector('.js-val-error');
+                if (existing) existing.remove();
+            }
+
             // ====== ENFORCERS ======
             const rfcEl = document.getElementById('rfc');
             const RFC_REGEX = /^([A-ZÑ&]{3,4})\d{6}[A-Z0-9]{3}$/;
@@ -1109,13 +839,19 @@
                     v = v.replace(/\s+/g, '').replace(/[^A-Z0-9Ñ&]/g, '');
                     e.target.value = v;
                     e.target.setCustomValidity('');
+                    clearFieldError(rfcEl);
                 });
                 rfcEl.addEventListener('blur', () => {
                     const v = rfcEl.value.trim();
                     if (v.length > 0 && !RFC_REGEX.test(v)) {
-                        rfcEl.setCustomValidity('RFC inválido. Formato esperado: 3–4 letras + 6 dígitos (YYMMDD) + 3 alfanuméricos.');
+                        rfcEl.setCustomValidity('RFC inválido.');
+                        showFieldError(rfcEl, 'RFC inválido. Debe tener 3–4 letras + 6 dígitos de fecha (AAMMDD) + 3 alfanuméricos. Ej: XAXX010101000');
+                    } else if (v.length === 0) {
+                        rfcEl.setCustomValidity('');
+                        // No limpiar aquí; el submit mostrará "obligatorio" si aplica
                     } else {
                         rfcEl.setCustomValidity('');
+                        clearFieldError(rfcEl);
                     }
                 });
             }
@@ -1128,14 +864,17 @@
             }
             phoneInputs.forEach((el) => {
                 el.addEventListener('keydown', (e) => { if (e.key === ' ') e.preventDefault(); });
-                el.addEventListener('input', () => { sanitizePhone(el); el.setCustomValidity(''); });
+                el.addEventListener('input', () => { sanitizePhone(el); el.setCustomValidity(''); clearFieldError(el); });
                 el.addEventListener('blur', () => {
                     const v = el.value;
-                    if (v.length === 0 && el.id === 'contact_phone') { el.setCustomValidity(''); return; }
+                    if (v.length === 0 && el.id === 'contact_phone') { el.setCustomValidity(''); clearFieldError(el); return; }
+                    if (v.length === 0) return; // campo requerido: el submit mostrará "obligatorio"
                     if (!/^\d{10}$/.test(v)) {
-                        el.setCustomValidity('Debe tener exactamente 10 dígitos (sin espacios ni letras).');
+                        el.setCustomValidity('Debe tener exactamente 10 dígitos.');
+                        showFieldError(el, 'El teléfono debe tener exactamente 10 dígitos, sin espacios ni guiones. Ej: 5512345678');
                     } else {
                         el.setCustomValidity('');
+                        clearFieldError(el);
                     }
                 });
             });
@@ -1250,31 +989,89 @@
                 const currentStepEl = steps.find(s => Number(s.dataset.step) === current);
                 if (!currentStepEl) return true;
 
+                // Limpiar errores inline previos de este paso
+                currentStepEl.querySelectorAll('.js-val-error').forEach(e => e.remove());
+
+                // Disparar blur para activar setCustomValidity en enforcers (RFC, teléfonos, etc.)
                 currentStepEl.querySelectorAll('input, select, textarea').forEach(el => {
                     el.dispatchEvent(new Event('blur'));
                 });
 
+                // --- Campos obligatorios: mostrar error en TODOS, no solo el primero ---
+                const requiredFields = currentStepEl.querySelectorAll('[data-required="1"], [required]');
+                requiredFields.forEach(el => {
+                    const value = (el.value || '').trim();
+
+                    if (!value) {
+                        valid = false;
+                        showFieldError(el, 'Este campo es obligatorio.');
+                        return;
+                    }
+
+                    // Validaciones específicas que el browser no cubre nativamente
+                    if (el.id === 'password' && value.length < 8) {
+                        valid = false;
+                        showFieldError(el, 'La contraseña debe tener al menos 8 caracteres.');
+                        return;
+                    }
+                    if (el.id === 'password_confirmation') {
+                        const pw = document.getElementById('password');
+                        if (pw && value !== pw.value) {
+                            valid = false;
+                            showFieldError(el, 'Las contraseñas no coinciden. Verifica que ambas sean iguales.');
+                            return;
+                        }
+                    }
+
+                    // Validaciones nativas del browser (email, pattern, etc.)
+                    if (!el.checkValidity()) {
+                        valid = false;
+                        let msg = el.validationMessage;
+                        if (el.id === 'rfc') {
+                            msg = 'RFC inválido. Debe tener 3–4 letras + 6 dígitos de fecha (AAMMDD) + 3 alfanuméricos. Ej: XAXX010101000';
+                        } else if (el.type === 'email') {
+                            msg = 'Ingresa un correo electrónico válido. Ej: nombre@empresa.com';
+                        } else if (el.dataset.phone === '10') {
+                            msg = 'El teléfono debe tener exactamente 10 dígitos, sin espacios ni guiones. Ej: 5512345678';
+                        }
+                        showFieldError(el, msg);
+                    } else {
+                        clearFieldError(el);
+                    }
+                });
+
+                // --- Radio: ¿presta servicios especializados? ---
+                const radios = currentStepEl.querySelectorAll('input[name="provides_specialized_services"]');
+                if (radios.length > 0 && !Array.from(radios).some(r => r.checked)) {
+                    valid = false;
+                    const radioGroup = currentStepEl.querySelector('.radio-group');
+                    const container = (radioGroup && (radioGroup.closest('.form-group') || radioGroup.parentNode));
+                    if (container && !container.querySelector('.js-val-error')) {
+                        const div = document.createElement('div');
+                        div.className = 'input-error js-val-error';
+                        div.textContent = 'Debes indicar si prestas servicios especializados (Sí o No).';
+                        container.appendChild(div);
+                    }
+                }
+
+                // --- Checkboxes REPSE (si aplica) ---
                 const repseYes = document.getElementById('repse_yes');
                 if (repseYes && repseYes.checked && currentStepEl.contains(repseYes)) {
                     const serviceCheckboxes = currentStepEl.querySelectorAll('input[name="specialized_services_types[]"]');
                     const atLeastOneChecked = Array.from(serviceCheckboxes).some(cb => cb.checked);
                     if (!atLeastOneChecked) {
                         valid = false;
-                        if (serviceCheckboxes.length > 0) {
-                            serviceCheckboxes[0].setCustomValidity('Debe seleccionar al menos un tipo de servicio especializado');
-                            serviceCheckboxes[0].reportValidity();
+                        const multiselectContainer = currentStepEl.querySelector('#custom-multiselect');
+                        const container = multiselectContainer && (multiselectContainer.closest('.form-group') || multiselectContainer.parentNode);
+                        if (container && !container.querySelector('.js-val-error')) {
+                            const div = document.createElement('div');
+                            div.className = 'input-error js-val-error';
+                            div.textContent = 'Selecciona al menos un tipo de servicio especializado.';
+                            container.appendChild(div);
                         }
                     }
                 }
 
-                const fields = Array.from(currentStepEl.querySelectorAll('[data-required], [required], [data-phone="10"], #rfc'));
-                for (const el of fields) {
-                    if (!el.checkValidity()) {
-                        el.reportValidity();
-                        valid = false;
-                        break;
-                    }
-                }
                 return valid;
             }
 
@@ -1292,39 +1089,53 @@
                 });
             }
 
-            form.addEventListener('submit', function (e) {
+            form.addEventListener('submit', async function (e) {
+                // Siempre prevenir envío nativo; nosotros controlamos el submit
+                e.preventDefault();
                 current = Number(window.__supplierRegisterCurrentStep || current);
-                if (!validateCurrentStep()) { e.preventDefault(); return; }
 
+                // 1) Validar el paso actual primero (muestra errores inline)
+                if (!validateCurrentStep()) return;
+
+                // 2) Validar TODOS los pasos antes de enviar
                 let allValid = true;
-                steps.forEach(s => {
-                    s.querySelectorAll('input, select, textarea').forEach(el => el.dispatchEvent(new Event('blur')));
-                    s.querySelectorAll('[data-required], [required], [data-phone="10"], #rfc').forEach(el => {
-                        if (!el.checkValidity()) allValid = false;
-                    });
-                });
-
-                const repseYes = document.getElementById('repse_yes');
-                if (repseYes && repseYes.checked) {
-                    const serviceCheckboxes = document.querySelectorAll('input[name="specialized_services_types[]"]');
-                    const atLeastOneChecked = Array.from(serviceCheckboxes).some(cb => cb.checked);
-                    if (!atLeastOneChecked) {
+                let firstInvalidStep = null;
+                const savedStep = current;
+                for (let i = 1; i <= totalSteps; i++) {
+                    current = i;
+                    if (!validateCurrentStep()) {
                         allValid = false;
-                        if (serviceCheckboxes.length > 0) {
-                            serviceCheckboxes[0].setCustomValidity('Debe seleccionar al menos un tipo de servicio especializado');
-                        }
+                        if (firstInvalidStep === null) firstInvalidStep = i;
                     }
                 }
+                current = savedStep;
 
                 if (!allValid) {
-                    e.preventDefault();
-                    const firstInvalid = form.querySelector(':invalid');
-                    if (firstInvalid) {
-                        const stepEl = firstInvalid.closest('[data-step]');
-                        if (stepEl) showStep(Number(stepEl.dataset.step));
-                        firstInvalid.reportValidity();
-                    }
+                    showStep(firstInvalidStep);
+                    return;
                 }
+
+                // 3) Refrescar el token CSRF justo antes de enviar para evitar error 419
+                try {
+                    const res = await fetch('/csrf-refresh', { credentials: 'same-origin' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const tokenInput = form.querySelector('input[name="_token"]');
+                        if (tokenInput) tokenInput.value = data.token;
+                        const metaToken = document.querySelector('meta[name="csrf-token"]');
+                        if (metaToken) metaToken.setAttribute('content', data.token);
+                    }
+                } catch (err) { /* continuar de todas formas */ }
+
+                // 4) Deshabilitar botón para prevenir doble envío
+                const submitBtnEl = document.getElementById('submit-btn');
+                if (submitBtnEl) {
+                    submitBtnEl.disabled = true;
+                    submitBtnEl.innerHTML = 'Registrando... <span class="btn-arrow">⟳</span>';
+                }
+
+                // 5) Enviar el formulario
+                form.submit();
             });
 
             if (rfcEl) {

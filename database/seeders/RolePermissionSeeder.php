@@ -60,11 +60,27 @@ class RolePermissionSeeder extends Seeder
             'edit_own_profile',
             'view_own_orders',
 
-            // NUEVOS PERMISOS PARA CATÁLOGO
+            // Catálogo de productos y servicios
             'manage_products',
             'manage_categories',
             'manage_services',
             'approve_products',
+
+            // Requisiciones
+            'view_requisitions',
+            'create_requisitions',
+
+            // Recepciones
+            'view_receptions',
+            'confirm_receptions',
+
+            // Control presupuestal
+            'view_budget',
+            'manage_budget',
+
+            // Revisión documental
+            'view_documents',
+            'review_documents',
         ];
 
         DB::transaction(function () use ($permissions) {
@@ -88,127 +104,185 @@ class RolePermissionSeeder extends Seeder
             // Asignaciones
             $superAdminRole->syncPermissions(Permission::all());
 
+            // Buyer — módulos: quotations, purchase_orders, receptions, products_services, payments_billing, document_review
             $buyerRole->syncPermissions([
+                // Proveedores
                 'view_suppliers',
                 'create_suppliers',
                 'edit_suppliers',
+                'approve_suppliers',
+                'delete_suppliers',
+                // Órdenes de compra
                 'view_orders',
                 'create_orders',
                 'edit_orders',
-                'view_quotes',
-                'create_quotes',
-                'edit_quotes',
-                'view_purchase_reports',
-                'edit_own_profile',
-            ]);
-
-            $accountingRole->syncPermissions([
-                'view_suppliers',
-                'view_orders',
-                'view_invoices',
-                'create_invoices',
-                'edit_invoices',
-                'process_payments',
-                'view_accounting_reports',
-                'edit_own_profile',
-            ]);
-
-            $supplierRole->syncPermissions([
-                'view_own_orders',
-                'create_quotes',
-                'edit_quotes',
-                'create_invoices',
-                'edit_invoices',
-                'edit_own_profile',
-            ]);
-
-            $authorizerRole->syncPermissions([
-                'view_suppliers',
-                'view_orders',
-                'view_invoices',
-                'view_quotes',
-                'approve_suppliers',
+                'delete_orders',
                 'approve_orders',
                 'reject_orders',
+                // Cotizaciones
+                'view_quotes',
+                'create_quotes',
+                'edit_quotes',
+                'approve_quotes',
+                // Facturas y pagos
+                'view_invoices',
                 'approve_invoices',
                 'reject_invoices',
-                'approve_quotes',
+                'process_payments',
+                // Catálogo (products_services)
+                'manage_products',
+                'manage_categories',
+                'manage_services',
+                'approve_products',
+                // Recepciones
+                'view_receptions',
+                'confirm_receptions',
+                // Revisión documental
+                'view_documents',
+                'review_documents',
+                // Reportes
+                'view_purchase_reports',
+                'view_supplier_reports',
+                // Perfil
+                'edit_own_profile',
+            ]);
+
+            // Contabilidad — módulos: budget_control, payments_billing, communicator
+            $accountingRole->syncPermissions([
+                // Proveedores (solo lectura)
+                'view_suppliers',
+                // Órdenes (solo lectura)
+                'view_orders',
+                // Facturas y pagos
+                'view_invoices',
+                'create_invoices',
+                'edit_invoices',
+                'approve_invoices',
+                'reject_invoices',
+                'process_payments',
+                // Presupuesto
+                'view_budget',
+                'manage_budget',
+                // Reportes
                 'view_purchase_reports',
                 'view_accounting_reports',
+                'view_supplier_reports',
+                // Perfil
                 'edit_own_profile',
             ]);
 
-            $staffRole->syncPermissions([
-                'view_suppliers',
-                'view_orders',
-                'view_invoices',
-                'view_quotes',
-                'edit_own_profile',
+            // Proveedor — módulos: quotations, purchase_orders, receptions, supplier_*
+            $supplierRole->syncPermissions([
+                // Órdenes propias
                 'view_own_orders',
+                // Cotizaciones
+                'view_quotes',
+                'create_quotes',
+                'edit_quotes',
+                // Facturas propias
+                'create_invoices',
+                'edit_invoices',
+                // Recepciones
+                'view_receptions',
+                // Perfil
+                'edit_own_profile',
             ]);
 
+            // Autorizador — módulos: quotations, purchase_orders, budget_control
+            $authorizerRole->syncPermissions([
+                // Proveedores
+                'view_suppliers',
+                'approve_suppliers',
+                // Órdenes
+                'view_orders',
+                'approve_orders',
+                'reject_orders',
+                // Facturas
+                'view_invoices',
+                'approve_invoices',
+                'reject_invoices',
+                // Cotizaciones
+                'view_quotes',
+                'approve_quotes',
+                // Presupuesto
+                'view_budget',
+                // Reportes
+                'view_purchase_reports',
+                'view_accounting_reports',
+                // Perfil
+                'edit_own_profile',
+            ]);
+
+            // Staff — módulos: requisitions (solo)
+            $staffRole->syncPermissions([
+                'view_requisitions',
+                'create_requisitions',
+                'view_own_orders',
+                'edit_own_profile',
+            ]);
+
+            // Receptor — módulos: receptions (solo)
             $receiverRole->syncPermissions([
                 'view_orders',
-                'edit_own_profile',
                 'view_own_orders',
+                'view_receptions',
+                'confirm_receptions',
+                'edit_own_profile',
             ]);
 
-            // NUEVAS ASIGNACIONES DE PERMISOS
-
-            // Director General - Acceso completo a visualización y aprobaciones
+            // Director General — módulos: quotations, purchase_orders, budget_control
             $generalDirectorRole->syncPermissions([
-                // Visualización completa
+                // Proveedores (solo lectura y aprobación)
                 'view_suppliers',
-                'view_orders',
-                'view_invoices',
-                'view_quotes',
-
-                // Aprobaciones de alto nivel
                 'approve_suppliers',
+                // Órdenes
+                'view_orders',
                 'approve_orders',
                 'reject_orders',
+                // Facturas
+                'view_invoices',
                 'approve_invoices',
                 'reject_invoices',
+                // Cotizaciones
+                'view_quotes',
                 'approve_quotes',
+                // Presupuesto
+                'view_budget',
+                'manage_budget',
+                // Aprobación de catálogo (ejecutivo)
                 'approve_products',
-
                 // Reportes ejecutivos
                 'view_system_reports',
                 'view_purchase_reports',
                 'view_accounting_reports',
                 'view_supplier_reports',
-
-                // Gestión básica
+                // Perfil
                 'edit_own_profile',
-                'manage_products',
-                'manage_categories',
-                'manage_services',
             ]);
 
-            // Administrador de Catálogo - Enfoque en productos/servicios
+            // Admin de Catálogo — módulos: products_services (solo)
             $catalogAdminRole->syncPermissions([
-                // Gestión completa de catálogo
                 'manage_products',
                 'manage_categories',
                 'manage_services',
                 'approve_products',
-
-                // Visualización relacionada
-                'view_suppliers',
-                'view_orders',
-                'view_quotes',
-
-                // Perfil propio
                 'edit_own_profile',
             ]);
+
+            // Jefe de Departamento — módulos: budget_control, payments_billing
             $departmentHeadRole->syncPermissions([
+                // Órdenes e facturas (solo lectura)
                 'view_orders',
                 'view_invoices',
-                'create_invoices',
-                'edit_invoices',
+                // Pagos
                 'process_payments',
+                // Presupuesto
+                'view_budget',
+                'manage_budget',
+                // Reportes
                 'view_purchase_reports',
                 'view_accounting_reports',
+                // Perfil
                 'edit_own_profile',
             ]);
         });

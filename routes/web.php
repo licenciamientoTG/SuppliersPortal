@@ -48,6 +48,7 @@ use App\Http\Controllers\SupplierPortalController;
 use App\Http\Controllers\SupplierSirocController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\Tools\CfdiGeneratorController;
+use App\Http\Controllers\RolesCatalogController;
 use App\Http\Controllers\UserController;
 use App\Models\Requisition;
 use Illuminate\Support\Facades\Route;
@@ -641,6 +642,21 @@ Route::delete('/dev/logs', [LogViewerController::class, 'clear'])->name('dev.log
 // ============================================================================
 //  Rutas comentadas (sin uso actual, conservadas por decisión)
 // ============================================================================
+
+// ============================================================================
+//  Catálogo de Roles y Permisos (solo superadmin, solo lectura)
+// ============================================================================
+Route::middleware(['auth', 'lock', 'role:superadmin'])
+    ->get('/roles/catalog', [RolesCatalogController::class, 'index'])
+    ->name('roles.catalog');
+
+// ============================================================================
+//  CSRF Token Refresh (previene error 419 en formularios multi-paso)
+//  El JS llama a este endpoint justo antes de enviar para obtener un token fresco.
+// ============================================================================
+Route::get('/csrf-refresh', function () {
+    return response()->json(['token' => csrf_token()]);
+})->name('csrf.refresh');
 
 // ============================================================================
 //  Autenticación
