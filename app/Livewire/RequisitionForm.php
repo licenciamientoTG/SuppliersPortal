@@ -28,6 +28,7 @@ class RequisitionForm extends Component
     public $cost_center_id;
     public $required_date;
     public $description = '';
+    public $hasHydratedCostCenterOnce = false;
 
     // ===== COLECCIONES =====
     public $companies = [];
@@ -334,6 +335,13 @@ class RequisitionForm extends Component
         }
     }
 
+    public function updatedCostCenterId($value)
+    {
+        if ($value) {
+            $this->hasHydratedCostCenterOnce = true;
+        }
+    }
+
     /**
      * Cargar centros de costo del usuario para una compañía.
      */
@@ -356,8 +364,9 @@ class RequisitionForm extends Component
             return;
         }
 
-        if ($this->costCenters->count() === 1 && !$this->cost_center_id) {
+        if ($this->costCenters->count() === 1 && !$this->cost_center_id && !$this->hasHydratedCostCenterOnce) {
             $this->cost_center_id = $this->costCenters->first()->id;
+            $this->hasHydratedCostCenterOnce = true;
         }
     }
 

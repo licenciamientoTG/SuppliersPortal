@@ -679,9 +679,10 @@ $(function() {
     // =====================================================
     // LISTENER: Cambio de Centro de Costo
     // =====================================================
-    $('#cost_center_id').on('change', function() {
+    $(document).off('change.requisitionCostCenter', '#cost_center_id').on('change.requisitionCostCenter', '#cost_center_id', function() {
         const costCenterId = $(this).val();
         $('#modal_expense_category').val(null).trigger('change');
+        resetBudgetCedulaSelect();
 
         if (costCenterId) {
             loadExpenseCategories();
@@ -697,7 +698,7 @@ $(function() {
     // =====================================================
     // 1. ABRIR MODAL PARA AGREGAR
     // =====================================================
-    $('#btnAddItem').on('click', function() {
+    $(document).off('click.requisitionAddItem', '#btnAddItem').on('click.requisitionAddItem', '#btnAddItem', function() {
         const companyId = $('#company_id').val();
         const costCenterId = $('#cost_center_id').val();
 
@@ -1198,78 +1199,6 @@ $(function() {
     // =====================================================
     // 6. GUARDAR PARTIDA -> Llamar a Livewire
     // =====================================================
-    $('#btnSaveItem').on('click', function() {
-        const productId = $('#modal_product_id').val();
-        const quantity = parseFloat($('#modal_quantity').val());
-        const categoryId = $('#modal_expense_category').val();
-
-        if (!productId) {
-            Swal.fire('Error', 'Selecciona un producto del catálogo (RN-001).', 'error');
-            return;
-        }
-
-        if (!quantity || quantity <= 0) {
-            Swal.fire('Error', 'La cantidad debe ser mayor a cero.', 'error');
-            return;
-        }
-
-        if (!categoryId) {
-            Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
-            return;
-        }
-
-        if (!$('#modal_budget_cedula').val()) {
-            Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
-            return;
-        }
-
-        const $selectedProduct = $('#modal_product_id option:selected');
-        const minQty = parseFloat($selectedProduct.data('min-qty'));
-        const maxQty = parseFloat($selectedProduct.data('max-qty'));
-        const unit = $selectedProduct.data('unit') || 'PZA';
-
-        if (minQty && quantity < minQty) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Cantidad insuficiente',
-                text: `La cantidad mínima para este producto es ${minQty} ${unit}`
-            });
-            return;
-        }
-
-        if (maxQty && quantity > maxQty) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Cantidad excedida',
-                text: `La cantidad máxima permitida es ${maxQty} ${unit}`
-            });
-            return;
-        }
-
-        const itemData = {
-            product_id: productId,
-            product_name: $('#modal_product_id option:selected').text(),
-            description: $('#modal_description').val(),
-            quantity: quantity,
-            unit: $('#modal_unit').val(),
-            expense_category_id: categoryId,
-            expense_category_name: $('#modal_expense_category option:selected').text(),
-            budget_cedula_id: $('#modal_budget_cedula').val(),
-            budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
-            notes: $('#modal_notes').val() || ''
-        };
-
-        const editIndex = $('#item_index').val();
-
-        if (editIndex !== '' && editIndex !== null) {
-            @this.updateItem(parseInt(editIndex), itemData);
-        } else {
-            @this.addItem(itemData);
-        }
-
-        $('#itemModal').modal('hide');
-    });
-
     function initializeBudgetCedulaSelect() {
         initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcategoría presupuestal...', {
             dropdownParent: $('#itemModal')
@@ -1352,10 +1281,6 @@ $(function() {
     initializeBudgetCedulaSelect();
     resetBudgetCedulaSelect();
 
-    $('#cost_center_id').on('change', function() {
-        resetBudgetCedulaSelect();
-    });
-
     $('#modal_expense_category').on('change', function() {
         loadBudgetCedulas();
     });
@@ -1400,7 +1325,7 @@ $(function() {
         $('#itemModal').modal('show');
     }
 
-    $('#btnSaveItem').off('click').on('click', function() {
+    $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', function() {
         const productId = $('#modal_product_id').val();
         const quantity = parseFloat($('#modal_quantity').val());
         const categoryId = $('#modal_expense_category').val();
