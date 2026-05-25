@@ -1,5 +1,5 @@
 ﻿<div>
-    {{-- Mensajes de sesiÃ³n --}}
+    {{-- Mensajes de sesión --}}
     @if (session()->has('success'))
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         <i class="ti ti-check me-2"></i>{{ session('success') }}
@@ -17,12 +17,12 @@
     {{-- Formulario --}}
     <form wire:submit.prevent="submit">
 
-        {{-- InformaciÃ³n General --}}
+        {{-- Información General --}}
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <i class="ti ti-info-circle me-2"></i>
-                    {{ $isEditMode ? 'Editar RequisiciÃ³n' : 'Nueva RequisiciÃ³n' }}
+                    {{ $isEditMode ? 'Editar Requisición' : 'Nueva Requisición' }}
                     @if (!empty($folio))
                         <span class="ms-2 text-primary fw-bold">| Folio: {{ $folio }}</span>
                     @endif
@@ -31,14 +31,16 @@
             <div class="card-body">
                 <div class="row g-3">
 
-                    {{-- CompaÃ±Ã­a --}}
+                    {{-- Compañía --}}
                     <div class="col-md-2">
-                        <label for="company_id" class="form-label">CompaÃ±Ã­a <span class="text-danger">*</span></label>
+                        <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
                             <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror"
+                                    data-url-costcenters="{{ route('cost-centers.api.by-company', ['company' => '__CID__']) }}"
+                                    data-selected-cc="{{ $cost_center_id ?? '' }}"
                                     required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
@@ -86,7 +88,7 @@
                                     required
                                     {{ empty($company_id) || empty($purchase_type) ? 'disabled' : '' }}>
                                 <option value="">
-                                    {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compaÃ±Ã­a y tipo de compra primero' : 'Seleccionar centro de costo...' }}
+                                    {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compañía y tipo de compra primero' : 'Seleccionar centro de costo...' }}
                                 </option>
                                 @foreach ($costCenters as $cc)
                                     <option value="{{ $cc->id }}">
@@ -107,9 +109,9 @@
                         </div>
                     </div>
 
-                    {{-- UbicaciÃ³n de recepciÃ³n --}}
+                    {{-- Ubicación de recepción --}}
                     <div class="col-md-3">
-                        <label for="receiving_location_id" class="form-label">UbicaciÃ³n recepciÃ³n <span class="text-danger">*</span></label>
+                        <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-map-pin"></i>
@@ -121,7 +123,7 @@
                                 <option value="">Seleccionar...</option>
                                 @foreach ($receivingLocations as $loc)
                                     <option value="{{ $loc->id }}">
-                                        {{ $loc->name }}{{ $loc->city ? ' â€” ' . $loc->city : '' }}
+                                        {{ $loc->name }}{{ $loc->city ? ' — ' . $loc->city : '' }}
                                     </option>
                                 @endforeach
                             </select>
@@ -148,10 +150,10 @@
                         @enderror
                     </div>
 
-                    {{-- DescripciÃ³n con contador de caracteres --}}
+                    {{-- Descripción con contador de caracteres --}}
                     <div class="col-md-3">
                         <label for="description" class="form-label">
-                            DescripciÃ³n
+                            Descripción
                             <span class="ms-2 badge {{ $descriptionRemainingChars < 50 ? 'bg-danger' : 'bg-secondary' }}">
                                 {{ $descriptionRemainingChars }} / {{ $descriptionMaxLength }}
                             </span>
@@ -230,7 +232,7 @@
                                                 {{ Str::limit($item['notes'], 30) }}
                                             </span>
                                         @else
-                                            <span class="text-muted">â€”</span>
+                                            <span class="text-muted">—</span>
                                         @endif
                                     </td>
                                     <td class="text-nowrap">
@@ -312,17 +314,17 @@
                     <form id="itemForm" class="needs-validation" novalidate>
                         <input type="hidden" id="item_index">
 
-                        {{-- Producto del catÃ¡logo --}}
+                        {{-- Producto del catálogo --}}
                         <div class="mb-4">
                             <div class="mb-3">
                                 <label for="modal_product_id" class="form-label fw-semibold">
-                                    Producto del catÃ¡logo <span class="text-danger">*</span>
+                                    Producto del catálogo <span class="text-danger">*</span>
                                 </label>
                                 <select id="modal_product_id" class="form-select" required>
-                                    <option value="">Buscar producto del catÃ¡logo...</option>
+                                    <option value="">Buscar producto del catálogo...</option>
                                 </select>
                                 <div class="form-text">
-                                    <i class="ti ti-info-circle me-1"></i>RN-001: Solo productos del catÃ¡logo
+                                    <i class="ti ti-info-circle me-1"></i>RN-001: Solo productos del catálogo
                                 </div>
                                 {{-- Info del producto seleccionado --}}
                                 <div id="product_info" class="alert alert-light border mt-2" style="display:none;">
@@ -335,9 +337,9 @@
                             </div>
                         </div>
 
-                        {{-- DescripciÃ³n completa --}}
+                        {{-- Descripción completa --}}
                         <div class="mb-3">
-                            <label for="modal_description" class="form-label fw-semibold">DescripciÃ³n</label>
+                            <label for="modal_description" class="form-label fw-semibold">Descripción</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light">
                                     <i class="ti ti-align-left"></i>
@@ -360,7 +362,7 @@
                                     <input type="number" id="modal_quantity" class="form-control"
                                         min="0.001" step="0.001" value="1" required>
                                 </div>
-                                <div class="form-text">MÃ­nimo: 0.001</div>
+                                <div class="form-text">Mínimo: 0.001</div>
                             </div>
 
                             <div class="col-md-6">
@@ -374,26 +376,26 @@
                             </div>
                         </div>
 
-                        {{-- CategorÃ­a de gasto --}}
+                        {{-- Categoría de gasto --}}
                         <div class="mb-3">
                             <label for="modal_expense_category" class="form-label fw-bold text-muted">
-                                <i class="ti ti-subtask me-1"></i> CategorÃ­a de Gasto <span class="text-danger">*</span>
+                                <i class="ti ti-subtask me-1"></i> Categoría de Gasto <span class="text-danger">*</span>
                             </label>
                             <select id="modal_expense_category" class="form-select select2-simple" required>
-                                <option value="">Seleccione primero un Centro de Costo...</option>
+                                <option value="">Seleccione primero un centro de costo...</option>
                             </select>
-                            <div class="form-text text-muted mt-2">Selecciona la categorÃ­a para desbloquear la subcategorÃ­a presupuestal.</div>
+                            <div class="form-text text-muted mt-2">Selecciona la categoría para desbloquear la subcategoría presupuestal.</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="modal_budget_cedula" class="form-label fw-bold text-muted">
-                                <i class="ti ti-list-details me-1"></i> SubcategorÃ­a Presupuestal <span class="text-danger">*</span>
+                                <i class="ti ti-list-details me-1"></i> Subcategoría Presupuestal <span class="text-danger">*</span>
                             </label>
                             <select id="modal_budget_cedula" class="form-select select2-simple" required disabled>
-                                <option value="">Selecciona primero una categorÃ­a de gasto...</option>
+                                <option value="">Selecciona primero una categoría de gasto...</option>
                             </select>
                             <div class="form-text text-muted" id="modal_budget_cedula_help">
-                                La cÃ©dula disponible depende del centro de costo, la categorÃ­a y el ejercicio fiscal.
+                                La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
                             </div>
                         </div>
 
@@ -405,7 +407,7 @@
                                     <i class="ti ti-notes"></i>
                                 </span>
                                 <textarea id="modal_notes" class="form-control" rows="3"
-                                    placeholder="Especificaciones adicionales, requisitos especiales, informaciÃ³n de contacto, etc."></textarea>
+                                    placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc."></textarea>
                             </div>
                         </div>
                     </form>
@@ -488,17 +490,17 @@
 <script>
 
 // =====================================================
-// FUNCIÃ“N PARA CONFIRMAR ELIMINACIÃ“N DE PARTIDA
+// FUNCIÓN PARA CONFIRMAR ELIMINACIÓN DE PARTIDA
 // =====================================================
 function confirmDeleteItem(index) {
     Swal.fire({
-        title: 'Â¿Eliminar partida?',
-        text: "Esta partida serÃ¡ eliminada de la requisiciÃ³n",
+        title: '¿Eliminar partida?',
+        text: "Esta partida será eliminada de la requisición",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'SÃ­, eliminar',
+        confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
@@ -512,10 +514,10 @@ function confirmDeleteItem(index) {
  */
 function confirmSaveDraft() {
     const isEditMode = {{ $isEditMode ? 'true' : 'false' }};
-    const title = isEditMode ? 'Â¿Actualizar Borrador?' : 'Â¿Guardar como Borrador?';
+    const title = isEditMode ? '¿Actualizar borrador?' : '¿Guardar como borrador?';
     const confirmText = isEditMode
-        ? '<i class="ti ti-device-floppy me-1"></i> SÃ­, Actualizar'
-        : '<i class="ti ti-device-floppy me-1"></i> SÃ­, Guardar Borrador';
+        ? '<i class="ti ti-device-floppy me-1"></i> Sí, actualizar'
+        : '<i class="ti ti-device-floppy me-1"></i> Sí, guardar borrador';
 
     Swal.fire({
         title: title,
@@ -525,20 +527,20 @@ function confirmSaveDraft() {
                 <ul class="text-muted small">
                     <li class="mb-2">
                         <i class="ti ti-edit text-info"></i>
-                        PodrÃ¡s <strong>editar, agregar o eliminar</strong> partidas despuÃ©s
+                        Podrás <strong>editar, agregar o eliminar</strong> partidas después
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-send text-success"></i>
-                        PodrÃ¡s enviarlo a Compras cuando estÃ© listo
+                        Podrás enviarlo a Compras cuando esté listo
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-trash text-danger"></i>
-                        PodrÃ¡s eliminarlo si ya no es necesario
+                        Podrás eliminarlo si ya no es necesario
                     </li>
                 </ul>
                 <div class="alert alert-info mt-3 mb-0">
                     <i class="ti ti-info-circle me-2"></i>
-                    <small>Compras <strong>NO</strong> recibirÃ¡ notificaciÃ³n hasta que lo envÃ­es.</small>
+                    <small>Compras <strong>NO</strong> recibirá notificación hasta que lo envíes.</small>
                 </div>
             </div>
         `,
@@ -565,7 +567,7 @@ function confirmSaveDraft() {
  */
 function confirmSubmit() {
     const isEditMode = {{ $isEditMode ? 'true' : 'false' }};
-    const title = isEditMode ? 'Â¿Actualizar y Enviar a Compras?' : 'Â¿Enviar a Compras?';
+    const title = isEditMode ? '¿Actualizar y enviar a Compras?' : '¿Enviar a Compras?';
 
     Swal.fire({
         title: title,
@@ -575,26 +577,26 @@ function confirmSubmit() {
                 <ul class="text-muted small">
                     <li class="mb-2">
                         <i class="ti ti-lock text-danger"></i>
-                        <strong>Ya NO podrÃ¡s editar</strong> la requisiciÃ³n, solo <strong class="text-danger">Cancelarla</strong>
+                        <strong>Ya NO podrás editar</strong> la requisición, solo <strong class="text-danger">cancelarla</strong>
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-bell text-primary"></i>
-                        <strong>Compras recibirÃ¡ notificaciÃ³n</strong> para iniciar cotizaciÃ³n
+                        <strong>Compras recibirá notificación</strong> para iniciar cotización
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-eye text-info"></i>
-                        PodrÃ¡s consultar el estatus pero <strong>no modificarla</strong>
+                        Podrás consultar el estatus, pero <strong>no modificarla</strong>
                     </li>
                 </ul>
                 <div class="alert alert-warning mt-3 mb-0">
                     <i class="ti ti-alert-triangle me-2"></i>
-                    <small><strong>Â¡Importante!</strong> Verifica que toda la informaciÃ³n sea correcta antes de enviar.</small>
+                    <small><strong>Importante:</strong> verifica que toda la información sea correcta antes de enviar.</small>
                 </div>
             </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: '<i class="ti ti-send me-1"></i> SÃ­, Enviar a Compras',
+        confirmButtonText: '<i class="ti ti-send me-1"></i> Sí, enviar a Compras',
         cancelButtonText: '<i class="ti ti-arrow-left me-1"></i> Revisar de nuevo',
         confirmButtonColor: '#198754',
         cancelButtonColor: '#6c757d',
@@ -611,7 +613,7 @@ function confirmSubmit() {
             if (itemsCount === 0) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'RequisiciÃ³n vacÃ­a',
+                    title: 'Requisición vacía',
                     text: 'Debes agregar al menos una partida antes de enviar a Compras (RN-003).',
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#dc3545'
@@ -658,7 +660,7 @@ $(function() {
 
     function initializeHeaderSelects() {
         const headerSelects = [
-            { selector: '#company_id', property: 'company_id', placeholder: 'Buscar compaÃ±Ã­a...' },
+            { selector: '#company_id', property: 'company_id', placeholder: 'Buscar compañía...' },
             { selector: '#cost_center_id', property: 'cost_center_id', placeholder: 'Buscar centro de costo...' },
             { selector: '#purchase_type', property: 'purchase_type', placeholder: 'Buscar tipo de compra...' },
         ];
@@ -672,13 +674,68 @@ $(function() {
 
             initializeSearchableSelect($select, config.placeholder);
             $select.on('change.requisitionSelect2', function() {
-                livewireComponent.set(config.property, $(this).val() || '');
+                const value = $(this).val() || '';
+                livewireComponent.set(config.property, value);
+
+                if (config.property === 'company_id' || config.property === 'purchase_type') {
+                    const companyId = $('#company_id').val();
+                    const purchaseType = $('#purchase_type').val();
+
+                    $('#company_id').data('selected-cc', '');
+                    livewireComponent.set('cost_center_id', '');
+                    loadHeaderCostCenters(companyId, purchaseType);
+                }
             });
         });
     }
 
+    function loadHeaderCostCenters(companyId, purchaseType) {
+        const $cc = $('#cost_center_id');
+        const urlTemplate = $('#company_id').data('url-costcenters');
+
+        if (!companyId || !purchaseType || !urlTemplate) {
+            $cc.prop('disabled', true)
+                .empty()
+                .append('<option value="">Seleccionar compañía y tipo de compra primero</option>');
+            initializeSearchableSelect($cc, 'Buscar centro de costo...');
+            return;
+        }
+
+        $cc.prop('disabled', true)
+            .empty()
+            .append('<option value="">Cargando centros de costo...</option>');
+        initializeSearchableSelect($cc, 'Buscar centro de costo...');
+
+        const url = urlTemplate.replace('__CID__', companyId);
+
+        $.getJSON(url, { purchase_type: purchaseType })
+            .done(function(data) {
+                $cc.empty().append('<option value="">Seleccionar centro de costo...</option>');
+
+                data.forEach(row => {
+                    $cc.append($('<option>', {
+                        value: row.id,
+                        text: row.code ? `[${row.code}] ${row.name}` : row.name
+                    }));
+                });
+
+                const selectedCc = $('#company_id').data('selected-cc') || $cc.val() || '';
+                if (selectedCc) {
+                    $cc.val(String(selectedCc)).trigger('change');
+                }
+            })
+            .fail(function() {
+                $cc.empty().append('<option value="">No se pudieron cargar los centros de costo</option>');
+                Swal.fire('Error', 'No se pudieron cargar los centros de costo.', 'error');
+            })
+            .always(function() {
+                $cc.prop('disabled', false);
+                initializeSearchableSelect($cc, 'Buscar centro de costo...');
+            });
+    }
+
     function initializeExpenseCategorySelect() {
-        initializeSearchableSelect($('#modal_expense_category'), 'Buscar categorÃ­a de gasto...', {
+        initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
             dropdownParent: $('#itemModal')
         });
     }
@@ -693,7 +750,13 @@ $(function() {
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
             if (el.querySelector?.('#company_id') || el.id === 'company_id' || el.id === 'purchase_type' || el.id === 'cost_center_id') {
-                setTimeout(() => initializeRequisitionSelects(), 0);
+                setTimeout(() => {
+                    initializeRequisitionSelects();
+
+                    if ($('#company_id').val() && $('#purchase_type').val() && $('#cost_center_id option').length <= 1) {
+                        loadHeaderCostCenters($('#company_id').val(), $('#purchase_type').val());
+                    }
+                }, 0);
             }
         });
     });
@@ -710,7 +773,7 @@ $(function() {
         } else {
             $('#modal_expense_category')
                 .empty()
-                .append('<option value="">Seleccione primero un Centro de Costo...</option>')
+                .append('<option value="">Seleccione primero un centro de costo...</option>')
                 .prop('disabled', true);
             initializeExpenseCategorySelect();
         }
@@ -724,17 +787,17 @@ $(function() {
         const costCenterId = $('#cost_center_id').val();
 
         if (!companyId || !costCenterId) {
-            Swal.fire('Datos incompletos', 'Primero selecciona compaÃ±Ã­a y centro de costo.', 'warning');
+            Swal.fire('Datos incompletos', 'Primero selecciona compañía y centro de costo.', 'warning');
             return;
         }
 
-        // âœ… PASO 1: Verificar si hay productos activos para este centro de costo
+        // PASO 1: Verificar si hay productos activos para este centro de costo
         checkProductsAvailability(companyId, costCenterId).then(hasProducts => {
             if (!hasProducts) {
                 return;
             }
 
-            // âœ… PASO 2: Validar categorÃ­as ANTES de abrir el modal
+            // PASO 2: Validar categorías antes de abrir el modal
             loadExpenseCategories().then(hasCategories => {
                 if (hasCategories) {
                     openItemModal();
@@ -758,11 +821,11 @@ $(function() {
                 dataType: 'json',
                 success: function(response) {
                     if (response.products && response.products.length > 0) {
-                        console.log(`âœ… ${response.products.length} producto(s) disponible(s)`);
+                        console.log(`Productos disponibles: ${response.products.length}`);
                         resolve(true);
                     } else {
                         Swal.fire({
-                            title: 'âš ï¸ Sin Productos en el CatÃ¡logo',
+                            title: 'Sin productos en el catálogo',
                             html: `
                                 <div class="text-start">
                                     <div class="alert alert-warning mb-3">
@@ -772,17 +835,17 @@ $(function() {
 
                                     <p class="mb-3">
                                         No hay productos o servicios <strong>activos</strong> registrados en el
-                                        catÃ¡logo para este centro de costo.
+                                        catálogo para este centro de costo.
                                     </p>
 
                                     <div class="card bg-light border-0 mb-3">
                                         <div class="card-body">
                                             <h6 class="card-title text-primary mb-2">
-                                                <i class="ti ti-info-circle me-1"></i>Â¿QuÃ© significa esto?
+                                                <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                                             </h6>
                                             <p class="small mb-0">
-                                                Solo puedes requisar productos que estÃ©n previamente registrados
-                                                y aprobados en el <strong>catÃ¡logo de productos y servicios</strong>.
+                                                Solo puedes requisar productos que estén previamente registrados
+                                                y aprobados en el <strong>catálogo de productos y servicios</strong>.
                                             </p>
                                         </div>
                                     </div>
@@ -790,20 +853,20 @@ $(function() {
                                     <div class="card border-primary mb-0">
                                         <div class="card-body">
                                             <h6 class="card-title text-primary mb-2">
-                                                <i class="ti ti-checklist me-1"></i>Â¿QuÃ© debo hacer?
+                                                <i class="ti ti-checklist me-1"></i>¿Qué debo hacer?
                                             </h6>
                                             <ol class="small mb-0 ps-3">
                                                 <li class="mb-2">
-                                                    Accede al mÃ³dulo de <strong>CatÃ¡logo de Productos/Servicios</strong>
+                                                    Accede al módulo de <strong>Catálogo de Productos/Servicios</strong>
                                                 </li>
                                                 <li class="mb-2">
                                                     Crea un nuevo producto/servicio para tu centro de costo
                                                 </li>
                                                 <li class="mb-2">
-                                                    Espera a que sea <strong>aprobado</strong> por el administrador del catÃ¡logo
+                                                    Espera a que sea <strong>aprobado</strong> por el administrador del catálogo
                                                 </li>
                                                 <li>
-                                                    Una vez aprobado, podrÃ¡s agregarlo a tus requisiciones
+                                                    Una vez aprobado, podrás agregarlo a tus requisiciones
                                                 </li>
                                             </ol>
                                         </div>
@@ -824,8 +887,8 @@ $(function() {
                 error: function(xhr) {
                     console.error('Error al verificar productos:', xhr);
                     Swal.fire({
-                        title: 'Â¡Error!',
-                        text: xhr.responseJSON?.message || 'Error al verificar productos disponibles en el catÃ¡logo.',
+                        title: 'Error',
+                        text: xhr.responseJSON?.message || 'Error al verificar productos disponibles en el catálogo.',
                         icon: 'error',
                         confirmButtonText: 'Entendido'
                     });
@@ -908,7 +971,7 @@ $(function() {
     }
 
     // =====================================================
-    // 3. CARGAR PRODUCTOS DEL CATÃLOGO
+    // 3. CARGAR PRODUCTOS DEL CATÁLOGO
     // =====================================================
     function loadProductsForCostCenter() {
         const companyId = $('#company_id').val();
@@ -948,7 +1011,7 @@ $(function() {
                 }
             },
             error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos del catÃ¡logo.', 'error');
+                Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos del catálogo.', 'error');
             },
             complete: function() {
                 $('#modal_product_id').prop('disabled', false);
@@ -982,12 +1045,12 @@ $(function() {
             const maxQty = $option.data('max-qty');
             const unit = $option.data('unit') || 'PZA';
 
-            let helpText = 'MÃ­nimo: 0.001';
+            let helpText = 'Mínimo: 0.001';
             if (minQty) {
-                helpText = `MÃ­nimo: ${minQty} ${unit}`;
+                helpText = `Mínimo: ${minQty} ${unit}`;
             }
             if (maxQty) {
-                helpText += ` | MÃ¡ximo: ${maxQty} ${unit}`;
+                helpText += ` | Máximo: ${maxQty} ${unit}`;
             }
 
             $('#modal_quantity').siblings('.form-text').html(`<i class="ti ti-info-circle me-1"></i>${helpText}`);
@@ -1002,7 +1065,7 @@ $(function() {
                 '<span class="badge bg-primary"><i class="ti ti-box me-1"></i>Producto</span>';
             $('#product_type_badge').html(typeBadge);
 
-            $('#product_code_display').html(`<strong>CÃ³digo:</strong> <code>${code}</code>`);
+            $('#product_code_display').html(`<strong>Código:</strong> <code>${code}</code>`);
 
             if (brand || model) {
                 const brandModel = [brand, model].filter(Boolean).join(' / ');
@@ -1016,7 +1079,7 @@ $(function() {
     }
 
     // =====================================================
-    // 5. CARGAR CATEGORÃAS DE GASTO
+    // 5. CARGAR CATEGORÍAS DE GASTO
     // =====================================================
     function loadExpenseCategories() {
         return new Promise((resolve, reject) => {
@@ -1034,7 +1097,7 @@ $(function() {
 
             $select.prop('disabled', true)
                 .empty()
-                .append('<option value="">â³ Cargando categorÃ­as...</option>');
+                .append('<option value="">Cargando categorías...</option>');
             initializeExpenseCategorySelect();
 
             $.ajax({
@@ -1045,7 +1108,7 @@ $(function() {
                 },
                 dataType: 'json',
                 success: function(response) {
-                    $select.empty().append('<option value="">Seleccionar categorÃ­a...</option>');
+                    $select.empty().append('<option value="">Seleccionar categoría...</option>');
 
                     if (response.success && response.categories && response.categories.length > 0) {
                         response.categories.forEach(cat => {
@@ -1077,28 +1140,28 @@ $(function() {
                             Toast.fire({
                                 icon: 'info',
                                 title: 'Centro de consumo libre',
-                                html: '<small>Todas las categorÃ­as disponibles</small>'
+                                html: '<small>Todas las categorías disponibles</small>'
                             });
                         }
 
                         resolve(true);
                     } else {
-                        $select.append('<option value="">âš ï¸ Sin categorÃ­as disponibles</option>');
+                        $select.append('<option value="">Sin categorías disponibles</option>');
                         initializeExpenseCategorySelect();
                         showBudgetError(response);
                         resolve(false);
                     }
                 },
                 error: function(xhr) {
-                    $select.empty().append('<option value="">âŒ Error al cargar</option>');
+                    $select.empty().append('<option value="">Error al cargar</option>');
                     initializeExpenseCategorySelect();
 
                     if (xhr.status === 404 && xhr.responseJSON) {
                         showBudgetError(xhr.responseJSON);
                     } else {
                         Swal.fire({
-                            title: 'Â¡Error!',
-                            text: 'Error al cargar las categorÃ­as de gasto.',
+                            title: 'Error',
+                            text: 'Error al cargar las categorías de gasto.',
                             icon: 'error',
                             confirmButtonText: 'Entendido'
                         });
@@ -1111,7 +1174,7 @@ $(function() {
     }
 
     /**
-    * Mostrar alerta especÃ­fica segÃºn el tipo de error de presupuesto
+    * Mostrar alerta específica según el tipo de error de presupuesto
     */
     function showBudgetError(response) {
         const errorType = response.error_type;
@@ -1120,12 +1183,12 @@ $(function() {
         let title, html, icon;
 
         if (errorType === 'NO_BUDGET') {
-            title = 'âš ï¸ Presupuesto No Configurado';
+            title = 'Presupuesto no configurado';
             html = `
                 <div class="text-start">
                     <div class="alert alert-warning mb-3">
                         <i class="ti ti-alert-triangle me-2"></i>
-                        <strong>No se puede crear la requisiciÃ³n</strong>
+                        <strong>No se puede crear la requisición</strong>
                     </div>
 
                     <p class="mb-3">${response.message}</p>
@@ -1133,7 +1196,7 @@ $(function() {
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
-                                <i class="ti ti-info-circle me-1"></i>Â¿QuÃ© significa esto?
+                                <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                             </h6>
                             <p class="small mb-0">
                                 Todos los gastos deben estar dentro del <strong>plan financiero anual</strong>.
@@ -1145,12 +1208,12 @@ $(function() {
                     <div class="card border-primary mb-0">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
-                                <i class="ti ti-checklist me-1"></i>Â¿QuÃ© debo hacer?
+                                <i class="ti ti-checklist me-1"></i>¿Qué debo hacer?
                             </h6>
                             <ol class="small mb-0 ps-3">
                                 <li class="mb-2">Contacta al <strong>responsable del centro de costo</strong></li>
                                 <li class="mb-2">Solicita que configure el <strong>presupuesto anual ${currentYear}</strong></li>
-                                <li>Una vez existente, podrÃ¡s crear requisiciones</li>
+                                <li>Una vez existente, podrás crear requisiciones</li>
                             </ol>
                         </div>
                     </div>
@@ -1158,12 +1221,12 @@ $(function() {
             `;
             icon = 'warning';
         } else if (errorType === 'NO_CATEGORIES') {
-            title = 'âš ï¸ DistribuciÃ³n Presupuestal Incompleta';
+            title = 'Distribución presupuestal incompleta';
             html = `
                 <div class="text-start">
                     <div class="alert alert-info mb-3">
                         <i class="ti ti-info-circle me-2"></i>
-                        <strong>El presupuesto existe pero estÃ¡ incompleto</strong>
+                        <strong>El presupuesto existe, pero está incompleto</strong>
                     </div>
 
                     <p class="mb-3">${response.message}</p>
@@ -1171,11 +1234,11 @@ $(function() {
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
-                                <i class="ti ti-info-circle me-1"></i>Â¿QuÃ© significa esto?
+                                <i class="ti ti-info-circle me-1"></i>¿Qué significa esto?
                             </h6>
                             <p class="small mb-0">
                                 El presupuesto anual existe, pero no tiene <strong>distribuciones mensuales</strong>
-                                asignadas a categorÃ­as de gasto. Sin esto, no se pueden crear requisiciones.
+                                asignadas a categorías de gasto. Sin esto, no se pueden crear requisiciones.
                             </p>
                         </div>
                     </div>
@@ -1183,12 +1246,12 @@ $(function() {
                     <div class="card border-primary mb-0">
                         <div class="card-body">
                             <h6 class="card-title text-primary mb-2">
-                                <i class="ti ti-checklist me-1"></i>Â¿QuÃ© debo hacer?
+                                <i class="ti ti-checklist me-1"></i>¿Qué debo hacer?
                             </h6>
                             <ol class="small mb-0 ps-3">
                                 <li class="mb-2">Contacta al <strong>responsable del centro de costo</strong></li>
                                 <li class="mb-2">Solicita que configure las <strong>distribuciones mensuales</strong> del presupuesto</li>
-                                <li>Debe asignar montos a las categorÃ­as de gasto por mes</li>
+                                <li>Debe asignar montos a las categorías de gasto por mes</li>
                             </ol>
                         </div>
                     </div>
@@ -1196,9 +1259,9 @@ $(function() {
             `;
             icon = 'info';
         } else {
-            title = 'Sin CategorÃ­as Disponibles';
+            title = 'Sin categorías disponibles';
             html = `
-                <p>${response.message || 'No hay categorÃ­as de gasto disponibles para este centro de costo.'}</p>
+                <p>${response.message || 'No hay categorías de gasto disponibles para este centro de costo.'}</p>
                 <p class="text-muted small">${response.instructions || 'Contacta al administrador del sistema.'}</p>
             `;
             icon = 'warning';
@@ -1218,7 +1281,7 @@ $(function() {
     }
 
     // =====================================================
-    // 6. GUARDAR PARTIDA â†’ Llamar a Livewire
+    // 6. GUARDAR PARTIDA -> Llamar a Livewire
     // =====================================================
     $('#btnSaveItem').on('click', function() {
         const productId = $('#modal_product_id').val();
@@ -1226,7 +1289,7 @@ $(function() {
         const categoryId = $('#modal_expense_category').val();
 
         if (!productId) {
-            Swal.fire('Error', 'Selecciona un producto del catÃ¡logo (RN-001).', 'error');
+            Swal.fire('Error', 'Selecciona un producto del catálogo (RN-001).', 'error');
             return;
         }
 
@@ -1236,7 +1299,12 @@ $(function() {
         }
 
         if (!categoryId) {
-            Swal.fire('Error', 'Selecciona una categorÃ­a de gasto (RN-010A).', 'error');
+            Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
+            return;
+        }
+
+        if (!$('#modal_budget_cedula').val()) {
+            Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
             return;
         }
 
@@ -1249,7 +1317,7 @@ $(function() {
             Swal.fire({
                 icon: 'error',
                 title: 'Cantidad insuficiente',
-                text: `La cantidad mÃ­nima para este producto es ${minQty} ${unit}`
+                text: `La cantidad mínima para este producto es ${minQty} ${unit}`
             });
             return;
         }
@@ -1258,7 +1326,7 @@ $(function() {
             Swal.fire({
                 icon: 'error',
                 title: 'Cantidad excedida',
-                text: `La cantidad mÃ¡xima permitida es ${maxQty} ${unit}`
+                text: `La cantidad máxima permitida es ${maxQty} ${unit}`
             });
             return;
         }
@@ -1271,6 +1339,8 @@ $(function() {
             unit: $('#modal_unit').val(),
             expense_category_id: categoryId,
             expense_category_name: $('#modal_expense_category option:selected').text(),
+            budget_cedula_id: $('#modal_budget_cedula').val(),
+            budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
             notes: $('#modal_notes').val() || ''
         };
 
@@ -1563,17 +1633,17 @@ $(function() {
 
         Toast.fire({
             icon: 'error',
-            title: event.message || 'OcurriÃ³ un error al procesar la partida'
+            title: event.message || 'Ocurrió un error al procesar la partida'
         });
     });
 
     // =====================================================
-    // 8. LISTENERS ADICIONALES DE VALIDACIÃ“N Y GUARDADO
+    // 8. LISTENERS ADICIONALES DE VALIDACIÓN Y GUARDADO
     // =====================================================
     Livewire.on('validation-error', (event) => {
         Swal.fire({
             icon: 'error',
-            title: 'ValidaciÃ³n',
+            title: 'Validación',
             text: event.message || 'Por favor, completa todos los campos requeridos'
         });
     });
@@ -1582,7 +1652,7 @@ $(function() {
         Swal.fire({
             icon: 'error',
             title: 'Error al guardar',
-            text: event.message || 'OcurriÃ³ un error al guardar la requisiciÃ³n'
+            text: event.message || 'Ocurrió un error al guardar la requisición'
         });
     });
 });

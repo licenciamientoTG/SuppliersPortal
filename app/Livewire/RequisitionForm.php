@@ -159,7 +159,7 @@ class RequisitionForm extends Component
             ->where('cost_centers.purchase_type', $this->purchase_type)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
-            ->where('cost_center_user.is_active', true)
+            ->wherePivot('is_active', true)
             ->exists();
 
         if (! $validCostCenter) {
@@ -340,7 +340,7 @@ class RequisitionForm extends Component
             ->where('cost_centers.purchase_type', $purchaseType)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
-            ->where('cost_center_user.is_active', true)
+            ->wherePivot('is_active', true)
             ->orderBy('cost_centers.code')
             ->get();
 
