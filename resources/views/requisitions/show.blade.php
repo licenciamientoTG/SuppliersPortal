@@ -1,8 +1,8 @@
 @extends('layouts.zircos')
 
-@section('title', 'Requisición ' . $requisition->folio)
+@section('title', 'Requisicion ' . $requisition->folio)
 
-@section('page.title', 'Requisición ' . $requisition->folio)
+@section('page.title', 'Requisicion ' . $requisition->folio)
 
 @section('page.breadcrumbs')
 <li class="breadcrumb-item"><a href="{{ url('/') }}">Inicio</a></li>
@@ -12,7 +12,6 @@
 
 @section('content')
 
-{{-- Flash Alerts --}}
 @if (session('success'))
 <div class="alert alert-success alert-dismissible fade show">
     <i class="ti ti-circle-check me-2"></i>{{ session('success') }}
@@ -32,10 +31,9 @@
 </div>
 @endif
 
-{{-- Header con folio y estado --}}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="fw-bold mb-0">
-        <i class="ti ti-file-text me-2"></i>Requisición {{ $requisition->folio }}
+        <i class="ti ti-file-text me-2"></i>Requisicion {{ $requisition->folio }}
     </h4>
     <div class="d-flex gap-2 align-items-center">
         <span class="badge bg-{{ $requisition->status->badgeClass() }}">
@@ -44,27 +42,25 @@
     </div>
 </div>
 
-{{-- Alerta si está pausada --}}
 @if ($requisition->isPaused())
 <div class="alert alert-warning">
     <i class="ti ti-alert-triangle me-2"></i>
-    <strong>Requisición pausada:</strong> {{ $requisition->pause_reason }}
+    <strong>Requisicion pausada:</strong> {{ $requisition->pause_reason }}
     @if ($requisition->pauser)
     <br><small>Por {{ $requisition->pauser->name }} el {{ $requisition->paused_at->format('d/m/Y H:i') }}</small>
     @endif
 </div>
 @endif
 
-{{-- Card de Información General --}}
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">
-            <i class="ti ti-info-circle me-2"></i>Información General</h5>
+            <i class="ti ti-info-circle me-2"></i>Informacion General
+        </h5>
     </div>
 
     <div class="card-body">
         <div class="row g-3">
-            {{-- Columna izquierda --}}
             <div class="col-12 col-md-6">
                 <dl class="row mb-0">
                     <dt class="col-sm-5 text-muted">
@@ -75,35 +71,35 @@
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-building-bank me-1"></i> Compañía
+                        <i class="ti ti-building-bank me-1"></i> Compania
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->company?->name ?? '—' }}
+                        {{ $requisition->company?->name ?? '-' }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
                         <i class="ti ti-hierarchy-3 me-1"></i> Centro de costo
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->costCenter?->code }} - {{ $requisition->costCenter?->name ?? '—' }}
+                        {{ $requisition->costCenter?->code }} - {{ $requisition->costCenter?->name ?? '-' }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
                         <i class="ti ti-building me-1"></i> Departamento
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->department?->name ?? '—' }}
+                        {{ $requisition->department?->name ?? '-' }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
                         <i class="ti ti-map-pin me-1"></i> Punto de entrega
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->receivingLocation ? $requisition->receivingLocation->code . ' - ' . $requisition->receivingLocation->name : '—' }}
+                        {{ $requisition->receivingLocation ? $requisition->receivingLocation->code . ' - ' . $requisition->receivingLocation->name : '-' }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-stats me-1"></i> Año fiscal
+                        <i class="ti ti-calendar-stats me-1"></i> Ano fiscal
                     </dt>
                     <dd class="col-sm-7">
                         <span class="fw-semibold">{{ $requisition->fiscal_year }}</span>
@@ -120,7 +116,7 @@
 
                     @if ($requisition->description)
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-file-description me-1"></i> Descripción
+                        <i class="ti ti-file-description me-1"></i> Descripcion
                     </dt>
                     <dd class="col-sm-7">
                         {{ $requisition->description }}
@@ -129,28 +125,27 @@
                 </dl>
             </div>
 
-            {{-- Columna derecha --}}
             <div class="col-12 col-md-6">
                 <dl class="row mb-0">
                     <dt class="col-sm-5 text-muted">
                         <i class="ti ti-user-check me-1"></i> Solicitado por
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->requester?->name ?? '—' }}
+                        {{ $requisition->requester?->name ?? '-' }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-event me-1"></i> Fecha creación
+                        <i class="ti ti-calendar-event me-1"></i> Fecha creacion
                     </dt>
                     <dd class="col-sm-7">
-                        <span class="fw-semibold">{{ $requisition->created_at?->format('d/m/Y H:i') ?? '—' }}</span>
+                        <span class="fw-semibold">{{ $requisition->created_at?->format('d/m/Y H:i') ?? '-' }}</span>
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-time me-1"></i> Última actualización
+                        <i class="ti ti-calendar-time me-1"></i> Ultima actualizacion
                     </dt>
                     <dd class="col-sm-7">
-                        <span class="fw-semibold">{{ $requisition->updated_at?->format('d/m/Y H:i') ?? '—' }}</span>
+                        <span class="fw-semibold">{{ $requisition->updated_at?->format('d/m/Y H:i') ?? '-' }}</span>
                     </dd>
 
                     @if ($requisition->reviewer)
@@ -164,7 +159,7 @@
 
                     @if ($requisition->reviewed_at)
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-check me-1"></i> Fecha revisión
+                        <i class="ti ti-calendar-check me-1"></i> Fecha revision
                     </dt>
                     <dd class="col-sm-7">
                         <span class="fw-semibold">{{ $requisition->reviewed_at->format('d/m/Y H:i') }}</span>
@@ -182,7 +177,7 @@
 
                     @if ($requisition->approved_at)
                     <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-check me-1"></i> Fecha aprobación
+                        <i class="ti ti-calendar-check me-1"></i> Fecha aprobacion
                     </dt>
                     <dd class="col-sm-7">
                         <span class="fw-semibold">{{ $requisition->approved_at->format('d/m/Y H:i') }}</span>
@@ -194,7 +189,6 @@
     </div>
 </div>
 
-{{-- Card de Partidas --}}
 <div class="card mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
@@ -207,7 +201,7 @@
         @if ($requisition->items->isEmpty())
         <div class="text-center text-muted py-4">
             <i class="ti ti-inbox fs-1 d-block mb-2"></i>
-            <p>No hay partidas en esta requisición</p>
+            <p>No hay partidas en esta requisicion</p>
         </div>
         @else
         <div class="table-responsive">
@@ -215,12 +209,12 @@
                 <thead class="table-light">
                     <tr>
                         <th width="40" class="text-center">#</th>
-                        <th>Producto/Código</th>
-                        <th>Descripción</th>
+                        <th>Producto/Codigo</th>
+                        <th>Descripcion</th>
                         <th width="80" class="text-end">Cantidad</th>
                         <th width="80" class="text-center">Unidad</th>
-                        <th width="150">Categoría Gasto</th>
-                        {{-- <th width="100" class="text-center">Mes Aplicación</th> ELIMINADA --}}
+                        <th width="150">Categoria Gasto</th>
+                        <th width="180">Subcategoria Presupuestal</th>
                         <th width="150">Proveedor Sug.</th>
                         <th width="60" class="text-center">Notas</th>
                     </tr>
@@ -230,7 +224,7 @@
                     <tr>
                         <td class="text-center text-muted">{{ $item->line_number }}</td>
                         <td>
-                            <strong>{{ $item->productService?->code ?? '—' }}</strong>
+                            <strong>{{ $item->productService?->code ?? '-' }}</strong>
                             @if ($item->productService?->product_type)
                             <br>
                             <span class="badge bg-{{ $item->productService->product_type === 'SERVICIO' ? 'info' : 'primary' }} badge-sm">
@@ -254,11 +248,14 @@
                             <span class="badge bg-secondary">{{ $item->unit }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-info">{{ $item->expenseCategory?->name ?? '—' }}</span>
+                            <span class="badge bg-info">{{ $item->expenseCategory?->name ?? '-' }}</span>
                         </td>
-                        {{-- COLUMNA ELIMINADA --}}
                         <td>
-                            <small>{{ $item->suggestedVendor?->name ?? '—' }}</small>
+                            <div class="fw-semibold">{{ $item->budgetCedula?->name ?? '-' }}</div>
+                            <small class="text-muted">Cedula presupuestal</small>
+                        </td>
+                        <td>
+                            <small>{{ $item->suggestedVendor?->name ?? '-' }}</small>
                         </td>
                         <td class="text-center">
                             @if ($item->notes)
@@ -266,7 +263,7 @@
                                 data-bs-toggle="tooltip"
                                 title="{{ $item->notes }}"></i>
                             @else
-                            —
+                            -
                             @endif
                         </td>
                     </tr>
@@ -275,7 +272,6 @@
             </table>
         </div>
 
-        {{-- Resumen de partidas --}}
         <div class="mt-3 p-3 bg-light rounded">
             <div class="row">
                 <div class="col-md-4">
@@ -299,7 +295,6 @@
     </div>
 </div>
 
-{{-- Botones de acción --}}
 <div class="d-flex justify-content-between mt-3">
     <a href="{{ route('requisitions.index') }}" class="btn btn-outline-secondary">
         <i class="ti ti-arrow-left me-1"></i>Regresar al Listado
@@ -308,21 +303,18 @@
     <div class="d-flex gap-2">
         @if ($requisition->isDraft() || $requisition->isPaused())
         <a href="{{ route('requisitions.edit', $requisition) }}" class="btn btn-primary">
-            <i class="ti ti-edit me-1"></i>Editar Requisición
+            <i class="ti ti-edit me-1"></i>Editar Requisicion
         </a>
         @endif
-
-        {{-- Aquí puedes agregar más botones según tu flujo de aprobación --}}
     </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    // Inicializar tooltips de Bootstrap
-    $(function() {
+    document.addEventListener('DOMContentLoaded', function() {
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+        [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
     });
 </script>
 @endpush

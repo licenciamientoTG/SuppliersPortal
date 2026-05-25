@@ -74,6 +74,28 @@ class ExpenseCategoryByCostCenterTest extends TestCase
         ]);
     }
 
+    public function test_staff_can_load_budget_cedulas_for_an_assigned_cost_center_and_category(): void
+    {
+        $context = $this->createAnnualBudgetContext();
+
+        $response = $this->actingAs($context['user'])
+            ->getJson(route('expense-categories.cedulas-by-cost-center', [
+                'cost_center_id' => $context['costCenter']->id,
+                'expense_category_id' => $context['expenseCategory']->id,
+                'fiscal_year' => 2026,
+            ]));
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'success' => true,
+            'budget_type' => 'ANNUAL',
+        ]);
+        $response->assertJsonFragment([
+            'id' => $context['cedula']->id,
+            'name' => 'Tecnologia Staff',
+        ]);
+    }
+
     private function createAnnualBudgetContext(): array
     {
         $user = User::factory()->create();
@@ -149,6 +171,7 @@ class ExpenseCategoryByCostCenterTest extends TestCase
             'user' => $user,
             'costCenter' => $costCenter,
             'expenseCategory' => $expenseCategory,
+            'cedula' => $cedula,
         ];
     }
 }

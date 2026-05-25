@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AnnualBudget;
 use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
+use App\Services\BudgetCedulaCatalogService;
 use App\Services\BudgetCategorySummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,8 @@ class ExpenseCategoryController extends Controller
     ];
 
     public function __construct(
-        private readonly BudgetCategorySummaryService $categorySummaryService
+        private readonly BudgetCategorySummaryService $categorySummaryService,
+        private readonly BudgetCedulaCatalogService $budgetCedulaCatalogService
     ) {
     }
 
@@ -322,5 +324,62 @@ class ExpenseCategoryController extends Controller
                 'categories' => [],
             ], 500);
         }
+    }
+
+    public function getCedulasByCostCenter(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cost_center_id' => ['required', 'integer', 'exists:cost_centers,id'],
+            'expense_category_id' => ['required', 'integer', 'exists:expense_categories,id'],
+            'fiscal_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        $costCenter = CostCenter::query()
+            ->whereKey($validated['cost_center_id'])
+            ->where('status', 'ACTIVO')
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (! $costCenter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Centro de costo no encontrado o inactivo.',
+                'cedulas' => [],
+            ], 404);
+        }
+
+        $assignedToUser = $request->user()?->costCenters()
+            ->where('cost_centers.id', $costCenter->id)
+            ->where('cost_centers.status', 'ACTIVO')
+            ->whereNull('cost_centers.deleted_at')
+            ->where('cost_center_user.is_active', true)
+            ->exists();
+
+        if (! $assignedToUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para consultar este centro de costo.',
+                'cedulas' => [],
+            ], 403);
+        }
+
+        $cedulas = $this->budgetCedulaCatalogService
+            ->getValidCedulas(
+                (int) $validated['cost_center_id'],
+                (int) $validated['expense_category_id'],
+                (int) $validated['fiscal_year']
+            )
+            ->map(fn ($cedula) => [
+                'id' => $cedula->id,
+                'name' => $cedula->name,
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'cedulas' => $cedulas,
+            'budget_type' => $costCenter->budget_type,
+            'fiscal_year' => (int) $validated['fiscal_year'],
+        ]);
     }
 }

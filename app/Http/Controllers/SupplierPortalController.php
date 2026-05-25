@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class SupplierPortalController extends Controller
 {
@@ -44,7 +45,12 @@ class SupplierPortalController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.iva_rate' => 'required|numeric|in:0,8,16',
             'items.*.currency' => 'nullable|string|in:MXN,USD,EUR',
-            'items.*.delivery_days' => 'nullable|integer|min:0',
+            'items.*.delivery_days' => [
+                Rule::requiredIf(fn () => $request->input('action') === 'submit'),
+                'nullable',
+                'integer',
+                'min:0',
+            ],
             'items.*.payment_terms' => 'nullable|string|max:255',
             'items.*.warranty_terms' => 'nullable|string|max:500',
             'items.*.brand' => 'nullable|string|max:100',

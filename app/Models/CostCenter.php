@@ -533,6 +533,18 @@ class CostCenter extends Model
         return $query->whereIn('budget_type', ['ANNUAL', 'FREE_CONSUMPTION']);
     }
 
+    public function hasAnnualBudget(int $fiscalYear): bool
+    {
+        if ($this->isFreeConsumption()) {
+            return true;
+        }
+
+        return $this->annualBudgets()
+            ->where('fiscal_year', $fiscalYear)
+            ->whereIn('status', ['APROBADO', 'PLANIFICACION'])
+            ->exists();
+    }
+
 
     // ===== EVENTOS =====
 
