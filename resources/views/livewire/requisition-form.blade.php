@@ -633,7 +633,6 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
-    const livewireComponent = @this;
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
@@ -658,82 +657,6 @@ $(function() {
         });
     }
 
-    function initializeHeaderSelects() {
-        const headerSelects = [
-            { selector: '#company_id', property: 'company_id', placeholder: 'Buscar compañía...' },
-            { selector: '#cost_center_id', property: 'cost_center_id', placeholder: 'Buscar centro de costo...' },
-            { selector: '#purchase_type', property: 'purchase_type', placeholder: 'Buscar tipo de compra...' },
-        ];
-
-        headerSelects.forEach(config => {
-            const $select = $(config.selector);
-
-            if (!$select.length) {
-                return;
-            }
-
-            initializeSearchableSelect($select, config.placeholder);
-            $select.on('change.requisitionSelect2', function() {
-                const value = $(this).val() || '';
-                livewireComponent.set(config.property, value);
-
-                if (config.property === 'company_id' || config.property === 'purchase_type') {
-                    const companyId = $('#company_id').val();
-                    const purchaseType = $('#purchase_type').val();
-
-                    $('#company_id').data('selected-cc', '');
-                    livewireComponent.set('cost_center_id', '');
-                    loadHeaderCostCenters(companyId, purchaseType);
-                }
-            });
-        });
-    }
-
-    function loadHeaderCostCenters(companyId, purchaseType) {
-        const $cc = $('#cost_center_id');
-        const urlTemplate = $('#company_id').data('url-costcenters');
-
-        if (!companyId || !purchaseType || !urlTemplate) {
-            $cc.prop('disabled', true)
-                .empty()
-                .append('<option value="">Seleccionar compañía y tipo de compra primero</option>');
-            initializeSearchableSelect($cc, 'Buscar centro de costo...');
-            return;
-        }
-
-        $cc.prop('disabled', true)
-            .empty()
-            .append('<option value="">Cargando centros de costo...</option>');
-        initializeSearchableSelect($cc, 'Buscar centro de costo...');
-
-        const url = urlTemplate.replace('__CID__', companyId);
-
-        $.getJSON(url, { purchase_type: purchaseType })
-            .done(function(data) {
-                $cc.empty().append('<option value="">Seleccionar centro de costo...</option>');
-
-                data.forEach(row => {
-                    $cc.append($('<option>', {
-                        value: row.id,
-                        text: row.code ? `[${row.code}] ${row.name}` : row.name
-                    }));
-                });
-
-                const selectedCc = $('#company_id').data('selected-cc') || $cc.val() || '';
-                if (selectedCc) {
-                    $cc.val(String(selectedCc)).trigger('change');
-                }
-            })
-            .fail(function() {
-                $cc.empty().append('<option value="">No se pudieron cargar los centros de costo</option>');
-                Swal.fire('Error', 'No se pudieron cargar los centros de costo.', 'error');
-            })
-            .always(function() {
-                $cc.prop('disabled', false);
-                initializeSearchableSelect($cc, 'Buscar centro de costo...');
-            });
-    }
-
     function initializeExpenseCategorySelect() {
         initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
             dropdownParent: $('#itemModal')
@@ -741,7 +664,6 @@ $(function() {
     }
 
     function initializeRequisitionSelects() {
-        initializeHeaderSelects();
         initializeExpenseCategorySelect();
     }
 
@@ -749,13 +671,9 @@ $(function() {
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
-            if (el.querySelector?.('#company_id') || el.id === 'company_id' || el.id === 'purchase_type' || el.id === 'cost_center_id') {
+            if (el.querySelector?.('#modal_expense_category') || el.id === 'modal_expense_category') {
                 setTimeout(() => {
                     initializeRequisitionSelects();
-
-                    if ($('#company_id').val() && $('#purchase_type').val() && $('#cost_center_id option').length <= 1) {
-                        loadHeaderCostCenters($('#company_id').val(), $('#purchase_type').val());
-                    }
                 }, 0);
             }
         });
