@@ -7,6 +7,8 @@
 </head>
 <body style="margin:0;padding:0;background-color:#eef2f7;font-family:Arial,Helvetica,sans-serif;">
 
+    @php($safeUrl = str_starts_with($url, 'https://') || str_starts_with($url, 'http://') ? $url : '#')
+
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef2f7;padding:32px 16px;">
         <tr>
             <td align="center">
@@ -19,12 +21,7 @@
                             <img src="{{ asset('images/logos/logo_TotalGas_hor_azul.png') }}"
                                  alt="TotalGas"
                                  width="180"
-                                 style="max-height:52px;max-width:180px;display:block;margin:0 auto;"
-                                 onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
-                            <div id="logo-fallback"
-                                 style="display:none;font-weight:800;font-size:22px;color:#188ae2;letter-spacing:2px;">
-                                TotalGas
-                            </div>
+                                 style="max-height:52px;max-width:180px;display:block;margin:0 auto;">
                             <div style="color:#888888;font-size:11px;margin-top:6px;letter-spacing:1.5px;text-transform:uppercase;">
                                 Portal de Proveedores
                             </div>
@@ -33,7 +30,7 @@
 
                     {{-- Banda de título --}}
                     <tr>
-                        <td style="background:linear-gradient(135deg,#188ae2 0%,#0f5f9e 100%);padding:16px 32px;text-align:center;">
+                        <td style="background-color:#188ae2;background:linear-gradient(135deg,#188ae2 0%,#0f5f9e 100%);padding:16px 32px;text-align:center;">
                             <span style="color:#ffffff;font-size:15px;font-weight:600;letter-spacing:0.5px;">
                                 Recuperación de contraseña
                             </span>
@@ -50,14 +47,14 @@
                             </p>
                             <p style="font-size:13px;color:#555555;line-height:1.7;margin:0 0 28px;">
                                 Haz clic en el siguiente botón para continuar. Este enlace es válido por
-                                <strong>60 minutos</strong>.
+                                <strong>{{ config('auth.passwords.users.expire') }} minutos</strong>.
                             </p>
 
                             {{-- Botón CTA --}}
                             <table width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td align="center" style="padding:4px 0 28px;">
-                                        <a href="{{ $url }}"
+                                        <a href="{{ $safeUrl }}"
                                            style="display:inline-block;background-color:#188ae2;color:#ffffff;text-decoration:none;padding:12px 36px;border-radius:5px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
                                             Restablecer contraseña
                                         </a>
