@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Notifications\ResetPasswordNotification;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -162,5 +163,10 @@ class User extends Authenticatable
     public function defaultCostCenter()
     {
         return $this->costCenters()->wherePivot('is_default', true)->first();
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
