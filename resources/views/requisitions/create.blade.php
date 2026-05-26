@@ -705,7 +705,8 @@
         });
 
             $.getJSON('{{ route("expense-categories.by-budget") }}', {
-                    cost_center_id: costCenterId
+                    cost_center_id: costCenterId,
+                    fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
                     $('#modal_expense_category').empty().append('<option value="">Seleccionar categoría...</option>');
@@ -741,7 +742,8 @@
             });
 
             $.getJSON('{{ route("expense-categories.by-budget") }}', {
-                    cost_center_id: costCenterId
+                    cost_center_id: costCenterId,
+                    fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
                     $expenseCategory.empty().append('<option value="">Seleccionar categoría...</option>');

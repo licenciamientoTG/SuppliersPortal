@@ -371,13 +371,22 @@ class RequisitionController extends Controller
      */
     protected function loadFormData(Requisition $requisition): View
     {
-        $selectedCompanyId = old('company_id', $requisition->company_id ?? Auth::user()->company_id ?? null);
+        $userCompanies = Auth::user()
+            ->companies()
+            ->orderBy('companies.name')
+            ->get(['companies.id', 'companies.name']);
+
+        $selectedCompanyId = old(
+            'company_id',
+            $requisition->company_id
+                ?? ($userCompanies->count() === 1 ? $userCompanies->first()->id : null)
+        );
 
         $view = $requisition->exists ? 'requisitions.edit' : 'requisitions.create';
 
         return view($view, [
             'requisition' => $requisition,
-            'companies' => Company::orderBy('name')->get(['id', 'name']),
+            'companies' => $userCompanies,
             'costCenters' => $this->getCostCenters(
                 $selectedCompanyId,
                 old('purchase_type', $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type)
