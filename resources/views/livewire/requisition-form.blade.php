@@ -501,7 +501,8 @@ function confirmDeleteItem(index) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            @this.removeItem(index);
+            const wire = getRequisitionWire();
+            wire?.removeItem(index);
         }
     });
 }
@@ -554,7 +555,8 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            @this.call('saveDraft');
+            const wire = getRequisitionWire();
+            wire?.saveDraft();
         }
     });
 }
@@ -605,7 +607,8 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const itemsCount = @this.items.length;
+            const wire = getRequisitionWire();
+            const itemsCount = Array.isArray(wire?.items) ? wire.items.length : 0;
 
             if (itemsCount === 0) {
                 Swal.fire({
@@ -618,7 +621,7 @@ function confirmSubmit() {
                 return;
             }
 
-            @this.call('submit');
+            wire?.submit();
         }
     });
 }
@@ -630,6 +633,19 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
+
+    function getRequisitionWire() {
+        if (typeof Livewire === 'undefined') {
+            return null;
+        }
+
+        const root = document.querySelector('[wire\\:id]');
+        if (!root) {
+            return null;
+        }
+
+        return Livewire.find(root.getAttribute('wire:id'));
+    }
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
@@ -838,7 +854,8 @@ $(function() {
     $(document).on('click', '.btn-edit-item', function() {
         const index = parseInt($(this).data('index'));
 
-        const item = @this.items[index];
+        const wire = getRequisitionWire();
+        const item = Array.isArray(wire?.items) ? wire.items[index] : null;
 
         if (!item) {
             Swal.fire('Error', 'No se pudo cargar la partida para editar.', 'error');
@@ -1407,11 +1424,17 @@ $(function() {
         };
 
         const editIndex = $('#item_index').val();
+        const wire = getRequisitionWire();
+
+        if (!wire) {
+            Swal.fire('Error', 'No se pudo conectar con el formulario para guardar la partida.', 'error');
+            return;
+        }
 
         if (editIndex !== '' && editIndex !== null) {
-            @this.updateItem(parseInt(editIndex), itemData);
+            wire.updateItem(parseInt(editIndex), itemData);
         } else {
-            @this.addItem(itemData);
+            wire.addItem(itemData);
         }
 
         $('#itemModal').modal('hide');
