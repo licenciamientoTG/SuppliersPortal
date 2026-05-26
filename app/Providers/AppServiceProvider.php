@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Gate; // 👈 AGREGAR ESTA LÍNEA
+use Illuminate\Validation\Rules\Password;
 use App\Models\ExchangeRate;
 use App\Models\SupplierDocument;
 use App\Models\ReceivingLocation; // 👈 AGREGAR ESTA LÍNEA
@@ -29,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Password::defaults(function () {
+            return Password::min(8)->mixedCase()->numbers()->symbols();
+        });
+
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION
         Gate::policy(ReceivingLocation::class, ReceivingLocationPolicy::class);
 

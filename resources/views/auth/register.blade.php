@@ -26,6 +26,7 @@
                             required autocomplete="new-password" />
 
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="light" />
         </div>
 
         <!-- Confirm Password -->

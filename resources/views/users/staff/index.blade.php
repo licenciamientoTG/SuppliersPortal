@@ -29,6 +29,52 @@
         #userModal .table-responsive {
             overflow-x: auto;
         }
+
+        /* ── Checklist de requisitos de contraseña ── */
+        .pw-req-box {
+            margin-top: 8px;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .pw-req-title {
+            font-weight: 600;
+            margin: 0 0 6px 0;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .pw-req-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .pw-req-list li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color .2s ease;
+        }
+        .pw-req-list li::before {
+            content: '✗';
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .pw-req-list li.ok::before { content: '✓'; }
+        .pw-req-light {
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+        }
+        .pw-req-light .pw-req-title      { color: #666; }
+        .pw-req-light .pw-req-list li    { color: #888; }
+        .pw-req-light .pw-req-list li::before     { color: #e53e3e; }
+        .pw-req-light .pw-req-list li.ok          { color: #2d3748; }
+        .pw-req-light .pw-req-list li.ok::before  { color: #38a169; }
     </style>
 @endpush
 
@@ -210,12 +256,12 @@ $(function () {
             e.preventDefault();
             const $form  = $(this);
             const action = $form.attr('action');
-            const data   = $form.serialize();
+            const data   = new FormData($form[0]);
 
             $form.find('button[type="submit"]').prop('disabled', true);
             $('#formErrors').addClass('d-none').empty();
 
-            $.ajax({ url: action, type: 'POST', data })
+            $.ajax({ url: action, type: 'POST', data, processData: false, contentType: false })
                 .done(function () {
                 const el = document.getElementById('userModal');
                 const modal = bootstrap.Modal.getInstance(el);

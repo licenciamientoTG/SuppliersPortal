@@ -11,6 +11,7 @@ use App\Models\UserAuthorizerRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -253,7 +254,7 @@ class UserController extends Controller
             'last_name' => ['nullable', 'string', 'max:120'],
             'name' => ['required', 'string', 'max:180'],
             'email' => ['required', 'email', 'max:180', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', Password::defaults()],
             'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:120'],
             'is_active' => ['nullable', 'boolean'],
@@ -323,6 +324,7 @@ class UserController extends Controller
             'last_name' => ['nullable', 'string', 'max:120'],
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['nullable', Password::defaults()],
             'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
@@ -351,6 +353,10 @@ class UserController extends Controller
             $user->phone = $validated['phone'] ?? $user->phone;
             $user->job_title = $validated['job_title'] ?? $user->job_title;
             $user->is_active = (bool) ($validated['is_active'] ?? false);
+
+            if (! empty($validated['password'])) {
+                $user->password = bcrypt($validated['password']);
+            }
 
             if ($removeAvatar && $user->avatar) {
                 Storage::disk('public')->delete($user->avatar);
