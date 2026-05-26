@@ -55,8 +55,7 @@ class SaveRequisitionRequest extends FormRequest
             ],
 
             'department_id' => [
-                $isUpdate ? 'sometimes' : 'required',
-                'required',
+                'nullable',
                 'integer',
                 'exists:departments,id',
             ],
@@ -188,7 +187,6 @@ class SaveRequisitionRequest extends FormRequest
             'purchase_type.required' => 'El tipo de compra es obligatorio.',
             'cost_center_id.required' => 'El centro de costos es obligatorio.',
             'cost_center_id.exists' => 'El centro de costos no pertenece a la compañía seleccionada.',
-            'department_id.required' => 'El departamento es obligatorio.',
             'department_id.exists' => 'El departamento seleccionado no existe.',
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
             'receiving_location_id.exists' => 'La ubicación de recepción seleccionada no existe.',

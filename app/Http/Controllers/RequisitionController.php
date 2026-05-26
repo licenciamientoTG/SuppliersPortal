@@ -403,7 +403,7 @@ class RequisitionController extends Controller
             'company_id' => $data['company_id'],
             'cost_center_id' => $data['cost_center_id'],
             'receiving_location_id' => $data['receiving_location_id'],
-            'department_id' => $data['department_id'],
+            'department_id' => $data['department_id'] ?? null,
             'fiscal_year' => $data['fiscal_year'],
             'folio' => Requisition::nextFolio($data['fiscal_year']),
             'requested_by' => Auth::id(),
@@ -428,7 +428,7 @@ class RequisitionController extends Controller
         // Solo permitir cambiar cost_center, department y receiving_location si está en draft
         if ($requisition->isDraft()) {
             $updateData['cost_center_id'] = $data['cost_center_id'];
-            $updateData['department_id'] = $data['department_id'];
+            $updateData['department_id'] = $data['department_id'] ?? null;
             $updateData['receiving_location_id'] = $data['receiving_location_id'];
         }
 

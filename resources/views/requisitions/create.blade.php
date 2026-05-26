@@ -128,31 +128,6 @@
                         @enderror
                     </div>
 
-                    {{-- Departamento --}}
-                    <div class="col-md-2">
-                        <label for="department_id" class="form-label">Departamento <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-users"></i>
-                            </span>
-                            <select id="department_id" 
-                                    name="department_id"
-                                    class="form-select @error('department_id') is-invalid @enderror" 
-                                    required>
-                                <option value="">Seleccionar...</option>
-                                @foreach ($departments as $dep)
-                                    <option value="{{ $dep->id }}"
-                                        {{ (int) old('department_id', $requisition->department_id ?? 0) === (int) $dep->id ? 'selected' : '' }}>
-                                        {{ $dep->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @error('department_id')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
                     {{-- Fecha requerida --}}
                     <div class="col-md-2">
                         <label for="required_date" class="form-label">Fecha requerida</label>
