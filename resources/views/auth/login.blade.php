@@ -560,6 +560,15 @@
             }, 300);
         });
 
+        // Prevenir doble envío del formulario
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+        });
+
         // Efecto de ondas en el botón
         document.getElementById('loginBtn').addEventListener('click', function(e) {
             const button = this;
