@@ -686,6 +686,16 @@
         function loadExpenseCategories() {
             const costCenterId = $('#cost_center_id').val();
 
+            if (!costCenterId) {
+                $expenseCategory
+                    .empty()
+                    .append('<option value="">Selecciona primero un centro de costo...</option>');
+                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                    dropdownParent: $('#itemModal')
+                });
+                return;
+            }
+
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
         initSearchableSelect($expenseCategory, 'Buscar categorÃ­a de gasto...', {
             dropdownParent: $('#itemModal')
@@ -715,6 +725,16 @@
         loadExpenseCategories = function() {
             const costCenterId = $('#cost_center_id').val();
 
+            if (!costCenterId) {
+                $expenseCategory
+                    .empty()
+                    .append('<option value="">Selecciona primero un centro de costo...</option>');
+                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                    dropdownParent: $('#itemModal')
+                });
+                return;
+            }
+
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
             initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
                 dropdownParent: $('#itemModal')
@@ -735,6 +755,11 @@
                             }));
                         });
                     }
+                })
+                .fail(function(xhr) {
+                    const message = xhr.responseJSON?.message || 'No se pudieron cargar las categorías de gasto.';
+                    $expenseCategory.empty().append(`<option value="">${message}</option>`);
+                    Swal.fire('Error', message, 'error');
                 })
                 .always(function() {
                     initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
