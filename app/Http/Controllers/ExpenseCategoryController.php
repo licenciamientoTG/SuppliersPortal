@@ -352,7 +352,7 @@ class ExpenseCategoryController extends Controller
             ->where('cost_centers.id', $costCenter->id)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
-            ->where('cost_center_user.is_active', true)
+            ->wherePivot('is_active', true)
             ->exists();
 
         if (! $assignedToUser) {

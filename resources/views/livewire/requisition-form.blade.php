@@ -1205,6 +1205,17 @@ $(function() {
         });
     }
 
+    function enableBudgetCedulaSelect($cedula, selectedCedulaId = null) {
+        $cedula.prop('disabled', false);
+        initializeBudgetCedulaSelect();
+
+        const pendingValue = selectedCedulaId || $cedula.data('pending-value');
+        if (pendingValue) {
+            $cedula.val(String(pendingValue)).trigger('change');
+            $cedula.data('pending-value', null);
+        }
+    }
+
     function getRequisitionFiscalYear() {
         return {{ $isEditMode ? (int) ($requisition->fiscal_year ?? now()->year) : now()->year }};
     }
@@ -1254,14 +1265,7 @@ $(function() {
                             }));
                         });
 
-                        $cedula.prop('disabled', false);
-                        initializeBudgetCedulaSelect();
-
-                        const pendingValue = selectedCedulaId || $cedula.data('pending-value');
-                        if (pendingValue) {
-                            $cedula.val(pendingValue).trigger('change');
-                            $cedula.data('pending-value', null);
-                        }
+                        enableBudgetCedulaSelect($cedula, selectedCedulaId);
 
                         resolve(true);
                         return;
@@ -1270,8 +1274,9 @@ $(function() {
                     resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
                     resolve(false);
                 },
-                error: function() {
+                error: function(xhr) {
                     resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
+                    console.error('Error al cargar subcategorías presupuestales:', xhr);
                     resolve(false);
                 }
             });
@@ -1281,9 +1286,23 @@ $(function() {
     initializeBudgetCedulaSelect();
     resetBudgetCedulaSelect();
 
-    $('#modal_expense_category').on('change', function() {
-        loadBudgetCedulas();
-    });
+    $(document)
+        .off('change.requisitionExpenseCategory', '#modal_expense_category')
+        .on('change.requisitionExpenseCategory', '#modal_expense_category', function() {
+            loadBudgetCedulas();
+        });
+
+    $(document)
+        .off('select2:select.requisitionExpenseCategory', '#modal_expense_category')
+        .on('select2:select.requisitionExpenseCategory', '#modal_expense_category', function() {
+            loadBudgetCedulas();
+        });
+
+    $(document)
+        .off('select2:clear.requisitionExpenseCategory', '#modal_expense_category')
+        .on('select2:clear.requisitionExpenseCategory', '#modal_expense_category', function() {
+            resetBudgetCedulaSelect();
+        });
 
     openItemModal = function() {
         editingIndex = null;
