@@ -34,7 +34,7 @@
                 <div class="row g-3">
 
                     {{-- Compañía --}}
-                    <div class="col-md-2">
+                    <div class="col-md-2" wire:key="requisition-company-{{ $company_id ?: 'empty' }}">
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -53,7 +53,7 @@
                     </div>
 
                     {{-- Tipo de compra --}}
-                    <div class="col-md-2">
+                    <div class="col-md-2" wire:key="requisition-purchase-type-{{ $purchase_type ?: 'empty' }}">
                         <label for="purchase_type" class="form-label">Tipo de compra <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -75,19 +75,20 @@
                     </div>
 
                     {{-- Centro de costo --}}
-                    <div class="col-md-3">
+                    <div class="col-md-3" wire:key="requisition-cost-center-{{ $company_id ?: 'empty' }}-{{ $purchase_type ?: 'empty' }}-{{ $cost_center_id ?: 'empty' }}">
                         <label for="cost_center_id" class="form-label">Centro de costo <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-chart-pie"></i>
                             </span>
+                            @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
                             <select wire:model.live="cost_center_id"
                                     id="cost_center_id"
                                     class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
-                                    {{ empty($company_id) || empty($purchase_type) ? 'disabled' : '' }}>
+                                    {{ $canChooseCostCenter ? '' : 'disabled' }}>
                                 <option value="">
-                                    {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compañía y tipo de compra primero' : 'Seleccionar centro de costo...' }}
+                                    {{ !$canChooseCostCenter ? 'Seleccionar compañía y tipo de compra primero' : (count($costCenters) === 0 ? 'No hay centros de costo disponibles para esta combinación' : 'Seleccionar centro de costo...') }}
                                 </option>
                                 @foreach ($costCenters as $cc)
                                     <option value="{{ $cc->id }}" @selected((string) $cost_center_id === (string) $cc->id)>
