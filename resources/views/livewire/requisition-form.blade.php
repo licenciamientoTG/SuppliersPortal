@@ -14,6 +14,8 @@
     </div>
     @endif
 
+    <input type="hidden" id="requisition_livewire_id" value="{{ $this->getId() }}">
+
     {{-- Formulario --}}
     <form wire:submit.prevent="submit">
 
@@ -300,7 +302,7 @@
     </form>
 
     {{-- Modal para agregar/editar partidas --}}
-    <div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore.self>
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -639,12 +641,12 @@ $(function() {
             return null;
         }
 
-        const root = document.querySelector('[wire\\:id]');
-        if (!root) {
+        const componentId = document.getElementById('requisition_livewire_id')?.value;
+        if (!componentId) {
             return null;
         }
 
-        return Livewire.find(root.getAttribute('wire:id'));
+        return Livewire.find(componentId);
     }
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
