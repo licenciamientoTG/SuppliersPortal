@@ -505,7 +505,7 @@ function confirmDeleteItem(index) {
     }).then((result) => {
         if (result.isConfirmed) {
             const wire = getRequisitionWire();
-            wire?.removeItem(index);
+            wire?.$call('removeItem', index);
         }
     });
 }
@@ -559,7 +559,7 @@ function confirmSaveDraft() {
     }).then((result) => {
         if (result.isConfirmed) {
             const wire = getRequisitionWire();
-            wire?.saveDraft();
+            wire?.$call('saveDraft');
         }
     });
 }
@@ -611,7 +611,7 @@ function confirmSubmit() {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
             const wire = getRequisitionWire();
-            const itemsCount = Array.isArray(wire?.items) ? wire.items.length : 0;
+            const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
                 Swal.fire({
@@ -624,7 +624,7 @@ function confirmSubmit() {
                 return;
             }
 
-            wire?.submit();
+            wire?.$call('submit');
         }
     });
 }
@@ -657,7 +657,7 @@ $(function() {
             .append(`<option value="">${message}</option>`);
 
         const wire = getRequisitionWire();
-        wire?.set('cost_center_id', '');
+        wire?.$set('cost_center_id', '');
     }
 
     function loadHeaderCostCenters({ preserveSelection = false, autoSelectSingle = false } = {}) {
@@ -695,17 +695,17 @@ $(function() {
 
                 if (currentValue && hasOptions && $cc.find(`option[value="${currentValue}"]`).length) {
                     $cc.val(String(currentValue));
-                    wire?.set('cost_center_id', String(currentValue));
+                    wire?.$set('cost_center_id', String(currentValue));
                     return;
                 }
 
                 if (autoSelectSingle && data.length === 1) {
                     $cc.val(String(data[0].id));
-                    wire?.set('cost_center_id', String(data[0].id));
+                    wire?.$set('cost_center_id', String(data[0].id));
                     return;
                 }
 
-                wire?.set('cost_center_id', '');
+                wire?.$set('cost_center_id', '');
             })
             .fail(function(xhr) {
                 console.error('Error al cargar centros de costo:', xhr);
@@ -770,7 +770,7 @@ $(function() {
         .off('change.requisitionHeaderCompany', '#company_id')
         .on('change.requisitionHeaderCompany', '#company_id', function() {
             const wire = getRequisitionWire();
-            wire?.set('company_id', $(this).val() || '');
+            wire?.$set('company_id', $(this).val() || '');
             loadHeaderCostCenters({ preserveSelection: false, autoSelectSingle: false });
         });
 
@@ -778,7 +778,7 @@ $(function() {
         .off('change.requisitionHeaderPurchaseType', '#purchase_type')
         .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
             const wire = getRequisitionWire();
-            wire?.set('purchase_type', $(this).val() || '');
+            wire?.$set('purchase_type', $(this).val() || '');
             loadHeaderCostCenters({ preserveSelection: false, autoSelectSingle: false });
         });
 
@@ -945,7 +945,7 @@ $(function() {
         const index = parseInt($(this).data('index'));
 
         const wire = getRequisitionWire();
-        const item = Array.isArray(wire?.items) ? wire.items[index] : null;
+        const item = Array.isArray(wire?.$get('items')) ? wire.$get('items')[index] : null;
 
         if (!item) {
             Swal.fire('Error', 'No se pudo cargar la partida para editar.', 'error');
@@ -1522,9 +1522,9 @@ $(function() {
         }
 
         if (editIndex !== '' && editIndex !== null) {
-            wire.updateItem(parseInt(editIndex), itemData);
+            wire.$call('updateItem', parseInt(editIndex), itemData);
         } else {
-            wire.addItem(itemData);
+            wire.$call('addItem', itemData);
         }
 
         $('#itemModal').modal('hide');
