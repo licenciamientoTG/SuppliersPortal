@@ -128,6 +128,31 @@
                         @enderror
                     </div>
 
+                    {{-- Ubicación de recepción --}}
+                    <div class="col-md-3">
+                        <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="ti ti-map-pin"></i>
+                            </span>
+                            <select id="receiving_location_id"
+                                    name="receiving_location_id"
+                                    class="form-select @error('receiving_location_id') is-invalid @enderror"
+                                    required>
+                                <option value="">Seleccionar...</option>
+                                @foreach ($receivingLocations as $location)
+                                    <option value="{{ $location->id }}"
+                                        {{ (int) old('receiving_location_id', $requisition->receiving_location_id ?? 0) === (int) $location->id ? 'selected' : '' }}>
+                                        {{ $location->code ? '['.$location->code.'] ' : '' }}{{ $location->name }}{{ $location->city ? ' - '.$location->city : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @error('receiving_location_id')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     {{-- Fecha requerida --}}
                     <div class="col-md-2">
                         <label for="required_date" class="form-label">Fecha requerida</label>
@@ -423,7 +448,7 @@
         // =====================================================
         // VARIABLES GLOBALES
         // =====================================================
-        let itemsArray = []; // Array principal de ítems
+        let itemsArray = @json($initialItems ?? []); // Array principal de ítems
         let editingIndex = null; // Índice del ítem en edición
 
         // =====================================================
@@ -1040,20 +1065,24 @@
         // =====================================================
         // 10. INPUTS HIDDEN PARA ENVIAR AL SERVIDOR
         // =====================================================
+        function escapeAttribute(value) {
+            return $('<div>').text(value ?? '').html();
+        }
+
         function updateHiddenInputs() {
             const container = $('#hiddenItemsContainer');
             container.empty();
 
             itemsArray.forEach((item, index) => {
-                const idInput = item.id ? `<input type="hidden" name="items[${index}][id]" value="${item.id}">` : '';
+                const idInput = item.id ? `<input type="hidden" name="items[${index}][id]" value="${escapeAttribute(item.id)}">` : '';
 
                 container.append(`
                     ${idInput}
-                    <input type="hidden" name="items[${index}][product_service_id]" value="${item.product_id}">
-                    <input type="hidden" name="items[${index}][expense_category_id]" value="${item.expense_category_id}">
-                    <input type="hidden" name="items[${index}][budget_cedula_id]" value="${item.budget_cedula_id}">
-                    <input type="hidden" name="items[${index}][quantity]" value="${item.quantity}">
-                    <input type="hidden" name="items[${index}][notes]" value="${item.notes}">
+                    <input type="hidden" name="items[${index}][product_service_id]" value="${escapeAttribute(item.product_id)}">
+                    <input type="hidden" name="items[${index}][expense_category_id]" value="${escapeAttribute(item.expense_category_id)}">
+                    <input type="hidden" name="items[${index}][budget_cedula_id]" value="${escapeAttribute(item.budget_cedula_id)}">
+                    <input type="hidden" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity)}">
+                    <input type="hidden" name="items[${index}][notes]" value="${escapeAttribute(item.notes)}">
                 `);
             });
         }
@@ -1068,6 +1097,8 @@
                 return false;
             }
         });
+
+        refreshTable();
     });
 </script>
 @endpush
