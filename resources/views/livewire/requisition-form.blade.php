@@ -40,7 +40,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" data-url-costcenters="{{ route('requisitions.cost-centers.by-company', ['company' => '__CID__']) }}" required>
+                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -303,7 +303,7 @@
     </form>
 
     {{-- Modal para agregar/editar partidas --}}
-    <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore.self>
+    <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore>
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -661,69 +661,6 @@ $(function() {
         return null;
     }
 
-    function resetHeaderCostCenter(message = 'Seleccionar compañía y tipo de compra primero') {
-        const $cc = $('#cost_center_id');
-        $cc.prop('disabled', true)
-            .empty()
-            .append(`<option value="">${message}</option>`);
-
-        const wire = getRequisitionWire();
-        wire?.$set('cost_center_id', '');
-    }
-
-    function loadHeaderCostCenters({ preserveSelection = false, autoSelectSingle = false } = {}) {
-        const companyId = $('#company_id').val();
-        const purchaseType = $('#purchase_type').val();
-        const $cc = $('#cost_center_id');
-        const urlTemplate = $('#company_id').data('url-costcenters');
-
-        if (!companyId || !purchaseType || !urlTemplate) {
-            resetHeaderCostCenter();
-            return;
-        }
-
-        const currentValue = preserveSelection ? ($cc.val() || '') : '';
-
-        $cc.prop('disabled', true)
-            .empty()
-            .append('<option value="">Cargando centros de costo...</option>');
-
-        $.getJSON(urlTemplate.replace('__CID__', companyId), { purchase_type: purchaseType })
-            .done(function(data) {
-                const hasOptions = Array.isArray(data) && data.length > 0;
-                $cc.empty().append(`<option value="">${hasOptions ? 'Seleccionar centro de costo...' : 'No hay centros de costo disponibles para esta combinación'}</option>`);
-
-                data.forEach(row => {
-                    $cc.append($('<option>', {
-                        value: row.id,
-                        text: row.code ? `[${row.code}] ${row.name}` : row.name
-                    }));
-                });
-
-                $cc.prop('disabled', !hasOptions);
-
-                const wire = getRequisitionWire();
-
-                if (currentValue && hasOptions && $cc.find(`option[value="${currentValue}"]`).length) {
-                    $cc.val(String(currentValue));
-                    wire?.$set('cost_center_id', String(currentValue));
-                    return;
-                }
-
-                if (autoSelectSingle && data.length === 1) {
-                    $cc.val(String(data[0].id));
-                    wire?.$set('cost_center_id', String(data[0].id));
-                    return;
-                }
-
-                wire?.$set('cost_center_id', '');
-            })
-            .fail(function(xhr) {
-                console.error('Error al cargar centros de costo:', xhr);
-                resetHeaderCostCenter('No se pudieron cargar los centros de costo');
-            });
-    }
-
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
             return;
@@ -759,14 +696,6 @@ $(function() {
 
     initializeRequisitionSelects();
 
-    const initialWire = getRequisitionWire();
-    if ($('#company_id').val() && $('#purchase_type').val()) {
-        loadHeaderCostCenters({
-            preserveSelection: true,
-            autoSelectSingle: !initialWire?.hasHydratedCostCenterOnce
-        });
-    }
-
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
             if (el.querySelector?.('#modal_expense_category') || el.id === 'modal_expense_category') {
@@ -776,22 +705,6 @@ $(function() {
             }
         });
     });
-
-    $(document)
-        .off('change.requisitionHeaderCompany', '#company_id')
-        .on('change.requisitionHeaderCompany', '#company_id', function() {
-            const wire = getRequisitionWire();
-            wire?.$set('company_id', $(this).val() || '');
-            loadHeaderCostCenters({ preserveSelection: false, autoSelectSingle: false });
-        });
-
-    $(document)
-        .off('change.requisitionHeaderPurchaseType', '#purchase_type')
-        .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
-            const wire = getRequisitionWire();
-            wire?.$set('purchase_type', $(this).val() || '');
-            loadHeaderCostCenters({ preserveSelection: false, autoSelectSingle: false });
-        });
 
     // =====================================================
     // LISTENER: Cambio de Centro de Costo
