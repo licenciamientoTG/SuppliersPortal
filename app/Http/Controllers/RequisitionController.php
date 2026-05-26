@@ -173,7 +173,7 @@ class RequisitionController extends Controller
      */
     public function create(): View
     {
-        return view('requisitions.create-livewire');
+        return $this->loadFormData(new Requisition());
     }
 
     /**
@@ -215,10 +215,7 @@ class RequisitionController extends Controller
      */
     public function createLivewire(): View
     {
-        // Para Livewire NO necesitas pasar $requisition al componente
-        // El componente Livewire maneja su propio estado
-
-        return view('requisitions.create-livewire');
+        return $this->loadFormData(new Requisition());
     }
 
     /**

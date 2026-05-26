@@ -68,7 +68,7 @@
                                     name="company_id"
                                     class="form-select @error('company_id') is-invalid @enderror" 
                                     required
-                                    data-url-costcenters="{{ route('cost-centers.api.by-company', ['company' => '__CID__']) }}"
+                                    data-url-costcenters="{{ route('requisitions.cost-centers.by-company', ['company' => '__CID__']) }}"
                                     data-selected-cc="{{ old('cost_center_id', $requisition->cost_center_id ?? '') }}">
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
@@ -215,13 +215,14 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Categoría de gasto</th>
+                                <th>Subcategoría presupuestal</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr id="emptyRow">
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="9" class="text-center text-muted py-4">
                                     <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                     No hay partidas agregadas. Haz clic en "Agregar Partida"
                                 </td>
@@ -336,6 +337,19 @@
                         </select>
                         <div class="form-text text-danger">
                             <i class="ti ti-alert-circle me-1"></i>RN-010A: Campo obligatorio
+                        </div>
+                    </div>
+
+                    {{-- Subcategoría presupuestal --}}
+                    <div class="mb-3">
+                        <label for="modal_budget_cedula" class="form-label fw-semibold">
+                            Subcategoría Presupuestal <span class="text-danger">*</span>
+                        </label>
+                        <select id="modal_budget_cedula" class="form-select" required disabled>
+                            <option value="">Selecciona primero una categoría de gasto...</option>
+                        </select>
+                        <div class="form-text">
+                            La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
                         </div>
                     </div>
 
