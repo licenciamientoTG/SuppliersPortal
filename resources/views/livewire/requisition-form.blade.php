@@ -497,7 +497,7 @@ function confirmDeleteItem(index) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             wire?.$call('removeItem', index);
         }
     });
@@ -551,7 +551,7 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             wire?.$call('saveDraft');
         }
     });
@@ -603,7 +603,7 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
@@ -629,30 +629,39 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
+    const requisitionWire = @this;
+
+    function normalizeLivewireReference(candidate) {
+        if (candidate && typeof candidate.$call === 'function') {
+            return candidate;
+        }
+
+        if (candidate?.$wire && typeof candidate.$wire.$call === 'function') {
+            return candidate.$wire;
+        }
+
+        return null;
+    }
 
     function getRequisitionWire() {
-        if (typeof Livewire === 'undefined') {
-            return null;
+        const renderedWire = normalizeLivewireReference(requisitionWire);
+        if (renderedWire) {
+            return renderedWire;
         }
 
-        const componentId = document.getElementById('requisition_livewire_id')?.value;
-        if (componentId) {
-            const byId = Livewire.find(componentId);
-            if (byId) {
-                return byId;
-            }
-        }
-
-        const root = document.querySelector('#requisition_livewire_id')?.closest('[wire\\:id]') || document.querySelector('[wire\\:id]');
-        if (root) {
-            const byClosest = Livewire.find(root.getAttribute('wire:id'));
-            if (byClosest) {
-                return byClosest;
+        if (typeof Livewire !== 'undefined') {
+            const componentId = document.getElementById('requisition_livewire_id')?.value;
+            if (componentId) {
+                const byId = normalizeLivewireReference(Livewire.find(componentId));
+                if (byId) {
+                    return byId;
+                }
             }
         }
 
         return null;
     }
+    window.getRequisitionWire = getRequisitionWire;
 
     const headerCostCenterCatalog = @json($headerCostCenterCatalog);
 
