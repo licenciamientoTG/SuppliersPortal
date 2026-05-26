@@ -836,6 +836,8 @@
         <script src="{{ asset('assets/vendor/datatables.net-keytable/js/dataTables.keyTable.min.js') }}"></script>
         <script src="{{ asset('assets/vendor/datatables.net-select/js/dataTables.select.min.js') }}"></script>
 
+        @livewireScripts
+
         @stack('scripts')
 
         <script>
@@ -1116,7 +1118,6 @@
                 }
             }
         </script>
-        @livewireScripts
     </body>
 
 </html>
