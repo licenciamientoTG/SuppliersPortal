@@ -643,11 +643,22 @@ $(function() {
         }
 
         const componentId = document.getElementById('requisition_livewire_id')?.value;
-        if (!componentId) {
-            return null;
+        if (componentId) {
+            const byId = Livewire.find(componentId);
+            if (byId) {
+                return byId;
+            }
         }
 
-        return Livewire.find(componentId);
+        const root = document.querySelector('#requisition_livewire_id')?.closest('[wire\\:id]') || document.querySelector('[wire\\:id]');
+        if (root) {
+            const byClosest = Livewire.find(root.getAttribute('wire:id'));
+            if (byClosest) {
+                return byClosest;
+            }
+        }
+
+        return typeof Livewire.first === 'function' ? Livewire.first() : null;
     }
 
     function resetHeaderCostCenter(message = 'Seleccionar compañía y tipo de compra primero') {
