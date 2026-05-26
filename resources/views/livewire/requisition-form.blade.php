@@ -40,7 +40,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                            <select id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -59,8 +59,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-filter"></i>
                             </span>
-                            <select wire:model.change="purchase_type"
-                                    id="purchase_type"
+                            <select id="purchase_type"
                                     class="form-select @error('purchase_type') is-invalid @enderror"
                                     required>
                                 <option value="">Seleccionar...</option>
@@ -82,8 +81,7 @@
                                 <i class="ti ti-chart-pie"></i>
                             </span>
                             @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
-                            <select wire:model.change="cost_center_id"
-                                    id="cost_center_id"
+                            <select id="cost_center_id"
                                     class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
                                     {{ $canChooseCostCenter ? '' : 'disabled' }}>
@@ -102,11 +100,6 @@
                         @enderror
 
                         {{-- Loading indicator --}}
-                        <div wire:loading wire:target="company_id,purchase_type" class="mt-1">
-                            <small class="text-muted">
-                                <i class="ti ti-loader rotating"></i> Cargando centros de costo...
-                            </small>
-                        </div>
                     </div>
 
                     {{-- Ubicación de recepción --}}
@@ -661,6 +654,75 @@ $(function() {
         return null;
     }
 
+    const headerCostCenterCatalog = @json($headerCostCenterCatalog);
+
+    function syncHeaderValuesToWire() {
+        const wire = getRequisitionWire();
+
+        if (!wire) {
+            return;
+        }
+
+        wire.$set('company_id', $('#company_id').val() || '');
+        wire.$set('purchase_type', $('#purchase_type').val() || '');
+        wire.$set('cost_center_id', $('#cost_center_id').val() || '');
+    }
+
+    function getMatchingHeaderCostCenters(companyId, purchaseType) {
+        return headerCostCenterCatalog.filter((row) => {
+            return String(row.company_id) === String(companyId) && String(row.purchase_type) === String(purchaseType);
+        });
+    }
+
+    function renderHeaderCostCenters(mode = 'initial') {
+        const companyId = $('#company_id').val() || '';
+        const purchaseType = $('#purchase_type').val() || '';
+        const $cc = $('#cost_center_id');
+        const currentValue = $cc.val() || '';
+
+        if (!companyId || !purchaseType) {
+            $cc.prop('disabled', true)
+                .empty()
+                .append('<option value="">Seleccionar compañía y tipo de compra primero</option>')
+                .val('');
+
+            syncHeaderValuesToWire();
+            return;
+        }
+
+        const matches = getMatchingHeaderCostCenters(companyId, purchaseType);
+        $cc.empty();
+
+        if (matches.length === 0) {
+            $cc.prop('disabled', true)
+                .append('<option value="">No hay centros de costo disponibles para esta combinación</option>')
+                .val('');
+
+            syncHeaderValuesToWire();
+            return;
+        }
+
+        $cc.prop('disabled', false)
+            .append('<option value="">Seleccionar centro de costo...</option>');
+
+        matches.forEach((row) => {
+            const label = row.code ? `[${row.code}] ${row.name}` : row.name;
+            $cc.append($('<option>', { value: row.id, text: label }));
+        });
+
+        let nextValue = '';
+
+        if (mode === 'preserve' && currentValue && matches.some((row) => String(row.id) === String(currentValue))) {
+            nextValue = String(currentValue);
+        } else if (mode === 'initial') {
+            const defaultRow = matches.find((row) => row.is_default) || (matches.length === 1 ? matches[0] : null);
+            nextValue = defaultRow ? String(defaultRow.id) : '';
+        }
+
+        $cc.val(nextValue);
+        syncHeaderValuesToWire();
+    }
+
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
             return;
@@ -695,6 +757,8 @@ $(function() {
     }
 
     initializeRequisitionSelects();
+    renderHeaderCostCenters('initial');
+    syncHeaderValuesToWire();
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
@@ -706,11 +770,24 @@ $(function() {
         });
     });
 
+    $(document)
+        .off('change.requisitionHeaderCompany', '#company_id')
+        .on('change.requisitionHeaderCompany', '#company_id', function() {
+            renderHeaderCostCenters('reset');
+        });
+
+    $(document)
+        .off('change.requisitionHeaderPurchaseType', '#purchase_type')
+        .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
+            renderHeaderCostCenters('reset');
+        });
+
     // =====================================================
     // LISTENER: Cambio de Centro de Costo
     // =====================================================
     $(document).off('change.requisitionCostCenter', '#cost_center_id').on('change.requisitionCostCenter', '#cost_center_id', function() {
         const costCenterId = $(this).val();
+        syncHeaderValuesToWire();
         $('#modal_expense_category').val(null).trigger('change');
         resetBudgetCedulaSelect();
 
