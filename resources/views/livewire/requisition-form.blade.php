@@ -40,7 +40,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -59,7 +59,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-filter"></i>
                             </span>
-                            <select wire:model.live="purchase_type"
+                            <select wire:model.change="purchase_type"
                                     id="purchase_type"
                                     class="form-select @error('purchase_type') is-invalid @enderror"
                                     required>
@@ -82,7 +82,7 @@
                                 <i class="ti ti-chart-pie"></i>
                             </span>
                             @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
-                            <select wire:model.live="cost_center_id"
+                            <select wire:model.change="cost_center_id"
                                     id="cost_center_id"
                                     class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
@@ -116,7 +116,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-map-pin"></i>
                             </span>
-                            <select wire:model.live="receiving_location_id"
+                            <select wire:model.change="receiving_location_id"
                                     id="receiving_location_id"
                                     class="form-select @error('receiving_location_id') is-invalid @enderror"
                                     required>
