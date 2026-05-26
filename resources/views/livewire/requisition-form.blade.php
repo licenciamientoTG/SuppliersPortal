@@ -34,7 +34,7 @@
                 <div class="row g-3">
 
                     {{-- Compañía --}}
-                    <div class="col-md-2" wire:key="requisition-company-{{ $company_id ?: 'empty' }}">
+                    <div class="col-md-2" wire:ignore>
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -53,7 +53,7 @@
                     </div>
 
                     {{-- Tipo de compra --}}
-                    <div class="col-md-2" wire:key="requisition-purchase-type-{{ $purchase_type ?: 'empty' }}">
+                    <div class="col-md-2" wire:ignore>
                         <label for="purchase_type" class="form-label">Tipo de compra <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -74,7 +74,7 @@
                     </div>
 
                     {{-- Centro de costo --}}
-                    <div class="col-md-3" wire:key="requisition-cost-center-{{ $company_id ?: 'empty' }}-{{ $purchase_type ?: 'empty' }}-{{ $cost_center_id ?: 'empty' }}">
+                    <div class="col-md-3" wire:ignore>
                         <label for="cost_center_id" class="form-label">Centro de costo <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -767,7 +767,6 @@ $(function() {
 
     initializeRequisitionSelects();
     renderHeaderCostCenters('initial');
-    syncHeaderValuesToWire();
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
