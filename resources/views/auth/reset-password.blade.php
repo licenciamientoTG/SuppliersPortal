@@ -268,32 +268,6 @@
             font-size: 13px;
         }
 
-        /* Indicador de fortaleza de contraseña */
-        .strength-bar {
-            display: flex;
-            gap: 4px;
-            margin-top: 8px;
-        }
-
-        .strength-bar span {
-            flex: 1;
-            height: 3px;
-            border-radius: 2px;
-            background: rgba(255, 255, 255, 0.15);
-            transition: background 0.3s ease;
-        }
-
-        .strength-bar[data-level="1"] span:nth-child(1)             { background: #ff6b6b; }
-        .strength-bar[data-level="2"] span:nth-child(-n+2)          { background: #ffa726; }
-        .strength-bar[data-level="3"] span:nth-child(-n+3)          { background: #A9CA48; }
-        .strength-bar[data-level="4"] span                          { background: #7BC525; }
-
-        .strength-label {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.5);
-            margin-top: 4px;
-        }
-
         /* Sección de acciones */
         .button-section {
             display: flex;
@@ -423,10 +397,7 @@
                                 <svg id="eye-password" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
                             </button>
                         </div>
-                        <div class="strength-bar" id="strengthBar" data-level="0">
-                            <span></span><span></span><span></span><span></span>
-                        </div>
-                        <div class="strength-label" id="strengthLabel"></div>
+                        <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="dark" />
                         @error('password')
                             <div class="error-message">{{ $message }}</div>
                         @enderror
@@ -544,21 +515,6 @@
                     ? '<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>'
                     : '<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';
             });
-        });
-
-        // Indicador de fortaleza de contraseña
-        document.getElementById('password').addEventListener('input', function() {
-            const val = this.value;
-            const bar = document.getElementById('strengthBar');
-            const lbl = document.getElementById('strengthLabel');
-            let level = 0;
-            const labels = ['', 'Muy débil', 'Débil', 'Aceptable', 'Segura'];
-            if (val.length >= 8)  level++;
-            if (/[A-Z]/.test(val)) level++;
-            if (/[0-9]/.test(val)) level++;
-            if (/[^A-Za-z0-9]/.test(val)) level++;
-            bar.dataset.level  = val.length ? level : 0;
-            lbl.textContent    = val.length ? labels[level] : '';
         });
 
         // Ripple en botón

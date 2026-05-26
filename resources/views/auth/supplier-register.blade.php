@@ -546,6 +546,7 @@
                                 <x-text-input id="password" class="reg-input" type="password" name="password"
                                     data-required="1" autocomplete="new-password" />
                                 <x-input-error :messages="$errors->get('password')" class="input-error" />
+                                <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="dark" />
                             </div>
 
                             <div class="form-group">
@@ -1009,10 +1010,17 @@
                     }
 
                     // Validaciones específicas que el browser no cubre nativamente
-                    if (el.id === 'password' && value.length < 8) {
-                        valid = false;
-                        showFieldError(el, 'La contraseña debe tener al menos 8 caracteres.');
-                        return;
+                    if (el.id === 'password') {
+                        const hasMinLength = value.length >= 8;
+                        const hasUpper     = /[A-Z]/.test(value);
+                        const hasLower     = /[a-z]/.test(value);
+                        const hasNumber    = /[0-9]/.test(value);
+                        const hasSymbol    = /[^A-Za-z0-9]/.test(value);
+                        if (!hasMinLength || !hasUpper || !hasLower || !hasNumber || !hasSymbol) {
+                            valid = false;
+                            showFieldError(el, 'La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula, un número y un símbolo especial.');
+                            return;
+                        }
                     }
                     if (el.id === 'password_confirmation') {
                         const pw = document.getElementById('password');

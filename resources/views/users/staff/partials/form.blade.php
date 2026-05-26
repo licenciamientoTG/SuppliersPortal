@@ -42,11 +42,7 @@
                         <i class="ti ti-upload me-1 fs-13"></i>Subir foto
                         <input type="file" name="avatar" id="avatarInput"
                                accept="image/png,image/jpeg,image/webp"
-                               class="d-none"
-                               onchange="
-                                   var f=this.files[0];
-                                   if(f){ document.getElementById('avatarPreview').src=URL.createObjectURL(f); }
-                               ">
+                               class="d-none">
                     </label>
                     @if(($mode ?? 'create') === 'edit' && $user->avatar)
                         <label class="btn btn-outline-danger btn-sm mb-0" style="cursor:pointer;">
@@ -190,6 +186,7 @@
                         <i class="ti ti-lock fs-14 text-muted"></i>
                     </span>
                     <input type="password"
+                           id="staffPassword"
                            name="password"
                            class="form-control form-control-sm"
                            {{ ($mode ?? 'create') === 'create' ? 'required' : '' }}
@@ -208,9 +205,17 @@
                 </div>
                 @if(($mode ?? 'create') !== 'create')
                     <div class="form-text">Dejar en blanco para no cambiar.</div>
-                @else
-                    <div class="form-text">Mínimo 8 caracteres.</div>
                 @endif
+                <div id="staffPwReq" class="pw-req-box pw-req-light" style="display:none;" aria-live="polite">
+                    <p class="pw-req-title">La contraseña debe tener:</p>
+                    <ul class="pw-req-list">
+                        <li data-rule="length">Mínimo 8 caracteres</li>
+                        <li data-rule="upper">Al menos una mayúscula (A–Z)</li>
+                        <li data-rule="lower">Al menos una minúscula (a–z)</li>
+                        <li data-rule="number">Al menos un número (0–9)</li>
+                        <li data-rule="symbol">Al menos un carácter especial (!@#$%...)</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="col-md-6">
@@ -406,5 +411,68 @@
             exceptionSwitch.addEventListener('change', syncExceptionFields);
         }
         syncAuthorizerVisibility();
+
+        // ── Preview de avatar ────────────────────────────────────────────────
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', function () {
+                const f = this.files[0];
+                if (f) {
+                    const preview = document.getElementById('avatarPreview');
+                    if (preview) {
+                        preview.src = window.URL.createObjectURL(f);
+                    }
+                }
+            });
+        }
+
+        // ── Validación de contraseña en tiempo real (create + edit) ──────────
+        const pwInput   = document.getElementById('staffPassword');
+        const pwReqBox  = document.getElementById('staffPwReq');
+        const submitBtn = form.querySelector('[type="submit"]');
+
+        const pwRules = {
+            length : v => v.length >= 8,
+            upper  : v => /[A-Z]/.test(v),
+            lower  : v => /[a-z]/.test(v),
+            number : v => /[0-9]/.test(v),
+            symbol : v => /[^A-Za-z0-9]/.test(v),
+        };
+
+        function evaluatePw() {
+            if (!pwInput || !pwReqBox) return true;
+            const v = pwInput.value;
+            pwReqBox.style.display = v.length ? 'block' : 'none';
+
+            let allOk = true;
+            Object.entries(pwRules).forEach(([key, fn]) => {
+                const li = pwReqBox.querySelector('[data-rule="' + key + '"]');
+                if (!li) return;
+                const ok = fn(v);
+                li.classList.toggle('ok', ok);
+                if (!ok) allOk = false;
+            });
+
+            if (submitBtn) {
+                const bad = v.length > 0 && !allOk;
+                submitBtn.disabled = bad;
+                submitBtn.style.opacity = bad ? '0.5' : '';
+                submitBtn.style.cursor  = bad ? 'not-allowed' : '';
+            }
+            return v.length === 0 || allOk;
+        }
+
+        if (pwInput) {
+            pwInput.addEventListener('input', evaluatePw);
+        }
+
+        // Guard en captura: cancela el submit antes que jQuery si no cumple
+        form.addEventListener('submit', function (e) {
+            if (!evaluatePw()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        }, true);
+
     })();
 </script>

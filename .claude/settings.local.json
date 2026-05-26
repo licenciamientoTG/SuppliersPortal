@@ -36,7 +36,10 @@
       "Bash(Get-Item -Path \"app/Notifications\" -ErrorAction SilentlyContinue)",
       "Bash(grep -n 'public $view\\\\|viewData\\\\|public function view' vendor/laravel/framework/src/Illuminate/Notifications/Messages/MailMessage.php)",
       "Bash(grep -n 'buildView\\\\|$this->view\\\\b' vendor/laravel/framework/src/Illuminate/Mail/Mailer.php)",
-      "Bash(grep -n '{{ $url }}\\\\|{!! $url !!' resources/views/emails/auth/reset-password.blade.php)"
+      "Bash(grep -n '{{ $url }}\\\\|{!! $url !!' resources/views/emails/auth/reset-password.blade.php)",
+      "Bash(powershell *)",
+      "Bash(python *)",
+      "PowerShell(cmd /c \"mklink /J \"\"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\\\\public\\\\storage\"\" \"\"Z:\\\\uploads\"\"\")"
     ]
   }
 }
