@@ -474,6 +474,10 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/by-cost-center', [ExpenseCategoryController::class, 'getByCostCenter'])->name('by-cost-center');
         Route::get('/cedulas-by-cost-center', [ExpenseCategoryController::class, 'getCedulasByCostCenter'])->name('cedulas-by-cost-center');
     });
+
+    Route::middleware('module.access:requisitions')
+        ->get('requisitions/api/companies/{company}/cost-centers', [CostCenterController::class, 'byCompany'])
+        ->name('requisitions.cost-centers.by-company');
 }); // Fin del grupo auth + lock
 
 // ============================================================================

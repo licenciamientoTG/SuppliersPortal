@@ -14,6 +14,8 @@
     </div>
     @endif
 
+    <input type="hidden" id="requisition_livewire_id" value="{{ $this->getId() }}">
+
     {{-- Formulario --}}
     <form wire:submit.prevent="submit">
 
@@ -32,13 +34,13 @@
                 <div class="row g-3">
 
                     {{-- Compañía --}}
-                    <div class="col-md-2">
+                    <div class="col-md-2" wire:key="requisition-company-{{ $company_id ?: 'empty' }}">
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.live="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -51,13 +53,13 @@
                     </div>
 
                     {{-- Tipo de compra --}}
-                    <div class="col-md-2">
+                    <div class="col-md-2" wire:key="requisition-purchase-type-{{ $purchase_type ?: 'empty' }}">
                         <label for="purchase_type" class="form-label">Tipo de compra <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-filter"></i>
                             </span>
-                            <select wire:model.live="purchase_type"
+                            <select wire:model.change="purchase_type"
                                     id="purchase_type"
                                     class="form-select @error('purchase_type') is-invalid @enderror"
                                     required>
@@ -73,19 +75,20 @@
                     </div>
 
                     {{-- Centro de costo --}}
-                    <div class="col-md-3">
+                    <div class="col-md-3" wire:key="requisition-cost-center-{{ $company_id ?: 'empty' }}-{{ $purchase_type ?: 'empty' }}-{{ $cost_center_id ?: 'empty' }}">
                         <label for="cost_center_id" class="form-label">Centro de costo <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-chart-pie"></i>
                             </span>
-                            <select wire:model.live="cost_center_id"
+                            @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
+                            <select wire:model.change="cost_center_id"
                                     id="cost_center_id"
                                     class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
-                                    {{ empty($company_id) || empty($purchase_type) ? 'disabled' : '' }}>
+                                    {{ $canChooseCostCenter ? '' : 'disabled' }}>
                                 <option value="">
-                                    {{ empty($company_id) || empty($purchase_type) ? 'Seleccionar compañía y tipo de compra primero' : 'Seleccionar centro de costo...' }}
+                                    {{ !$canChooseCostCenter ? 'Seleccionar compañía y tipo de compra primero' : (count($costCenters) === 0 ? 'No hay centros de costo disponibles para esta combinación' : 'Seleccionar centro de costo...') }}
                                 </option>
                                 @foreach ($costCenters as $cc)
                                     <option value="{{ $cc->id }}" @selected((string) $cost_center_id === (string) $cc->id)>
@@ -113,7 +116,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-map-pin"></i>
                             </span>
-                            <select wire:model.live="receiving_location_id"
+                            <select wire:model.change="receiving_location_id"
                                     id="receiving_location_id"
                                     class="form-select @error('receiving_location_id') is-invalid @enderror"
                                     required>
@@ -300,7 +303,7 @@
     </form>
 
     {{-- Modal para agregar/editar partidas --}}
-    <div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore>
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -501,7 +504,8 @@ function confirmDeleteItem(index) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            @this.removeItem(index);
+            const wire = getRequisitionWire();
+            wire?.$call('removeItem', index);
         }
     });
 }
@@ -554,7 +558,8 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            @this.call('saveDraft');
+            const wire = getRequisitionWire();
+            wire?.$call('saveDraft');
         }
     });
 }
@@ -605,7 +610,8 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const itemsCount = @this.items.length;
+            const wire = getRequisitionWire();
+            const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
                 Swal.fire({
@@ -618,7 +624,7 @@ function confirmSubmit() {
                 return;
             }
 
-            @this.call('submit');
+            wire?.$call('submit');
         }
     });
 }
@@ -630,6 +636,30 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
+
+    function getRequisitionWire() {
+        if (typeof Livewire === 'undefined') {
+            return null;
+        }
+
+        const componentId = document.getElementById('requisition_livewire_id')?.value;
+        if (componentId) {
+            const byId = Livewire.find(componentId);
+            if (byId) {
+                return byId;
+            }
+        }
+
+        const root = document.querySelector('#requisition_livewire_id')?.closest('[wire\\:id]') || document.querySelector('[wire\\:id]');
+        if (root) {
+            const byClosest = Livewire.find(root.getAttribute('wire:id'));
+            if (byClosest) {
+                return byClosest;
+            }
+        }
+
+        return null;
+    }
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
         if (!$element.length) {
@@ -838,7 +868,8 @@ $(function() {
     $(document).on('click', '.btn-edit-item', function() {
         const index = parseInt($(this).data('index'));
 
-        const item = @this.items[index];
+        const wire = getRequisitionWire();
+        const item = Array.isArray(wire?.$get('items')) ? wire.$get('items')[index] : null;
 
         if (!item) {
             Swal.fire('Error', 'No se pudo cargar la partida para editar.', 'error');
@@ -1205,6 +1236,17 @@ $(function() {
         });
     }
 
+    function enableBudgetCedulaSelect($cedula, selectedCedulaId = null) {
+        $cedula.prop('disabled', false);
+        initializeBudgetCedulaSelect();
+
+        const pendingValue = selectedCedulaId || $cedula.data('pending-value');
+        if (pendingValue) {
+            $cedula.val(String(pendingValue)).trigger('change');
+            $cedula.data('pending-value', null);
+        }
+    }
+
     function getRequisitionFiscalYear() {
         return {{ $isEditMode ? (int) ($requisition->fiscal_year ?? now()->year) : now()->year }};
     }
@@ -1254,14 +1296,7 @@ $(function() {
                             }));
                         });
 
-                        $cedula.prop('disabled', false);
-                        initializeBudgetCedulaSelect();
-
-                        const pendingValue = selectedCedulaId || $cedula.data('pending-value');
-                        if (pendingValue) {
-                            $cedula.val(pendingValue).trigger('change');
-                            $cedula.data('pending-value', null);
-                        }
+                        enableBudgetCedulaSelect($cedula, selectedCedulaId);
 
                         resolve(true);
                         return;
@@ -1270,8 +1305,9 @@ $(function() {
                     resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
                     resolve(false);
                 },
-                error: function() {
+                error: function(xhr) {
                     resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
+                    console.error('Error al cargar subcategorías presupuestales:', xhr);
                     resolve(false);
                 }
             });
@@ -1281,9 +1317,23 @@ $(function() {
     initializeBudgetCedulaSelect();
     resetBudgetCedulaSelect();
 
-    $('#modal_expense_category').on('change', function() {
-        loadBudgetCedulas();
-    });
+    $(document)
+        .off('change.requisitionExpenseCategory', '#modal_expense_category')
+        .on('change.requisitionExpenseCategory', '#modal_expense_category', function() {
+            loadBudgetCedulas();
+        });
+
+    $(document)
+        .off('select2:select.requisitionExpenseCategory', '#modal_expense_category')
+        .on('select2:select.requisitionExpenseCategory', '#modal_expense_category', function() {
+            loadBudgetCedulas();
+        });
+
+    $(document)
+        .off('select2:clear.requisitionExpenseCategory', '#modal_expense_category')
+        .on('select2:clear.requisitionExpenseCategory', '#modal_expense_category', function() {
+            resetBudgetCedulaSelect();
+        });
 
     openItemModal = function() {
         editingIndex = null;
@@ -1388,11 +1438,17 @@ $(function() {
         };
 
         const editIndex = $('#item_index').val();
+        const wire = getRequisitionWire();
+
+        if (!wire) {
+            Swal.fire('Error', 'No se pudo conectar con el formulario para guardar la partida.', 'error');
+            return;
+        }
 
         if (editIndex !== '' && editIndex !== null) {
-            @this.updateItem(parseInt(editIndex), itemData);
+            wire.$call('updateItem', parseInt(editIndex), itemData);
         } else {
-            @this.addItem(itemData);
+            wire.$call('addItem', itemData);
         }
 
         $('#itemModal').modal('hide');
