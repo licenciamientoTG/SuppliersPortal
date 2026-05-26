@@ -40,7 +40,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" data-url-costcenters="{{ route('cost-centers.api.by-company', ['company' => '__CID__']) }}" required>
+                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" data-url-costcenters="{{ route('requisitions.cost-centers.by-company', ['company' => '__CID__']) }}" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -658,7 +658,7 @@ $(function() {
             }
         }
 
-        return typeof Livewire.first === 'function' ? Livewire.first() : null;
+        return null;
     }
 
     function resetHeaderCostCenter(message = 'Seleccionar compañía y tipo de compra primero') {
