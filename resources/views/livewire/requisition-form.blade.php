@@ -672,7 +672,7 @@ $(function() {
         });
     }
 
-    function renderHeaderCostCenters(mode = 'initial') {
+    function renderHeaderCostCenters(mode = 'initial', shouldSync = true) {
         const companyId = $('#company_id').val() || '';
         const purchaseType = $('#purchase_type').val() || '';
         const $cc = $('#cost_center_id');
@@ -684,7 +684,9 @@ $(function() {
                 .append('<option value="">Seleccionar compañía y tipo de compra primero</option>')
                 .val('');
 
-            syncHeaderValuesToWire();
+            if (shouldSync) {
+                syncHeaderValuesToWire();
+            }
             return;
         }
 
@@ -696,7 +698,9 @@ $(function() {
                 .append('<option value="">No hay centros de costo disponibles para esta combinación</option>')
                 .val('');
 
-            syncHeaderValuesToWire();
+            if (shouldSync) {
+                syncHeaderValuesToWire();
+            }
             return;
         }
 
@@ -718,7 +722,9 @@ $(function() {
         }
 
         $cc.val(nextValue);
-        syncHeaderValuesToWire();
+        if (shouldSync) {
+            syncHeaderValuesToWire();
+        }
     }
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
@@ -755,7 +761,7 @@ $(function() {
     }
 
     initializeRequisitionSelects();
-    renderHeaderCostCenters('initial');
+    renderHeaderCostCenters('initial', false);
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
@@ -770,13 +776,13 @@ $(function() {
     $(document)
         .off('change.requisitionHeaderCompany', '#company_id')
         .on('change.requisitionHeaderCompany', '#company_id', function() {
-            renderHeaderCostCenters('reset');
+            renderHeaderCostCenters('reset', true);
         });
 
     $(document)
         .off('change.requisitionHeaderPurchaseType', '#purchase_type')
         .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
-            renderHeaderCostCenters('reset');
+            renderHeaderCostCenters('reset', true);
         });
 
     // =====================================================
