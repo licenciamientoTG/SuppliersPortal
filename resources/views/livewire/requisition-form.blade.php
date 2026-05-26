@@ -34,13 +34,13 @@
                 <div class="row g-3">
 
                     {{-- Compañía --}}
-                    <div class="col-md-2" wire:key="requisition-company-{{ $company_id ?: 'empty' }}">
+                    <div class="col-md-2" wire:ignore>
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select wire:model.change="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                            <select id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -53,14 +53,13 @@
                     </div>
 
                     {{-- Tipo de compra --}}
-                    <div class="col-md-2" wire:key="requisition-purchase-type-{{ $purchase_type ?: 'empty' }}">
+                    <div class="col-md-2" wire:ignore>
                         <label for="purchase_type" class="form-label">Tipo de compra <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-filter"></i>
                             </span>
-                            <select wire:model.change="purchase_type"
-                                    id="purchase_type"
+                            <select id="purchase_type"
                                     class="form-select @error('purchase_type') is-invalid @enderror"
                                     required>
                                 <option value="">Seleccionar...</option>
@@ -75,15 +74,14 @@
                     </div>
 
                     {{-- Centro de costo --}}
-                    <div class="col-md-3" wire:key="requisition-cost-center-{{ $company_id ?: 'empty' }}-{{ $purchase_type ?: 'empty' }}-{{ $cost_center_id ?: 'empty' }}">
+                    <div class="col-md-3" wire:ignore>
                         <label for="cost_center_id" class="form-label">Centro de costo <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
                                 <i class="ti ti-chart-pie"></i>
                             </span>
                             @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
-                            <select wire:model.change="cost_center_id"
-                                    id="cost_center_id"
+                            <select id="cost_center_id"
                                     class="form-select @error('cost_center_id') is-invalid @enderror"
                                     required
                                     {{ $canChooseCostCenter ? '' : 'disabled' }}>
@@ -102,11 +100,6 @@
                         @enderror
 
                         {{-- Loading indicator --}}
-                        <div wire:loading wire:target="company_id,purchase_type" class="mt-1">
-                            <small class="text-muted">
-                                <i class="ti ti-loader rotating"></i> Cargando centros de costo...
-                            </small>
-                        </div>
                     </div>
 
                     {{-- Ubicación de recepción --}}
@@ -427,8 +420,6 @@
 </div>
 
 @push('styles')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
     .input-group-text {
         background-color: #f8f9fa;
@@ -484,9 +475,6 @@
 @endpush
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <script>
 
 // =====================================================
@@ -504,7 +492,7 @@ function confirmDeleteItem(index) {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             wire?.$call('removeItem', index);
         }
     });
@@ -558,7 +546,7 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             wire?.$call('saveDraft');
         }
     });
@@ -610,7 +598,7 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const wire = getRequisitionWire();
+            const wire = window.getRequisitionWire?.();
             const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
@@ -637,28 +625,106 @@ $(function() {
     // =====================================================
     let editingIndex = null;
 
+    function normalizeLivewireReference(candidate) {
+        if (candidate && typeof candidate.$call === 'function') {
+            return candidate;
+        }
+
+        if (candidate?.$wire && typeof candidate.$wire.$call === 'function') {
+            return candidate.$wire;
+        }
+
+        return null;
+    }
+
     function getRequisitionWire() {
-        if (typeof Livewire === 'undefined') {
-            return null;
-        }
-
-        const componentId = document.getElementById('requisition_livewire_id')?.value;
-        if (componentId) {
-            const byId = Livewire.find(componentId);
-            if (byId) {
-                return byId;
-            }
-        }
-
-        const root = document.querySelector('#requisition_livewire_id')?.closest('[wire\\:id]') || document.querySelector('[wire\\:id]');
-        if (root) {
-            const byClosest = Livewire.find(root.getAttribute('wire:id'));
-            if (byClosest) {
-                return byClosest;
+        if (typeof Livewire !== 'undefined') {
+            const componentId = document.getElementById('requisition_livewire_id')?.value;
+            if (componentId) {
+                const byId = normalizeLivewireReference(Livewire.find(componentId));
+                if (byId) {
+                    return byId;
+                }
             }
         }
 
         return null;
+    }
+    window.getRequisitionWire = getRequisitionWire;
+
+    const headerCostCenterCatalog = @json($headerCostCenterCatalog);
+
+    function syncHeaderValuesToWire() {
+        const wire = getRequisitionWire();
+
+        if (!wire) {
+            return;
+        }
+
+        wire.$set('company_id', $('#company_id').val() || '');
+        wire.$set('purchase_type', $('#purchase_type').val() || '');
+        wire.$set('cost_center_id', $('#cost_center_id').val() || '');
+    }
+
+    function getMatchingHeaderCostCenters(companyId, purchaseType) {
+        return headerCostCenterCatalog.filter((row) => {
+            return String(row.company_id) === String(companyId) && String(row.purchase_type) === String(purchaseType);
+        });
+    }
+
+    function renderHeaderCostCenters(mode = 'initial', shouldSync = true) {
+        const companyId = $('#company_id').val() || '';
+        const purchaseType = $('#purchase_type').val() || '';
+        const $cc = $('#cost_center_id');
+        const currentValue = $cc.val() || '';
+
+        if (!companyId || !purchaseType) {
+            $cc.prop('disabled', true)
+                .empty()
+                .append('<option value="">Seleccionar compañía y tipo de compra primero</option>')
+                .val('');
+
+            if (shouldSync) {
+                syncHeaderValuesToWire();
+            }
+            return;
+        }
+
+        const matches = getMatchingHeaderCostCenters(companyId, purchaseType);
+        $cc.empty();
+
+        if (matches.length === 0) {
+            $cc.prop('disabled', true)
+                .append('<option value="">No hay centros de costo disponibles para esta combinación</option>')
+                .val('');
+
+            if (shouldSync) {
+                syncHeaderValuesToWire();
+            }
+            return;
+        }
+
+        $cc.prop('disabled', false)
+            .append('<option value="">Seleccionar centro de costo...</option>');
+
+        matches.forEach((row) => {
+            const label = row.code ? `[${row.code}] ${row.name}` : row.name;
+            $cc.append($('<option>', { value: row.id, text: label }));
+        });
+
+        let nextValue = '';
+
+        if (mode === 'preserve' && currentValue && matches.some((row) => String(row.id) === String(currentValue))) {
+            nextValue = String(currentValue);
+        } else if (mode === 'initial') {
+            const defaultRow = matches.find((row) => row.is_default) || (matches.length === 1 ? matches[0] : null);
+            nextValue = defaultRow ? String(defaultRow.id) : '';
+        }
+
+        $cc.val(nextValue);
+        if (shouldSync) {
+            syncHeaderValuesToWire();
+        }
     }
 
     function initializeSearchableSelect($element, placeholder, options = {}) {
@@ -695,6 +761,7 @@ $(function() {
     }
 
     initializeRequisitionSelects();
+    renderHeaderCostCenters('initial', false);
 
     document.addEventListener('livewire:init', () => {
         Livewire.hook('morph.updated', ({ el }) => {
@@ -706,11 +773,24 @@ $(function() {
         });
     });
 
+    $(document)
+        .off('change.requisitionHeaderCompany', '#company_id')
+        .on('change.requisitionHeaderCompany', '#company_id', function() {
+            renderHeaderCostCenters('reset', true);
+        });
+
+    $(document)
+        .off('change.requisitionHeaderPurchaseType', '#purchase_type')
+        .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
+            renderHeaderCostCenters('reset', true);
+        });
+
     // =====================================================
     // LISTENER: Cambio de Centro de Costo
     // =====================================================
     $(document).off('change.requisitionCostCenter', '#cost_center_id').on('change.requisitionCostCenter', '#cost_center_id', function() {
         const costCenterId = $(this).val();
+        syncHeaderValuesToWire();
         $('#modal_expense_category').val(null).trigger('change');
         resetBudgetCedulaSelect();
 

@@ -35,6 +35,7 @@ class RequisitionForm extends Component
     public $purchaseTypes = [];
     public $costCenters = [];
     public $receivingLocations = [];
+    public $headerCostCenterCatalog = [];
 
     // ===== UBICACIÓN DE RECEPCIÓN =====
     public $receiving_location_id;
@@ -59,6 +60,33 @@ class RequisitionForm extends Component
 
         // Cargar ubicaciones de recepción activas
         $this->receivingLocations = ReceivingLocation::active()->orderBy('name')->get();
+        $this->headerCostCenterCatalog = Auth::user()->costCenters()
+            ->select([
+                'cost_centers.id',
+                'cost_centers.company_id',
+                'cost_centers.purchase_type',
+                'cost_centers.code',
+                'cost_centers.name',
+            ])
+            ->where('cost_centers.status', 'ACTIVO')
+            ->whereNull('cost_centers.deleted_at')
+            ->wherePivot('is_active', true)
+            ->orderBy('cost_centers.code')
+            ->get()
+            ->map(function ($costCenter) {
+                return [
+                    'id' => (string) $costCenter->id,
+                    'company_id' => (string) $costCenter->company_id,
+                    'purchase_type' => $costCenter->purchase_type instanceof PurchaseType
+                        ? $costCenter->purchase_type->value
+                        : (string) $costCenter->purchase_type,
+                    'code' => $costCenter->code,
+                    'name' => $costCenter->name,
+                    'is_default' => (bool) ($costCenter->pivot->is_default ?? false),
+                ];
+            })
+            ->values()
+            ->toArray();
 
         if ($requisition && $requisition->exists) {
             // ===== MODO EDICIÓN =====
