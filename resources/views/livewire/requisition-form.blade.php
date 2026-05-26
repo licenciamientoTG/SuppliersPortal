@@ -624,7 +624,6 @@ $(function() {
     // VARIABLE GLOBAL
     // =====================================================
     let editingIndex = null;
-    const requisitionWire = @this;
 
     function normalizeLivewireReference(candidate) {
         if (candidate && typeof candidate.$call === 'function') {
@@ -639,11 +638,6 @@ $(function() {
     }
 
     function getRequisitionWire() {
-        const renderedWire = normalizeLivewireReference(requisitionWire);
-        if (renderedWire) {
-            return renderedWire;
-        }
-
         if (typeof Livewire !== 'undefined') {
             const componentId = document.getElementById('requisition_livewire_id')?.value;
             if (componentId) {
