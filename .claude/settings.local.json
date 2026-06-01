@@ -39,7 +39,8 @@
       "Bash(grep -n '{{ $url }}\\\\|{!! $url !!' resources/views/emails/auth/reset-password.blade.php)",
       "Bash(powershell *)",
       "Bash(python *)",
-      "PowerShell(cmd /c \"mklink /J \"\"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\\\\public\\\\storage\"\" \"\"Z:\\\\uploads\"\"\")"
+      "PowerShell(cmd /c \"mklink /J \"\"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\\\\public\\\\storage\"\" \"\"Z:\\\\uploads\"\"\")",
+      "PowerShell(php -l app/Services/ModuleAccessService.php)"
     ]
   }
 }

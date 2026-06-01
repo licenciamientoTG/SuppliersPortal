@@ -31,7 +31,16 @@ class ModuleAccessService
 
     public function userCanAccessModule(?User $user, string $module): bool
     {
-        if (! $user || ! $this->moduleExists($module)) {
+        if (! $user) {
+            return false;
+        }
+
+        // superadmin tiene acceso total a todos los módulos, sin restricciones.
+        if ($user->hasRole('superadmin')) {
+            return true;
+        }
+
+        if (! $this->moduleExists($module)) {
             return false;
         }
 
