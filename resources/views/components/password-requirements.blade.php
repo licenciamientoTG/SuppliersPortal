@@ -75,25 +75,26 @@
 
 /* ── Tema oscuro (auth pages) ─────────────────────────────── */
 .pw-req-dark {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #0d0d0f;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
-.pw-req-dark .pw-req-title { color: rgba(255,255,255,0.6); }
-.pw-req-dark .pw-req-list li         { color: rgba(255,255,255,0.55); }
+.pw-req-dark .pw-req-title { color: rgba(255,255,255,0.7); }
+.pw-req-dark .pw-req-list li         { color: rgba(255,255,255,0.6); }
 .pw-req-dark .pw-req-list li::before { color: #ff6b6b; }
-.pw-req-dark .pw-req-list li.ok      { color: rgba(255,255,255,0.9); }
+.pw-req-dark .pw-req-list li.ok      { color: rgba(255,255,255,0.95); }
 .pw-req-dark .pw-req-list li.ok::before { color: #A9CA48; }
 
 /* ── Tema claro (dashboard) ──────────────────────────────── */
 .pw-req-light {
-    background: #f8f9fa;
-    border: 1px solid #e5e7eb;
+    background: #d1d5db;
+    border: 1px solid #9ca3af;
 }
-.pw-req-light .pw-req-title { color: #666; }
-.pw-req-light .pw-req-list li         { color: #888; }
-.pw-req-light .pw-req-list li::before { color: #e53e3e; }
-.pw-req-light .pw-req-list li.ok      { color: #2d3748; }
-.pw-req-light .pw-req-list li.ok::before { color: #38a169; }
+.pw-req-light .pw-req-title { color: #374151; }
+.pw-req-light .pw-req-list li         { color: #4b5563; }
+.pw-req-light .pw-req-list li::before { color: #dc2626; }
+.pw-req-light .pw-req-list li.ok      { color: #111827; }
+.pw-req-light .pw-req-list li.ok::before { color: #16a34a; }
 </style>
 
 <script>
