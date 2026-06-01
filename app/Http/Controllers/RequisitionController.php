@@ -6,6 +6,7 @@ use App\Enum\PurchaseType;
 use App\Enum\RequisitionStatus;
 use App\Events\RequisitionUpdated;
 use App\Http\Requests\SaveRequisitionRequest;
+use App\Models\BudgetCedula;
 use App\Models\CostCenter;
 use App\Models\Requisition;
 use App\Models\Company;
@@ -173,7 +174,7 @@ class RequisitionController extends Controller
      */
     public function create(): View
     {
-        return view('requisitions.create-livewire');
+        return $this->loadFormData(new Requisition());
     }
 
     /**
@@ -215,10 +216,7 @@ class RequisitionController extends Controller
      */
     public function createLivewire(): View
     {
-        // Para Livewire NO necesitas pasar $requisition al componente
-        // El componente Livewire maneja su propio estado
-
-        return view('requisitions.create-livewire');
+        return $this->loadFormData(new Requisition());
     }
 
     /**
@@ -374,13 +372,22 @@ class RequisitionController extends Controller
      */
     protected function loadFormData(Requisition $requisition): View
     {
-        $selectedCompanyId = old('company_id', $requisition->company_id ?? Auth::user()->company_id ?? null);
+        $userCompanies = Auth::user()
+            ->companies()
+            ->orderBy('companies.name')
+            ->get(['companies.id', 'companies.name']);
+
+        $selectedCompanyId = old(
+            'company_id',
+            $requisition->company_id
+                ?? ($userCompanies->count() === 1 ? $userCompanies->first()->id : null)
+        );
 
         $view = $requisition->exists ? 'requisitions.edit' : 'requisitions.create';
 
         return view($view, [
             'requisition' => $requisition,
-            'companies' => Company::orderBy('name')->get(['id', 'name']),
+            'companies' => $userCompanies,
             'costCenters' => $this->getCostCenters(
                 $selectedCompanyId,
                 old('purchase_type', $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type)
@@ -392,9 +399,53 @@ class RequisitionController extends Controller
             'selectedCompanyId' => $selectedCompanyId,
             'purchaseTypes' => PurchaseType::values(),
             'selectedPurchaseType' => old('purchase_type', $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type),
+            'initialItems' => $this->hydrateFormItems(old('items', [])),
             'currentMonth' => (int) date('n'),
             'months' => $this->getMonthsOptions(),
         ]);
+    }
+
+    protected function hydrateFormItems(array $items): array
+    {
+        if (empty($items)) {
+            return [];
+        }
+
+        $products = ProductService::whereIn('id', collect($items)->pluck('product_service_id')->filter()->all())
+            ->get()
+            ->keyBy('id');
+        $categories = ExpenseCategory::whereIn('id', collect($items)->pluck('expense_category_id')->filter()->all())
+            ->get(['id', 'name'])
+            ->keyBy('id');
+        $cedulas = BudgetCedula::whereIn('id', collect($items)->pluck('budget_cedula_id')->filter()->all())
+            ->get(['id', 'name'])
+            ->keyBy('id');
+
+        return collect($items)
+            ->map(function (array $item) use ($products, $categories, $cedulas) {
+                $product = $products->get((int) ($item['product_service_id'] ?? 0));
+                $category = $categories->get((int) ($item['expense_category_id'] ?? 0));
+                $cedula = $cedulas->get((int) ($item['budget_cedula_id'] ?? 0));
+
+                return [
+                    'id' => $item['id'] ?? null,
+                    'product_id' => $item['product_service_id'] ?? null,
+                    'product_name' => $product
+                        ? '['.$product->code.'] '.($product->short_name ?: str($product->description)->limit(60))
+                        : 'Producto seleccionado',
+                    'description' => $item['description'] ?? $product?->technical_description ?? $product?->description ?? '',
+                    'quantity' => $item['quantity'] ?? 1,
+                    'unit' => $item['unit'] ?? $product?->unit_of_measure ?? 'PIEZA',
+                    'expense_category_id' => $item['expense_category_id'] ?? null,
+                    'expense_category_name' => $category?->name ?? 'Categoría seleccionada',
+                    'budget_cedula_id' => $item['budget_cedula_id'] ?? null,
+                    'budget_cedula_name' => $cedula?->name ?? 'Subcategoría seleccionada',
+                    'notes' => $item['notes'] ?? '',
+                ];
+            })
+            ->filter(fn (array $item) => ! empty($item['product_id']))
+            ->values()
+            ->all();
     }
 
     /**
@@ -406,7 +457,7 @@ class RequisitionController extends Controller
             'company_id' => $data['company_id'],
             'cost_center_id' => $data['cost_center_id'],
             'receiving_location_id' => $data['receiving_location_id'],
-            'department_id' => $data['department_id'],
+            'department_id' => $data['department_id'] ?? null,
             'fiscal_year' => $data['fiscal_year'],
             'folio' => Requisition::nextFolio($data['fiscal_year']),
             'requested_by' => Auth::id(),
@@ -431,7 +482,7 @@ class RequisitionController extends Controller
         // Solo permitir cambiar cost_center, department y receiving_location si está en draft
         if ($requisition->isDraft()) {
             $updateData['cost_center_id'] = $data['cost_center_id'];
-            $updateData['department_id'] = $data['department_id'];
+            $updateData['department_id'] = $data['department_id'] ?? null;
             $updateData['receiving_location_id'] = $data['receiving_location_id'];
         }
 

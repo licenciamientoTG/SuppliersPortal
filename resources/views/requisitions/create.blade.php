@@ -68,7 +68,7 @@
                                     name="company_id"
                                     class="form-select @error('company_id') is-invalid @enderror" 
                                     required
-                                    data-url-costcenters="{{ route('cost-centers.api.by-company', ['company' => '__CID__']) }}"
+                                    data-url-costcenters="{{ route('requisitions.cost-centers.by-company', ['company' => '__CID__']) }}"
                                     data-selected-cc="{{ old('cost_center_id', $requisition->cost_center_id ?? '') }}">
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
@@ -128,27 +128,27 @@
                         @enderror
                     </div>
 
-                    {{-- Departamento --}}
-                    <div class="col-md-2">
-                        <label for="department_id" class="form-label">Departamento <span class="text-danger">*</span></label>
+                    {{-- Ubicación de recepción --}}
+                    <div class="col-md-3">
+                        <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="ti ti-users"></i>
+                                <i class="ti ti-map-pin"></i>
                             </span>
-                            <select id="department_id" 
-                                    name="department_id"
-                                    class="form-select @error('department_id') is-invalid @enderror" 
+                            <select id="receiving_location_id"
+                                    name="receiving_location_id"
+                                    class="form-select @error('receiving_location_id') is-invalid @enderror"
                                     required>
                                 <option value="">Seleccionar...</option>
-                                @foreach ($departments as $dep)
-                                    <option value="{{ $dep->id }}"
-                                        {{ (int) old('department_id', $requisition->department_id ?? 0) === (int) $dep->id ? 'selected' : '' }}>
-                                        {{ $dep->name }}
+                                @foreach ($receivingLocations as $location)
+                                    <option value="{{ $location->id }}"
+                                        {{ (int) old('receiving_location_id', $requisition->receiving_location_id ?? 0) === (int) $location->id ? 'selected' : '' }}>
+                                        {{ $location->code ? '['.$location->code.'] ' : '' }}{{ $location->name }}{{ $location->city ? ' - '.$location->city : '' }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
-                        @error('department_id')
+                        @error('receiving_location_id')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
@@ -215,13 +215,14 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Categoría de gasto</th>
+                                <th>Subcategoría presupuestal</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr id="emptyRow">
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="9" class="text-center text-muted py-4">
                                     <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                     No hay partidas agregadas. Haz clic en "Agregar Partida"
                                 </td>
@@ -339,6 +340,19 @@
                         </div>
                     </div>
 
+                    {{-- Subcategoría presupuestal --}}
+                    <div class="mb-3">
+                        <label for="modal_budget_cedula" class="form-label fw-semibold">
+                            Subcategoría Presupuestal <span class="text-danger">*</span>
+                        </label>
+                        <select id="modal_budget_cedula" class="form-select" required disabled>
+                            <option value="">Selecciona primero una categoría de gasto...</option>
+                        </select>
+                        <div class="form-text">
+                            La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
+                        </div>
+                    </div>
+
                     {{-- Observaciones --}}
                     <div class="mb-3">
                         <label for="modal_notes" class="form-label fw-semibold">Observaciones</label>
@@ -434,7 +448,7 @@
         // =====================================================
         // VARIABLES GLOBALES
         // =====================================================
-        let itemsArray = []; // Array principal de ítems
+        let itemsArray = @json($initialItems ?? []); // Array principal de ítems
         let editingIndex = null; // Índice del ítem en edición
 
         // =====================================================
@@ -444,6 +458,7 @@
         const $purchaseType = $('#purchase_type');
         const $cc = $('#cost_center_id');
         const $expenseCategory = $('#modal_expense_category');
+        const $budgetCedula = $('#modal_budget_cedula');
 
         function initSearchableSelect($element, placeholder, options = {}) {
             if ($element.data('select2')) {
@@ -553,6 +568,7 @@
             document.getElementById('itemForm').reset();
             $('#item_index').val(index !== null ? index : '');
             $('#budgetAlert').hide();
+            resetBudgetCedulaSelect();
 
             // Cargar productos y categorías
             loadProductsForCostCenter();
@@ -565,6 +581,7 @@
                 setTimeout(() => {
                     $('#modal_product_id').val(item.product_id).trigger('change');
                     $('#modal_quantity').val(item.quantity);
+                    $budgetCedula.data('pending-value', item.budget_cedula_id || null);
                     $('#modal_expense_category').val(item.expense_category_id).trigger('change');
                     $('#modal_notes').val(item.notes || '');
                 }, 500);
@@ -694,13 +711,27 @@
         function loadExpenseCategories() {
             const costCenterId = $('#cost_center_id').val();
 
+            if (!costCenterId) {
+                $expenseCategory
+                    .empty()
+                    .append('<option value="">Selecciona primero un centro de costo...</option>');
+                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                    dropdownParent: $('#itemModal')
+                });
+                return;
+            }
+
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
-            initSearchableSelect($expenseCategory, 'Buscar categorÃ­a de gasto...', {
-                dropdownParent: $('#itemModal')
-            });
+        initSearchableSelect($expenseCategory, 'Buscar categorÃ­a de gasto...', {
+            dropdownParent: $('#itemModal')
+        });
+        initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+            dropdownParent: $('#itemModal')
+        });
 
             $.getJSON('{{ route("expense-categories.by-budget") }}', {
-                    cost_center_id: costCenterId
+                    cost_center_id: costCenterId,
+                    fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
                     $('#modal_expense_category').empty().append('<option value="">Seleccionar categoría...</option>');
@@ -720,13 +751,24 @@
         loadExpenseCategories = function() {
             const costCenterId = $('#cost_center_id').val();
 
+            if (!costCenterId) {
+                $expenseCategory
+                    .empty()
+                    .append('<option value="">Selecciona primero un centro de costo...</option>');
+                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                    dropdownParent: $('#itemModal')
+                });
+                return;
+            }
+
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
             initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
                 dropdownParent: $('#itemModal')
             });
 
             $.getJSON('{{ route("expense-categories.by-budget") }}', {
-                    cost_center_id: costCenterId
+                    cost_center_id: costCenterId,
+                    fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
                     $expenseCategory.empty().append('<option value="">Seleccionar categoría...</option>');
@@ -741,12 +783,90 @@
                         });
                     }
                 })
+                .fail(function(xhr) {
+                    const message = xhr.responseJSON?.message || 'No se pudieron cargar las categorías de gasto.';
+                    $expenseCategory.empty().append(`<option value="">${message}</option>`);
+                    Swal.fire('Error', message, 'error');
+                })
                 .always(function() {
                     initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
                         dropdownParent: $('#itemModal')
                     });
                 });
         }
+
+        function resetBudgetCedulaSelect(message = 'Selecciona primero una categoría de gasto...') {
+            $budgetCedula
+                .val(null)
+                .data('pending-value', null)
+                .empty()
+                .append(`<option value="">${message}</option>`)
+                .prop('disabled', true);
+
+            initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+                dropdownParent: $('#itemModal')
+            });
+        }
+
+        function loadBudgetCedulas() {
+            const costCenterId = $('#cost_center_id').val();
+            const categoryId = $('#modal_expense_category').val();
+
+            if (!costCenterId || !categoryId) {
+                resetBudgetCedulaSelect();
+                return;
+            }
+
+            $budgetCedula
+                .prop('disabled', true)
+                .empty()
+                .append('<option value="">Cargando subcategorías...</option>');
+
+            initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+                dropdownParent: $('#itemModal')
+            });
+
+            $.getJSON('{{ route("expense-categories.cedulas-by-cost-center") }}', {
+                cost_center_id: costCenterId,
+                expense_category_id: categoryId,
+                fiscal_year: {{ now()->year }}
+            }).done(function(response) {
+                $budgetCedula.empty().append('<option value="">Seleccionar subcategoría...</option>');
+
+                if (response.success && response.cedulas && response.cedulas.length > 0) {
+                    response.cedulas.forEach(cedula => {
+                        $budgetCedula.append($('<option>', {
+                            value: cedula.id,
+                            text: cedula.name
+                        }));
+                    });
+
+                    $budgetCedula.prop('disabled', false);
+                    initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+                        dropdownParent: $('#itemModal')
+                    });
+
+                    const pendingValue = $budgetCedula.data('pending-value');
+                    if (pendingValue) {
+                        $budgetCedula.val(String(pendingValue)).trigger('change');
+                        $budgetCedula.data('pending-value', null);
+                    }
+                    return;
+                }
+
+                resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
+            }).fail(function() {
+                resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
+            });
+        }
+
+        $expenseCategory.on('change select2:select', function() {
+            loadBudgetCedulas();
+        });
+
+        $cc.on('change', function() {
+            resetBudgetCedulaSelect();
+        });
 
         // =====================================================
         // 6. GUARDAR PARTIDA
@@ -755,6 +875,12 @@
             const productId = $('#modal_product_id').val();
             const quantity = parseFloat($('#modal_quantity').val());
             const categoryId = $('#modal_expense_category').val();
+            const budgetCedulaId = $('#modal_budget_cedula').val();
+
+            if (!budgetCedulaId) {
+                Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+                return;
+            }
 
             // Validaciones
             if (!productId) {
@@ -807,6 +933,8 @@
                 unit: $('#modal_unit').val(),
                 expense_category_id: categoryId,
                 expense_category_name: $('#modal_expense_category option:selected').text(),
+                budget_cedula_id: budgetCedulaId,
+                budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
                 notes: $('#modal_notes').val() || ''
             };
 
@@ -913,6 +1041,7 @@
                             <td>${item.quantity}</td>
                             <td>${item.unit}</td>
                             <td><span class="badge bg-info">${item.expense_category_name}</span></td>
+                            <td>${item.budget_cedula_name || '-'}</td>
                             <td>${item.notes ? '<i class="ti ti-note"></i>' : '—'}</td>
                             <td class="text-nowrap">
                                 <button type="button" class="btn btn-sm btn-warning btn-edit-item" data-index="${index}">
@@ -936,19 +1065,24 @@
         // =====================================================
         // 10. INPUTS HIDDEN PARA ENVIAR AL SERVIDOR
         // =====================================================
+        function escapeAttribute(value) {
+            return $('<div>').text(value ?? '').html();
+        }
+
         function updateHiddenInputs() {
             const container = $('#hiddenItemsContainer');
             container.empty();
 
             itemsArray.forEach((item, index) => {
-                const idInput = item.id ? `<input type="hidden" name="items[${index}][id]" value="${item.id}">` : '';
+                const idInput = item.id ? `<input type="hidden" name="items[${index}][id]" value="${escapeAttribute(item.id)}">` : '';
 
                 container.append(`
                     ${idInput}
-                    <input type="hidden" name="items[${index}][product_service_id]" value="${item.product_id}">
-                    <input type="hidden" name="items[${index}][expense_category_id]" value="${item.expense_category_id}">
-                    <input type="hidden" name="items[${index}][quantity]" value="${item.quantity}">
-                    <input type="hidden" name="items[${index}][notes]" value="${item.notes}">
+                    <input type="hidden" name="items[${index}][product_service_id]" value="${escapeAttribute(item.product_id)}">
+                    <input type="hidden" name="items[${index}][expense_category_id]" value="${escapeAttribute(item.expense_category_id)}">
+                    <input type="hidden" name="items[${index}][budget_cedula_id]" value="${escapeAttribute(item.budget_cedula_id)}">
+                    <input type="hidden" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity)}">
+                    <input type="hidden" name="items[${index}][notes]" value="${escapeAttribute(item.notes)}">
                 `);
             });
         }
@@ -963,6 +1097,8 @@
                 return false;
             }
         });
+
+        refreshTable();
     });
 </script>
 @endpush

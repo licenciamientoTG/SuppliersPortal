@@ -17,7 +17,7 @@
     <input type="hidden" id="requisition_livewire_id" value="{{ $this->getId() }}">
 
     {{-- Formulario --}}
-    <form wire:submit.prevent="submit">
+    <form>
 
         {{-- Información General --}}
         <div class="card">
@@ -109,8 +109,7 @@
                             <span class="input-group-text">
                                 <i class="ti ti-map-pin"></i>
                             </span>
-                            <select wire:model.change="receiving_location_id"
-                                    id="receiving_location_id"
+                            <select id="receiving_location_id"
                                     class="form-select @error('receiving_location_id') is-invalid @enderror"
                                     required>
                                 <option value="">Seleccionar...</option>
@@ -134,7 +133,6 @@
                                 <i class="ti ti-calendar"></i>
                             </span>
                             <input type="date"
-                                   wire:model.live="required_date"
                                    id="required_date"
                                    class="form-control @error('required_date') is-invalid @enderror">
                         </div>
@@ -156,9 +154,9 @@
                                 <i class="ti ti-file-text"></i>
                             </span>
                             <input type="text"
-                                   wire:model.live="description"
                                    id="description"
                                    class="form-control @error('description') is-invalid @enderror"
+                                   value="{{ $description }}"
                                    placeholder="Ej: Compra de equipo..."
                                    maxlength="{{ $descriptionMaxLength }}">
                         </div>
@@ -265,30 +263,19 @@
             <div class="d-flex gap-2">
                 <button type="button"
                         onclick="confirmSaveDraft()"
-                        class="btn btn-outline-primary"
-                        wire:loading.attr="disabled"
-                        wire:target="saveDraft">
-                    <span wire:loading.remove wire:target="saveDraft">
+                        class="btn btn-outline-primary">
+                    <span>
                         <i class="ti ti-device-floppy me-1"></i>
                         {{ $isEditMode ? 'Actualizar Borrador' : 'Guardar como Borrador' }}
-                    </span>
-                    <span wire:loading wire:target="saveDraft">
-                        <i class="ti ti-loader rotating me-1"></i>
-                        {{ $isEditMode ? 'Actualizando...' : 'Guardando...' }}
                     </span>
                 </button>
 
                 <button type="button"
                         onclick="confirmSubmit()"
-                        class="btn btn-primary"
-                        wire:loading.attr="disabled"
-                        wire:target="submit">
-                    <span wire:loading.remove wire:target="submit">
+                        class="btn btn-primary">
+                    <span>
                         <i class="ti ti-send-2 me-1"></i>
                         {{ $isEditMode ? 'Actualizar y Enviar a Compras' : 'Enviar a Compras' }}
-                    </span>
-                    <span wire:loading wire:target="submit">
-                        <i class="ti ti-loader rotating me-1"></i>Enviando...
                     </span>
                 </button>
             </div>
@@ -546,7 +533,7 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = window.getRequisitionWire?.();
+            const wire = syncFormValuesToWire();
             wire?.$call('saveDraft');
         }
     });
@@ -598,7 +585,7 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const wire = window.getRequisitionWire?.();
+            const wire = syncFormValuesToWire();
             const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
@@ -664,6 +651,23 @@ $(function() {
         wire.$set('company_id', $('#company_id').val() || '');
         wire.$set('purchase_type', $('#purchase_type').val() || '');
         wire.$set('cost_center_id', $('#cost_center_id').val() || '');
+    }
+
+    function syncFormValuesToWire() {
+        const wire = getRequisitionWire();
+
+        if (!wire) {
+            return null;
+        }
+
+        wire.$set('company_id', $('#company_id').val() || '');
+        wire.$set('purchase_type', $('#purchase_type').val() || '');
+        wire.$set('cost_center_id', $('#cost_center_id').val() || '');
+        wire.$set('receiving_location_id', $('#receiving_location_id').val() || '');
+        wire.$set('required_date', $('#required_date').val() || '');
+        wire.$set('description', $('#description').val() || '');
+
+        return wire;
     }
 
     function getMatchingHeaderCostCenters(companyId, purchaseType) {
@@ -762,16 +766,6 @@ $(function() {
 
     initializeRequisitionSelects();
     renderHeaderCostCenters('initial', false);
-
-    document.addEventListener('livewire:init', () => {
-        Livewire.hook('morph.updated', ({ el }) => {
-            if (el.querySelector?.('#modal_expense_category') || el.id === 'modal_expense_category') {
-                setTimeout(() => {
-                    initializeRequisitionSelects();
-                }, 0);
-            }
-        });
-    });
 
     $(document)
         .off('change.requisitionHeaderCompany', '#company_id')
