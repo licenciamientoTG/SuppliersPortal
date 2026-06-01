@@ -58,7 +58,7 @@
 
 
                     {{-- Compañía --}}
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -164,7 +164,7 @@
                                 id="required_date" 
                                 name="required_date"
                                 class="form-control @error('required_date') is-invalid @enderror"
-                                value="{{ old('required_date', optional($requisition->required_date)->format('Y-m-d')) }}">
+                                value="{{ old('required_date', optional($requisition->required_date)->format('Y-m-d') ?: now()->addWeeks(2)->format('Y-m-d')) }}">
                         </div>
                         @error('required_date')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -172,7 +172,7 @@
                     </div>
 
                     {{-- Descripción --}}
-                    <div class="col-md-3">
+                    <div class="col-md-10">
                         <label for="description" class="form-label">Descripción</label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -265,6 +265,32 @@
                 <form id="itemForm" class="needs-validation" novalidate>
                     <input type="hidden" id="item_index">
 
+                    {{-- Categoría de gasto --}}
+                    <div class="mb-3">
+                        <label for="modal_expense_category" class="form-label fw-semibold">
+                            Categoría de Gasto <span class="text-danger">*</span>
+                        </label>
+                        <select id="modal_expense_category" class="form-select" required>
+                            <option value="">Seleccionar categoría...</option>
+                        </select>
+                        <div class="form-text text-danger">
+                            <i class="ti ti-alert-circle me-1"></i>RN-010A: Campo obligatorio
+                        </div>
+                    </div>
+
+                    {{-- Subcategoría presupuestal --}}
+                    <div class="mb-3">
+                        <label for="modal_budget_cedula" class="form-label fw-semibold">
+                            Subcategoría Presupuestal <span class="text-danger">*</span>
+                        </label>
+                        <select id="modal_budget_cedula" class="form-select" required disabled>
+                            <option value="">Selecciona primero una categoría de gasto...</option>
+                        </select>
+                        <div class="form-text">
+                            La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
+                        </div>
+                    </div>
+
                     {{-- Producto del catálogo --}}
                     <div class="mb-4">
                         <div class="mb-3">
@@ -324,32 +350,6 @@
                                 </span>
                                 <input type="text" id="modal_unit" class="form-control bg-light" readonly>
                             </div>
-                        </div>
-                    </div>
-
-                    {{-- Categoría de gasto --}}
-                    <div class="mb-3">
-                        <label for="modal_expense_category" class="form-label fw-semibold">
-                            Categoría de Gasto <span class="text-danger">*</span>
-                        </label>
-                        <select id="modal_expense_category" class="form-select" required>
-                            <option value="">Seleccionar categoría...</option>
-                        </select>
-                        <div class="form-text text-danger">
-                            <i class="ti ti-alert-circle me-1"></i>RN-010A: Campo obligatorio
-                        </div>
-                    </div>
-
-                    {{-- Subcategoría presupuestal --}}
-                    <div class="mb-3">
-                        <label for="modal_budget_cedula" class="form-label fw-semibold">
-                            Subcategoría Presupuestal <span class="text-danger">*</span>
-                        </label>
-                        <select id="modal_budget_cedula" class="form-select" required disabled>
-                            <option value="">Selecciona primero una categoría de gasto...</option>
-                        </select>
-                        <div class="form-text">
-                            La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
                         </div>
                     </div>
 
@@ -481,6 +481,7 @@
         initSearchableSelect($company, 'Buscar compañía...');
         initSearchableSelect($purchaseType, 'Buscar tipo de compra...');
         initSearchableSelect($cc, 'Buscar centro de costo...');
+        initSearchableSelect($('#receiving_location_id'), 'Buscar ubicación de recepción...');
         initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
             dropdownParent: $('#itemModal')
         });

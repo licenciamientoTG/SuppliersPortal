@@ -21,13 +21,6 @@
         'communicator',
     ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
 
-    $showConfigSection = collect([
-        'staff_users',
-        'employees',
-        'catalogs_config',
-        'reported_incidents',
-    ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
-
     $openRfq = request()->routeIs('rfq.*') || request()->routeIs('quotes.*') || request()->routeIs('approvals.quotations.*');
     $openBudget = request()->routeIs('annual_budgets.*')
         || request()->routeIs('budget_monthly_distributions.*')
@@ -147,7 +140,7 @@
     </a>
     <div class="{{ $openRfq ? 'show' : '' }} collapse" id="sidebarComprasRfq">
         <ul class="sub-menu">
-            @if ($moduleAccess->userCanAccessModule($user, 'quotations') && $user?->hasRole('buyer'))
+            @if ($moduleAccess->userCanAccessModule($user, 'quotations') && $user?->hasAnyRole(['buyer', 'superadmin']))
             <li class="side-nav-item">
                 <a href="{{ route('quotes.index') }}"
                     class="side-nav-link {{ request()->routeIs('quotes.index') ? 'active' : '' }}">
@@ -176,7 +169,7 @@
                 </a>
             </li>
 
-            @if ($user?->hasRole('buyer'))
+            @if ($user?->hasAnyRole(['buyer', 'superadmin']))
             <li class="side-nav-item">
                 <a href="{{ route('rfq.inbox.pending') }}"
                     class="side-nav-link {{ request()->routeIs('rfq.inbox.pending') ? 'active' : '' }}">
@@ -359,10 +352,6 @@
 @endmoduleAccess
 @endif
 
-@if ($showConfigSection)
-<li class="side-nav-title">CONFIGURACION</li>
-@endhasanyrole {{-- end PROVEEDORES --}}
-
 {{-- ═══════════════════════════════════════════════════
      HERRAMIENTAS — visible to: superadmin only
      ═══════════════════════════════════════════════════ --}}
@@ -484,4 +473,4 @@
     </a>
 </li>
 @endmoduleAccess
-@endif
+@endhasrole {{-- end CONFIGURACIÓN --}}
