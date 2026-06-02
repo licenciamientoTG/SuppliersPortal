@@ -115,11 +115,15 @@ class QuotationApprovalController extends Controller
 
     private function generatePurchaseOrder(QuotationSummary $summary): PurchaseOrder
     {
+        $issuedAt = now();
+
         $winningResponses = RfqResponse::with('requisitionItem')
             ->where('rfq_id', $summary->rfq_id)
             ->where('supplier_id', $summary->selected_supplier_id)
             ->get();
 
+        // A regular purchase order enters its operational cycle immediately
+        // after the quotation approval, so it must be issued right away.
         $purchaseOrder = PurchaseOrder::create([
             'folio' => 'OC-'.now()->format('Y').'-'.str_pad((string) $summary->id, 5, '0', STR_PAD_LEFT),
             'requisition_id' => $summary->requisition_id,
@@ -131,7 +135,9 @@ class QuotationApprovalController extends Controller
             'total' => $summary->total,
             'payment_terms' => $winningResponses->first()->payment_terms ?? 'Crédito',
             'estimated_delivery_days' => $winningResponses->max('delivery_days') ?? 0,
-            'status' => 'OPEN',
+            'status' => 'ISSUED',
+            'approved_at' => $issuedAt,
+            'issued_at' => $issuedAt,
             'created_by' => Auth::id(),
         ]);
 

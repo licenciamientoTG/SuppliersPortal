@@ -234,7 +234,7 @@ class PurchaseOrder extends Model
      */
     public function getAutoCloseDeadline(): \Carbon\Carbon
     {
-        return $this->created_at->copy()->addDays(self::INACTIVITY_DAYS);
+        return ($this->issued_at ?? $this->created_at)->copy()->addDays(self::INACTIVITY_DAYS);
     }
 
     /**
