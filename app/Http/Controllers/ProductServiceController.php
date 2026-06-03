@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enum\ProductServiceStatus;
 use App\Http\Requests\SaveProductServiceRequest;
-use App\Models\Category;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\ProductService;
@@ -20,6 +19,7 @@ use Yajra\DataTables\Facades\DataTables;
 use App\Notifications\NewProductRequestedNotification;
 use App\Models\User;
 use App\Events\ProductServiceApproved;
+use Illuminate\Validation\ValidationException;
 
 /**
  * ProductServiceController
@@ -143,8 +143,9 @@ class ProductServiceController extends Controller
         $selectedCompanyId = old('company_id', Auth::user()->company_id ?? null);
 
         $companies = Company::orderBy('name')->get(['id', 'name']);
-        $categories = Category::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::orderBy('name')->get(['id', 'name', 'code', 'company_id', 'status']);
+        $costCenters = CostCenter::with('category:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'company_id', 'status', 'category_id']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 
@@ -164,7 +165,6 @@ class ProductServiceController extends Controller
         return view('products_services.create', compact(
             'productService',
             'companies',
-            'categories',
             'costCenters',
             'suppliers',
             'statusOpts',
@@ -180,6 +180,7 @@ class ProductServiceController extends Controller
     {
         return DB::transaction(function () use ($request) {
             $data = $request->validated();
+            $costCenter = $this->resolveCatalogCostCenter((int) $data['cost_center_id'], (int) $data['company_id']);
 
             $productService = new ProductService();
             $productService->fill([
@@ -189,8 +190,8 @@ class ProductServiceController extends Controller
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 
-                // Clasificación
-                'category_id' => $data['category_id'],
+                // Clasificación derivada del centro de costo
+                'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
 
                 // Organización
@@ -260,8 +261,9 @@ class ProductServiceController extends Controller
         $selectedCompanyId = old('company_id', $productService->company_id);
 
         $companies = Company::orderBy('name')->get(['id', 'name']);
-        $categories = Category::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::orderBy('name')->get(['id', 'name', 'code', 'company_id', 'status']);
+        $costCenters = CostCenter::with('category:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'company_id', 'status', 'category_id']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 
@@ -280,7 +282,6 @@ class ProductServiceController extends Controller
         return view('products_services.edit', compact(
             'productService',
             'companies',
-            'categories',
             'costCenters',
             'suppliers',
             'statusOpts',
@@ -297,6 +298,7 @@ class ProductServiceController extends Controller
 
         return DB::transaction(function () use ($request, $productService) {
             $data = $request->validated();
+            $costCenter = $this->resolveCatalogCostCenter((int) $data['cost_center_id'], (int) $data['company_id']);
 
             $productService->fill([
                 // Identificación
@@ -304,8 +306,8 @@ class ProductServiceController extends Controller
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 
-                // Clasificación
-                'category_id' => $data['category_id'],
+                // Clasificación derivada del centro de costo
+                'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
 
                 // Organización
@@ -579,34 +581,35 @@ class ProductServiceController extends Controller
     {
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
-            'category_id' => 'required|exists:categories,id',
             'subcategory' => 'nullable|string|max:100',
             'cost_center_id' => 'required|exists:cost_centers,id',
             'technical_description' => 'required|string|min:20|max:5000',
             'short_name' => 'nullable|string|max:100',
-            'product_type' => 'required|in:PRODUCTO,SERVICIO',
+            'product_type' => 'nullable|in:PRODUCTO,SERVICIO',
             'brand' => 'nullable|string|max:100',
             'model' => 'nullable|string|max:100',
-            'unit_of_measure' => 'required|string|max:30',
+            'unit_of_measure' => 'nullable|string|max:30',
             'estimated_price' => 'required|numeric|min:0',
             'currency_code' => 'nullable|string|size:3|in:MXN,USD,EUR',
             'default_vendor_id' => 'nullable|exists:suppliers,id',
         ]);
 
         return DB::transaction(function () use ($validated) {
+            $costCenter = $this->resolveCatalogCostCenter((int) $validated['cost_center_id'], (int) $validated['company_id']);
+
             $productService = new ProductService();
             $productService->fill([
                 'code' => ProductService::nextCode(),
                 'technical_description' => $validated['technical_description'],
                 'short_name' => $validated['short_name'] ?? null,
-                'product_type' => $validated['product_type'],
-                'category_id' => $validated['category_id'],
+                'product_type' => $validated['product_type'] ?? 'PRODUCTO',
+                'category_id' => $costCenter->category_id,
                 'subcategory' => $validated['subcategory'] ?? null,
                 'cost_center_id' => $validated['cost_center_id'],
                 'company_id' => $validated['company_id'],
                 'brand' => $validated['brand'] ?? null,
                 'model' => $validated['model'] ?? null,
-                'unit_of_measure' => $validated['unit_of_measure'],
+                'unit_of_measure' => $validated['unit_of_measure'] ?? 'PIEZA',
                 'estimated_price' => $validated['estimated_price'],
                 'currency_code' => $validated['currency_code'] ?? 'MXN',
                 'default_vendor_id' => $validated['default_vendor_id'] ?? null,
@@ -637,8 +640,30 @@ class ProductServiceController extends Controller
                     'description' => $productService->technical_description,
                     'unit_of_measure' => $productService->unit_of_measure,
                     'status' => $productService->status,
+                    'category' => $costCenter->category?->name,
                 ]
             ], 201);
         });
+    }
+
+    protected function resolveCatalogCostCenter(int $costCenterId, int $companyId): CostCenter
+    {
+        $costCenter = CostCenter::query()
+            ->with('category:id,name')
+            ->findOrFail($costCenterId);
+
+        if ((int) $costCenter->company_id !== $companyId) {
+            throw ValidationException::withMessages([
+                'cost_center_id' => 'El centro de costo no pertenece a la compañía seleccionada.',
+            ]);
+        }
+
+        if (! $costCenter->category_id) {
+            throw ValidationException::withMessages([
+                'cost_center_id' => 'El centro de costo no tiene una categoría asignada para registrar productos o servicios.',
+            ]);
+        }
+
+        return $costCenter;
     }
 }

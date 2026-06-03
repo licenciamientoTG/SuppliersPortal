@@ -26,7 +26,6 @@ class SaveProductServiceRequest extends FormRequest
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
             
             // Clasificación
-            'category_id' => 'required|exists:categories,id',
             'subcategory' => 'nullable|string|max:100',
             
             // Organización
@@ -67,7 +66,6 @@ class SaveProductServiceRequest extends FormRequest
             'technical_description' => 'descripción técnica',
             'short_name' => 'nombre corto',
             'product_type' => 'tipo de producto',
-            'category_id' => 'categoría',
             'subcategory' => 'subcategoría',
             'company_id' => 'compañía',
             'cost_center_id' => 'centro de costo',

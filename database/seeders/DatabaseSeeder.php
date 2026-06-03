@@ -24,11 +24,12 @@ class DatabaseSeeder extends Seeder
             TaxSeeder::class,
             ExpenseCategorySeeder::class,
             BudgetCedulaSeeder::class,
-            SupplierSeeder::class,
+            // SupplierSeeder::class,
             ReceivingLocationSeeder::class,
             ApprovalLevelSeeder::class,
             AuthorizerRoleSeeder::class,
             SatRetencionSeeder::class,
+            // QuotationPlannerTestSeeder::class,
         ]);
     }
 }
