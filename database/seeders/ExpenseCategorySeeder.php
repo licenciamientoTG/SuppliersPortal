@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ExpenseCategory;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -11,7 +12,7 @@ class ExpenseCategorySeeder extends Seeder
     public function run(): void
     {
         $now = Carbon::now();
-        $createdBy = 6;
+        $createdBy = User::where('email', 'licenciamiento@totalgas.com')->value('id');
 
         $categories = [
             [
