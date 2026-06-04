@@ -806,6 +806,15 @@
     </div>
 
     @php
+        $collectPrefixedErrors = function (string $prefix) use ($viewErrors): array {
+            return collect($viewErrors->getMessages())
+                ->filter(fn ($messages, $key) => $key === $prefix || str_starts_with($key, $prefix . '.'))
+                ->flatten()
+                ->filter(fn ($message) => is_string($message) && $message !== '')
+                ->values()
+                ->all();
+        };
+
         $supplierRegisterFiscalState = [
             'personType' => old('person_type'),
             'taxRegimes' => collect(old('tax_regimes', []))
@@ -818,9 +827,9 @@
                 return is_array($activities) && count($activities) > 0 ? $activities : [''];
             })(),
             'errors' => [
-                'person_type' => $viewErrors->get('person_type'),
-                'tax_regimes' => array_merge($viewErrors->get('tax_regimes'), $viewErrors->get('tax_regimes.*.code')),
-                'economic_activity' => array_merge($viewErrors->get('economic_activity'), $viewErrors->get('economic_activity.*')),
+                'person_type' => $collectPrefixedErrors('person_type'),
+                'tax_regimes' => $collectPrefixedErrors('tax_regimes'),
+                'economic_activity' => $collectPrefixedErrors('economic_activity'),
             ],
         ];
     @endphp
