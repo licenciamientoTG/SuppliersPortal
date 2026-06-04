@@ -40,7 +40,9 @@
       "Bash(powershell *)",
       "Bash(python *)",
       "PowerShell(cmd /c \"mklink /J \"\"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\\\\public\\\\storage\"\" \"\"Z:\\\\uploads\"\"\")",
-      "PowerShell(php -l app/Services/ModuleAccessService.php)"
+      "PowerShell(php -l app/Services/ModuleAccessService.php)",
+      "Bash(grep -E \"APP_URL|STORAGE_PUBLIC_PATH|FILESYSTEM\" .env)",
+      "Bash(grep -E \"APP_URL|STORAGE_PUBLIC_PATH|FILESYSTEM\" .env.example)"
     ]
   }
 }
