@@ -24,18 +24,15 @@ class NewSupplierRegistrationForBuyerNotification extends Notification
 
         return (new MailMessage)
             ->subject('Nuevo proveedor registrado para revision - '.$this->supplier->company_name)
-            ->greeting('Hola '.$notifiable->name.'!')
-            ->line('Se registró un nuevo proveedor en el portal y su alta quedó lista para revisión por Compras.')
-            ->line('')
-            ->line('Razon social: '.($this->supplier->company_name ?: '-'))
-            ->line('RFC: '.($this->supplier->rfc ?: '-'))
-            ->line('Contacto: '.($this->supplier->contact_person ?: '-'))
-            ->line('Correo: '.($this->supplier->email ?: '-'))
-            ->line('Tipo de proveedor: '.$this->formatSupplierType($this->supplier->supplier_type))
-            ->line('')
-            ->action('Revisar proveedor', $url)
-            ->line('Ingresa al portal para revisar su expediente y continuar con el proceso de alta.')
-            ->salutation('Saludos, '.config('mail.from.name', 'Portal de Proveedores'));
+            ->view('emails.suppliers.new-registration-buyer', [
+                'name'         => $notifiable->name ?? null,
+                'companyName'  => $this->supplier->company_name,
+                'rfc'          => $this->supplier->rfc,
+                'contact'      => $this->supplier->contact_person,
+                'email'        => $this->supplier->email,
+                'supplierType' => $this->formatSupplierType($this->supplier->supplier_type),
+                'url'          => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array
