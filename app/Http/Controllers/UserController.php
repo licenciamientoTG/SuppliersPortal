@@ -727,6 +727,7 @@ class UserController extends Controller
             'supplier.contact_phone' => ['nullable', 'string', 'max:10'],
             'supplier.email' => ['nullable', 'email', 'max:150'],
             'supplier.address' => ['nullable', 'string', 'max:500'],
+            'supplier.postal_code' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'supplier.supplier_type' => ['nullable', 'in:product,service,product_service'],
             'supplier.currency' => ['nullable', 'string', 'max:3'],
             'supplier.person_type' => ['nullable', 'in:fisica,moral,extranjero'],
@@ -828,6 +829,9 @@ class UserController extends Controller
             'contact_phone' => $request->input('supplier.contact_phone'),
             'email' => $request->input('supplier.email'),
             'address' => $request->input('supplier.address'),
+            'postal_code' => $request->filled('supplier.postal_code')
+                ? preg_replace('/\D/', '', (string) $request->input('supplier.postal_code'))
+                : null,
             'supplier_type' => $request->input('supplier.supplier_type'),
             'currency' => $request->input('supplier.currency', 'MXN'),
             'person_type' => $request->input('supplier.person_type'),

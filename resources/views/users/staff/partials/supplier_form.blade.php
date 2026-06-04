@@ -89,6 +89,12 @@
                  value="{{ old('address', $supplier->address ?? '') }}">
         </div>
         <div class="col-md-4">
+          <label class="form-label">Código postal</label>
+          <input type="text" name="postal_code" class="form-control"
+                 value="{{ old('postal_code', $supplier->postal_code ?? '') }}"
+                 inputmode="numeric" maxlength="5">
+        </div>
+        <div class="col-md-4">
           <label class="form-label">Teléfono</label>
           <input type="text" name="phone_number" class="form-control"
                  value="{{ old('phone_number', $supplier->phone_number ?? '') }}">

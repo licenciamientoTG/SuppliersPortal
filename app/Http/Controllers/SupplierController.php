@@ -42,6 +42,7 @@ class SupplierController extends Controller
             'company_name' => ['required', 'string', 'max:255'],
             'rfc' => ['required', 'string', 'max:13'],
             'address' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'phone_number' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'contact_person' => ['nullable', 'string', 'max:255'],
@@ -70,6 +71,9 @@ class SupplierController extends Controller
         ]);
 
         $validated['rfc'] = strtoupper((string) $validated['rfc']);
+        if (array_key_exists('postal_code', $validated) && $validated['postal_code'] !== null) {
+            $validated['postal_code'] = preg_replace('/\D/', '', (string) $validated['postal_code']);
+        }
         $validated['tax_regimes'] = SupplierFiscalCatalog::normalizeSelectedRegimes(
             $validated['person_type'] ?? null,
             $validated['tax_regimes'] ?? []

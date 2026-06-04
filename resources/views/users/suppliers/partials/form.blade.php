@@ -211,10 +211,17 @@
         </div>
 
         {{-- Dirección --}}
-        <div class="col-12">
+        <div class="col-md-8">
           <label class="form-label form-label-sm mb-1">Dirección fiscal</label>
           <textarea name="supplier[address]" rows="2" class="form-control form-control-sm"
             maxlength="500">{{ old('supplier.address', $supplier->address ?? '') }}</textarea>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label form-label-sm mb-1">Código postal</label>
+          <input type="text" name="supplier[postal_code]"
+            value="{{ old('supplier.postal_code', $supplier->postal_code ?? '') }}"
+            class="form-control form-control-sm" inputmode="numeric" maxlength="5"
+            placeholder="Ej. 32500">
         </div>
       </div>
     </div>

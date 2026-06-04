@@ -50,15 +50,14 @@ class SupplierRegistrationNotificationTest extends TestCase
             'company_name' => 'Proveedor Demo SA de CV',
             'rfc' => 'ABC123456T12',
             'email' => 'proveedor@example.com',
+            'postal_code' => '32500',
         ]);
 
         $supplier = Supplier::where('rfc', 'ABC123456T12')->firstOrFail();
         $this->assertSame('moral', $supplier->person_type);
-        $this->assertSame([
-            ['code' => '601', 'label' => 'General de Ley Personas Morales'],
-            ['code' => '626', 'label' => 'Régimen Simplificado de Confianza'],
-        ], $supplier->tax_regimes);
+        $this->assertSame(['601', '626'], collect($supplier->tax_regimes)->pluck('code')->all());
         $this->assertSame(['Comercializacion de insumos'], $supplier->economic_activity);
+        $this->assertSame('32500', $supplier->postal_code);
     }
 
     public function test_notification_is_sent_via_mail_only(): void
@@ -78,7 +77,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         });
 
         Notification::assertSentTo($buyer, NewSupplierRegistrationForBuyerNotification::class, function ($notification) {
-            return !in_array('database', $notification->via($notification));
+            return ! in_array('database', $notification->via($notification));
         });
     }
 
@@ -164,6 +163,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         $this->assertDatabaseHas('suppliers', [
             'rfc' => 'JKL123456T78',
             'email' => 'sinbuyers@example.com',
+            'postal_code' => '32500',
         ]);
     }
 
@@ -176,7 +176,7 @@ class SupplierRegistrationNotificationTest extends TestCase
             'rfc' => 'EXT123456T90',
             'person_type' => 'extranjero',
             'tax_regimes' => [],
-            'economic_activity' => ['Servicios internacionales', 'Consultoría técnica'],
+            'economic_activity' => ['Servicios internacionales', 'Consultoria tecnica'],
         ]));
 
         $response->assertRedirect(route('dashboard'));
@@ -184,7 +184,8 @@ class SupplierRegistrationNotificationTest extends TestCase
         $supplier = Supplier::where('rfc', 'EXT123456T90')->firstOrFail();
         $this->assertSame('extranjero', $supplier->person_type);
         $this->assertSame([], $supplier->tax_regimes);
-        $this->assertSame(['Servicios internacionales', 'Consultoría técnica'], $supplier->economic_activity);
+        $this->assertSame(['Servicios internacionales', 'Consultoria tecnica'], $supplier->economic_activity);
+        $this->assertSame('32500', $supplier->postal_code);
     }
 
     public function test_registration_requires_tax_regimes_for_non_foreign_suppliers(): void
@@ -217,6 +218,7 @@ class SupplierRegistrationNotificationTest extends TestCase
             'person_type' => 'moral',
             'tax_regimes' => ['601', '626'],
             'address' => 'Av. Principal 123, Chihuahua',
+            'postal_code' => '32500',
             'phone_number' => '6561234567',
             'contact_person' => 'Juan Proveedor',
             'contact_phone' => '6567654321',

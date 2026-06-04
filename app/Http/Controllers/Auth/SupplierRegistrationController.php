@@ -47,6 +47,7 @@ class SupplierRegistrationController extends Controller
                 'company_name'  => $data['company_name'],
                 'rfc'           => strtoupper($data['rfc']),
                 'address'       => $data['address'],
+                'postal_code'   => $data['postal_code'],
                 'phone_number'  => $data['phone_number'],
                 'email'         => $user->email,
                 'contact_person' => $data['contact_person'],

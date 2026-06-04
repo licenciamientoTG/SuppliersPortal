@@ -636,6 +636,7 @@
                                                     <div>
                                                         <h6 class="mb-1">Dirección fiscal</h6>
                                                         <p class="mb-0">{{ $supplier?->address ?? '—' }}</p>
+                                                        <small class="text-muted">CP: {{ $supplier?->postal_code ?? '—' }}</small>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1121,3 +1122,4 @@
     </body>
 
 </html>
+

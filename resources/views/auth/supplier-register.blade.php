@@ -612,6 +612,15 @@
                                 <x-input-error :messages="$viewErrors->get('address')" class="input-error" />
                             </div>
 
+                            <div class="form-group">
+                                <x-input-label for="postal_code" :value="__('Código postal')" class="form-label" />
+                                <x-text-input id="postal_code" class="reg-input" type="text" name="postal_code"
+                                    :value="old('postal_code')" data-required="1" inputmode="numeric"
+                                    pattern="\d{5}" maxlength="5" minlength="5" autocomplete="postal-code" />
+                                <div class="input-hint">5 dígitos</div>
+                                <x-input-error :messages="$viewErrors->get('postal_code')" class="input-error" />
+                            </div>
+
                         </div>
                     </div>
                 </div>

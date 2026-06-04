@@ -21,6 +21,7 @@ class SupplierFactory extends Factory
             'company_name' => $this->faker->company(),
             'rfc' => $this->faker->unique()->regexify('[A-Z]{3,4}[0-9]{6}[A-Z0-9]{3}'),
             'address' => $this->faker->address(),
+            'postal_code' => $this->faker->numerify('#####'),
             'phone_number' => $this->faker->numerify('##########'),
             // AQUÍ ESTÁ LA MAGIA: 
             // Usamos una función que recibe los atributos ya generados (como user_id)

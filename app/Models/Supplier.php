@@ -22,6 +22,7 @@ class Supplier extends Model
         'company_name',
         'rfc',
         'address',
+        'postal_code',
         'phone_number',
         'email',
         'contact_person',
