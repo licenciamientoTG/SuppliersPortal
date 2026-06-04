@@ -1,4 +1,7 @@
 {{-- resources/views/auth/supplier-register.blade.php --}}
+@php
+    $viewErrors = $errors ?? new \Illuminate\Support\ViewErrorBag();
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -524,28 +527,28 @@
                                 <x-input-label for="first_name" :value="__('Nombre(s)')" class="form-label" />
                                 <x-text-input id="first_name" class="reg-input" type="text" name="first_name"
                                     :value="old('first_name')" data-required="1" autofocus autocomplete="given-name" />
-                                <x-input-error :messages="$errors->get('first_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('first_name')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="last_name" :value="__('Apellidos')" class="form-label" />
                                 <x-text-input id="last_name" class="reg-input" type="text" name="last_name"
                                     :value="old('last_name')" data-required="1" autocomplete="family-name" />
-                                <x-input-error :messages="$errors->get('last_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('last_name')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
                                 <x-input-label for="email" :value="__('Correo electrónico')" class="form-label" />
                                 <x-text-input id="email" class="reg-input" type="email" name="email"
                                     :value="old('email')" data-required="1" autocomplete="username" />
-                                <x-input-error :messages="$errors->get('email')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('email')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="password" :value="__('Contraseña')" class="form-label" />
                                 <x-text-input id="password" class="reg-input" type="password" name="password"
                                     data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$errors->get('password')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('password')" class="input-error" />
                                 <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="dark" />
                             </div>
 
@@ -553,7 +556,7 @@
                                 <x-input-label for="password_confirmation" :value="__('Confirmar contraseña')" class="form-label" />
                                 <x-text-input id="password_confirmation" class="reg-input" type="password"
                                     name="password_confirmation" data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$errors->get('password_confirmation')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('password_confirmation')" class="input-error" />
                             </div>
 
                         </div>
@@ -570,7 +573,7 @@
                                 <x-input-label for="company_name" :value="__('Razón social / Nombre comercial')" class="form-label" />
                                 <x-text-input id="company_name" class="reg-input" type="text" name="company_name"
                                     :value="old('company_name')" data-required="1" />
-                                <x-input-error :messages="$errors->get('company_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('company_name')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -579,7 +582,7 @@
                                     :value="old('rfc')" data-required="1" maxlength="13"
                                     style="text-transform: uppercase;" inputmode="latin" autocomplete="off" />
                                 <div class="input-hint">3–4 letras + 6 dígitos (YYMMDD) + 3 alfanuméricos</div>
-                                <x-input-error :messages="$errors->get('rfc')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('rfc')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -590,7 +593,7 @@
                                     <option value="corporation" {{ old('tax_regime') === 'corporation' ? 'selected' : '' }}>Persona Moral</option>
                                     <option value="resico" {{ old('tax_regime') === 'resico' ? 'selected' : '' }}>RESICO</option>
                                 </select>
-                                <x-input-error :messages="$errors->get('tax_regime')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('tax_regime')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
@@ -598,7 +601,7 @@
                                 <x-text-input id="economic_activity" class="reg-input" type="text" name="economic_activity"
                                     :value="old('economic_activity')" data-required="1" />
                                 <div class="input-hint">Tal como aparece en la constancia de situación fiscal</div>
-                                <x-input-error :messages="$errors->get('economic_activity')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('economic_activity')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
@@ -606,7 +609,7 @@
                                 <textarea id="address" name="address" class="reg-input" rows="3"
                                     data-required="1"
                                     placeholder="Ingrese la dirección completa del domicilio fiscal">{{ old('address') }}</textarea>
-                                <x-input-error :messages="$errors->get('address')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('address')" class="input-error" />
                             </div>
 
                         </div>
@@ -625,14 +628,14 @@
                                     :value="old('phone_number')" data-required="1" data-phone="10"
                                     inputmode="numeric" pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
                                 <div class="input-hint">10 dígitos exactos</div>
-                                <x-input-error :messages="$errors->get('phone_number')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('phone_number')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="contact_person" :value="__('Persona de contacto')" class="form-label" />
                                 <x-text-input id="contact_person" class="reg-input" type="text" name="contact_person"
                                     :value="old('contact_person')" data-required="1" />
-                                <x-input-error :messages="$errors->get('contact_person')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('contact_person')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -641,7 +644,7 @@
                                     :value="old('contact_phone')" data-phone="10" inputmode="numeric"
                                     pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
                                 <div class="input-hint">10 dígitos si se proporciona</div>
-                                <x-input-error :messages="$errors->get('contact_phone')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('contact_phone')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -652,7 +655,7 @@
                                     <option value="service" {{ old('supplier_type') === 'service' ? 'selected' : '' }}>Servicios</option>
                                     <option value="product_service" {{ old('supplier_type') === 'product_service' ? 'selected' : '' }}>Productos y Servicios</option>
                                 </select>
-                                <x-input-error :messages="$errors->get('supplier_type')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('supplier_type')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
@@ -663,7 +666,7 @@
                                     @endforeach
                                 </select>
                                 <div class="input-hint">Condiciones de pago por defecto para OC y cotizaciones.</div>
-                                <x-input-error :messages="$errors->get('default_payment_terms')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('default_payment_terms')" class="input-error" />
                             </div>
 
                             <!-- REPSE Question -->
@@ -684,7 +687,7 @@
                                     </label>
                                 </div>
                                 <div class="input-hint">Limpieza, vigilancia, mantenimiento, contabilidad, etc.</div>
-                                <x-input-error :messages="$errors->get('provides_specialized_services')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('provides_specialized_services')" class="input-error" />
                             </div>
 
                             <!-- REPSE Fields (initially hidden) -->
@@ -696,7 +699,7 @@
                                         name="repse_registration_number" :value="old('repse_registration_number')"
                                         placeholder="Ej: REPSE-123456789" data-conditional-required="repse" />
                                     <div class="input-hint">Formato: REPSE seguido del número asignado</div>
-                                    <x-input-error :messages="$errors->get('repse_registration_number')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('repse_registration_number')" class="input-error" />
                                 </div>
 
                                 <div class="form-group">
@@ -705,7 +708,7 @@
                                         name="repse_expiry_date" :value="old('repse_expiry_date')"
                                         data-conditional-required="repse" />
                                     <div class="input-hint">El registro debe estar vigente</div>
-                                    <x-input-error :messages="$errors->get('repse_expiry_date')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('repse_expiry_date')" class="input-error" />
                                 </div>
 
                                 <div class="form-group full">
@@ -754,7 +757,7 @@
                                         </div>
                                     </div>
                                     <div class="input-hint">Puede seleccionar múltiples servicios</div>
-                                    <x-input-error :messages="$errors->get('specialized_services_types')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('specialized_services_types')" class="input-error" />
                                 </div>
 
                                 <div id="otros-input-custom" class="form-group full" style="display: none;">
@@ -793,13 +796,8 @@
         </div>
     </div>
 
-    <script>
-        window.__supplierRegisterInitialStep = @json((int) session('supplier_registration_step', 1));
-        window.__supplierRegisterFiscalCatalog = @json([
-            'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
-            'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
-        ]);
-        window.__supplierRegisterFiscalState = @json([
+    @php
+        $supplierRegisterFiscalState = [
             'personType' => old('person_type'),
             'taxRegimes' => collect(old('tax_regimes', []))
                 ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
@@ -811,11 +809,20 @@
                 return is_array($activities) && count($activities) > 0 ? $activities : [''];
             })(),
             'errors' => [
-                'person_type' => $errors->get('person_type'),
-                'tax_regimes' => array_merge($errors->get('tax_regimes'), $errors->get('tax_regimes.*.code')),
-                'economic_activity' => array_merge($errors->get('economic_activity'), $errors->get('economic_activity.*')),
+                'person_type' => $viewErrors->get('person_type'),
+                'tax_regimes' => array_merge($viewErrors->get('tax_regimes'), $viewErrors->get('tax_regimes.*.code')),
+                'economic_activity' => array_merge($viewErrors->get('economic_activity'), $viewErrors->get('economic_activity.*')),
             ],
+        ];
+    @endphp
+
+    <script>
+        window.__supplierRegisterInitialStep = @json((int) session('supplier_registration_step', 1));
+        window.__supplierRegisterFiscalCatalog = @json([
+            'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
+            'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
         ]);
+        window.__supplierRegisterFiscalState = @json($supplierRegisterFiscalState);
     </script>
 
     <script>
