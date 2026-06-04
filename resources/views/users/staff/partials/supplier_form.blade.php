@@ -1,6 +1,17 @@
 @php
   /** @var \App\Models\User $user */
   $supplier = $user->supplier ?? null;
+  $personTypes = \App\Support\SupplierFiscalCatalog::personTypes();
+  $selectedPersonType = old('person_type', $supplier->person_type ?? '');
+  $selectedTaxRegimes = collect(old('tax_regimes', $supplier->tax_regimes ?? []))
+    ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
+    ->filter()
+    ->values()
+    ->all();
+  $economicActivities = old('economic_activity', $supplier->economic_activity ?? ['']);
+  if (! is_array($economicActivities) || count($economicActivities) === 0) {
+    $economicActivities = [''];
+  }
 @endphp
 
 <div class="modal-header">
@@ -23,7 +34,6 @@
   <div class="modal-body">
     <div id="formErrors" class="alert alert-danger d-none mb-3"></div>
 
-    {{-- ====== Información general ====== --}}
     <div class="border rounded p-3 mb-3">
       <h6 class="text-uppercase text-muted fw-semibold mb-3">
         <i class="ti ti-id-badge me-1"></i> Información del proveedor
@@ -39,6 +49,38 @@
           <label class="form-label">RFC</label>
           <input type="text" name="rfc" class="form-control"
                  value="{{ old('rfc', $supplier->rfc ?? '') }}" maxlength="13" style="text-transform:uppercase" required>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Tipo de persona</label>
+          <select name="person_type" id="staff_person_type" class="form-select">
+            <option value="">Seleccionar...</option>
+            @foreach($personTypes as $value => $label)
+              <option value="{{ $value }}" @selected($selectedPersonType === $value)>{{ $label }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        <div class="col-md-8">
+          <label class="form-label">Regímenes fiscales SAT</label>
+          <div class="border rounded p-2" id="staff_tax_regimes_wrapper">
+            @foreach(['fisica', 'moral'] as $personType)
+              <div class="staff-tax-group {{ $selectedPersonType === $personType ? '' : 'd-none' }}" data-person-type="{{ $personType }}">
+                <div class="d-grid gap-2">
+                  @foreach(\App\Support\SupplierFiscalCatalog::regimesFor($personType) as $regime)
+                    <label class="form-check border rounded px-3 py-2 mb-0">
+                      <input class="form-check-input me-2" type="checkbox" name="tax_regimes[]" value="{{ $regime['code'] }}"
+                             @checked(in_array($regime['code'], $selectedTaxRegimes, true))>
+                      <span>{{ $regime['code'] }} - {{ $regime['label'] }}</span>
+                    </label>
+                  @endforeach
+                </div>
+              </div>
+            @endforeach
+            <div id="staff_foreign_tax_note" class="text-muted small {{ $selectedPersonType === 'extranjero' ? '' : 'd-none' }}">
+              Los proveedores extranjeros no capturan regímenes fiscales SAT.
+            </div>
+          </div>
         </div>
 
         <div class="col-md-8">
@@ -58,31 +100,29 @@
                  value="{{ old('email', $supplier->email ?? $user->email) }}">
         </div>
         <div class="col-md-6">
-          <label class="form-label">Actividad económica</label>
-          <input type="text" name="economic_activity" class="form-control"
-                 value="{{ old('economic_activity', $supplier->economic_activity ?? '') }}">
-        </div>
-
-        <div class="col-md-6">
           <label class="form-label">Tipo de proveedor</label>
           <input type="text" name="supplier_type" class="form-control"
                  placeholder="Servicios, Materiales, Transporte, etc."
                  value="{{ old('supplier_type', $supplier->supplier_type ?? '') }}">
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Régimen fiscal</label>
-          <input type="text" name="tax_regime" class="form-control"
-                 value="{{ old('tax_regime', $supplier->tax_regime ?? '') }}">
-        </div>
-      </div>
-    </div>
 
-    {{-- ====== Contacto ====== --}}
-    <div class="border rounded p-3 mb-3">
-      <h6 class="text-uppercase text-muted fw-semibold mb-3">
-        <i class="ti ti-address-book me-1"></i> Contacto
-      </h6>
-      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Actividades económicas</label>
+          <div id="staff_activity_list" class="d-grid gap-2">
+            @foreach($economicActivities as $activity)
+              <div class="d-flex gap-2 staff-activity-row">
+                <input type="text" name="economic_activity[]" class="form-control"
+                       value="{{ is_string($activity) ? $activity : '' }}"
+                       placeholder="Ej. Venta y distribución de productos industriales">
+                <button type="button" class="btn btn-outline-danger staff-remove-activity">Quitar</button>
+              </div>
+            @endforeach
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="staff_add_activity">
+            <i class="ti ti-plus"></i> Agregar actividad
+          </button>
+        </div>
+
         <div class="col-md-6">
           <label class="form-label">Persona contacto</label>
           <input type="text" name="contact_person" class="form-control"
@@ -96,7 +136,6 @@
       </div>
     </div>
 
-    {{-- ====== REPSE ====== --}}
     <div class="border rounded p-3">
       <h6 class="text-uppercase text-muted fw-semibold mb-3">
         <i class="ti ti-clipboard-check me-1"></i> REPSE
@@ -125,19 +164,16 @@
                    value="{{ old('repse_expiry_date', optional($supplier->repse_expiry_date ?? null)?->format('Y-m-d')) }}">
           </div>
           <div class="col-12">
-            <label class="form-label">Tipos de servicios especializados (coma o Enter para separar)</label>
-            <input type="text" name="specialized_services_types"
-                   class="form-control"
-                   placeholder="Ej: Limpieza industrial, Mantenimiento eléctrico"
-                   value="{{ old('specialized_services_types', isset($supplier) && is_array($supplier->specialized_services_types ?? null)
-                        ? implode(', ', $supplier->specialized_services_types) : '') }}">
-            <div class="form-text">Se guardará como arreglo (JSON).</div>
+            <label class="form-label">Tipos de servicios especializados</label>
+            <input type="text" name="specialized_services_types[]" class="form-control"
+                   value="{{ old('specialized_services_types.0', isset($supplier) && is_array($supplier->specialized_services_types ?? null) ? implode(', ', $supplier->specialized_services_types) : '') }}"
+                   placeholder="Ej: Limpieza industrial, Mantenimiento eléctrico">
+            <div class="form-text">Se guardarán como lista.</div>
           </div>
         </div>
       </div>
     </div>
 
-    {{-- Estado inicial (oculto): pending_docs para forzar onboarding de documentos --}}
     <input type="hidden" name="status" value="{{ old('status', $supplier->status ?? 'pending_docs') }}">
   </div>
 
@@ -150,7 +186,6 @@
 </form>
 
 <script>
-  // Toggle REPSE
   (function () {
     const sw = document.getElementById('provides_specialized_services');
     const box = document.getElementById('repseFields');
@@ -160,28 +195,91 @@
       });
     }
 
-    // Envío AJAX del formulario
+    const personTypeSelect = document.getElementById('staff_person_type');
+    const taxGroups = Array.from(document.querySelectorAll('.staff-tax-group'));
+    const foreignNote = document.getElementById('staff_foreign_tax_note');
+
+    function syncTaxRegimes() {
+      const selectedType = personTypeSelect?.value || '';
+      taxGroups.forEach((group) => {
+        const show = group.dataset.personType === selectedType;
+        group.classList.toggle('d-none', !show);
+        if (!show) {
+          group.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        }
+      });
+      if (foreignNote) {
+        foreignNote.classList.toggle('d-none', selectedType !== 'extranjero');
+      }
+    }
+
+    personTypeSelect?.addEventListener('change', syncTaxRegimes);
+    syncTaxRegimes();
+
+    const activityList = document.getElementById('staff_activity_list');
+    const addActivityBtn = document.getElementById('staff_add_activity');
+
+    function refreshActivityButtons() {
+      const rows = activityList ? Array.from(activityList.querySelectorAll('.staff-activity-row')) : [];
+      rows.forEach((row) => {
+        const button = row.querySelector('.staff-remove-activity');
+        if (button) button.disabled = rows.length === 1;
+      });
+    }
+
+    function buildActivityRow(value = '') {
+      const row = document.createElement('div');
+      row.className = 'd-flex gap-2 staff-activity-row';
+      row.innerHTML = `
+        <input type="text" name="economic_activity[]" class="form-control" value="${value}" placeholder="Ej. Venta y distribución de productos industriales">
+        <button type="button" class="btn btn-outline-danger staff-remove-activity">Quitar</button>
+      `;
+      return row;
+    }
+
+    addActivityBtn?.addEventListener('click', () => {
+      if (!activityList) return;
+      activityList.appendChild(buildActivityRow(''));
+      refreshActivityButtons();
+    });
+
+    activityList?.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains('staff-remove-activity')) return;
+      const rows = activityList.querySelectorAll('.staff-activity-row');
+      if (rows.length === 1) {
+        const input = rows[0].querySelector('input');
+        if (input) input.value = '';
+        return;
+      }
+      target.closest('.staff-activity-row')?.remove();
+      refreshActivityButtons();
+    });
+
+    refreshActivityButtons();
+
     const form = document.getElementById('supplierForm');
     const errBox = document.getElementById('formErrors');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      errBox.classList.add('d-none'); errBox.innerHTML = '';
+      errBox.classList.add('d-none');
+      errBox.innerHTML = '';
 
-      // armar el payload
       const fd = new FormData(form);
-
-      // Normalizar specialized_services_types => array
-      const sst = fd.get('specialized_services_types') || '';
-      if (sst) {
-        const arr = sst.split(',').map(s => s.trim()).filter(Boolean);
-        fd.delete('specialized_services_types');
-        fd.append('specialized_services_types', JSON.stringify(arr));
-      }
+      const specializedServicesRaw = fd.get('specialized_services_types[]') || '';
+      const specializedServices = String(specializedServicesRaw)
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+      fd.delete('specialized_services_types[]');
+      specializedServices.forEach((service) => fd.append('specialized_services_types[]', service));
 
       try {
         const res = await fetch(form.action, {
-          method: form.querySelector('input[name="_method"]')?.value === 'PUT' ? 'POST' : 'POST',
+          method: 'POST',
           headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -195,7 +293,7 @@
           if (data?.errors) {
             errBox.classList.remove('d-none');
             errBox.innerHTML = '<strong>Corrige los siguientes campos:</strong><ul class="mb-0">' +
-              Object.entries(data.errors).map(([k, v]) => `<li>${v.join('<br>')}</li>`).join('') +
+              Object.entries(data.errors).map(([, messages]) => `<li>${messages.join('<br>')}</li>`).join('') +
               '</ul>';
           } else {
             errBox.classList.remove('d-none');
@@ -204,7 +302,6 @@
           return;
         }
 
-        // Éxito: cierra el modal y dispara un evento para recargar la tabla/lista
         const modalEl = form.closest('.modal');
         if (modalEl) {
           const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);

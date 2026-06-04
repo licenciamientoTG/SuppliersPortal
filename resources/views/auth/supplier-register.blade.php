@@ -795,6 +795,27 @@
 
     <script>
         window.__supplierRegisterInitialStep = @json((int) session('supplier_registration_step', 1));
+        window.__supplierRegisterFiscalCatalog = @json([
+            'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
+            'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
+        ]);
+        window.__supplierRegisterFiscalState = @json([
+            'personType' => old('person_type'),
+            'taxRegimes' => collect(old('tax_regimes', []))
+                ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
+                ->filter()
+                ->values()
+                ->all(),
+            'economicActivities' => (function () {
+                $activities = old('economic_activity', ['']);
+                return is_array($activities) && count($activities) > 0 ? $activities : [''];
+            })(),
+            'errors' => [
+                'person_type' => $errors->get('person_type'),
+                'tax_regimes' => array_merge($errors->get('tax_regimes'), $errors->get('tax_regimes.*.code')),
+                'economic_activity' => array_merge($errors->get('economic_activity'), $errors->get('economic_activity.*')),
+            ],
+        ]);
     </script>
 
     <script>
@@ -829,6 +850,168 @@
                 const existing = container.querySelector('.js-val-error');
                 if (existing) existing.remove();
             }
+
+            function renderInlineError(container, messages) {
+                if (!container || !Array.isArray(messages) || messages.length === 0) return;
+                const div = document.createElement('div');
+                div.className = 'input-error js-server-error';
+                div.textContent = messages[0];
+                container.appendChild(div);
+            }
+
+            function setupFiscalFields() {
+                const fiscalState = window.__supplierRegisterFiscalState || {};
+                const fiscalCatalog = window.__supplierRegisterFiscalCatalog || {};
+                const legacyTaxSelect = document.getElementById('tax_regime');
+                const legacyTaxGroup = legacyTaxSelect?.closest('.form-group');
+                const legacyEconomicInput = document.getElementById('economic_activity');
+                const legacyEconomicGroup = legacyEconomicInput?.closest('.form-group');
+
+                if (legacyTaxSelect) {
+                    legacyTaxSelect.disabled = true;
+                    legacyTaxSelect.removeAttribute('name');
+                }
+
+                if (legacyTaxGroup) {
+                    legacyTaxGroup.innerHTML = `
+                        <label for="person_type" class="form-label">Tipo de persona</label>
+                        <select id="person_type" name="person_type" class="reg-input" data-required="1">
+                            <option value="" ${fiscalState.personType ? '' : 'selected'} disabled>Selecciona una opción</option>
+                            <option value="fisica" ${fiscalState.personType === 'fisica' ? 'selected' : ''}>Persona física</option>
+                            <option value="moral" ${fiscalState.personType === 'moral' ? 'selected' : ''}>Persona moral</option>
+                            <option value="extranjero" ${fiscalState.personType === 'extranjero' ? 'selected' : ''}>Extranjero</option>
+                        </select>
+                    `;
+                    renderInlineError(legacyTaxGroup, fiscalState.errors?.person_type);
+                }
+
+                if (legacyEconomicInput) {
+                    legacyEconomicInput.disabled = true;
+                    legacyEconomicInput.removeAttribute('name');
+                }
+
+                if (legacyEconomicGroup) {
+                    const selectedCodes = new Set(Array.isArray(fiscalState.taxRegimes) ? fiscalState.taxRegimes : []);
+                    const groupsHtml = ['fisica', 'moral'].map((personType) => {
+                        const regimes = fiscalCatalog[personType] || [];
+                        const options = regimes.map((regime) => `
+                            <label class="multiselect-option" style="position: static; border: 1px solid #dee2e6; border-radius: 7px; padding: 10px 12px;">
+                                <input type="checkbox" name="tax_regimes[]" value="${regime.code}" ${selectedCodes.has(regime.code) ? 'checked' : ''}>
+                                <span class="checkmark"></span>${regime.code} - ${regime.label}
+                            </label>
+                        `).join('');
+
+                        return `
+                            <div class="full tax-regime-group" data-person-type="${personType}" style="display:none;">
+                                <div class="input-hint" style="margin-bottom: 8px;">Selecciona uno o varios regímenes SAT aplicables.</div>
+                                <div style="display:grid; gap:8px;">${options}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    const activities = Array.isArray(fiscalState.economicActivities) && fiscalState.economicActivities.length > 0
+                        ? fiscalState.economicActivities
+                        : [''];
+                    const rowsHtml = activities.map((activity) => `
+                        <div class="activity-row" style="display:flex; gap:10px; align-items:flex-start;">
+                            <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(activity ?? '').replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
+                            <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
+                        </div>
+                    `).join('');
+
+                    const taxGroup = document.createElement('div');
+                    taxGroup.className = 'form-group full';
+                    taxGroup.innerHTML = `
+                        <label class="form-label">Regímenes fiscales</label>
+                        <div id="tax-regimes-wrapper" class="repse-container" data-selected-person-type="${fiscalState.personType || ''}">
+                            ${groupsHtml}
+                            <div id="tax-regimes-foreign-note" class="full input-hint" style="display:none;">
+                                Los proveedores extranjeros no capturan regímenes fiscales SAT en este formulario.
+                            </div>
+                        </div>
+                    `;
+
+                    legacyEconomicGroup.parentNode.insertBefore(taxGroup, legacyEconomicGroup);
+                    renderInlineError(taxGroup, fiscalState.errors?.tax_regimes);
+
+                    legacyEconomicGroup.innerHTML = `
+                        <label class="form-label">Actividades económicas</label>
+                        <div id="economic-activity-list" style="display:grid; gap:10px;">${rowsHtml}</div>
+                        <button type="button" id="add-economic-activity" class="btn-secondary" style="margin-top: 10px;">+ Agregar actividad</button>
+                        <div class="input-hint">Captura una o varias actividades tal como aparecen en la constancia de situación fiscal.</div>
+                    `;
+                    renderInlineError(legacyEconomicGroup, fiscalState.errors?.economic_activity);
+                }
+
+                const personTypeSelect = document.getElementById('person_type');
+                const taxGroups = () => Array.from(document.querySelectorAll('.tax-regime-group'));
+                const foreignNote = document.getElementById('tax-regimes-foreign-note');
+
+                function refreshTaxRegimeVisibility() {
+                    const selectedType = personTypeSelect?.value || '';
+                    taxGroups().forEach((group) => {
+                        const shouldShow = group.dataset.personType === selectedType;
+                        group.style.display = shouldShow ? 'block' : 'none';
+                        group.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+                            if (!shouldShow) checkbox.checked = false;
+                        });
+                    });
+
+                    if (foreignNote) {
+                        foreignNote.style.display = selectedType === 'extranjero' ? 'block' : 'none';
+                    }
+                }
+
+                personTypeSelect?.addEventListener('change', refreshTaxRegimeVisibility);
+                refreshTaxRegimeVisibility();
+
+                const activityList = document.getElementById('economic-activity-list');
+                const addActivityBtn = document.getElementById('add-economic-activity');
+
+                function buildActivityRow(value = '') {
+                    const row = document.createElement('div');
+                    row.className = 'activity-row';
+                    row.style.display = 'flex';
+                    row.style.gap = '10px';
+                    row.style.alignItems = 'flex-start';
+                    row.innerHTML = `
+                        <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(value).replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
+                        <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
+                    `;
+                    return row;
+                }
+
+                function refreshActivityButtons() {
+                    const rows = activityList ? Array.from(activityList.querySelectorAll('.activity-row')) : [];
+                    rows.forEach((row) => {
+                        const removeBtn = row.querySelector('.activity-remove');
+                        if (removeBtn) removeBtn.disabled = rows.length === 1;
+                    });
+                }
+
+                addActivityBtn?.addEventListener('click', () => {
+                    if (!activityList) return;
+                    activityList.appendChild(buildActivityRow(''));
+                    refreshActivityButtons();
+                });
+
+                activityList?.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement) || !target.classList.contains('activity-remove')) return;
+                    const rows = activityList.querySelectorAll('.activity-row');
+                    if (rows.length === 1) {
+                        const input = rows[0].querySelector('input');
+                        if (input) input.value = '';
+                        return;
+                    }
+                    target.closest('.activity-row')?.remove();
+                    refreshActivityButtons();
+                });
+
+                refreshActivityButtons();
+            }
+
+            setupFiscalFields();
 
             // ====== ENFORCERS ======
             const rfcEl = document.getElementById('rfc');
@@ -1049,6 +1232,25 @@
                 });
 
                 // --- Radio: ¿presta servicios especializados? ---
+                const personTypeSelect = document.getElementById('person_type');
+                if (personTypeSelect && currentStepEl.contains(personTypeSelect)) {
+                    const selectedType = personTypeSelect.value;
+                    const taxRegimeCheckboxes = Array.from(document.querySelectorAll('input[name="tax_regimes[]"]'));
+                    const checkedTaxRegimes = taxRegimeCheckboxes.filter((checkbox) => checkbox.checked);
+
+                    if (selectedType && selectedType !== 'extranjero' && checkedTaxRegimes.length === 0) {
+                        valid = false;
+                        const taxRegimesWrapper = document.getElementById('tax-regimes-wrapper');
+                        const container = taxRegimesWrapper && (taxRegimesWrapper.closest('.form-group') || taxRegimesWrapper.parentNode);
+                        if (container && !container.querySelector('.js-val-error')) {
+                            const div = document.createElement('div');
+                            div.className = 'input-error js-val-error';
+                            div.textContent = 'Selecciona al menos un régimen fiscal SAT.';
+                            container.appendChild(div);
+                        }
+                    }
+                }
+
                 const radios = currentStepEl.querySelectorAll('input[name="provides_specialized_services"]');
                 if (radios.length > 0 && !Array.from(radios).some(r => r.checked)) {
                     valid = false;

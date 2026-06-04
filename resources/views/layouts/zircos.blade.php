@@ -496,14 +496,14 @@
                                                         <i class="ti ti-list-details"></i>
                                                     </div>
                                                     <div>
-                                                        <h6 class="mb-1">Régimen & Actividad económica</h6>
+                                                        <h6 class="mb-1">Tipo, régimen y actividad</h6>
                                                         <p class="fw-semibold mb-0">
-                                                            {{ ucfirst($supplier?->tax_regime ?? '—') }}
+                                                            {{ $supplier?->person_type_label ?? '�' }}
                                                             <span class="text-muted">·</span>
-                                                            {{ $supplier?->economic_activity ?? '—' }}
+                                                            {{ $supplier?->tax_regimes_label ?? '�' }}
                                                         </p>
-                                                        <small class="text-muted">Tipo proveedor:
-                                                            {{ str_replace('_', ' / ', $supplier?->supplier_type ?? '—') }}</small>
+                                                        <small class="text-muted">Actividades:
+                                                            {{ $supplier?->economic_activities_label ?? '�' }}</small>
                                                     </div>
                                                 </div>
                                             </div>

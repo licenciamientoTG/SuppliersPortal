@@ -78,7 +78,20 @@
     {{-- ═══════════════════════════════════════════════════
          SECCIÓN 2: EMPRESA Y CONTACTO
     ═══════════════════════════════════════════════════ --}}
-    @php $supplier = $user->supplier; @endphp
+    @php
+      $supplier = $user->supplier;
+      $personTypes = \App\Support\SupplierFiscalCatalog::personTypes();
+      $selectedPersonType = old('supplier.person_type', $supplier->person_type ?? '');
+      $selectedTaxRegimes = collect(old('supplier.tax_regimes', $supplier->tax_regimes ?? []))
+        ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
+        ->filter()
+        ->values()
+        ->all();
+      $economicActivities = old('supplier.economic_activity', $supplier->economic_activity ?? ['']);
+      if (! is_array($economicActivities) || count($economicActivities) === 0) {
+        $economicActivities = [''];
+      }
+    @endphp
 
     <div class="border rounded p-3 mb-3">
       <h6 class="text-uppercase text-muted fw-semibold mb-3 fs-12">
@@ -381,6 +394,161 @@
 
 <script>
 (function () {
+  var fiscalState = {
+    personType: @json($selectedPersonType),
+    taxRegimes: @json($selectedTaxRegimes),
+    economicActivities: @json($economicActivities),
+    catalog: @json([
+      'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
+      'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
+    ])
+  };
+
+  function setupFiscalFields() {
+    var legacyTaxSelect = document.querySelector('select[name="supplier[tax_regime]"]');
+    var legacyTaxGroup = legacyTaxSelect ? legacyTaxSelect.closest('.col-md-4') : null;
+    var legacyActivityInput = document.querySelector('input[name="supplier[economic_activity]"]');
+    var legacyActivityGroup = legacyActivityInput ? legacyActivityInput.closest('.col-md-4') : null;
+
+    if (legacyTaxSelect) {
+      legacyTaxSelect.disabled = true;
+      legacyTaxSelect.removeAttribute('name');
+    }
+
+    if (legacyTaxGroup) {
+      legacyTaxGroup.innerHTML = `
+        <label class="form-label form-label-sm mb-1">Tipo de persona</label>
+        <select name="supplier[person_type]" id="supplierPersonType" class="form-select form-select-sm">
+          <option value="">Seleccionar...</option>
+          <option value="fisica" ${fiscalState.personType === 'fisica' ? 'selected' : ''}>Persona física</option>
+          <option value="moral" ${fiscalState.personType === 'moral' ? 'selected' : ''}>Persona moral</option>
+          <option value="extranjero" ${fiscalState.personType === 'extranjero' ? 'selected' : ''}>Extranjero</option>
+        </select>
+      `;
+
+      var taxGroup = document.createElement('div');
+      taxGroup.className = 'col-md-12';
+      taxGroup.innerHTML = `
+        <label class="form-label form-label-sm mb-1">Regímenes fiscales SAT</label>
+        <div class="border rounded p-2">
+          ${['fisica', 'moral'].map(function (personType) {
+            var regimes = fiscalState.catalog[personType] || [];
+            return `
+              <div class="supplier-tax-group ${fiscalState.personType === personType ? '' : 'd-none'}" data-person-type="${personType}">
+                <div class="row g-2">
+                  ${regimes.map(function (regime) {
+                    return `
+                      <div class="col-md-6">
+                        <label class="form-check border rounded px-3 py-2 mb-0">
+                          <input class="form-check-input me-2" type="checkbox" name="supplier[tax_regimes][]" value="${regime.code}" ${fiscalState.taxRegimes.includes(regime.code) ? 'checked' : ''}>
+                          <span>${regime.code} - ${regime.label}</span>
+                        </label>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+          <div id="supplierForeignTaxNote" class="small text-muted ${fiscalState.personType === 'extranjero' ? '' : 'd-none'}">
+            Los proveedores extranjeros no capturan regímenes fiscales SAT.
+          </div>
+        </div>
+      `;
+
+      legacyTaxGroup.parentNode.insertBefore(taxGroup, legacyTaxGroup.nextSibling);
+    }
+
+    if (legacyActivityInput) {
+      legacyActivityInput.disabled = true;
+      legacyActivityInput.removeAttribute('name');
+    }
+
+    if (legacyActivityGroup) {
+      legacyActivityGroup.className = 'col-md-12';
+      legacyActivityGroup.innerHTML = `
+        <label class="form-label form-label-sm mb-1">Actividades económicas</label>
+        <div id="supplierEconomicActivityList" class="d-grid gap-2">
+          ${(fiscalState.economicActivities || ['']).map(function (activity) {
+            return `
+              <div class="d-flex gap-2 supplier-activity-row">
+                <input type="text" name="supplier[economic_activity][]" value="${String(activity || '').replace(/"/g, '&quot;')}"
+                  class="form-control form-control-sm" maxlength="150"
+                  placeholder="Ej. Venta y distribución de productos industriales">
+                <button type="button" class="btn btn-outline-danger btn-sm supplier-remove-activity">Quitar</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <button type="button" id="supplierAddActivity" class="btn btn-outline-primary btn-sm mt-2">
+          <i class="ti ti-plus"></i> Agregar actividad
+        </button>
+      `;
+    }
+
+    var personTypeSelect = document.getElementById('supplierPersonType');
+    var foreignNote = document.getElementById('supplierForeignTaxNote');
+    var taxGroups = Array.from(document.querySelectorAll('.supplier-tax-group'));
+
+    function syncTaxRegimes() {
+      var selectedType = personTypeSelect ? personTypeSelect.value : '';
+      taxGroups.forEach(function (group) {
+        var show = group.dataset.personType === selectedType;
+        group.classList.toggle('d-none', !show);
+        if (!show) {
+          group.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+            checkbox.checked = false;
+          });
+        }
+      });
+      if (foreignNote) {
+        foreignNote.classList.toggle('d-none', selectedType !== 'extranjero');
+      }
+    }
+
+    personTypeSelect && personTypeSelect.addEventListener('change', syncTaxRegimes);
+    syncTaxRegimes();
+
+    var activityList = document.getElementById('supplierEconomicActivityList');
+    var addActivityBtn = document.getElementById('supplierAddActivity');
+
+    function refreshActivityButtons() {
+      var rows = activityList ? Array.from(activityList.querySelectorAll('.supplier-activity-row')) : [];
+      rows.forEach(function (row) {
+        var button = row.querySelector('.supplier-remove-activity');
+        if (button) button.disabled = rows.length === 1;
+      });
+    }
+
+    addActivityBtn && addActivityBtn.addEventListener('click', function () {
+      if (!activityList) return;
+      var row = document.createElement('div');
+      row.className = 'd-flex gap-2 supplier-activity-row';
+      row.innerHTML = `
+        <input type="text" name="supplier[economic_activity][]" value=""
+          class="form-control form-control-sm" maxlength="150"
+          placeholder="Ej. Venta y distribución de productos industriales">
+        <button type="button" class="btn btn-outline-danger btn-sm supplier-remove-activity">Quitar</button>
+      `;
+      activityList.appendChild(row);
+      refreshActivityButtons();
+    });
+
+    activityList && activityList.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains('supplier-remove-activity')) return;
+      var rows = activityList.querySelectorAll('.supplier-activity-row');
+      if (rows.length === 1) {
+        var input = rows[0].querySelector('input');
+        if (input) input.value = '';
+        return;
+      }
+      target.closest('.supplier-activity-row')?.remove();
+      refreshActivityButtons();
+    });
+
+    refreshActivityButtons();
+  }
   // ── Toggle sección REPSE ───────────────────────────────────────────
   var repseSwitch = document.getElementById('providesSpecializedSwitch');
   var repseFields = document.getElementById('repseFields');
@@ -412,5 +580,7 @@
       if (avatarInput) avatarInput.value = '';
     });
   }
+
+  setupFiscalFields();
 })();
 </script>

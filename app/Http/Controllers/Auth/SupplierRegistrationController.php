@@ -7,6 +7,7 @@ use App\Http\Requests\RegisterSupplierRequest;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\NewSupplierRegistrationForBuyerNotification;
+use App\Support\SupplierFiscalCatalog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -51,7 +52,14 @@ class SupplierRegistrationController extends Controller
                 'contact_person' => $data['contact_person'],
                 'contact_phone' => $data['contact_phone'] ?? null,
                 'supplier_type' => $data['supplier_type'],
-                'tax_regime'    => $data['tax_regime'],
+                'person_type'   => $data['person_type'],
+                'tax_regimes'   => SupplierFiscalCatalog::normalizeSelectedRegimes(
+                    $data['person_type'],
+                    $data['tax_regimes'] ?? []
+                ),
+                'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
+                    $data['economic_activity'] ?? []
+                ),
 
                 // Nuevos campos REPSE
                 'provides_specialized_services' => $repseData['provides_specialized_services'],

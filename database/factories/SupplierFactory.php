@@ -30,7 +30,10 @@ class SupplierFactory extends Factory
             'contact_person' => $this->faker->name(),
             'contact_phone' => $this->faker->numerify('##########'),
             'supplier_type' => $this->faker->randomElement(['product', 'service', 'both']),
-            'tax_regime' => $this->faker->randomElement(['individual', 'corporation', 'resico']),
+            'person_type' => 'moral',
+            'tax_regimes' => [
+                ['code' => '601', 'label' => 'General de Ley Personas Morales'],
+            ],
             'bank_name' => $this->faker->randomElement(['BBVA', 'Santander', 'Banorte']),
             'account_number' => $this->faker->unique()->numerify('##########'),
             'clabe' => $this->faker->numerify('##################'),
@@ -38,7 +41,7 @@ class SupplierFactory extends Factory
             'default_payment_terms' => $this->faker->randomElement(array_column(PaymentTerm::cases(), 'value')),
             'status' => 'approved',
             'provides_specialized_services' => false,
-            'economic_activity' => $this->faker->jobTitle(),
+            'economic_activity' => [$this->faker->jobTitle()],
         ];
     }
 

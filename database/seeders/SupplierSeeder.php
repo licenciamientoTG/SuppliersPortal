@@ -112,7 +112,8 @@ class SupplierSeeder extends Seeder
                 'contact_person' => $user->name,
                 'contact_phone' => '656100' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
                 'supplier_type' => 'both',
-                'tax_regime' => 'corporation',
+                'person_type' => 'moral',
+                'tax_regimes' => [['code' => '601', 'label' => 'General de Ley Personas Morales']],
                 'bank_name' => 'BBVA',
                 'account_number' => '123456' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
                 'clabe' => '0123456789' . str_pad((string) ($index + 1), 8, '0', STR_PAD_LEFT),
@@ -120,7 +121,7 @@ class SupplierSeeder extends Seeder
                 'default_payment_terms' => 'NET_30',
                 'status' => 'approved',
                 'provides_specialized_services' => $profile['provides_specialized_services'],
-                'economic_activity' => 'Servicios generales',
+                'economic_activity' => ['Servicios generales'],
                 'repse_registration_number' => $profile['repse_registration_number'] ?? null,
                 'repse_expiry_date' => $profile['repse_expiry_date'] ?? null,
                 'specialized_services_types' => $profile['specialized_services_types'] ?? null,
@@ -157,7 +158,8 @@ class SupplierSeeder extends Seeder
                 'contact_person' => $user4->name,
                 'contact_phone' => '6569990001',
                 'supplier_type' => 'both',
-                'tax_regime' => 'corporation',
+                'person_type' => 'moral',
+                'tax_regimes' => [['code' => '601', 'label' => 'General de Ley Personas Morales']],
                 'bank_name' => 'BBVA',
                 'account_number' => '9999000001',
                 'clabe' => '012345678900000001',
@@ -165,7 +167,7 @@ class SupplierSeeder extends Seeder
                 'default_payment_terms' => 'NET_30',
                 'status' => 'approved',
                 'provides_specialized_services' => false,
-                'economic_activity' => 'Pruebas unitarias',
+                'economic_activity' => ['Pruebas unitarias'],
             ];
 
             $supplier = Supplier::query()
