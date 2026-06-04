@@ -21,6 +21,7 @@ class SupplierFactory extends Factory
             'company_name' => $this->faker->company(),
             'rfc' => $this->faker->unique()->regexify('[A-Z]{3,4}[0-9]{6}[A-Z0-9]{3}'),
             'address' => $this->faker->address(),
+            'postal_code' => $this->faker->numerify('#####'),
             'phone_number' => $this->faker->numerify('##########'),
             // AQUÍ ESTÁ LA MAGIA: 
             // Usamos una función que recibe los atributos ya generados (como user_id)
@@ -30,7 +31,10 @@ class SupplierFactory extends Factory
             'contact_person' => $this->faker->name(),
             'contact_phone' => $this->faker->numerify('##########'),
             'supplier_type' => $this->faker->randomElement(['product', 'service', 'both']),
-            'tax_regime' => $this->faker->randomElement(['individual', 'corporation', 'resico']),
+            'person_type' => 'moral',
+            'tax_regimes' => [
+                ['code' => '601', 'label' => 'General de Ley Personas Morales'],
+            ],
             'bank_name' => $this->faker->randomElement(['BBVA', 'Santander', 'Banorte']),
             'account_number' => $this->faker->unique()->numerify('##########'),
             'clabe' => $this->faker->numerify('##################'),
@@ -38,7 +42,7 @@ class SupplierFactory extends Factory
             'default_payment_terms' => $this->faker->randomElement(array_column(PaymentTerm::cases(), 'value')),
             'status' => 'approved',
             'provides_specialized_services' => false,
-            'economic_activity' => $this->faker->jobTitle(),
+            'economic_activity' => [$this->faker->jobTitle()],
         ];
     }
 

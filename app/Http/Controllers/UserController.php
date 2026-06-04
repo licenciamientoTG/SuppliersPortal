@@ -7,6 +7,7 @@ use App\Models\AuthorizerRole;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\User;
+use App\Support\SupplierFiscalCatalog;
 use App\Models\UserAuthorizerRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -726,11 +727,15 @@ class UserController extends Controller
             'supplier.contact_phone' => ['nullable', 'string', 'max:10'],
             'supplier.email' => ['nullable', 'email', 'max:150'],
             'supplier.address' => ['nullable', 'string', 'max:500'],
+            'supplier.postal_code' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'supplier.supplier_type' => ['nullable', 'in:product,service,product_service'],
             'supplier.currency' => ['nullable', 'string', 'max:3'],
-            'supplier.tax_regime' => ['nullable', 'in:individual,corporation,resico'],
+            'supplier.person_type' => ['nullable', 'in:fisica,moral,extranjero'],
             'supplier.status' => ['nullable', 'in:pending_docs,approved,rejected'],
-            'supplier.economic_activity' => ['nullable', 'string', 'max:150'],
+            'supplier.tax_regimes' => ['nullable', 'array'],
+            'supplier.tax_regimes.*' => ['string'],
+            'supplier.economic_activity' => ['nullable', 'array'],
+            'supplier.economic_activity.*' => ['nullable', 'string', 'max:150'],
             'supplier.default_payment_terms' => ['nullable', Rule::in(array_column(\App\Enum\PaymentTerm::cases(), 'value'))],
 
             // --- Bancario MX ---
@@ -824,11 +829,20 @@ class UserController extends Controller
             'contact_phone' => $request->input('supplier.contact_phone'),
             'email' => $request->input('supplier.email'),
             'address' => $request->input('supplier.address'),
+            'postal_code' => $request->filled('supplier.postal_code')
+                ? preg_replace('/\D/', '', (string) $request->input('supplier.postal_code'))
+                : null,
             'supplier_type' => $request->input('supplier.supplier_type'),
             'currency' => $request->input('supplier.currency', 'MXN'),
-            'tax_regime' => $request->input('supplier.tax_regime'),
+            'person_type' => $request->input('supplier.person_type'),
             'status' => $request->input('supplier.status', $user->supplier->status ?? 'pending_docs'),
-            'economic_activity' => $request->input('supplier.economic_activity'),
+            'tax_regimes' => SupplierFiscalCatalog::normalizeSelectedRegimes(
+                $request->input('supplier.person_type'),
+                $request->input('supplier.tax_regimes', [])
+            ),
+            'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
+                $request->input('supplier.economic_activity', [])
+            ),
             'default_payment_terms' => $request->input('supplier.default_payment_terms', 'CASH'),
 
             // Bancario MX
@@ -860,6 +874,10 @@ class UserController extends Controller
                                                 ? ($request->input('supplier.specialized_services_types') ?? [])
                                                 : [],
         ];
+
+        if (($supplierData['person_type'] ?? null) === 'extranjero') {
+            $supplierData['tax_regimes'] = [];
+        }
 
         $user->supplier
             ? $user->supplier->update($supplierData)

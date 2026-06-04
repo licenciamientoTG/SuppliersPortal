@@ -63,7 +63,11 @@
     }
 
     try {
-        $poCount = \App\Models\PurchaseOrder::where('status', 'OPEN')->count();
+        $poCount = \App\Models\PurchaseOrder::whereIn('status', [
+            'ISSUED',
+            'PARTIALLY_RECEIVED',
+            'DELIVERED_PENDING_RECEPTION',
+        ])->count();
     } catch (\Throwable $e) {
         $poCount = 0;
     }

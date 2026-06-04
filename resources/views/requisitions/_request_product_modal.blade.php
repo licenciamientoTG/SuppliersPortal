@@ -45,17 +45,18 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="modal_category_id" class="form-label">
-                            Categoría <span class="text-danger">*</span>
+                        <label for="modal_category_name" class="form-label">
+                            Categoría asignada
                         </label>
-                        <select class="form-select" id="modal_category_id" name="category_id" required>
-                            <option value="">Seleccione una categoría...</option>
-                            @foreach ($categories as $category)
-                                <option value="{{ $category->id }}">{{ $category->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback">Por favor seleccione una categoría.</div>
+                        <input type="text" class="form-control" id="modal_category_name"
+                            value="Se tomará automáticamente de la categoría del centro de costo" readonly>
+                        <div class="form-text">
+                            La solicitud hereda la categoría configurada en el centro de costo de la requisición.
+                        </div>
                     </div>
+
+                    <input type="hidden" name="product_type" value="PRODUCTO">
+                    <input type="hidden" name="unit_of_measure" value="PIEZA">
 
                     <div class="mb-3">
                         <label for="modal_subcategory" class="form-label">

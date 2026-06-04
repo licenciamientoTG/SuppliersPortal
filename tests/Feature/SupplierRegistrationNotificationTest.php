@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\NewSupplierRegistrationForBuyerNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,7 +50,14 @@ class SupplierRegistrationNotificationTest extends TestCase
             'company_name' => 'Proveedor Demo SA de CV',
             'rfc' => 'ABC123456T12',
             'email' => 'proveedor@example.com',
+            'postal_code' => '32500',
         ]);
+
+        $supplier = Supplier::where('rfc', 'ABC123456T12')->firstOrFail();
+        $this->assertSame('moral', $supplier->person_type);
+        $this->assertSame(['601', '626'], collect($supplier->tax_regimes)->pluck('code')->all());
+        $this->assertSame(['Comercializacion de insumos'], $supplier->economic_activity);
+        $this->assertSame('32500', $supplier->postal_code);
     }
 
     public function test_notification_is_sent_via_mail_only(): void
@@ -69,7 +77,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         });
 
         Notification::assertSentTo($buyer, NewSupplierRegistrationForBuyerNotification::class, function ($notification) {
-            return !in_array('database', $notification->via($notification));
+            return ! in_array('database', $notification->via($notification));
         });
     }
 
@@ -155,7 +163,45 @@ class SupplierRegistrationNotificationTest extends TestCase
         $this->assertDatabaseHas('suppliers', [
             'rfc' => 'JKL123456T78',
             'email' => 'sinbuyers@example.com',
+            'postal_code' => '32500',
         ]);
+    }
+
+    public function test_foreign_supplier_can_register_without_tax_regimes(): void
+    {
+        Notification::fake();
+
+        $response = $this->post(route('register'), $this->validPayload([
+            'email' => 'extranjero@example.com',
+            'rfc' => 'EXT123456T90',
+            'person_type' => 'extranjero',
+            'tax_regimes' => [],
+            'economic_activity' => ['Servicios internacionales', 'Consultoria tecnica'],
+        ]));
+
+        $response->assertRedirect(route('dashboard'));
+
+        $supplier = Supplier::where('rfc', 'EXT123456T90')->firstOrFail();
+        $this->assertSame('extranjero', $supplier->person_type);
+        $this->assertSame([], $supplier->tax_regimes);
+        $this->assertSame(['Servicios internacionales', 'Consultoria tecnica'], $supplier->economic_activity);
+        $this->assertSame('32500', $supplier->postal_code);
+    }
+
+    public function test_registration_requires_tax_regimes_for_non_foreign_suppliers(): void
+    {
+        Notification::fake();
+
+        $response = $this->from(route('register'))
+            ->post(route('register'), $this->validPayload([
+                'tax_regimes' => [],
+                'person_type' => 'fisica',
+                'rfc' => 'MOR123456T11',
+            ]));
+
+        $response->assertRedirect(route('register'));
+        $response->assertSessionHasErrors(['tax_regimes']);
+        $response->assertSessionHas('supplier_registration_step', 2);
     }
 
     private function validPayload(array $overrides = []): array
@@ -169,13 +215,15 @@ class SupplierRegistrationNotificationTest extends TestCase
             'company_name' => 'Proveedor Demo SA de CV',
             'rfc' => 'ABC123456T12',
             'supplier_type' => 'product_service',
-            'tax_regime' => 'corporation',
+            'person_type' => 'moral',
+            'tax_regimes' => ['601', '626'],
             'address' => 'Av. Principal 123, Chihuahua',
+            'postal_code' => '32500',
             'phone_number' => '6561234567',
             'contact_person' => 'Juan Proveedor',
             'contact_phone' => '6567654321',
             'provides_specialized_services' => '0',
-            'economic_activity' => 'Comercializacion de insumos',
+            'economic_activity' => ['Comercializacion de insumos'],
             'default_payment_terms' => 'NET_30',
         ], $overrides);
     }

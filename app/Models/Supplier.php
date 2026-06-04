@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Notifications\Notifiable;
 use \App\Models\SupplierDocument;
 use App\Enum\PaymentTerm;
+use App\Support\SupplierFiscalCatalog;
 use Illuminate\Database\Eloquent\Factories\HasFactory; // 1. Importar el trait
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,12 +22,14 @@ class Supplier extends Model
         'company_name',
         'rfc',
         'address',
+        'postal_code',
         'phone_number',
         'email',
         'contact_person',
         'contact_phone',
         'supplier_type',
-        'tax_regime',
+        'person_type',
+        'tax_regimes',
         'bank_name',
         'account_number',
         'clabe',
@@ -50,7 +53,24 @@ class Supplier extends Model
         'provides_specialized_services' => 'boolean',
         'repse_expiry_date'             => 'date',
         'specialized_services_types'    => 'array',
+        'tax_regimes'                   => 'array',
+        'economic_activity'             => 'array',
     ];
+
+    public function getPersonTypeLabelAttribute(): string
+    {
+        return SupplierFiscalCatalog::personTypeLabel($this->person_type);
+    }
+
+    public function getTaxRegimesLabelAttribute(): string
+    {
+        return SupplierFiscalCatalog::formatRegimes($this->tax_regimes);
+    }
+
+    public function getEconomicActivitiesLabelAttribute(): string
+    {
+        return SupplierFiscalCatalog::formatActivities($this->economic_activity);
+    }
 
     /**
      * Devuelve el enum PaymentTerm correspondiente al valor almacenado,

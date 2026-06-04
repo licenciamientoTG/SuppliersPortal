@@ -18,7 +18,7 @@ class CloseInactivePurchaseOrders extends Command
     protected $signature = 'purchase-orders:close-inactive
                             {--dry-run : Simula el proceso sin hacer cambios}';
 
-    protected $description = 'Cierra automaticamente las OC (directas y estandar) que superaron el plazo de aprobacion por inactividad y envia alertas preventivas a las proximas a vencer.';
+    protected $description = 'Cierra automaticamente las OC (directas y estandar) que superaron el plazo de inactividad y envia alertas preventivas a las proximas a vencer.';
 
     public function handle(): int
     {
@@ -171,8 +171,9 @@ class CloseInactivePurchaseOrders extends Command
         $warningThreshold = $inactivityDays - 3;
 
         $closedCount = 0;
-        PurchaseOrder::where('status', 'OPEN')
-            ->where('created_at', '<=', $now->copy()->subDays($inactivityDays))
+        PurchaseOrder::where('status', 'ISSUED')
+            ->whereNotNull('issued_at')
+            ->where('issued_at', '<=', $now->copy()->subDays($inactivityDays))
             ->with(['creator', 'supplier', 'requisition'])
             ->chunk(200, function ($pos) use ($now, $dryRun, &$closedCount) {
                 foreach ($pos as $po) {
@@ -188,9 +189,10 @@ class CloseInactivePurchaseOrders extends Command
         }
 
         $alertCount = 0;
-        PurchaseOrder::where('status', 'OPEN')
-            ->where('created_at', '<=', $now->copy()->subDays($warningThreshold))
-            ->where('created_at', '>', $now->copy()->subDays($inactivityDays))
+        PurchaseOrder::where('status', 'ISSUED')
+            ->whereNotNull('issued_at')
+            ->where('issued_at', '<=', $now->copy()->subDays($warningThreshold))
+            ->where('issued_at', '>', $now->copy()->subDays($inactivityDays))
             ->whereNull('inactivity_warning_sent_at')
             ->with(['creator', 'supplier'])
             ->chunk(200, function ($pos) use ($dryRun, &$alertCount) {
@@ -209,7 +211,9 @@ class CloseInactivePurchaseOrders extends Command
 
     private function closeStandardPurchaseOrder(PurchaseOrder $po, $now, bool $dryRun): void
     {
-        $this->line("    -> [OC] Cerrando: {$po->folio} (generada: {$po->created_at->format('d/m/Y')})");
+        $issuedAt = $po->issued_at ?? $po->created_at;
+
+        $this->line("    -> [OC] Cerrando: {$po->folio} (emitida: {$issuedAt->format('d/m/Y')})");
 
         if ($dryRun) {
             return;
@@ -237,7 +241,7 @@ class CloseInactivePurchaseOrders extends Command
             }
 
             Log::info("[CloseInactive] OC estandar {$po->folio} (ID: {$po->id}) cerrada por inactividad.", [
-                'created_at' => $po->created_at,
+                'issued_at' => $po->issued_at,
                 'closed_at' => $now,
             ]);
 
@@ -252,7 +256,9 @@ class CloseInactivePurchaseOrders extends Command
     private function sendStandardPurchaseOrderWarning(PurchaseOrder $po, bool $dryRun): void
     {
         $deadline = $po->getAutoCloseDeadline();
-        $this->line("    -> [OC] Alerta: {$po->folio} - vence el {$deadline->format('d/m/Y')}");
+        $issuedAt = $po->issued_at ?? $po->created_at;
+
+        $this->line("    -> [OC] Alerta: {$po->folio} - emitida {$issuedAt->format('d/m/Y')} - vence el {$deadline->format('d/m/Y')}");
 
         if ($dryRun) {
             return;
@@ -271,7 +277,7 @@ class CloseInactivePurchaseOrders extends Command
             }
 
             Log::info("[CloseInactive] Alerta de inactividad enviada para OC estandar {$po->folio}.", [
-                'created_at' => $po->created_at,
+                'issued_at' => $po->issued_at,
                 'deadline' => $deadline,
             ]);
 

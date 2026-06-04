@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\BudgetCedula;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -12,7 +13,7 @@ class BudgetCedulaSeeder extends Seeder
     public function run(): void
     {
         $now = Carbon::now();
-        $createdBy = 6;
+        $createdBy = User::where('email', 'licenciamiento@totalgas.com')->value('id');
 
         // Mapear código de categoría → ID
         $categoryIds = DB::table('expense_categories')

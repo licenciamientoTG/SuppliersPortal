@@ -1,4 +1,7 @@
 {{-- resources/views/auth/supplier-register.blade.php --}}
+@php
+    $viewErrors = $errors ?? new \Illuminate\Support\ViewErrorBag();
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -524,28 +527,28 @@
                                 <x-input-label for="first_name" :value="__('Nombre(s)')" class="form-label" />
                                 <x-text-input id="first_name" class="reg-input" type="text" name="first_name"
                                     :value="old('first_name')" data-required="1" autofocus autocomplete="given-name" />
-                                <x-input-error :messages="$errors->get('first_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('first_name')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="last_name" :value="__('Apellidos')" class="form-label" />
                                 <x-text-input id="last_name" class="reg-input" type="text" name="last_name"
                                     :value="old('last_name')" data-required="1" autocomplete="family-name" />
-                                <x-input-error :messages="$errors->get('last_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('last_name')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
                                 <x-input-label for="email" :value="__('Correo electrónico')" class="form-label" />
                                 <x-text-input id="email" class="reg-input" type="email" name="email"
                                     :value="old('email')" data-required="1" autocomplete="username" />
-                                <x-input-error :messages="$errors->get('email')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('email')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="password" :value="__('Contraseña')" class="form-label" />
                                 <x-text-input id="password" class="reg-input" type="password" name="password"
                                     data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$errors->get('password')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('password')" class="input-error" />
                                 <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="dark" />
                             </div>
 
@@ -553,7 +556,7 @@
                                 <x-input-label for="password_confirmation" :value="__('Confirmar contraseña')" class="form-label" />
                                 <x-text-input id="password_confirmation" class="reg-input" type="password"
                                     name="password_confirmation" data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$errors->get('password_confirmation')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('password_confirmation')" class="input-error" />
                             </div>
 
                         </div>
@@ -570,7 +573,7 @@
                                 <x-input-label for="company_name" :value="__('Razón social / Nombre comercial')" class="form-label" />
                                 <x-text-input id="company_name" class="reg-input" type="text" name="company_name"
                                     :value="old('company_name')" data-required="1" />
-                                <x-input-error :messages="$errors->get('company_name')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('company_name')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -579,7 +582,7 @@
                                     :value="old('rfc')" data-required="1" maxlength="13"
                                     style="text-transform: uppercase;" inputmode="latin" autocomplete="off" />
                                 <div class="input-hint">3–4 letras + 6 dígitos (YYMMDD) + 3 alfanuméricos</div>
-                                <x-input-error :messages="$errors->get('rfc')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('rfc')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -590,15 +593,15 @@
                                     <option value="corporation" {{ old('tax_regime') === 'corporation' ? 'selected' : '' }}>Persona Moral</option>
                                     <option value="resico" {{ old('tax_regime') === 'resico' ? 'selected' : '' }}>RESICO</option>
                                 </select>
-                                <x-input-error :messages="$errors->get('tax_regime')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('tax_regime')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
                                 <x-input-label for="economic_activity" :value="__('Actividad económica')" class="form-label" />
                                 <x-text-input id="economic_activity" class="reg-input" type="text" name="economic_activity"
-                                    :value="old('economic_activity')" data-required="1" />
+                                    :value="old('economic_activity.0', is_array(old('economic_activity')) ? '' : old('economic_activity'))" data-required="1" />
                                 <div class="input-hint">Tal como aparece en la constancia de situación fiscal</div>
-                                <x-input-error :messages="$errors->get('economic_activity')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('economic_activity')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
@@ -606,7 +609,16 @@
                                 <textarea id="address" name="address" class="reg-input" rows="3"
                                     data-required="1"
                                     placeholder="Ingrese la dirección completa del domicilio fiscal">{{ old('address') }}</textarea>
-                                <x-input-error :messages="$errors->get('address')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('address')" class="input-error" />
+                            </div>
+
+                            <div class="form-group">
+                                <x-input-label for="postal_code" :value="__('Código postal')" class="form-label" />
+                                <x-text-input id="postal_code" class="reg-input" type="text" name="postal_code"
+                                    :value="old('postal_code')" data-required="1" inputmode="numeric"
+                                    pattern="\d{5}" maxlength="5" minlength="5" autocomplete="postal-code" />
+                                <div class="input-hint">5 dígitos</div>
+                                <x-input-error :messages="$viewErrors->get('postal_code')" class="input-error" />
                             </div>
 
                         </div>
@@ -625,14 +637,14 @@
                                     :value="old('phone_number')" data-required="1" data-phone="10"
                                     inputmode="numeric" pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
                                 <div class="input-hint">10 dígitos exactos</div>
-                                <x-input-error :messages="$errors->get('phone_number')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('phone_number')" class="input-error" />
                             </div>
 
                             <div class="form-group">
                                 <x-input-label for="contact_person" :value="__('Persona de contacto')" class="form-label" />
                                 <x-text-input id="contact_person" class="reg-input" type="text" name="contact_person"
                                     :value="old('contact_person')" data-required="1" />
-                                <x-input-error :messages="$errors->get('contact_person')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('contact_person')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -641,7 +653,7 @@
                                     :value="old('contact_phone')" data-phone="10" inputmode="numeric"
                                     pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
                                 <div class="input-hint">10 dígitos si se proporciona</div>
-                                <x-input-error :messages="$errors->get('contact_phone')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('contact_phone')" class="input-error" />
                             </div>
 
                             <div class="form-group">
@@ -652,7 +664,7 @@
                                     <option value="service" {{ old('supplier_type') === 'service' ? 'selected' : '' }}>Servicios</option>
                                     <option value="product_service" {{ old('supplier_type') === 'product_service' ? 'selected' : '' }}>Productos y Servicios</option>
                                 </select>
-                                <x-input-error :messages="$errors->get('supplier_type')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('supplier_type')" class="input-error" />
                             </div>
 
                             <div class="form-group full">
@@ -663,7 +675,7 @@
                                     @endforeach
                                 </select>
                                 <div class="input-hint">Condiciones de pago por defecto para OC y cotizaciones.</div>
-                                <x-input-error :messages="$errors->get('default_payment_terms')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('default_payment_terms')" class="input-error" />
                             </div>
 
                             <!-- REPSE Question -->
@@ -684,7 +696,7 @@
                                     </label>
                                 </div>
                                 <div class="input-hint">Limpieza, vigilancia, mantenimiento, contabilidad, etc.</div>
-                                <x-input-error :messages="$errors->get('provides_specialized_services')" class="input-error" />
+                                <x-input-error :messages="$viewErrors->get('provides_specialized_services')" class="input-error" />
                             </div>
 
                             <!-- REPSE Fields (initially hidden) -->
@@ -696,7 +708,7 @@
                                         name="repse_registration_number" :value="old('repse_registration_number')"
                                         placeholder="Ej: REPSE-123456789" data-conditional-required="repse" />
                                     <div class="input-hint">Formato: REPSE seguido del número asignado</div>
-                                    <x-input-error :messages="$errors->get('repse_registration_number')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('repse_registration_number')" class="input-error" />
                                 </div>
 
                                 <div class="form-group">
@@ -705,7 +717,7 @@
                                         name="repse_expiry_date" :value="old('repse_expiry_date')"
                                         data-conditional-required="repse" />
                                     <div class="input-hint">El registro debe estar vigente</div>
-                                    <x-input-error :messages="$errors->get('repse_expiry_date')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('repse_expiry_date')" class="input-error" />
                                 </div>
 
                                 <div class="form-group full">
@@ -754,7 +766,7 @@
                                         </div>
                                     </div>
                                     <div class="input-hint">Puede seleccionar múltiples servicios</div>
-                                    <x-input-error :messages="$errors->get('specialized_services_types')" class="input-error" />
+                                    <x-input-error :messages="$viewErrors->get('specialized_services_types')" class="input-error" />
                                 </div>
 
                                 <div id="otros-input-custom" class="form-group full" style="display: none;">
@@ -793,8 +805,42 @@
         </div>
     </div>
 
+    @php
+        $collectPrefixedErrors = function (string $prefix) use ($viewErrors): array {
+            return collect($viewErrors->getMessages())
+                ->filter(fn ($messages, $key) => $key === $prefix || str_starts_with($key, $prefix . '.'))
+                ->flatten()
+                ->filter(fn ($message) => is_string($message) && $message !== '')
+                ->values()
+                ->all();
+        };
+
+        $supplierRegisterFiscalState = [
+            'personType' => old('person_type'),
+            'taxRegimes' => collect(old('tax_regimes', []))
+                ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
+                ->filter()
+                ->values()
+                ->all(),
+            'economicActivities' => (function () {
+                $activities = old('economic_activity', ['']);
+                return is_array($activities) && count($activities) > 0 ? $activities : [''];
+            })(),
+            'errors' => [
+                'person_type' => $collectPrefixedErrors('person_type'),
+                'tax_regimes' => $collectPrefixedErrors('tax_regimes'),
+                'economic_activity' => $collectPrefixedErrors('economic_activity'),
+            ],
+        ];
+    @endphp
+
     <script>
         window.__supplierRegisterInitialStep = @json((int) session('supplier_registration_step', 1));
+        window.__supplierRegisterFiscalCatalog = @json([
+            'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
+            'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
+        ]);
+        window.__supplierRegisterFiscalState = @json($supplierRegisterFiscalState);
     </script>
 
     <script>
@@ -829,6 +875,168 @@
                 const existing = container.querySelector('.js-val-error');
                 if (existing) existing.remove();
             }
+
+            function renderInlineError(container, messages) {
+                if (!container || !Array.isArray(messages) || messages.length === 0) return;
+                const div = document.createElement('div');
+                div.className = 'input-error js-server-error';
+                div.textContent = messages[0];
+                container.appendChild(div);
+            }
+
+            function setupFiscalFields() {
+                const fiscalState = window.__supplierRegisterFiscalState || {};
+                const fiscalCatalog = window.__supplierRegisterFiscalCatalog || {};
+                const legacyTaxSelect = document.getElementById('tax_regime');
+                const legacyTaxGroup = legacyTaxSelect?.closest('.form-group');
+                const legacyEconomicInput = document.getElementById('economic_activity');
+                const legacyEconomicGroup = legacyEconomicInput?.closest('.form-group');
+
+                if (legacyTaxSelect) {
+                    legacyTaxSelect.disabled = true;
+                    legacyTaxSelect.removeAttribute('name');
+                }
+
+                if (legacyTaxGroup) {
+                    legacyTaxGroup.innerHTML = `
+                        <label for="person_type" class="form-label">Tipo de persona</label>
+                        <select id="person_type" name="person_type" class="reg-input" data-required="1">
+                            <option value="" ${fiscalState.personType ? '' : 'selected'} disabled>Selecciona una opción</option>
+                            <option value="fisica" ${fiscalState.personType === 'fisica' ? 'selected' : ''}>Persona física</option>
+                            <option value="moral" ${fiscalState.personType === 'moral' ? 'selected' : ''}>Persona moral</option>
+                            <option value="extranjero" ${fiscalState.personType === 'extranjero' ? 'selected' : ''}>Extranjero</option>
+                        </select>
+                    `;
+                    renderInlineError(legacyTaxGroup, fiscalState.errors?.person_type);
+                }
+
+                if (legacyEconomicInput) {
+                    legacyEconomicInput.disabled = true;
+                    legacyEconomicInput.removeAttribute('name');
+                }
+
+                if (legacyEconomicGroup) {
+                    const selectedCodes = new Set(Array.isArray(fiscalState.taxRegimes) ? fiscalState.taxRegimes : []);
+                    const groupsHtml = ['fisica', 'moral'].map((personType) => {
+                        const regimes = fiscalCatalog[personType] || [];
+                        const options = regimes.map((regime) => `
+                            <label class="multiselect-option" style="position: static; border: 1px solid #dee2e6; border-radius: 7px; padding: 10px 12px;">
+                                <input type="checkbox" name="tax_regimes[]" value="${regime.code}" ${selectedCodes.has(regime.code) ? 'checked' : ''}>
+                                <span class="checkmark"></span>${regime.code} - ${regime.label}
+                            </label>
+                        `).join('');
+
+                        return `
+                            <div class="full tax-regime-group" data-person-type="${personType}" style="display:none;">
+                                <div class="input-hint" style="margin-bottom: 8px;">Selecciona uno o varios regímenes SAT aplicables.</div>
+                                <div style="display:grid; gap:8px;">${options}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    const activities = Array.isArray(fiscalState.economicActivities) && fiscalState.economicActivities.length > 0
+                        ? fiscalState.economicActivities
+                        : [''];
+                    const rowsHtml = activities.map((activity) => `
+                        <div class="activity-row" style="display:flex; gap:10px; align-items:flex-start;">
+                            <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(activity ?? '').replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
+                            <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
+                        </div>
+                    `).join('');
+
+                    const taxGroup = document.createElement('div');
+                    taxGroup.className = 'form-group full';
+                    taxGroup.innerHTML = `
+                        <label class="form-label">Regímenes fiscales</label>
+                        <div id="tax-regimes-wrapper" class="repse-container" data-selected-person-type="${fiscalState.personType || ''}">
+                            ${groupsHtml}
+                            <div id="tax-regimes-foreign-note" class="full input-hint" style="display:none;">
+                                Los proveedores extranjeros no capturan regímenes fiscales SAT en este formulario.
+                            </div>
+                        </div>
+                    `;
+
+                    legacyEconomicGroup.parentNode.insertBefore(taxGroup, legacyEconomicGroup);
+                    renderInlineError(taxGroup, fiscalState.errors?.tax_regimes);
+
+                    legacyEconomicGroup.innerHTML = `
+                        <label class="form-label">Actividades económicas</label>
+                        <div id="economic-activity-list" style="display:grid; gap:10px;">${rowsHtml}</div>
+                        <button type="button" id="add-economic-activity" class="btn-secondary" style="margin-top: 10px;">+ Agregar actividad</button>
+                        <div class="input-hint">Captura una o varias actividades tal como aparecen en la constancia de situación fiscal.</div>
+                    `;
+                    renderInlineError(legacyEconomicGroup, fiscalState.errors?.economic_activity);
+                }
+
+                const personTypeSelect = document.getElementById('person_type');
+                const taxGroups = () => Array.from(document.querySelectorAll('.tax-regime-group'));
+                const foreignNote = document.getElementById('tax-regimes-foreign-note');
+
+                function refreshTaxRegimeVisibility() {
+                    const selectedType = personTypeSelect?.value || '';
+                    taxGroups().forEach((group) => {
+                        const shouldShow = group.dataset.personType === selectedType;
+                        group.style.display = shouldShow ? 'block' : 'none';
+                        group.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+                            if (!shouldShow) checkbox.checked = false;
+                        });
+                    });
+
+                    if (foreignNote) {
+                        foreignNote.style.display = selectedType === 'extranjero' ? 'block' : 'none';
+                    }
+                }
+
+                personTypeSelect?.addEventListener('change', refreshTaxRegimeVisibility);
+                refreshTaxRegimeVisibility();
+
+                const activityList = document.getElementById('economic-activity-list');
+                const addActivityBtn = document.getElementById('add-economic-activity');
+
+                function buildActivityRow(value = '') {
+                    const row = document.createElement('div');
+                    row.className = 'activity-row';
+                    row.style.display = 'flex';
+                    row.style.gap = '10px';
+                    row.style.alignItems = 'flex-start';
+                    row.innerHTML = `
+                        <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(value).replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
+                        <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
+                    `;
+                    return row;
+                }
+
+                function refreshActivityButtons() {
+                    const rows = activityList ? Array.from(activityList.querySelectorAll('.activity-row')) : [];
+                    rows.forEach((row) => {
+                        const removeBtn = row.querySelector('.activity-remove');
+                        if (removeBtn) removeBtn.disabled = rows.length === 1;
+                    });
+                }
+
+                addActivityBtn?.addEventListener('click', () => {
+                    if (!activityList) return;
+                    activityList.appendChild(buildActivityRow(''));
+                    refreshActivityButtons();
+                });
+
+                activityList?.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement) || !target.classList.contains('activity-remove')) return;
+                    const rows = activityList.querySelectorAll('.activity-row');
+                    if (rows.length === 1) {
+                        const input = rows[0].querySelector('input');
+                        if (input) input.value = '';
+                        return;
+                    }
+                    target.closest('.activity-row')?.remove();
+                    refreshActivityButtons();
+                });
+
+                refreshActivityButtons();
+            }
+
+            setupFiscalFields();
 
             // ====== ENFORCERS ======
             const rfcEl = document.getElementById('rfc');
@@ -1049,6 +1257,25 @@
                 });
 
                 // --- Radio: ¿presta servicios especializados? ---
+                const personTypeSelect = document.getElementById('person_type');
+                if (personTypeSelect && currentStepEl.contains(personTypeSelect)) {
+                    const selectedType = personTypeSelect.value;
+                    const taxRegimeCheckboxes = Array.from(document.querySelectorAll('input[name="tax_regimes[]"]'));
+                    const checkedTaxRegimes = taxRegimeCheckboxes.filter((checkbox) => checkbox.checked);
+
+                    if (selectedType && selectedType !== 'extranjero' && checkedTaxRegimes.length === 0) {
+                        valid = false;
+                        const taxRegimesWrapper = document.getElementById('tax-regimes-wrapper');
+                        const container = taxRegimesWrapper && (taxRegimesWrapper.closest('.form-group') || taxRegimesWrapper.parentNode);
+                        if (container && !container.querySelector('.js-val-error')) {
+                            const div = document.createElement('div');
+                            div.className = 'input-error js-val-error';
+                            div.textContent = 'Selecciona al menos un régimen fiscal SAT.';
+                            container.appendChild(div);
+                        }
+                    }
+                }
+
                 const radios = currentStepEl.querySelectorAll('input[name="provides_specialized_services"]');
                 if (radios.length > 0 && !Array.from(radios).some(r => r.checked)) {
                     valid = false;

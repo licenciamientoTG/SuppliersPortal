@@ -87,6 +87,7 @@
                                     @foreach ($costCenters as $cc)
                                         <option value="{{ $cc->id }}" 
                                                 data-company-id="{{ $cc->company_id }}"
+                                                data-category-name="{{ $cc->category?->name ?? '' }}"
                                                 {{ old('cost_center_id', $productService->cost_center_id) == $cc->id ? 'selected' : '' }}>
                                             {{ $cc->code }} - {{ $cc->name }}
                                         </option>
@@ -100,29 +101,20 @@
                     </div>
 
                     <div class="row">
-                        {{-- Categoría --}}
+                        {{-- Categoría derivada --}}
                         <div class="col-md-6 mb-3">
-                            <label for="category_id" class="form-label">Categoría <span class="text-danger">*</span></label>
+                            <label for="category_display" class="form-label">Categoría asignada</label>
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="ti ti-tag"></i>
                                 </span>
-                                <select class="form-select @error('category_id') is-invalid @enderror" 
-                                        id="category_id"
-                                        name="category_id" 
-                                        required>
-                                    <option value="">Seleccione...</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->id }}"
-                                            {{ old('category_id', $productService->category_id) == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <input type="text"
+                                        class="form-control"
+                                        id="category_display"
+                                        value="Se asigna automáticamente según el centro de costo"
+                                        readonly>
                             </div>
-                            @error('category_id')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
+                            <div class="form-text">Este dato ya no se captura manualmente.</div>
                         </div>
 
                         {{-- Subcategoría --}}
@@ -560,11 +552,22 @@
                 if (currentOption.data('company-id') != companyId) {
                     $costCenterSelect.val('');
                 }
+
+                updateCategoryDisplay();
             });
+
+            $('#cost_center_id').on('change', updateCategoryDisplay);
+
+            function updateCategoryDisplay() {
+                const categoryName = $('#cost_center_id option:selected').data('category-name');
+                $('#category_display').val(categoryName || 'Sin categoría configurada en el centro de costo');
+            }
 
             // Ejecutar al cargar si hay compañía pre-seleccionada
             if ($('#company_id').val()) {
                 $('#company_id').trigger('change');
+            } else {
+                updateCategoryDisplay();
             }
 
             // Validar JSON de especificaciones al enviar
