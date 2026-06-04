@@ -7,6 +7,7 @@ use App\Http\Requests\RegisterSupplierRequest;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\NewSupplierRegistrationForBuyerNotification;
+use App\Notifications\SupplierWelcomeNotification;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -80,7 +81,10 @@ class SupplierRegistrationController extends Controller
 
             $this->notifyBuyersAboutNewSupplier($supplier);
 
-            // 4) Login + verificación de correo
+            // 4) Correo de bienvenida al proveedor (con sus credenciales de acceso)
+            $this->sendWelcomeToSupplier($user, $data['password']);
+
+            // 5) Login + verificación de correo
             Auth::login($user);
 
             // 5) Mensaje personalizado según si requiere REPSE
@@ -90,13 +94,28 @@ class SupplierRegistrationController extends Controller
         });
     }
 
+    private function sendWelcomeToSupplier(User $user, string $plainPassword): void
+    {
+        try {
+            $user->notify(new SupplierWelcomeNotification($plainPassword));
+        } catch (\Exception $e) {
+            Log::error('Error al enviar correo de bienvenida al proveedor.', [
+                'user_id'    => $user->id,
+                'user_email' => $user->email,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function notifyBuyersAboutNewSupplier(Supplier $supplier): void
     {
         try {
-            $buyers = User::role('buyer')->get();
+            // Destinatarios: Compras (buyer) y Superadministrador. El scope role()
+            // con arreglo hace OR y devuelve cada usuario una sola vez (sin duplicados).
+            $recipients = User::role(['buyer', 'superadmin'])->get();
 
-            if ($buyers->isEmpty()) {
-                Log::warning('No se encontraron usuarios con rol buyer para notificar nueva alta de proveedor.', [
+            if ($recipients->isEmpty()) {
+                Log::warning('No se encontraron usuarios con rol buyer o superadmin para notificar nueva alta de proveedor.', [
                     'supplier_id' => $supplier->id,
                     'supplier_rfc' => $supplier->rfc,
                 ]);
@@ -104,21 +123,21 @@ class SupplierRegistrationController extends Controller
                 return;
             }
 
-            foreach ($buyers as $buyer) {
+            foreach ($recipients as $recipient) {
                 try {
-                    $buyer->notify(new NewSupplierRegistrationForBuyerNotification($supplier));
+                    $recipient->notify(new NewSupplierRegistrationForBuyerNotification($supplier));
                 } catch (\Exception $e) {
-                    Log::error('Error al enviar notificación de nueva alta de proveedor a buyer.', [
+                    Log::error('Error al enviar notificación de nueva alta de proveedor.', [
                         'supplier_id' => $supplier->id,
                         'supplier_rfc' => $supplier->rfc,
-                        'buyer_id' => $buyer->id,
-                        'buyer_email' => $buyer->email,
+                        'recipient_id' => $recipient->id,
+                        'recipient_email' => $recipient->email,
                         'error' => $e->getMessage(),
                     ]);
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Error general al notificar a buyers sobre nueva alta de proveedor.', [
+            Log::error('Error general al notificar nueva alta de proveedor.', [
                 'supplier_id' => $supplier->id,
                 'supplier_rfc' => $supplier->rfc,
                 'error' => $e->getMessage(),
