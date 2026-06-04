@@ -599,7 +599,7 @@
                             <div class="form-group full">
                                 <x-input-label for="economic_activity" :value="__('Actividad económica')" class="form-label" />
                                 <x-text-input id="economic_activity" class="reg-input" type="text" name="economic_activity"
-                                    :value="old('economic_activity')" data-required="1" />
+                                    :value="old('economic_activity.0', is_array(old('economic_activity')) ? '' : old('economic_activity'))" data-required="1" />
                                 <div class="input-hint">Tal como aparece en la constancia de situación fiscal</div>
                                 <x-input-error :messages="$viewErrors->get('economic_activity')" class="input-error" />
                             </div>
