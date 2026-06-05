@@ -21,26 +21,19 @@ class DirectPurchaseOrderClosedByInactivityNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('🔴 OC Directa ' . $this->ocd->folio . ' cerrada por inactividad')
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('La siguiente Orden de Compra Directa ha sido **cerrada automáticamente por inactividad** al superar los ' . DirectPurchaseOrder::INACTIVITY_DAYS . ' días naturales sin ser aprobada.')
-            ->line('')
-            ->line('**Detalles de la OCD:**')
-            ->line('• **Folio:** ' . $this->ocd->folio)
-            ->line('• **Proveedor:** ' . ($this->ocd->supplier->company_name ?? 'N/A'))
-            ->line('• **Centro de Costo:** ' . ($this->ocd->costCenter->name ?? 'N/A'))
-            ->line('• **Monto Total:** $' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency)
-            ->line('• **Solicitante:** ' . ($this->ocd->creator->name ?? 'N/A'))
-            ->line('• **Enviada a aprobación:** ' . ($this->ocd->submitted_at?->format('d/m/Y H:i') ?? 'N/A'))
-            ->line('• **Cerrada el:** ' . ($this->ocd->closed_at?->format('d/m/Y H:i') ?? now()->format('d/m/Y H:i')))
-            ->line('')
-            ->line('**Efectos del cierre:**')
-            ->line('• La OCD ya **NO puede ser aprobada**.')
-            ->line('• El proveedor **NO puede cargar remisiones** contra esta OC.')
-            ->line('• Si el producto/servicio sigue siendo necesario, debe generarse una **nueva requisición**.')
-            ->line('')
-            ->line('Este es un mensaje automático del sistema.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('OC Directa ' . $this->ocd->folio . ' cerrada por inactividad')
+            ->view('emails.notifications.direct-purchase-order-closed-by-inactivity', [
+                'name'           => $notifiable->first_name ?? $notifiable->name,
+                'folio'          => $this->ocd->folio,
+                'supplier'       => $this->ocd->supplier->company_name ?? 'N/A',
+                'costCenter'     => $this->ocd->costCenter->name ?? 'N/A',
+                'total'          => '$' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency,
+                'requester'      => $this->ocd->creator->name ?? 'N/A',
+                'submittedAt'    => $this->ocd->submitted_at?->format('d/m/Y H:i') ?? 'N/A',
+                'closedAt'       => $this->ocd->closed_at?->format('d/m/Y H:i') ?? now()->format('d/m/Y H:i'),
+                'inactivityDays' => DirectPurchaseOrder::INACTIVITY_DAYS,
+                'url'            => route('direct-purchase-orders.show', $this->ocd->id),
+            ]);
     }
 
     public function toArray(object $notifiable): array

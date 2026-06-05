@@ -24,9 +24,11 @@ class FinancialProvisionPendingInvoiceNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Provisión pendiente de factura')
-            ->line("Se generó una provisión por recepción {$this->provision->reception?->folio}.")
-            ->line('Monto provisionado: $' . number_format((float) $this->provision->provision_amount, 2) . ' ' . $this->provision->currency)
-            ->action('Ver provisiones', route('financial-provisions.index'));
+            ->view('emails.notifications.financial-provision-pending-invoice', [
+                'receptionFolio' => $this->provision->reception?->folio,
+                'amount'         => '$' . number_format((float) $this->provision->provision_amount, 2) . ' ' . $this->provision->currency,
+                'url'            => route('financial-provisions.index'),
+            ]);
     }
 
     public function toArray(object $notifiable): array

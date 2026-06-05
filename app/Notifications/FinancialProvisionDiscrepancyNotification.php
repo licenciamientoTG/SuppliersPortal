@@ -24,11 +24,13 @@ class FinancialProvisionDiscrepancyNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Discrepancia entre provisión y factura')
-            ->line("La provisión de la recepción {$this->provision->reception?->folio} tiene diferencia contra factura.")
-            ->line('Provisión: $' . number_format((float) $this->provision->provision_amount, 2))
-            ->line('Factura: $' . number_format((float) $this->provision->invoice_amount, 2))
-            ->line('Diferencia: $' . number_format((float) $this->provision->difference_amount, 2))
-            ->action('Revisar discrepancia', route('financial-provisions.show', $this->provision));
+            ->view('emails.notifications.financial-provision-discrepancy', [
+                'receptionFolio'   => $this->provision->reception?->folio,
+                'provisionAmount'  => '$' . number_format((float) $this->provision->provision_amount, 2),
+                'invoiceAmount'    => '$' . number_format((float) $this->provision->invoice_amount, 2),
+                'differenceAmount' => '$' . number_format((float) $this->provision->difference_amount, 2),
+                'url'              => route('financial-provisions.show', $this->provision),
+            ]);
     }
 
     public function toArray(object $notifiable): array

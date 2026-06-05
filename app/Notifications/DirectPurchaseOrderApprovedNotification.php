@@ -41,20 +41,15 @@ class DirectPurchaseOrderApprovedNotification extends Notification
         $url = Route::has('supplier.dashboard') ? route('supplier.dashboard') : route('dashboard');
 
         return (new MailMessage)
-            ->subject('✅ Orden de Compra Aprobada - ' . $this->ocd->folio)
-            ->greeting('Estimado(a) ' . ($this->ocd->supplier->company_name ?? $notifiable->name) . ',')
-            ->line('Le informamos que se ha **APROBADO** una nueva Orden de Compra.')
-            ->line('')
-            ->line('**Detalles de la OC:**')
-            ->line('• **Folio:** ' . $this->ocd->folio)
-            ->line('• **Monto Total:** $' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency)
-            ->line('• **Condiciones de Pago:** ' . ($this->ocd->payment_terms ?? 'N/A'))
-            ->line('')
-            ->line('Puede consultar el detalle completo y descargar el documento desde nuestro portal de proveedores.')
-            ->action('Ver Orden de Compra', $url)
-            ->line('Si tiene alguna duda, por favor contacte al solicitante: ' . ($this->ocd->creator->name ?? 'N/A'))
-            ->line('Gracias por ser nuestro socio comercial.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('Orden de Compra Aprobada - ' . $this->ocd->folio)
+            ->view('emails.notifications.direct-purchase-order-approved', [
+                'greetingName' => $this->ocd->supplier->company_name ?? $notifiable->name,
+                'folio'        => $this->ocd->folio,
+                'total'        => '$' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency,
+                'paymentTerms' => $this->ocd->payment_terms ?? 'N/A',
+                'requester'    => $this->ocd->creator->name ?? 'N/A',
+                'url'          => $url,
+            ]);
     }
 
     /**

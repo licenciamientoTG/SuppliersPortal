@@ -31,20 +31,18 @@ class RfqSentToSuppliersNotification extends Notification
         $suppliersList = $this->rfq->suppliers->pluck('name')->join(', ');
 
         return (new MailMessage)
-            ->subject('📨 Solicitud de Cotización Enviada - ' . $this->rfq->folio)
-            ->greeting('Hola, ' . $notifiable->name)
-            ->line('Se ha enviado una solicitud de cotización a **' . $suppliersCount . ' proveedor(es)** para tu requisición **' . $this->rfq->requisition->folio . '**.')
-            ->line('')
-            ->line('**Detalles de la RFQ:**')
-            ->line('• **Folio RFQ:** ' . $this->rfq->folio)
-            ->line('• **Grupo de cotización:** ' . $this->rfq->quotationGroup->name)
-            ->line('• **Proveedores invitados:** ' . $suppliersList)
-            ->line('• **Fecha límite de respuesta:** ' . $this->rfq->response_deadline->format('d/m/Y'))
-            ->line('• **Fecha de envío:** ' . $this->rfq->sent_at->format('d/m/Y H:i'))
-            ->line('')
-            ->action('Ver Requisición', $requisitionUrl)
-            ->line('Te notificaremos cuando los proveedores envíen sus cotizaciones.')
-            ->salutation('Atentamente, El Sistema de ' . config('app.name'));
+            ->subject('Solicitud de Cotización Enviada - ' . $this->rfq->folio)
+            ->view('emails.requisitions.rfq-sent-to-suppliers', [
+                'name'             => $notifiable->first_name ?? $notifiable->name,
+                'rfqFolio'         => $this->rfq->folio,
+                'requisitionFolio' => $this->rfq->requisition->folio,
+                'quotationGroup'   => $this->rfq->quotationGroup?->name,
+                'suppliersCount'   => $suppliersCount,
+                'suppliersList'    => $suppliersList,
+                'responseDeadline' => $this->rfq->response_deadline?->format('d/m/Y'),
+                'sentAt'           => $this->rfq->sent_at?->format('d/m/Y H:i'),
+                'url'              => $requisitionUrl,
+            ]);
     }
 
     public function toArray(object $notifiable): array

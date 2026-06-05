@@ -39,24 +39,19 @@ class NewRequisitionForPurchasingNotification extends Notification
         $url = route('requisitions.show', $this->requisition->id);
 
         return (new MailMessage)
-            ->subject('🔔 Nueva Requisición para Cotizar - ' . $this->requisition->folio)
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('Se ha recibido una **nueva requisición** que requiere tu atención.')
-            ->line('')
-            ->line('**Detalles de la requisición:**')
-            ->line('• **Folio:** ' . $this->requisition->folio)
-            ->line('• **Solicitante:** ' . ($this->requisition->requester?->name ?? '—'))
-            ->line('• **Departamento:** ' . ($this->requisition->department?->name ?? '—'))
-            ->line('• **Centro de costo:** ' . ($this->requisition->costCenter?->name ?? '—'))
-            ->line('• **Compañía:** ' . ($this->requisition->company?->name ?? '—'))
-            ->line('• **Número de partidas:** ' . $this->requisition->items()->count())
-            ->line('• **Fecha requerida:** ' . ($this->requisition->required_date ? $this->requisition->required_date->format('d/m/Y') : 'No especificada'))
-            ->line('')
-            ->line('**Descripción:** ' . ($this->requisition->description ?: 'Sin descripción'))
-            ->line('')
-            ->action('Ver Requisición', $url)
-            ->line('Por favor, revisa la requisición y procede con el proceso de cotización.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('Nueva Requisición para Cotizar - ' . $this->requisition->folio)
+            ->view('emails.notifications.new-requisition-for-purchasing', [
+                'name'         => $notifiable->first_name ?? $notifiable->name,
+                'folio'        => $this->requisition->folio,
+                'requester'    => $this->requisition->requester?->name ?? '—',
+                'department'   => $this->requisition->department?->name ?? '—',
+                'costCenter'   => $this->requisition->costCenter?->name ?? '—',
+                'company'      => $this->requisition->company?->name ?? '—',
+                'itemsCount'   => $this->requisition->items()->count(),
+                'requiredDate' => $this->requisition->required_date ? $this->requisition->required_date->format('d/m/Y') : 'No especificada',
+                'description'  => $this->requisition->description ?: 'Sin descripción',
+                'url'          => $url,
+            ]);
     }
 
     /**

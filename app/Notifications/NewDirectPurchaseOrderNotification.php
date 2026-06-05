@@ -40,29 +40,21 @@ class NewDirectPurchaseOrderNotification extends Notification
         $url = route('direct-purchase-orders.show', $this->ocd->id);
 
         return (new MailMessage)
-            ->subject('🔔 Nueva OC Directa para Revisión - ' . $this->ocd->folio)
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('Se ha generado una **Nueva Orden de Compra Directa** que requiere tu aprobación.')
-            ->line('')
-            ->line('**Detalles de la OCD:**')
-            ->line('• **Folio:** ' . $this->ocd->folio)
-            ->line('• **Proveedor:** ' . ($this->ocd->supplier->company_name ?? 'N/A'))
-            ->line('• **Centro de Costo:** ' . ($this->ocd->costCenter->name ?? 'N/A'))
-            ->line('• **Monto Total:** $' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency)
-            ->line('• **Rol Autorizador Aplicado:** ' . ($this->ocd->authorizerRole->name ?? 'Sin rol asignado'))
-            ->line('• **Límite Aplicado:** ' . ($this->ocd->effective_authorization_limit !== null
-                ? '$' . number_format((float) $this->ocd->effective_authorization_limit, 2) . ' MXN'
-                : 'Sin límite'))
-            ->line('• **Solicitante:** ' . ($this->ocd->creator->name ?? 'N/A'))
-            ->line('')
-            ->line('**Justificación:** ' . ($this->ocd->justification ?: 'Sin justificación'))
-            ->line('')
-            ->line('⚠️ **Nota Importante:**')
-            ->line('Tienes un plazo de **7 días naturales** para revisar y dictaminar esta solicitud.')
-            ->line('')
-            ->action('Ver Orden de Compra', $url)
-            ->line('Gracias por tu gestión.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('Nueva OC Directa para Revisión - ' . $this->ocd->folio)
+            ->view('emails.notifications.new-direct-purchase-order', [
+                'name'           => $notifiable->first_name ?? $notifiable->name,
+                'folio'          => $this->ocd->folio,
+                'supplier'       => $this->ocd->supplier->company_name ?? 'N/A',
+                'costCenter'     => $this->ocd->costCenter->name ?? 'N/A',
+                'total'          => '$' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency,
+                'authorizerRole' => $this->ocd->authorizerRole->name ?? 'Sin rol asignado',
+                'limit'          => $this->ocd->effective_authorization_limit !== null
+                    ? '$' . number_format((float) $this->ocd->effective_authorization_limit, 2) . ' MXN'
+                    : 'Sin límite',
+                'requester'      => $this->ocd->creator->name ?? 'N/A',
+                'justification'  => $this->ocd->justification ?: 'Sin justificación',
+                'url'            => $url,
+            ]);
     }
 
     /**

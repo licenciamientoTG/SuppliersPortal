@@ -28,18 +28,16 @@ class NewProductRequestedNotification extends Notification
 
         return (new MailMessage)
             ->subject('Nuevo producto o servicio solicitado - '.$this->productService->code)
-            ->greeting('Hola '.$notifiable->name.'!')
-            ->line('Se registró una nueva solicitud de alta de producto o servicio en el catálogo.')
-            ->line('')
-            ->line('Codigo: '.$this->productService->code)
-            ->line('Descripcion: '.$this->productService->getDisplayName())
-            ->line('Tipo: '.$this->productService->product_type)
-            ->line('Solicitado por: '.$this->requestedBy->name)
-            ->line('Centro de costo: '.($this->productService->costCenter?->name ?? 'N/A'))
-            ->line('Compania: '.($this->productService->company?->name ?? 'N/A'))
-            ->line('')
-            ->action('Revisar solicitud', $url)
-            ->salutation('Saludos, '.config('app.name'));
+            ->view('emails.notifications.new-product-requested', [
+                'name'        => $notifiable->first_name ?? $notifiable->name,
+                'code'        => $this->productService->code,
+                'description' => $this->productService->getDisplayName(),
+                'type'        => $this->productService->product_type,
+                'requestedBy' => $this->requestedBy->name,
+                'costCenter'  => $this->productService->costCenter?->name ?? 'N/A',
+                'company'     => $this->productService->company?->name ?? 'N/A',
+                'url'         => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

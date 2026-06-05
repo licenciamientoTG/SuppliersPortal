@@ -28,14 +28,15 @@ class QuotationApprovalRequestNotification extends Notification
 
         return (new MailMessage)
             ->subject($subjectPrefix.' - '.($this->summary->rfq?->folio ?? 'RFQ'))
-            ->greeting('Hola '.$notifiable->name.',')
-            ->line('Tienes una cotización adjudicada pendiente de autorización.')
-            ->line('RFQ: '.($this->summary->rfq?->folio ?? 'N/A'))
-            ->line('Requisición: '.($this->summary->requisition?->folio ?? 'N/A'))
-            ->line('Proveedor adjudicado: '.($this->summary->selectedSupplier?->company_name ?? 'N/A'))
-            ->line('Monto total con IVA: $'.number_format((float) $this->summary->total, 2))
-            ->action('Revisar aprobación', $url)
-            ->line('Gracias por tu revisión.');
+            ->view('emails.notifications.quotation-approval-request', [
+                'name'             => $notifiable->first_name ?? $notifiable->name,
+                'escalated'        => $this->escalated,
+                'rfqFolio'         => $this->summary->rfq?->folio ?? 'N/A',
+                'requisitionFolio' => $this->summary->requisition?->folio ?? 'N/A',
+                'supplier'         => $this->summary->selectedSupplier?->company_name ?? 'N/A',
+                'total'            => '$'.number_format((float) $this->summary->total, 2),
+                'url'              => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

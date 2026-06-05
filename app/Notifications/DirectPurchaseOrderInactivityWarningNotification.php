@@ -24,23 +24,18 @@ class DirectPurchaseOrderInactivityWarningNotification extends Notification
         $url = route('direct-purchase-orders.show', $this->ocd->id);
 
         return (new MailMessage)
-            ->subject('⚠️ ALERTA: OC Directa ' . $this->ocd->folio . ' se cerrará en 3 días')
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('**ALERTA:** La siguiente Orden de Compra Directa será cerrada automáticamente por inactividad en **3 días** si no es aprobada.')
-            ->line('')
-            ->line('**Detalles de la OCD:**')
-            ->line('• **Folio:** ' . $this->ocd->folio)
-            ->line('• **Proveedor:** ' . ($this->ocd->supplier->company_name ?? 'N/A'))
-            ->line('• **Centro de Costo:** ' . ($this->ocd->costCenter->name ?? 'N/A'))
-            ->line('• **Monto Total:** $' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency)
-            ->line('• **Solicitante:** ' . ($this->ocd->creator->name ?? 'N/A'))
-            ->line('• **Enviada a aprobación:** ' . ($this->ocd->submitted_at?->format('d/m/Y H:i') ?? 'N/A'))
-            ->line('• **Fecha límite de aprobación:** ' . ($deadline?->format('d/m/Y') ?? 'N/A'))
-            ->line('')
-            ->line('Si la OCD no es aprobada antes del ' . ($deadline?->format('d/m/Y') ?? 'N/A') . ', será **cerrada automáticamente** y el presupuesto no será comprometido.')
-            ->action('Revisar Orden de Compra', $url)
-            ->line('Por favor, tome acción antes de que venza el plazo.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('ALERTA: OC Directa ' . $this->ocd->folio . ' se cerrará en 3 días')
+            ->view('emails.notifications.direct-purchase-order-inactivity-warning', [
+                'name'        => $notifiable->first_name ?? $notifiable->name,
+                'folio'       => $this->ocd->folio,
+                'supplier'    => $this->ocd->supplier->company_name ?? 'N/A',
+                'costCenter'  => $this->ocd->costCenter->name ?? 'N/A',
+                'total'       => '$' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency,
+                'requester'   => $this->ocd->creator->name ?? 'N/A',
+                'submittedAt' => $this->ocd->submitted_at?->format('d/m/Y H:i') ?? 'N/A',
+                'deadline'    => $deadline?->format('d/m/Y') ?? 'N/A',
+                'url'         => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

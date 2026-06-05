@@ -22,11 +22,13 @@ class QuotationApprovalRejectedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Cotización rechazada - '.($this->summary->rfq?->folio ?? 'RFQ'))
-            ->greeting('Hola '.$notifiable->name.',')
-            ->line('La cotización adjudicada fue rechazada y regresó a evaluación.')
-            ->line('RFQ: '.($this->summary->rfq?->folio ?? 'N/A'))
-            ->line('Requisición: '.($this->summary->requisition?->folio ?? 'N/A'))
-            ->line('Motivo: '.($this->summary->rejection_reason ?? 'Sin motivo registrado'));
+            ->view('emails.notifications.quotation-approval-rejected', [
+                'name'             => $notifiable->first_name ?? $notifiable->name,
+                'rfqFolio'         => $this->summary->rfq?->folio ?? 'N/A',
+                'requisitionFolio' => $this->summary->requisition?->folio ?? 'N/A',
+                'reason'           => $this->summary->rejection_reason ?? 'Sin motivo registrado',
+                'url'              => route('rfq.comparison.index', $this->summary->rfq_id),
+            ]);
     }
 
     public function toArray(object $notifiable): array

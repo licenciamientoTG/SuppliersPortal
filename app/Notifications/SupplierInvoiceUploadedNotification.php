@@ -24,10 +24,12 @@ class SupplierInvoiceUploadedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Factura cargada por proveedor')
-            ->line("El proveedor {$this->invoice->supplier?->company_name} cargó una factura.")
-            ->line("UUID: {$this->invoice->uuid}")
-            ->line('Total: $' . number_format((float) $this->invoice->total, 2) . ' ' . $this->invoice->currency)
-            ->action('Ver facturas', route('invoices.index'));
+            ->view('emails.notifications.supplier-invoice-uploaded', [
+                'supplierName' => $this->invoice->supplier?->company_name,
+                'uuid'         => $this->invoice->uuid,
+                'total'        => '$' . number_format((float) $this->invoice->total, 2) . ' ' . $this->invoice->currency,
+                'url'          => route('invoices.index'),
+            ]);
     }
 
     public function toArray(object $notifiable): array

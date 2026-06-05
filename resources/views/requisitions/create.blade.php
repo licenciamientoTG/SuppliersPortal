@@ -1091,12 +1091,42 @@
         // =====================================================
         // 11. VALIDACIÓN ANTES DE SUBMIT
         // =====================================================
+        let formIsSubmitting = false;
+        let clickedAction = null;
+
+        // Recordar qué botón se presionó (los botones deshabilitados no envían su value)
+        $('#requisitionForm button[type="submit"]').on('click', function() {
+            clickedAction = $(this).val();
+        });
+
         $('#requisitionForm').on('submit', function(e) {
             if (itemsArray.length === 0) {
                 e.preventDefault();
                 Swal.fire('Requisición vacía', 'Debes agregar al menos una partida (RN-003).', 'error');
                 return false;
             }
+
+            // Prevenir doble envío / doble click (requisiciones duplicadas)
+            if (formIsSubmitting) {
+                e.preventDefault();
+                return false;
+            }
+            formIsSubmitting = true;
+
+            const $buttons = $('#requisitionForm button[type="submit"]');
+
+            // Conservar la acción del botón presionado como input oculto,
+            // ya que al deshabilitar los botones no se envía su value.
+            if (clickedAction) {
+                $('<input>')
+                    .attr({ type: 'hidden', name: 'submit_action', value: clickedAction })
+                    .appendTo(this);
+            }
+
+            // Deshabilitar ambos botones y mostrar spinner en el presionado
+            $buttons.prop('disabled', true);
+            $buttons.filter(`[value="${clickedAction}"]`)
+                .html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Procesando...');
         });
 
         refreshTable();

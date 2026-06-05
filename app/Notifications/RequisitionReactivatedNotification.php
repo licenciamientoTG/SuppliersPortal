@@ -47,21 +47,14 @@ class RequisitionReactivatedNotification extends Notification implements ShouldQ
         $url = route('requisitions.show', $this->requisition->id);
 
         return (new MailMessage)
-            ->subject('✅ Tu Requisición ha sido Reactivada')
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('Tu requisición que estaba pausada ha sido **reactivada automáticamente**.')
-            ->line('**Folio:** ' . $this->requisition->folio)
-            ->line('**Motivo:** El producto solicitado ha sido aprobado en el catálogo.')
-            ->line('')
-            ->line('**Producto aprobado:**')
-            ->line('- Código: ' . $this->productService->code)
-            ->line('- Descripción: ' . \Str::limit($this->productService->technical_description, 80))
-            ->line('')
-            ->line('**Estado actual:** Pendiente de Validación')
-            ->line('Tu requisición ahora seguirá el flujo normal de validación.')
-            ->action('Ver Requisición', $url)
-            ->line('¡Gracias por tu paciencia!')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('Tu Requisición ha sido Reactivada - ' . $this->requisition->folio)
+            ->view('emails.notifications.requisition-reactivated', [
+                'name'               => $notifiable->first_name ?? $notifiable->name,
+                'folio'              => $this->requisition->folio,
+                'productCode'        => $this->productService->code,
+                'productDescription' => \Str::limit($this->productService->technical_description, 80),
+                'url'                => $url,
+            ]);
     }
 
     /**

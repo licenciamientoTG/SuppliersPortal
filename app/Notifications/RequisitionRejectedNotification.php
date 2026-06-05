@@ -29,21 +29,16 @@ class RequisitionRejectedNotification extends Notification
         $url = route('requisitions.show', $this->requisition->id);
 
         return (new MailMessage)
-            ->subject('❌ Requisición RECHAZADA - ' . $this->requisition->folio)
-            ->greeting('Atención, ' . $notifiable->name)
-            ->line('Tu requisición con folio **' . $this->requisition->folio . '** ha sido rechazada por el departamento de Compras.')
-            ->line('')
-            ->line('**Motivo del rechazo:**')
-            ->line('> ' . $this->requisition->rejection_reason)
-            ->line('')
-            ->line('**Detalles de la unidad:**')
-            ->line('• **Departamento:** ' . $this->requisition->department->name)
-            ->line('• **Centro de costo:** ' . $this->requisition->costCenter->name)
-            ->line('• **Fecha del rechazo:** ' . $this->requisition->rejected_at->format('d/m/Y H:i'))
-            ->line('')
-            ->action('Revisar y Corregir', $url)
-            ->line('Si consideras que esto es un error, contacta a tu superior. No me busques a mí, yo solo soy el mensajero.')
-            ->salutation('Atentamente, El Sistema de ' . config('app.name'));
+            ->subject('Requisición RECHAZADA - ' . $this->requisition->folio)
+            ->view('emails.notifications.requisition-rejected', [
+                'name'       => $notifiable->first_name ?? $notifiable->name,
+                'folio'      => $this->requisition->folio,
+                'reason'     => $this->requisition->rejection_reason,
+                'department' => $this->requisition->department->name,
+                'costCenter' => $this->requisition->costCenter->name,
+                'rejectedAt' => $this->requisition->rejected_at->format('d/m/Y H:i'),
+                'url'        => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

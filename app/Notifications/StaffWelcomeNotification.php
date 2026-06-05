@@ -21,15 +21,12 @@ class StaffWelcomeNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Bienvenido al Portal de Proveedores TotalGas')
-            ->greeting('Hola '.$notifiable->name.'!')
-            ->line('Tu cuenta de acceso al Portal de Proveedores TotalGas ha sido creada.')
-            ->line('')
-            ->line('Usuario: '.$notifiable->email)
-            ->line('Contrasena: '.$this->plainPassword)
-            ->line('')
-            ->action('Iniciar sesion', route('login'))
-            ->line('Por seguridad, te recomendamos cambiar tu contrasena despues de tu primer acceso.')
-            ->salutation('Saludos, '.config('app.name'));
+            ->view('emails.notifications.staff-welcome', [
+                'name'     => $notifiable->first_name ?? $notifiable->name,
+                'email'    => $notifiable->email,
+                'password' => $this->plainPassword,
+                'url'      => route('login'),
+            ]);
     }
 
     public function toArray(object $notifiable): array

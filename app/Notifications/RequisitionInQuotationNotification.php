@@ -30,19 +30,14 @@ class RequisitionInQuotationNotification extends Notification
 
         return (new MailMessage)
             ->subject('Requisición EN COTIZACIÓN - ' . $this->requisition->folio)
-            ->greeting('¡Buenas noticias, ' . $notifiable->name . '!')
-            ->line('Tu requisición con folio **' . $this->requisition->folio . '** ha sido validada por el departamento de Compras.')
-            ->line('')
-            ->line('El departamento de Compras procederá a solicitar cotizaciones a los proveedores para los productos y servicios solicitados.')
-            ->line('')
-            ->line('**Detalles de la requisición:**')
-            ->line('• **Centro de costo:** ' . $this->requisition->costCenter->name)
-            ->line('• **Partidas:** ' . $this->requisition->items->count() . ' producto(s)/servicio(s)')
-            ->line('• **Fecha de validación:** ' . now()->format('d/m/Y H:i'))
-            ->line('')
-            ->action('Ver Requisición', $url)
-            ->line('Te notificaremos cuando se reciban las cotizaciones y se proceda con la compra.')
-            ->salutation('Atentamente, El Sistema de ' . config('app.name'));
+            ->view('emails.requisitions.in-quotation', [
+                'name'        => $notifiable->first_name ?? $notifiable->name,
+                'folio'       => $this->requisition->folio,
+                'costCenter'  => $this->requisition->costCenter?->name,
+                'itemsCount'  => $this->requisition->items->count(),
+                'validatedAt' => now()->format('d/m/Y H:i'),
+                'url'         => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

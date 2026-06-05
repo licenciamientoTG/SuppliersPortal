@@ -24,21 +24,16 @@ class PurchaseOrderInactivityWarningNotification extends Notification
         $url = route('purchase-orders.show', $this->po->id);
 
         return (new MailMessage)
-            ->subject('⚠️ ALERTA: OC Estándar ' . $this->po->folio . ' se cerrará en 3 días')
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line('**ALERTA:** La siguiente Orden de Compra Estándar será cerrada automáticamente por inactividad en **3 días** si no es aprobada.')
-            ->line('')
-            ->line('**Detalles de la OC:**')
-            ->line('• **Folio:** ' . $this->po->folio)
-            ->line('• **Proveedor:** ' . ($this->po->supplier->company_name ?? 'N/A'))
-            ->line('• **Monto Total:** $' . number_format($this->po->total, 2) . ' ' . $this->po->currency)
-            ->line('• **Generada el:** ' . $this->po->created_at->format('d/m/Y H:i'))
-            ->line('• **Fecha límite de aprobación:** ' . $deadline->format('d/m/Y'))
-            ->line('')
-            ->line('Si la OC no es aprobada antes del ' . $deadline->format('d/m/Y') . ', será **cerrada automáticamente** y el presupuesto comprometido será liberado.')
-            ->action('Revisar Orden de Compra', $url)
-            ->line('Por favor, tome acción antes de que venza el plazo.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('ALERTA: OC Estándar ' . $this->po->folio . ' se cerrará en 3 días')
+            ->view('emails.notifications.purchase-order-inactivity-warning', [
+                'name'      => $notifiable->first_name ?? $notifiable->name,
+                'folio'     => $this->po->folio,
+                'supplier'  => $this->po->supplier->company_name ?? 'N/A',
+                'total'     => '$' . number_format($this->po->total, 2) . ' ' . $this->po->currency,
+                'createdAt' => $this->po->created_at->format('d/m/Y H:i'),
+                'deadline'  => $deadline->format('d/m/Y'),
+                'url'       => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

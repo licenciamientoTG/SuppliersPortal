@@ -28,38 +28,26 @@ class ReceptionCompletedNotification extends Notification
         $order     = $reception->receivable;
         $isComplete = $reception->isCompleted();
 
-        $icon        = $isComplete ? '✅' : '🔶';
         $statusLabel = $isComplete ? 'COMPLETADA' : 'PARCIAL';
 
         $url = route('receptions.show', $reception->id);
 
-        $mail = (new MailMessage)
-            ->subject("{$icon} Recepción {$reception->folio} ({$statusLabel}) — {$order->folio}")
-            ->greeting('¡Hola ' . $notifiable->name . '!')
-            ->line("Se ha registrado una **recepción {$statusLabel}** para la orden **{$order->folio}**.")
-            ->line('')
-            ->line('**Detalles de la recepción:**')
-            ->line('• **Folio recepción:** ' . $reception->folio)
-            ->line('• **Orden de compra:** ' . $order->folio)
-            ->line('• **Proveedor:** ' . ($order->supplier->company_name ?? 'N/A'))
-            ->line('• **Punto de entrega:** ' . ($reception->receivingLocation->name ?? 'N/A'))
-            ->line('• **Recibió:** ' . ($reception->receiver->name ?? 'N/A'))
-            ->line('• **Fecha de recepción:** ' . $reception->received_at->format('d/m/Y H:i'))
-            ->line('• **Estado de la orden:** ' . $order->getStatusLabel());
-
-        if ($reception->delivery_reference) {
-            $mail->line('• **Referencia del proveedor:** ' . $reception->delivery_reference);
-        }
-
-        if (! $isComplete) {
-            $mail->line('')
-                 ->line('⚠️ La orden aún tiene partidas pendientes de recepción. Se esperan entregas adicionales del proveedor.');
-        }
-
-        return $mail
-            ->line('')
-            ->action('Ver Comprobante de Recepción', $url)
-            ->salutation('Saludos, ' . config('app.name'));
+        return (new MailMessage)
+            ->subject("Recepción {$reception->folio} ({$statusLabel}) — {$order->folio}")
+            ->view('emails.notifications.reception-completed', [
+                'name'              => $notifiable->first_name ?? $notifiable->name,
+                'isComplete'        => $isComplete,
+                'statusLabel'       => $statusLabel,
+                'receptionFolio'    => $reception->folio,
+                'orderFolio'        => $order->folio,
+                'supplier'          => $order->supplier->company_name ?? 'N/A',
+                'deliveryPoint'     => $reception->receivingLocation->name ?? 'N/A',
+                'receiver'          => $reception->receiver->name ?? 'N/A',
+                'receivedAt'        => $reception->received_at->format('d/m/Y H:i'),
+                'orderStatus'       => $order->getStatusLabel(),
+                'deliveryReference' => $reception->delivery_reference,
+                'url'               => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

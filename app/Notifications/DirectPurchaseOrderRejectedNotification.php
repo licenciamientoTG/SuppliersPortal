@@ -30,23 +30,17 @@ class DirectPurchaseOrderRejectedNotification extends Notification
         $url = route('direct-purchase-orders.show', $this->ocd->id);
 
         return (new MailMessage)
-            ->subject('❌ Orden de Compra Rechazada - ' . $this->ocd->folio)
-            ->greeting('Estimado(a) ' . $notifiable->name . ',')
-            ->line('Le informamos que la siguiente Orden de Compra Directa ha sido **RECHAZADA**.')
-            ->line('')
-            ->line('**Detalles de la OC:**')
-            ->line('• **Folio:** ' . $this->ocd->folio)
-            ->line('• **Monto Total:** $' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency)
-            ->line('• **Proveedor:** ' . ($this->ocd->supplier->company_name ?? 'N/A'))
-            ->line('• **Centro de Costo:** ' . ($this->ocd->costCenter->name ?? 'N/A'))
-            ->line('• **Solicitado por:** ' . ($this->ocd->creator->name ?? 'N/A'))
-            ->line('')
-            ->line('**Motivo del Rechazo:**')
-            ->line($this->rejectionReason)
-            ->line('')
-            ->action('Ver Orden de Compra', $url)
-            ->line('Si tiene alguna duda, contacte al aprobador.')
-            ->salutation('Saludos, ' . config('app.name'));
+            ->subject('Orden de Compra Rechazada - ' . $this->ocd->folio)
+            ->view('emails.notifications.direct-purchase-order-rejected', [
+                'name'       => $notifiable->first_name ?? $notifiable->name,
+                'folio'      => $this->ocd->folio,
+                'total'      => '$' . number_format($this->ocd->total, 2) . ' ' . $this->ocd->currency,
+                'supplier'   => $this->ocd->supplier->company_name ?? 'N/A',
+                'costCenter' => $this->ocd->costCenter->name ?? 'N/A',
+                'requester'  => $this->ocd->creator->name ?? 'N/A',
+                'reason'     => $this->rejectionReason,
+                'url'        => $url,
+            ]);
     }
 
     public function toArray(object $notifiable): array

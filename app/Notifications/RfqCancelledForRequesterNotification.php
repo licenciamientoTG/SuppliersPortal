@@ -32,25 +32,17 @@ class RfqCancelledForRequesterNotification extends Notification
         $requisitionUrl = Route::has('requisitions.show') ? route('requisitions.show', $this->rfq->requisition_id) : '#';
 
         return (new MailMessage)
-            ->subject('🚫 Solicitud de Cotización Cancelada - ' . $this->rfq->folio)
-            ->greeting('Hola, ' . $notifiable->name)
-            ->line('La solicitud de cotización **' . $this->rfq->folio . '** relacionada con tu requisición **' . $this->rfq->requisition->folio . '** ha sido cancelada.')
-            ->line('')
-            ->line('**Detalles:**')
-            ->line('• **Folio RFQ:** ' . $this->rfq->folio)
-            ->line('• **Grupo:** ' . $this->rfq->quotationGroup->name)
-            ->line('• **Cancelada por:** ' . (Auth::user()->name ?? 'Sistema'))
-            ->line('• **Fecha de cancelación:** ' . now()->format('d/m/Y H:i'))
-            ->when($this->reason, function ($mail) {
-                return $mail
-                    ->line('')
-                    ->line('**Motivo de la cancelación:**')
-                    ->line('> ' . $this->reason);
-            })
-            ->line('')
-            ->action('Ver Requisición', $requisitionUrl)
-            ->line('El departamento de Compras tomará las acciones correspondientes.')
-            ->salutation('Atentamente, El Sistema de ' . config('app.name'));
+            ->subject('Solicitud de Cotización Cancelada - ' . $this->rfq->folio)
+            ->view('emails.notifications.rfq-cancelled-requester', [
+                'name'             => $notifiable->first_name ?? $notifiable->name,
+                'rfqFolio'         => $this->rfq->folio,
+                'requisitionFolio' => $this->rfq->requisition->folio,
+                'group'            => $this->rfq->quotationGroup->name,
+                'cancelledBy'      => Auth::user()->name ?? 'Sistema',
+                'cancelledAt'      => now()->format('d/m/Y H:i'),
+                'reason'           => $this->reason,
+                'url'              => $requisitionUrl,
+            ]);
     }
 
     public function toArray(object $notifiable): array

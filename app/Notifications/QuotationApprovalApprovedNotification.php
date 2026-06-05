@@ -22,12 +22,14 @@ class QuotationApprovalApprovedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Cotización aprobada - '.($this->summary->rfq?->folio ?? 'RFQ'))
-            ->greeting('Hola '.$notifiable->name.',')
-            ->line('La cotización adjudicada fue aprobada y ya puede continuar su ciclo operativo.')
-            ->line('RFQ: '.($this->summary->rfq?->folio ?? 'N/A'))
-            ->line('Requisición: '.($this->summary->requisition?->folio ?? 'N/A'))
-            ->line('Proveedor adjudicado: '.($this->summary->selectedSupplier?->company_name ?? 'N/A'))
-            ->line('Monto total con IVA: $'.number_format((float) $this->summary->total, 2));
+            ->view('emails.notifications.quotation-approval-approved', [
+                'name'             => $notifiable->first_name ?? $notifiable->name,
+                'rfqFolio'         => $this->summary->rfq?->folio ?? 'N/A',
+                'requisitionFolio' => $this->summary->requisition?->folio ?? 'N/A',
+                'supplier'         => $this->summary->selectedSupplier?->company_name ?? 'N/A',
+                'total'            => '$'.number_format((float) $this->summary->total, 2),
+                'url'              => route('purchase-orders.index'),
+            ]);
     }
 
     public function toArray(object $notifiable): array
