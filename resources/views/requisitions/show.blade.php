@@ -52,6 +52,33 @@
 </div>
 @endif
 
+@if ($requisition->feedbacks->isNotEmpty())
+<div class="card mt-3 border-info">
+    <div class="card-header bg-info-subtle border-0 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-info">
+            <i class="ti ti-mail-share me-2"></i>Retroalimentacion de Compras
+        </h5>
+        <span class="badge bg-info text-white">{{ $requisition->feedbacks->count() }} registro(s)</span>
+    </div>
+    <div class="card-body">
+        @foreach ($requisition->feedbacks as $feedback)
+        <div class="border rounded p-3 {{ $loop->last ? '' : 'mb-3' }}">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="fw-bold">{{ $feedback->buyer?->name ?? 'Compras' }}</div>
+                    <small class="text-muted">{{ $feedback->sent_at?->format('d/m/Y H:i') }}</small>
+                </div>
+                @if ($loop->first)
+                <span class="badge bg-info-subtle text-info border border-info-subtle">Mas reciente</span>
+                @endif
+            </div>
+            <p class="mb-0 mt-3 text-muted">{{ $feedback->message }}</p>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">

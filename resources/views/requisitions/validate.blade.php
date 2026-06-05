@@ -108,6 +108,39 @@
             </div>
         </div>
 
+        <div class="card border-info mb-4">
+            <div class="card-header bg-info-subtle border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-info">
+                        <i class="ti ti-mail-share me-2"></i>Historial de Retroalimentacion de Compras
+                    </h5>
+                    @if ($requisition->hasFeedback())
+                        <span class="badge bg-info text-white">{{ $requisition->feedbacks->count() }} envio(s)</span>
+                    @endif
+                </div>
+            </div>
+            <div class="card-body">
+                @forelse ($requisition->feedbacks as $feedback)
+                    <div class="border rounded p-3 {{ $loop->last ? '' : 'mb-3' }}">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-bold text-dark">{{ $feedback->buyer?->name ?? 'Compras' }}</div>
+                                <div class="small text-muted">{{ $feedback->sent_at?->format('d/m/Y H:i') }}</div>
+                            </div>
+                            @if ($loop->first)
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">Mas reciente</span>
+                            @endif
+                        </div>
+                        <p class="mb-0 mt-3 text-muted">{{ $feedback->message }}</p>
+                    </div>
+                @empty
+                    <div class="text-muted">
+                        Aun no se ha enviado retroalimentacion para esta requisicion.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
         {{-- Detalle de Partidas --}}
         <h6 class="text-uppercase text-muted mb-2 fs-12 fw-bold">Detalle de Partidas</h6>
         <div class="table-responsive border rounded mb-4">
@@ -284,6 +317,9 @@
             {{-- Botones de Acción --}}
             <div class="d-flex justify-content-between mt-4 mb-5">
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-info" onclick="confirmFeedback()">
+                        <i class="ti ti-mail-share me-1"></i> Enviar Retroalimentacion
+                    </button>
                     <button type="button" class="btn btn-danger" onclick="confirmReject()">
                         <i class="ti ti-arrow-back-up me-1"></i> Devolver al Usuario
                     </button>
@@ -519,6 +555,89 @@ function confirmCancelRequisition() {
             $('body').append(form);
             form.submit();
         }
+    });
+}
+
+function confirmFeedback() {
+    Swal.fire({
+        title: 'Enviar retroalimentacion a {{ $requisition->folio }}',
+        html: `
+            <div class="text-start">
+                <p class="mb-3">
+                    El correo se enviara al requisitor y llevara copia al comprador que registra el mensaje.
+                </p>
+                <div>
+                    <label for="feedback_message" class="form-label fw-bold">
+                        Mensaje de retroalimentacion <span class="text-danger">*</span>
+                    </label>
+                    <textarea
+                        id="feedback_message"
+                        class="form-control"
+                        rows="5"
+                        maxlength="2000"
+                        placeholder="Describe los ajustes, aclaraciones o informacion adicional que necesita el requisitor..."
+                        required></textarea>
+                    <small class="form-text text-muted">Minimo 10 caracteres - Maximo 2000 caracteres</small>
+                </div>
+            </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: '<i class="ti ti-send me-1"></i> Enviar',
+        cancelButtonText: '<i class="ti ti-x me-1"></i> Cancelar',
+        confirmButtonColor: '#0ea5e9',
+        cancelButtonColor: '#6c757d',
+        width: '680px',
+        reverseButtons: true,
+        customClass: {
+            confirmButton: 'btn btn-info',
+            cancelButton: 'btn btn-outline-secondary'
+        },
+        buttonsStyling: false,
+        preConfirm: () => {
+            const message = document.getElementById('feedback_message').value.trim();
+
+            if (!message) {
+                Swal.showValidationMessage('Debes capturar un mensaje de retroalimentacion');
+                return false;
+            }
+
+            if (message.length < 10) {
+                Swal.showValidationMessage('El mensaje debe tener al menos 10 caracteres');
+                return false;
+            }
+
+            return message;
+        }
+    }).then((result) => {
+        if (!result.isConfirmed || !result.value) {
+            return;
+        }
+
+        $.ajax({
+            url: '{{ route('requisitions.feedback', $requisition->id) }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                message: result.value
+            }
+        }).done(function (response) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Retroalimentacion enviada',
+                text: response.message,
+                timer: 1800,
+                showConfirmButton: false
+            }).then(() => window.location.reload());
+        }).fail(function (xhr) {
+            const message = xhr.responseJSON?.message || 'No se pudo enviar la retroalimentacion.';
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message
+            });
+        });
     });
 }
 

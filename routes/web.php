@@ -362,6 +362,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         // Transiciones de workflow
         Route::post('/{requisition}/submit', [RequisitionWorkflowController::class, 'submit'])->name('submit');
         Route::post('/{requisition}/hold', [RequisitionWorkflowController::class, 'hold'])->name('hold');
+        Route::post('/{requisition}/feedback', [RequisitionWorkflowController::class, 'feedback'])->name('feedback');
         Route::post('/{requisition}/validate', [RequisitionWorkflowController::class, 'approveForQuotation'])->name('validate');
         Route::post('/{requisition}/cancel', [RequisitionWorkflowController::class, 'cancel'])->name('workflow.cancel');
         Route::post('/{requisition}/reject', [RequisitionWorkflowController::class, 'reject'])->name('workflow.reject');
