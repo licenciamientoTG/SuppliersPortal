@@ -362,6 +362,7 @@ class RequisitionController extends Controller
             'pauser',
             'reactivator',
             'canceller',
+            'feedbacks.buyer',
         ]);
 
         return view('requisitions.show', compact('requisition'));
@@ -642,6 +643,7 @@ class RequisitionController extends Controller
         // 1. Query Base: Eager Loading para evitar N+1
         $query = Requisition::with(['costCenter', 'requester', 'department'])
             ->withCount('items')
+            ->withCount('feedbacks')
             ->select('requisitions.*')
             ->where('status', RequisitionStatus::PENDING->value)
             ->orWhere('status', RequisitionStatus::IN_QUOTATION->value);
@@ -660,8 +662,14 @@ class RequisitionController extends Controller
                 return $row->items_count;
             })
             ->editColumn('status', function ($row) {
-                return '<span class="badge bg-' . $row->status->badgeClass() . '">' .
+                $badges = '<span class="badge bg-' . $row->status->badgeClass() . '">' .
                     $row->status->label() . '</span>';
+
+                if ($row->feedbacks_count > 0) {
+                    $badges .= ' <span class="badge bg-info-subtle text-info border border-info-subtle">Retroalimentada</span>';
+                }
+
+                return $badges;
             })
             // Columna Acciones con lógica condicional
             ->addColumn('action', function ($row) {

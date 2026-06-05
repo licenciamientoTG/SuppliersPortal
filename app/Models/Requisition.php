@@ -204,6 +204,11 @@ class Requisition extends Model
         return $this->hasMany(QuotationSummary::class);
     }
 
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(RequisitionFeedback::class)->orderByDesc('sent_at')->orderByDesc('id');
+    }
+
     // =========================================================================
     // MÉTODOS DE LÓGICA DE NEGOCIO
     // =========================================================================
@@ -322,6 +327,28 @@ class Requisition extends Model
     public function canBeDeleted(): bool
     {
         return false;
+    }
+
+    public function latestFeedback(): ?RequisitionFeedback
+    {
+        if ($this->relationLoaded('feedbacks')) {
+            return $this->feedbacks->first();
+        }
+
+        return $this->feedbacks()->first();
+    }
+
+    public function hasFeedback(): bool
+    {
+        if (array_key_exists('feedbacks_count', $this->attributes)) {
+            return (int) $this->attributes['feedbacks_count'] > 0;
+        }
+
+        if ($this->relationLoaded('feedbacks')) {
+            return $this->feedbacks->isNotEmpty();
+        }
+
+        return $this->feedbacks()->exists();
     }
 
     /**

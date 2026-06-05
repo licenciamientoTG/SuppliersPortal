@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
+use App\Mail\RequisitionFeedbackMail;
 use App\Models\Requisition;
+use App\Notifications\RequisitionFeedbackNotification;
 use App\Notifications\RequisitionInQuotationNotification;
 use App\Notifications\RequisitionRejectedNotification;
 use App\Notifications\RequisitionSubmittedNotification;
@@ -12,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class RequisitionWorkflowController extends Controller
 {
@@ -49,6 +52,7 @@ class RequisitionWorkflowController extends Controller
             'department',
             'items.productService',
             'items.expenseCategory',
+            'feedbacks.buyer',
         ]);
 
         return view('requisitions.validate', compact('requisition'));
@@ -115,6 +119,52 @@ class RequisitionWorkflowController extends Controller
         }
 
         return $this->respond($request, true, '✅ Requisición validada. Puede proceder con el proceso de cotización.');
+    }
+
+    public function feedback(Request $request, Requisition $requisition)
+    {
+        $data = $request->validate([
+            'message' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $buyer = Auth::user();
+
+        if (! $requisition->requester?->email) {
+            return $this->respond($request, false, 'La requisicion no tiene un requisitor con correo valido.');
+        }
+
+        try {
+            $feedback = DB::transaction(function () use ($requisition, $buyer, $data) {
+                return $requisition->feedbacks()->create([
+                    'buyer_user_id' => $buyer->id,
+                    'message' => $data['message'],
+                    'sent_at' => now(),
+                ]);
+            });
+
+            $feedback->load('buyer');
+
+            Mail::to($requisition->requester->email)
+                ->cc($buyer->email)
+                ->send(new RequisitionFeedbackMail(
+                    $requisition,
+                    $feedback,
+                    $buyer,
+                    route('requisitions.show', $requisition->id)
+                ));
+
+            $requisition->requester->notify(new RequisitionFeedbackNotification($requisition, $feedback));
+
+            return $this->respond($request, true, 'Retroalimentacion enviada al requisitor correctamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al enviar retroalimentacion de requisicion', [
+                'requisition_id' => $requisition->id,
+                'buyer_id' => $buyer?->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->respond($request, false, 'No se pudo enviar la retroalimentacion.');
+        }
     }
 
     public function reject(Request $request, Requisition $requisition)
