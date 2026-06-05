@@ -131,6 +131,9 @@
                             $daysRemaining = $rfq->response_deadline 
                                 ? now()->diffInDays($rfq->response_deadline, false) 
                                 : null;
+                            $daysRemainingLabel = $daysRemaining !== null
+                                ? number_format(abs($daysRemaining), 1)
+                                : null;
                         @endphp
                         <tr>
                             <td>
@@ -151,7 +154,7 @@
                                     @if($daysRemaining < 0)
                                         <span class="badge bg-danger">
                                             <i class="ti ti-alert-triangle me-1"></i>
-                                            Vencida hace {{ abs($daysRemaining) }} días
+                                            Vencida hace {{ $daysRemainingLabel }} días
                                         </span>
                                     @elseif($daysRemaining === 0)
                                         <span class="badge bg-warning">
@@ -161,12 +164,12 @@
                                     @elseif($daysRemaining <= 3)
                                         <span class="badge bg-warning">
                                             <i class="ti ti-clock me-1"></i>
-                                            {{ $daysRemaining }} días
+                                            {{ $daysRemainingLabel }} días
                                         </span>
                                     @else
                                         <span class="badge bg-info">
                                             <i class="ti ti-calendar me-1"></i>
-                                            {{ $daysRemaining }} días
+                                            {{ $daysRemainingLabel }} días
                                         </span>
                                     @endif
                                     <br>

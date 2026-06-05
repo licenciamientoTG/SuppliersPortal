@@ -91,6 +91,7 @@
                             @if($rfq->response_deadline)
                                 @php
                                     $daysRemaining = now()->diffInDays($rfq->response_deadline, false);
+                                    $daysRemainingLabel = number_format($daysRemaining, 1);
                                 @endphp
                                 <strong class="d-block">{{ $rfq->response_deadline->format('d/m/Y H:i') }}</strong>
                                 @if($daysRemaining < 0)
@@ -103,11 +104,11 @@
                                     </span>
                                 @elseif($daysRemaining <= 3)
                                     <span class="badge bg-warning mt-1">
-                                        <i class="ti ti-clock me-1"></i>{{ $daysRemaining }} días
+                                        <i class="ti ti-clock me-1"></i>{{ $daysRemainingLabel }} días
                                     </span>
                                 @else
                                     <span class="badge bg-success mt-1">
-                                        <i class="ti ti-calendar me-1"></i>{{ $daysRemaining }} días
+                                        <i class="ti ti-calendar me-1"></i>{{ $daysRemainingLabel }} días
                                     </span>
                                 @endif
                             @else
