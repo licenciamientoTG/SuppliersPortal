@@ -20,6 +20,7 @@ class RequisitionItem extends Model
         'description',
         'expense_category_id',
         'budget_cedula_id',
+        'cost_center_id',
         'quantity',
         'unit',
         'suggested_vendor_id',
@@ -30,6 +31,7 @@ class RequisitionItem extends Model
         'line_number' => 'integer',
         'expense_category_id' => 'integer',
         'budget_cedula_id' => 'integer',
+        'cost_center_id' => 'integer',
         'quantity' => 'decimal:3',
     ];
 
@@ -76,6 +78,14 @@ class RequisitionItem extends Model
     }
 
     /**
+     * Relación con el centro de costo asignado a esta partida.
+     */
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class);
+    }
+
+    /**
      * Relación con el proveedor sugerido del catálogo.
      * Este es solo una sugerencia, no vinculante.
      */
@@ -96,6 +106,7 @@ class RequisitionItem extends Model
         return ! empty($this->product_service_id)
             && ! empty($this->expense_category_id)
             && ! empty($this->budget_cedula_id)
+            && ! empty($this->cost_center_id)
             && $this->quantity > 0;
     }
 
@@ -127,6 +138,7 @@ class RequisitionItem extends Model
             'unit' => $this->unit,
             'expense_category' => $this->expenseCategory?->name ?? 'Sin categoría',
             'budget_cedula' => $this->budgetCedula?->name ?? 'Sin subcategoría',
+            'cost_center' => $this->costCenter?->name ?? 'Sin centro de costo',
             'notes' => $this->notes,
             'suggested_vendor' => $this->suggestedVendor?->name ?? null,
         ];
@@ -165,6 +177,7 @@ class RequisitionItem extends Model
             'productService',
             'expenseCategory',
             'budgetCedula',
+            'costCenter',
             'suggestedVendor',
         ]);
     }
@@ -278,6 +291,10 @@ class RequisitionItem extends Model
 
             if (! $item->budget_cedula_id) {
                 $errors[] = "Partida {$item->line_number}: Falta subcategoría presupuestal.";
+            }
+
+            if (! $item->cost_center_id) {
+                $errors[] = "Partida {$item->line_number}: Falta el centro de costo.";
             }
 
             if ($item->quantity <= 0) {
