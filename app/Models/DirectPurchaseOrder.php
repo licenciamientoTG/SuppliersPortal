@@ -23,7 +23,6 @@ class DirectPurchaseOrder extends Model
     protected $fillable = [
         'folio',
         'supplier_id',
-        'cost_center_id',
         'receiving_location_id',
         'application_month',
         'justification',
@@ -65,7 +64,6 @@ class DirectPurchaseOrder extends Model
 
     protected $casts = [
         'supplier_id' => 'integer',
-        'cost_center_id' => 'integer',
         'receiving_location_id' => 'integer',
         'required_approval_level' => 'integer',
         'assigned_approver_id' => 'integer',
@@ -127,11 +125,6 @@ class DirectPurchaseOrder extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
-    }
-
-    public function costCenter(): BelongsTo
-    {
-        return $this->belongsTo(CostCenter::class);
     }
 
     public function receivingLocation(): BelongsTo
@@ -499,11 +492,6 @@ class DirectPurchaseOrder extends Model
     {
         return $query->where('assigned_approver_id', $userId)
             ->where('status', 'PENDING_APPROVAL');
-    }
-
-    public function scopeByCostCenter($query, $costCenterId)
-    {
-        return $query->where('cost_center_id', $costCenterId);
     }
 
     public function scopeByMonth($query, string $month)

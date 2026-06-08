@@ -12,6 +12,7 @@ class DirectPurchaseOrderItem extends Model
 
     protected $fillable = [
         'direct_purchase_order_id',
+        'cost_center_id',
         'expense_category_id',
         'description',
         'quantity',
@@ -27,6 +28,7 @@ class DirectPurchaseOrderItem extends Model
     ];
 
     protected $casts = [
+        'cost_center_id'    => 'integer',
         'quantity'          => 'decimal:3',
         'quantity_received' => 'decimal:3',
         'unit_price'        => 'decimal:2',
@@ -122,6 +124,11 @@ class DirectPurchaseOrderItem extends Model
     public function expenseCategory(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
+    }
+
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class);
     }
 
     /**
