@@ -18,7 +18,6 @@ class Requisition extends Model
 
     protected $fillable = [
         'company_id',
-        'cost_center_id',
         'receiving_location_id',
         'department_id',
         'folio',
@@ -84,14 +83,6 @@ class Requisition extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
-    }
-
-    /**
-     * Centro de costos al que se cargará la requisición.
-     */
-    public function costCenter(): BelongsTo
-    {
-        return $this->belongsTo(CostCenter::class);
     }
 
     /**
@@ -608,14 +599,6 @@ class Requisition extends Model
     public function scopeRejected($query)
     {
         return $query->where('status', RequisitionStatus::REJECTED->value);
-    }
-
-    /**
-     * Requisiciones de un centro de costos específico.
-     */
-    public function scopeByCostCenter($query, int $costCenterId)
-    {
-        return $query->where('cost_center_id', $costCenterId);
     }
 
     /**

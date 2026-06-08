@@ -204,7 +204,6 @@ class RequisitionFeedbackFlowTest extends TestCase
 
         $requisitionId = DB::table('requisitions')->insertGetId([
             'company_id' => $companyId,
-            'cost_center_id' => $costCenterId,
             'receiving_location_id' => $receivingLocationId,
             'department_id' => null,
             'folio' => 'REQ-2026-001',
@@ -226,6 +225,7 @@ class RequisitionFeedbackFlowTest extends TestCase
             'product_code' => 'PROD-000001',
             'description' => 'Producto requerido para pruebas de retroalimentacion',
             'expense_category_id' => $expenseCategoryId,
+            'cost_center_id' => $costCenterId,
             'quantity' => 2,
             'unit' => 'PZA',
             'notes' => 'Notas de prueba',

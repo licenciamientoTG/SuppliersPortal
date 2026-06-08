@@ -193,7 +193,6 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
 
         $requisitionData = array_merge([
             'company_id' => $companyId,
-            'cost_center_id' => $costCenterId,
             'receiving_location_id' => $receivingLocationId,
             'department_id' => null,
             'folio' => uniqid('REQ-2026-'),
@@ -222,6 +221,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'product_code' => 'PROD-001',
             'description' => 'Mouse inalambrico Logitech',
             'expense_category_id' => $expenseCategoryId,
+            'cost_center_id' => $costCenterId,
             'quantity' => 2,
             'unit' => 'PZA',
             'notes' => 'Uso corporativo',
