@@ -52,55 +52,6 @@
                         @enderror
                     </div>
 
-                    {{-- Tipo de compra --}}
-                    <div class="col-md-2" wire:ignore>
-                        <label for="purchase_type" class="form-label">Tipo de compra <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-filter"></i>
-                            </span>
-                            <select id="purchase_type"
-                                    class="form-select @error('purchase_type') is-invalid @enderror"
-                                    required>
-                                <option value="">Seleccionar...</option>
-                                @foreach ($purchaseTypes as $purchaseTypeOption)
-                                    <option value="{{ $purchaseTypeOption }}" @selected((string) $purchase_type === (string) $purchaseTypeOption)>{{ $purchaseTypeOption }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @error('purchase_type')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    {{-- Centro de costo --}}
-                    <div class="col-md-3" wire:ignore>
-                        <label for="cost_center_id" class="form-label">Centro de costo <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-chart-pie"></i>
-                            </span>
-                            @php($canChooseCostCenter = filled($company_id) && filled($purchase_type))
-                            <select id="cost_center_id"
-                                    class="form-select @error('cost_center_id') is-invalid @enderror"
-                                    required
-                                    {{ $canChooseCostCenter ? '' : 'disabled' }}>
-                                <option value="">
-                                    {{ !$canChooseCostCenter ? 'Seleccionar compañía y tipo de compra primero' : (count($costCenters) === 0 ? 'No hay centros de costo disponibles para esta combinación' : 'Seleccionar centro de costo...') }}
-                                </option>
-                                @foreach ($costCenters as $cc)
-                                    <option value="{{ $cc->id }}" @selected((string) $cost_center_id === (string) $cc->id)>
-                                        {{ $cc->code ? "[{$cc->code}] {$cc->name}" : $cc->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @error('cost_center_id')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-
-                        {{-- Loading indicator --}}
-                    </div>
 
                     {{-- Ubicación de recepción --}}
                     <div class="col-md-3">
@@ -191,6 +142,7 @@
                                 <th>Descripción</th>
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
+                                <th>Centro de Costo</th>
                                 <th>Categoría de gasto</th>
                                 <th>Subcategoría presupuestal</th>
                                 <th>Notas</th>
@@ -207,6 +159,12 @@
                                     </td>
                                     <td>{{ $item['quantity'] }}</td>
                                     <td>{{ $item['unit'] }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary" title="{{ $item['cost_center_name'] ?? '' }}">
+                                            {{ Str::limit($item['cost_center_name'] ?? '—', 25) }}
+                                        </span>
+                                        <small class="d-block text-muted">{{ $item['purchase_type'] ?? '' }}</small>
+                                    </td>
                                     <td>
                                         <span class="badge bg-info">{{ $item['expense_category_name'] }}</span>
                                     </td>
@@ -243,7 +201,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
+                                    <td colspan="9" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                         No hay partidas agregadas. Haz clic en "Agregar Partida"
                                     </td>
@@ -293,6 +251,36 @@
                 <div class="modal-body">
                     <form id="itemForm" class="needs-validation" novalidate>
                         <input type="hidden" id="item_index">
+
+                        {{-- Tipo de compra y Centro de Costo (filtro para la cascada) --}}
+                        <div class="row mb-3">
+                            <div class="col-md-5">
+                                <label for="modal_purchase_type" class="form-label fw-semibold">
+                                    Tipo de compra <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-filter"></i></span>
+                                    <select id="modal_purchase_type" class="form-select" required>
+                                        <option value="">Seleccionar...</option>
+                                        @foreach ($purchaseTypes as $pt)
+                                            <option value="{{ $pt }}">{{ $pt }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <label for="modal_cost_center_id" class="form-label fw-semibold">
+                                    Centro de Costo <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-chart-pie"></i></span>
+                                    <select id="modal_cost_center_id" class="form-select" required disabled>
+                                        <option value="">Selecciona primero el tipo de compra...</option>
+                                    </select>
+                                </div>
+                                <div class="form-text" id="modal_cost_center_help"></div>
+                            </div>
+                        </div>
 
                         {{-- Producto del catálogo --}}
                         <div class="mb-4">
@@ -639,19 +627,7 @@ $(function() {
     }
     window.getRequisitionWire = getRequisitionWire;
 
-    const headerCostCenterCatalog = @json($headerCostCenterCatalog);
-
-    function syncHeaderValuesToWire() {
-        const wire = getRequisitionWire();
-
-        if (!wire) {
-            return;
-        }
-
-        wire.$set('company_id', $('#company_id').val() || '');
-        wire.$set('purchase_type', $('#purchase_type').val() || '');
-        wire.$set('cost_center_id', $('#cost_center_id').val() || '');
-    }
+    const costCenterCatalog = @json($costCenterCatalog);
 
     function syncFormValuesToWire() {
         const wire = getRequisitionWire();
@@ -661,8 +637,6 @@ $(function() {
         }
 
         wire.$set('company_id', $('#company_id').val() || '');
-        wire.$set('purchase_type', $('#purchase_type').val() || '');
-        wire.$set('cost_center_id', $('#cost_center_id').val() || '');
         wire.$set('receiving_location_id', $('#receiving_location_id').val() || '');
         wire.$set('required_date', $('#required_date').val() || '');
         wire.$set('description', $('#description').val() || '');
@@ -670,64 +644,55 @@ $(function() {
         return wire;
     }
 
-    function getMatchingHeaderCostCenters(companyId, purchaseType) {
-        return headerCostCenterCatalog.filter((row) => {
-            return String(row.company_id) === String(companyId) && String(row.purchase_type) === String(purchaseType);
-        });
-    }
+    function renderModalCostCenters(mode = 'reset') {
+        const companyId    = $('#company_id').val() || '';
+        const purchaseType = $('#modal_purchase_type').val() || '';
+        const $cc          = $('#modal_cost_center_id');
 
-    function renderHeaderCostCenters(mode = 'initial', shouldSync = true) {
-        const companyId = $('#company_id').val() || '';
-        const purchaseType = $('#purchase_type').val() || '';
-        const $cc = $('#cost_center_id');
-        const currentValue = $cc.val() || '';
+        $cc.empty();
 
         if (!companyId || !purchaseType) {
             $cc.prop('disabled', true)
-                .empty()
-                .append('<option value="">Seleccionar compañía y tipo de compra primero</option>')
-                .val('');
-
-            if (shouldSync) {
-                syncHeaderValuesToWire();
-            }
+               .append('<option value="">Selecciona primero el tipo de compra...</option>');
+            $('#modal_cost_center_help').text('');
             return;
         }
 
-        const matches = getMatchingHeaderCostCenters(companyId, purchaseType);
-        $cc.empty();
+        const matches = costCenterCatalog.filter(row =>
+            String(row.company_id) === String(companyId) &&
+            String(row.purchase_type) === String(purchaseType)
+        );
 
         if (matches.length === 0) {
             $cc.prop('disabled', true)
-                .append('<option value="">No hay centros de costo disponibles para esta combinación</option>')
-                .val('');
-
-            if (shouldSync) {
-                syncHeaderValuesToWire();
-            }
+               .append('<option value="">Sin centros de costo para esta combinación</option>');
+            $('#modal_cost_center_help').text('No tienes centros de costo asignados para este tipo de compra.');
             return;
         }
 
         $cc.prop('disabled', false)
-            .append('<option value="">Seleccionar centro de costo...</option>');
+           .append('<option value="">Seleccionar centro de costo...</option>');
 
-        matches.forEach((row) => {
+        matches.forEach(row => {
             const label = row.code ? `[${row.code}] ${row.name}` : row.name;
-            $cc.append($('<option>', { value: row.id, text: label }));
+            $cc.append($('<option>', {
+                value: row.id,
+                text: label,
+                'data-name': row.name,
+                'data-purchase-type': row.purchase_type
+            }));
         });
 
-        let nextValue = '';
-
-        if (mode === 'preserve' && currentValue && matches.some((row) => String(row.id) === String(currentValue))) {
-            nextValue = String(currentValue);
-        } else if (mode === 'initial') {
-            const defaultRow = matches.find((row) => row.is_default) || (matches.length === 1 ? matches[0] : null);
-            nextValue = defaultRow ? String(defaultRow.id) : '';
+        if (mode === 'edit' && $cc.data('pending-value')) {
+            $cc.val(String($cc.data('pending-value')));
+            $cc.data('pending-value', null);
+        } else if (matches.length === 1) {
+            $cc.val(String(matches[0].id));
         }
 
-        $cc.val(nextValue);
-        if (shouldSync) {
-            syncHeaderValuesToWire();
+        if ($cc.val()) {
+            loadProductsForCostCenter();
+            loadExpenseCategories();
         }
     }
 
@@ -765,65 +730,50 @@ $(function() {
     }
 
     initializeRequisitionSelects();
-    renderHeaderCostCenters('initial', false);
 
+    // =====================================================
+    // LISTENER: Cambio de Tipo de Compra en modal
+    // =====================================================
     $(document)
-        .off('change.requisitionHeaderCompany', '#company_id')
-        .on('change.requisitionHeaderCompany', '#company_id', function() {
-            renderHeaderCostCenters('reset', true);
-        });
-
-    $(document)
-        .off('change.requisitionHeaderPurchaseType', '#purchase_type')
-        .on('change.requisitionHeaderPurchaseType', '#purchase_type', function() {
-            renderHeaderCostCenters('reset', true);
+        .off('change.modalPurchaseType', '#modal_purchase_type')
+        .on('change.modalPurchaseType', '#modal_purchase_type', function () {
+            renderModalCostCenters('reset');
         });
 
     // =====================================================
-    // LISTENER: Cambio de Centro de Costo
+    // LISTENER: Cambio de Centro de Costo en modal
     // =====================================================
-    $(document).off('change.requisitionCostCenter', '#cost_center_id').on('change.requisitionCostCenter', '#cost_center_id', function() {
-        const costCenterId = $(this).val();
-        syncHeaderValuesToWire();
-        $('#modal_expense_category').val(null).trigger('change');
-        resetBudgetCedulaSelect();
+    $(document)
+        .off('change.modalCostCenter', '#modal_cost_center_id')
+        .on('change.modalCostCenter', '#modal_cost_center_id', function () {
+            const ccId = $(this).val();
+            $('#modal_expense_category').val(null).trigger('change');
+            resetBudgetCedulaSelect();
 
-        if (costCenterId) {
-            loadExpenseCategories();
-        } else {
-            $('#modal_expense_category')
-                .empty()
-                .append('<option value="">Seleccione primero un centro de costo...</option>')
-                .prop('disabled', true);
-            initializeExpenseCategorySelect();
-        }
-    });
+            if (ccId) {
+                loadProductsForCostCenter();
+                loadExpenseCategories();
+            } else {
+                $('#modal_expense_category')
+                    .empty()
+                    .append('<option value="">Seleccione primero un centro de costo...</option>')
+                    .prop('disabled', true);
+                initializeExpenseCategorySelect();
+            }
+        });
 
     // =====================================================
     // 1. ABRIR MODAL PARA AGREGAR
     // =====================================================
     $(document).off('click.requisitionAddItem', '#btnAddItem').on('click.requisitionAddItem', '#btnAddItem', function() {
         const companyId = $('#company_id').val();
-        const costCenterId = $('#cost_center_id').val();
 
-        if (!companyId || !costCenterId) {
-            Swal.fire('Datos incompletos', 'Primero selecciona compañía y centro de costo.', 'warning');
+        if (!companyId) {
+            Swal.fire('Datos incompletos', 'Primero selecciona una compañía.', 'warning');
             return;
         }
 
-        // PASO 1: Verificar si hay productos activos para este centro de costo
-        checkProductsAvailability(companyId, costCenterId).then(hasProducts => {
-            if (!hasProducts) {
-                return;
-            }
-
-            // PASO 2: Validar categorías antes de abrir el modal
-            loadExpenseCategories().then(hasCategories => {
-                if (hasCategories) {
-                    openItemModal();
-                }
-            });
-        });
+        openItemModal();
     });
 
     /**
@@ -950,20 +900,7 @@ $(function() {
             return;
         }
 
-        const companyId = $('#company_id').val();
-        const costCenterId = $('#cost_center_id').val();
-
-        checkProductsAvailability(companyId, costCenterId).then(hasProducts => {
-            if (!hasProducts) {
-                return;
-            }
-
-            loadExpenseCategories().then(hasCategories => {
-                if (hasCategories) {
-                    openItemModalForEdit(index, item);
-                }
-            });
-        });
+        openItemModalForEdit(index, item);
     });
 
     /**
@@ -996,7 +933,7 @@ $(function() {
     // =====================================================
     function loadProductsForCostCenter() {
         const companyId = $('#company_id').val();
-        const costCenterId = $('#cost_center_id').val();
+        const costCenterId = $('#modal_cost_center_id').val();
 
         $('#modal_product_id').prop('disabled', true).empty().append('<option value="">Cargando...</option>');
 
@@ -1105,7 +1042,7 @@ $(function() {
     function loadExpenseCategories() {
         return new Promise((resolve, reject) => {
             const $select = $('#modal_expense_category');
-            const costCenterId = $('#cost_center_id').val();
+            const costCenterId = $('#modal_cost_center_id').val();
 
             if (!costCenterId) {
                 $select.empty()
@@ -1335,7 +1272,7 @@ $(function() {
 
     function loadBudgetCedulas(selectedCedulaId = null) {
         return new Promise((resolve) => {
-            const costCenterId = $('#cost_center_id').val();
+            const costCenterId = $('#modal_cost_center_id').val();
             const categoryId = $('#modal_expense_category').val();
             const $cedula = $('#modal_budget_cedula');
 
@@ -1419,8 +1356,15 @@ $(function() {
         $('#product_info').hide();
         resetBudgetCedulaSelect();
 
-        loadProductsForCostCenter();
-        loadExpenseCategories();
+        $('#modal_purchase_type').val('');
+        $('#modal_cost_center_id').prop('disabled', true)
+            .empty()
+            .append('<option value="">Selecciona primero el tipo de compra...</option>');
+        $('#modal_expense_category').empty()
+            .append('<option value="">Seleccione primero un centro de costo...</option>')
+            .prop('disabled', true);
+        initializeExpenseCategorySelect();
+        $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
 
         $('#itemModal').modal('show');
     }
@@ -1433,8 +1377,9 @@ $(function() {
         $('#budgetAlert').hide();
         resetBudgetCedulaSelect();
 
-        loadProductsForCostCenter();
-        loadExpenseCategories();
+        $('#modal_purchase_type').val(item.purchase_type || '');
+        $('#modal_cost_center_id').data('pending-value', item.cost_center_id || null);
+        renderModalCostCenters('edit');
 
         setTimeout(() => {
             $('#modal_product_id').val(item.product_id).trigger('change');
@@ -1444,16 +1389,29 @@ $(function() {
             $('#modal_budget_cedula').data('pending-value', item.budget_cedula_id || null);
             $('#modal_expense_category').val(item.expense_category_id).trigger('change');
             $('#modal_notes').val(item.notes || '');
-        }, 500);
+        }, 600);
 
         $('#itemModal').modal('show');
     }
 
     $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', function() {
-        const productId = $('#modal_product_id').val();
-        const quantity = parseFloat($('#modal_quantity').val());
-        const categoryId = $('#modal_expense_category').val();
+        const purchaseType   = $('#modal_purchase_type').val();
+        const costCenterId   = $('#modal_cost_center_id').val();
+        const costCenterName = $('#modal_cost_center_id option:selected').data('name') || '';
+        const productId      = $('#modal_product_id').val();
+        const quantity       = parseFloat($('#modal_quantity').val());
+        const categoryId     = $('#modal_expense_category').val();
         const budgetCedulaId = $('#modal_budget_cedula').val();
+
+        if (!purchaseType) {
+            Swal.fire('Campo requerido', 'Selecciona el tipo de compra de esta partida.', 'error');
+            return;
+        }
+
+        if (!costCenterId) {
+            Swal.fire('Campo requerido', 'Selecciona el centro de costo de esta partida.', 'error');
+            return;
+        }
 
         if (!productId) {
             Swal.fire('Error', 'Selecciona un producto del catálogo (RN-001).', 'error');
@@ -1499,16 +1457,19 @@ $(function() {
         }
 
         const itemData = {
-            product_id: productId,
-            product_name: $('#modal_product_id option:selected').text(),
-            description: $('#modal_description').val(),
-            quantity: quantity,
-            unit: $('#modal_unit').val(),
-            expense_category_id: categoryId,
+            product_id:            productId,
+            product_name:          $('#modal_product_id option:selected').text(),
+            description:           $('#modal_description').val(),
+            quantity:              quantity,
+            unit:                  $('#modal_unit').val(),
+            expense_category_id:   categoryId,
             expense_category_name: $('#modal_expense_category option:selected').text(),
-            budget_cedula_id: budgetCedulaId,
-            budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
-            notes: $('#modal_notes').val() || ''
+            budget_cedula_id:      budgetCedulaId,
+            budget_cedula_name:    $('#modal_budget_cedula option:selected').text(),
+            cost_center_id:        costCenterId,
+            cost_center_name:      costCenterName,
+            purchase_type:         purchaseType,
+            notes:                 $('#modal_notes').val() || ''
         };
 
         const editIndex = $('#item_index').val();
