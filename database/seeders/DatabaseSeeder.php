@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             StationSeeder::class,
             CategorySeeder::class,
             CostCenterSeeder::class,
+            ProductServiceSycSeeder::class,
             // AnnualBudgetSeeder::class,
             DepartmentSeeder::class,
             TaxSeeder::class,

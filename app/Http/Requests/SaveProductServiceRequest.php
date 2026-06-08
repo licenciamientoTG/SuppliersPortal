@@ -21,7 +21,7 @@ class SaveProductServiceRequest extends FormRequest
     {
         return [
             // Identificación
-            'technical_description' => 'required|string|min:20|max:5000',
+            'technical_description' => 'nullable|string|max:5000',
             'short_name' => 'nullable|string|max:100',
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
             
