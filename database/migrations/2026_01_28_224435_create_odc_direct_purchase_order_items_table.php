@@ -24,6 +24,10 @@ return new class extends Migration
                 ->constrained('expense_categories')
                 ->noActionOnDelete();
 
+            $table->foreignId('cost_center_id')
+                ->constrained('cost_centers')
+                ->noActionOnDelete();
+
             // Datos de la partida
             $table->text('description'); // Descripción del bien o servicio
             $table->decimal('quantity', 12, 2); // Cantidad solicitada
@@ -46,6 +50,8 @@ return new class extends Migration
             // Índices para consultas rápidas
             $table->index('direct_purchase_order_id');
             $table->index('expense_category_id');
+            $table->index('cost_center_id');
+            $table->index(['direct_purchase_order_id', 'cost_center_id']);
             $table->index('iva_rate');
             $table->index('sku');
 

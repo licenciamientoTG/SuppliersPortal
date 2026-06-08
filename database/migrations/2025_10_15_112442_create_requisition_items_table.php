@@ -35,6 +35,11 @@ return new class extends Migration
                 ->constrained('expense_categories')
                 ->onDelete('no action'); // ✅ Cambiado de 'restrict'
 
+            $table->foreignId('cost_center_id')
+                ->constrained('cost_centers')
+                ->onUpdate('NO ACTION')
+                ->onDelete('NO ACTION');
+
             // Cantidad y unidad
             $table->decimal('quantity', 10, 3); // Cantidad solicitada
             $table->string('unit', 20); // Unidad de medida
@@ -54,6 +59,8 @@ return new class extends Migration
             $table->index('requisition_id');
             $table->index('product_service_id');
             $table->index('expense_category_id');
+            $table->index('cost_center_id');
+            $table->index(['requisition_id', 'cost_center_id']);
 
             // Asegurar que line_number sea único dentro de cada requisición
             $table->unique(['requisition_id', 'line_number']);

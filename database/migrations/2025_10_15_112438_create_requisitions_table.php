@@ -17,11 +17,6 @@ return new class extends Migration {
                 ->onUpdate('NO ACTION')
                 ->onDelete('NO ACTION');
 
-            $table->foreignId('cost_center_id')
-                ->constrained('cost_centers')
-                ->onUpdate('NO ACTION')
-                ->onDelete('NO ACTION');
-
             $table->foreignId('receiving_location_id')
                 ->constrained('receiving_locations')
                 ->onUpdate('NO ACTION')
@@ -96,7 +91,6 @@ return new class extends Migration {
             $table->softDeletes();
 
             // Índices útiles
-            $table->index(['company_id', 'cost_center_id']);
             $table->index('status');
             $table->index('paused_at');
             $table->index('required_date');
