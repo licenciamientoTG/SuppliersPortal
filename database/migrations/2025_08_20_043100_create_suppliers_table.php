@@ -27,7 +27,9 @@ return new class extends Migration
             $table->string('contact_person', 100);
             $table->string('contact_phone', 10)->nullable();
             $table->string('supplier_type', 20);
-            $table->string('tax_regime', 20);
+            $table->string('person_type', 20)->nullable();
+            $table->json('tax_regimes')->nullable();
+            $table->string('postal_code', 5)->nullable();
             $table->string('bank_name', 100)->nullable();
             $table->string('account_number', 20)->nullable();
             $table->string('clabe', 18)->nullable();
@@ -41,9 +43,9 @@ return new class extends Migration
 
             $table->string('approval_status', 20)->default('pending');
             $table->string('document_status', 20)->default('pending');
-            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('approved_by')->nullable()->index();
             $table->timestamp('approved_at')->nullable();
-            $table->foreignId('rejected_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('rejected_by')->nullable()->index();
             $table->timestamp('rejected_at')->nullable();
             $table->text('approval_notes')->nullable();
 
@@ -51,7 +53,7 @@ return new class extends Migration
             $table->string('repse_registration_number')->nullable();
             $table->date('repse_expiry_date')->nullable();
             $table->json('specialized_services_types')->nullable();
-            $table->string('economic_activity', 150)->nullable();
+            $table->json('economic_activity')->nullable();
             $table->timestamps();
 
             $table->unique('rfc');
