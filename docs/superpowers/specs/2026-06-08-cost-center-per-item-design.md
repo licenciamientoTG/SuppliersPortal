@@ -105,6 +105,7 @@ php artisan migrate:fresh
 ## 3. BudgetAllocationService
 
 Este servicio toma el `cost_center_id` de la cabecera hoy. Con el cambio cada línea presupuestal lo toma del item.
+Sí, se ve bien
 
 ### `buildQuotationSummaryBudgetLines(QuotationSummary $summary)`
 - Cambiar:
