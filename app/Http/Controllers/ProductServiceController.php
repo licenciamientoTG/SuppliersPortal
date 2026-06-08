@@ -186,7 +186,7 @@ class ProductServiceController extends Controller
             $productService->fill([
                 // Identificación
                 'code' => ProductService::nextCode(),
-                'technical_description' => $data['technical_description'],
+                'technical_description' => $data['technical_description'] ?? null,
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 
@@ -302,7 +302,7 @@ class ProductServiceController extends Controller
 
             $productService->fill([
                 // Identificación
-                'technical_description' => $data['technical_description'],
+                'technical_description' => $data['technical_description'] ?? null,
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 

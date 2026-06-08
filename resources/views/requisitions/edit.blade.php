@@ -703,10 +703,11 @@
                 $.ajax({
                     url: '{{ route('products-services.api.active-for-requisitions') }}',
                     method: 'GET',
-                    data: {
-                        company_id: companyId,
-                        cost_center_id: costCenterId
-                    },
+                data: {
+                    company_id: companyId,
+                    cost_center_id: costCenterId,
+                    all: true
+                },
                     success: function(response) {
                         $('#modal_product_id').empty().append(
                             '<option value="">Buscar producto...</option>');

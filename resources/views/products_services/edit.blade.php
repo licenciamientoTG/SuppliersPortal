@@ -141,16 +141,14 @@
 
                     {{-- Descripción Técnica --}}
                     <div class="mb-3">
-                        <label for="technical_description" class="form-label">Descripción Técnica <span class="text-danger">*</span></label>
+                        <label for="technical_description" class="form-label">Descripción Técnica</label>
                         <textarea class="form-control @error('technical_description') is-invalid @enderror" 
                                     id="technical_description"
                                     name="technical_description" 
                                     rows="3" 
-                                    required 
-                                    minlength="20" 
                                     maxlength="5000"
                                     placeholder="Descripción detallada y completa del producto o servicio...">{{ old('technical_description') ?? $productService->technical_description }}</textarea>
-                        <div class="form-text">Mínimo 20 caracteres. Sea lo más específico posible.</div>
+                        <div class="form-text">Opcional. Puedes dejarla vacía si el nombre corto describe correctamente el producto o servicio.</div>
                         @error('technical_description')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
