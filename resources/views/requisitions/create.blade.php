@@ -224,7 +224,7 @@
                             <tr id="emptyRow">
                                 <td colspan="9" class="text-center text-muted py-4">
                                     <i class="ti ti-inbox fs-1 d-block mb-2"></i>
-                                    No hay partidas agregadas. Haz clic en "Agregar Partida"
+                                    No hay partidas agregadas. Haz clic en "Agregar Partida" 1
                                 </td>
                             </tr>
                         </tbody>
