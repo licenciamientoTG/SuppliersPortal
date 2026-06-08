@@ -218,7 +218,7 @@ class BudgetAllocationService
 
     public function buildQuotationSummaryBudgetLines(QuotationSummary $summary): array
     {
-        $summary->loadMissing('rfq.rfqResponses.requisitionItem', 'requisition.costCenter');
+        $summary->loadMissing('rfq.rfqResponses.requisitionItem.costCenter');
 
         return $summary->rfq->rfqResponses
             ->where('supplier_id', $summary->selected_supplier_id)
@@ -239,14 +239,14 @@ class BudgetAllocationService
                     ->format('Y-m');
 
                 return [
-                    'cost_center_id' => (int) $summary->requisition->cost_center_id,
+                    'cost_center_id' => (int) $requisitionItem->cost_center_id,
                     'expense_category_id' => (int) $requisitionItem->expense_category_id,
                     'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
                     'amount' => (float) $response->total,
                     'year' => (int) substr($applicationMonth, 0, 4),
                     'month' => (int) substr($applicationMonth, 5, 2),
                     'application_month' => $applicationMonth,
-                    'budget_type' => $summary->requisition->costCenter?->budget_type ?? 'ANNUAL',
+                    'budget_type' => $requisitionItem->costCenter?->budget_type ?? 'ANNUAL',
                 ];
             })
             ->groupBy(fn (array $line) => implode('|', [
@@ -498,20 +498,22 @@ class BudgetAllocationService
     private function getOrderBudgetLines(Model $order): array
     {
         if ($order instanceof DirectPurchaseOrder) {
-            $order->loadMissing('items', 'costCenter');
+            $order->loadMissing('items.costCenter');
 
             return $order->items
-                ->groupBy('expense_category_id')
-                ->map(function ($items, $categoryId) use ($order) {
+                ->groupBy(fn ($item) => $item->cost_center_id . '|' . $item->expense_category_id)
+                ->map(function ($items) use ($order) {
+                    $first = $items->first();
+
                     return [
-                        'cost_center_id' => (int) $order->cost_center_id,
-                        'expense_category_id' => (int) $categoryId,
+                        'cost_center_id' => (int) $first->cost_center_id,
+                        'expense_category_id' => (int) $first->expense_category_id,
                         'budget_cedula_id' => null,
                         'amount' => (float) $items->sum('total'),
                         'year' => (int) substr((string) $order->application_month, 0, 4),
                         'month' => (int) substr((string) $order->application_month, 5, 2),
                         'application_month' => $order->application_month,
-                        'budget_type' => $order->costCenter?->budget_type ?? 'ANNUAL',
+                        'budget_type' => $first->costCenter?->budget_type ?? 'ANNUAL',
                     ];
                 })
                 ->values()
@@ -519,7 +521,7 @@ class BudgetAllocationService
         }
 
         if ($order instanceof PurchaseOrder) {
-            $order->loadMissing('items.requisitionItem', 'requisition.costCenter');
+            $order->loadMissing('items.requisitionItem.costCenter');
 
             $existingCommitments = BudgetCommitment::query()
                 ->where('purchase_order_id', $order->id)
@@ -527,29 +529,32 @@ class BudgetAllocationService
                 ->get();
 
             if ($existingCommitments->isNotEmpty()) {
-                return $this->mapCommitmentsToLines($existingCommitments, (string) ($order->requisition->costCenter?->budget_type ?? 'ANNUAL'));
+                $budgetType = $order->items->first()?->requisitionItem?->costCenter?->budget_type ?? 'ANNUAL';
+
+                return $this->mapCommitmentsToLines($existingCommitments, (string) $budgetType);
             }
 
             $applicationMonth = $order->created_at->format('Y-m');
 
             return $order->items
                 ->groupBy(fn ($item) => implode('|', [
+                    $item->requisitionItem?->cost_center_id,
                     $item->requisitionItem?->expense_category_id,
                     $item->requisitionItem?->budget_cedula_id,
                     $applicationMonth,
                 ]))
-                ->map(function ($items) use ($order, $applicationMonth) {
+                ->map(function ($items) use ($applicationMonth) {
                     $firstItem = $items->first();
 
                     return [
-                        'cost_center_id' => (int) $order->requisition->cost_center_id,
+                        'cost_center_id' => (int) $firstItem->requisitionItem?->cost_center_id,
                         'expense_category_id' => (int) $firstItem->requisitionItem?->expense_category_id,
                         'budget_cedula_id' => $firstItem->requisitionItem?->budget_cedula_id ? (int) $firstItem->requisitionItem->budget_cedula_id : null,
                         'amount' => (float) $items->sum('total'),
                         'year' => (int) substr($applicationMonth, 0, 4),
                         'month' => (int) substr($applicationMonth, 5, 2),
                         'application_month' => $applicationMonth,
-                        'budget_type' => $order->requisition->costCenter?->budget_type ?? 'ANNUAL',
+                        'budget_type' => $firstItem->requisitionItem?->costCenter?->budget_type ?? 'ANNUAL',
                     ];
                 })
                 ->filter(fn (array $line) => ! empty($line['expense_category_id']))
