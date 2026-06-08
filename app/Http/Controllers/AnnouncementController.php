@@ -205,14 +205,16 @@ class AnnouncementController extends Controller
      * ========================================================================= */
     protected function getSupplierIdFromAuth(): ?int
     {
-        $user = Auth::user();
-        if (!$user) {
+        if (Auth::guard('supplier')->check()) {
+            return Auth::guard('supplier')->id();
+        }
+
+        $user = Auth::guard('web')->user();
+        if (! $user) {
             return null;
         }
 
-        // suppliers.user_id → User hasOne Supplier
         $supplier = $user->supplier()->first();
-
         return $supplier?->id;
     }
 
@@ -517,7 +519,7 @@ class AnnouncementController extends Controller
     {
         $logoPath = public_path('images/logos/logo_TotalGas_hor.png');
         // Marca visto si quieres (opcional, ya se marca en show())
-        if ($supplierId = optional(Auth::user()->supplier)->id) {
+        if ($supplierId = $this->getSupplierIdFromAuth()) {
             $announcement->markViewedBy($supplierId);
         }
 

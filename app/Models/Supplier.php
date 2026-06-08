@@ -2,29 +2,35 @@
 
 namespace App\Models;
 
-use Illuminate\Notifications\Notifiable;
-use \App\Models\SupplierDocument;
 use App\Enum\PaymentTerm;
+use App\Notifications\ResetPasswordNotification;
 use App\Support\SupplierFiscalCatalog;
-use Illuminate\Database\Eloquent\Factories\HasFactory; // 1. Importar el trait
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
-class Supplier extends Model
+class Supplier extends Authenticatable
 {
     use HasFactory, Notifiable;
+
     protected $fillable = [
-        'user_id',
+        'first_name',
+        'last_name',
+        'email',
+        'password',
+        'email_verified_at',
+        'is_active',
+        'last_login',
         'company_name',
         'rfc',
         'address',
         'postal_code',
         'phone_number',
-        'email',
         'contact_person',
         'contact_phone',
         'supplier_type',
@@ -34,14 +40,19 @@ class Supplier extends Model
         'account_number',
         'clabe',
         'currency',
-        'status',
+        'approval_status',
+        'document_status',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'approval_notes',
         'swift_bic',
         'iban',
         'bank_address',
         'aba_routing',
         'us_bank_name',
         'default_payment_terms',
-        // Nuevos campos REPSE
         'provides_specialized_services',
         'repse_registration_number',
         'repse_expiry_date',
@@ -49,13 +60,42 @@ class Supplier extends Model
         'economic_activity',
     ];
 
-    protected $casts = [
-        'provides_specialized_services' => 'boolean',
-        'repse_expiry_date'             => 'date',
-        'specialized_services_types'    => 'array',
-        'tax_regimes'                   => 'array',
-        'economic_activity'             => 'array',
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'last_login' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'provides_specialized_services' => 'boolean',
+            'repse_expiry_date' => 'date',
+            'specialized_services_types' => 'array',
+            'tax_regimes' => 'array',
+            'economic_activity' => 'array',
+        ];
+    }
+
+    public function getNameAttribute(): string
+    {
+        return $this->full_name ?: $this->company_name;
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
+
+    public function getUserAttribute(): ?User
+    {
+        return null;
+    }
 
     public function getPersonTypeLabelAttribute(): string
     {
@@ -72,21 +112,11 @@ class Supplier extends Model
         return SupplierFiscalCatalog::formatActivities($this->economic_activity);
     }
 
-    /**
-     * Devuelve el enum PaymentTerm correspondiente al valor almacenado,
-     * o null si el valor es inválido o nulo.
-     * Úsalo cuando necesites el label o comportamiento del enum.
-     */
-    public function getDefaultPaymentTermEnumAttribute(): ?\App\Enum\PaymentTerm
+    public function getDefaultPaymentTermEnumAttribute(): ?PaymentTerm
     {
         return $this->default_payment_terms
-            ? \App\Enum\PaymentTerm::tryFrom($this->default_payment_terms)
+            ? PaymentTerm::tryFrom($this->default_payment_terms)
             : null;
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function documents(): HasMany
@@ -104,7 +134,16 @@ class Supplier extends Model
         return $this->hasMany(FinancialProvision::class);
     }
 
-    // Helper para estado de “completitud” (simple)
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
     public function missingRequiredDocuments(): array
     {
         $present = $this->documents()
@@ -116,7 +155,6 @@ class Supplier extends Model
         return array_values(array_diff(SupplierDocument::REQUIRED_TYPES, $present));
     }
 
-    // Nuevos helpers para REPSE
     public function requiresRepseRegistration(): bool
     {
         return $this->provides_specialized_services === true;
@@ -124,23 +162,18 @@ class Supplier extends Model
 
     public function hasValidRepseRegistration(): bool
     {
-        if (!$this->requiresRepseRegistration()) {
-            return true; // No requiere REPSE
+        if (! $this->requiresRepseRegistration()) {
+            return true;
         }
 
-        return !empty($this->repse_registration_number)
+        return ! empty($this->repse_registration_number)
             && $this->repse_expiry_date
             && $this->repse_expiry_date->isFuture();
     }
 
-    /**
-     * Días restantes antes de que venza el REPSE.
-     * Positivo: días que quedan. 0: vence hoy. Negativo: ya venció.
-     * Retorna null si no hay fecha de vencimiento registrada.
-     */
     public function repseExpiresIn(): ?int
     {
-        if (!$this->repse_expiry_date) {
+        if (! $this->repse_expiry_date) {
             return null;
         }
 
@@ -152,47 +185,84 @@ class Supplier extends Model
         return $this->hasMany(SupplierSiroc::class);
     }
 
-    /**
-     * Scope: excluir proveedores cuyo RFC esté en sat_efos_69b
-     * con situación Definitivo o Presunto.
-     */
-    public function scopeNotEfos69b(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    public function isApproved(): bool
     {
-        return $q->whereNotExists(function ($sub) {
+        return $this->approval_status === 'approved' && $this->is_active;
+    }
+
+    public function canAccessFullPortal(): bool
+    {
+        return $this->isApproved();
+    }
+
+    public function hasRestrictedPortalAccess(): bool
+    {
+        return ! $this->canAccessFullPortal();
+    }
+
+    public function recalculateDocumentStatus(): string
+    {
+        $docs = $this->documents()
+            ->whereIn('doc_type', SupplierDocument::REQUIRED_TYPES)
+            ->get(['doc_type', 'status', 'uploaded_at', 'created_at'])
+            ->groupBy('doc_type')
+            ->map(fn ($group) => $group->sortByDesc(fn ($doc) => $doc->uploaded_at ?? $doc->created_at)->first());
+
+        if ($docs->isEmpty()) {
+            $this->forceFill(['document_status' => 'pending'])->saveQuietly();
+
+            return 'pending';
+        }
+
+        $hasPending = $docs->contains(fn ($doc) => $doc->status === 'pending_review');
+        $hasRejected = $docs->contains(fn ($doc) => $doc->status === 'rejected');
+        $missingRequired = array_diff(SupplierDocument::REQUIRED_TYPES, $docs->keys()->all());
+
+        $status = match (true) {
+            $hasPending => 'in_review',
+            $hasRejected => 'rejected',
+            empty($missingRequired) => 'approved',
+            default => 'pending',
+        };
+
+        $this->forceFill(['document_status' => $status])->saveQuietly();
+
+        return $status;
+    }
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query
+            ->where('approval_status', 'approved')
+            ->where('is_active', true);
+    }
+
+    public function scopeNotEfos69b(Builder $query): Builder
+    {
+        return $query->whereNotExists(function ($sub) {
             $sub->from('sat_efos_69b as e')
                 ->whereColumn('e.rfc', 'suppliers.rfc')
                 ->whereIn('e.situation', ['Definitivo', 'Presunto']);
         });
     }
 
-    /**
-     * Scope: búsqueda por nombre o RFC.
-     */
-    public function scopeSearch(\Illuminate\Database\Eloquent\Builder $q, ?string $term): \Illuminate\Database\Eloquent\Builder
+    public function scopeSearch(Builder $query, ?string $term): Builder
     {
-        if (!filled($term))
-            return $q;
+        if (! filled($term)) {
+            return $query;
+        }
 
-        return $q->where(function ($qq) use ($term) {
-            $qq->where('company_name', 'like', "%{$term}%")   // 👈 aquí
+        return $query->where(function ($qq) use ($term) {
+            $qq->where('company_name', 'like', "%{$term}%")
                 ->orWhere('rfc', 'like', "%{$term}%");
         });
     }
 
-    /**
-     * (Opcional) Scope de activos si manejas un flag.
-     */
-    public function scopeActive(Builder $q): Builder
+    public function scopeActive(Builder $query): Builder
     {
-        return $q->when($this->getTableColumnsCached()['is_active'] ?? false, function ($qq) {
-            $qq->where('is_active', 1);
-        });
+        return $query->where('is_active', true);
     }
 
-    /**
-     * Accessor: devuelve la situación EFOS actual (o null si no está en lista).
-     * Útil para mostrar badges/advertencias en UI.
-     */
     public function getEfosStatusAttribute(): ?string
     {
         return DB::table('sat_efos_69b as e')
@@ -207,68 +277,61 @@ class Supplier extends Model
             ->value('situation');
     }
 
-    /**
-     * Accessor booleano: true si es EFOS (Definitivo/Presunto).
-     */
     public function getIsEfosAttribute(): bool
     {
-        $status = $this->efos_status; // usa accessor anterior
+        $status = $this->efos_status;
+
         return in_array($status, ['Definitivo', 'Presunto'], true);
     }
 
-    /**
-     * (Opcional avanzado) cacheo simple de columnas de la tabla para scopes condicionales.
-     */
     protected function getTableColumnsCached(): array
     {
         static $cache = null;
-        if ($cache !== null)
+
+        if ($cache !== null) {
             return $cache;
+        }
 
         $connection = $this->getConnection();
         $table = $this->getTable();
 
-        // SQL Server: consulta INFORMATION_SCHEMA
         $cols = $connection->table('INFORMATION_SCHEMA.COLUMNS')
             ->select('COLUMN_NAME')
             ->where('TABLE_NAME', $table)
             ->pluck('COLUMN_NAME')
-            ->mapWithKeys(fn($c) => [$c => true])
+            ->mapWithKeys(fn ($c) => [$c => true])
             ->all();
 
         return $cache = $cols;
     }
 
-    // En app/Models/Supplier.php
-
-    /**
-     * RFQs enviadas a este proveedor.
-     */
     public function rfqs()
     {
         return $this->belongsToMany(Rfq::class, 'rfq_suppliers')
-            ->using(RfqSupplier::class) // 👈 Especificar modelo pivot personalizado
+            ->using(RfqSupplier::class)
             ->withPivot([
                 'invited_at',
                 'responded_at',
-                'quotation_pdf_path', // 👈 Agregar campo
-                'notes'
+                'quotation_pdf_path',
+                'notes',
             ])
             ->withTimestamps();
     }
 
-    /**
-     * Cotizaciones respondidas por este proveedor.
-     */
     public function rfqResponses(): HasManyThrough
     {
         return $this->hasManyThrough(
             RfqResponse::class,
             Rfq::class,
-            'supplier_id',    // Foreign key en rfqs
-            'rfq_id',         // Foreign key en rfq_responses
-            'id',             // Local key en suppliers
-            'id'              // Local key en rfqs
+            'supplier_id',
+            'rfq_id',
+            'id',
+            'id'
         );
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

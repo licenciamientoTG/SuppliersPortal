@@ -27,7 +27,7 @@ return new class extends Migration
             $table->decimal('total', 12, 2);
             $table->string('currency', 3)->default('MXN');
             $table->timestamp('issued_at')->nullable();
-            $table->foreignId('uploaded_by')->constrained('users')->noActionOnDelete();
+            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('uploaded_origin', 20);
             $table->string('status', 30)->default('UPLOADED');
             $table->timestamp('linked_at')->nullable();

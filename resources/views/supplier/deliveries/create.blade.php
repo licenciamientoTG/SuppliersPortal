@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 
 @section('title', 'Registrar Entrega — ' . ($order->folio ?? 'OC'))
 @section('page.title', 'Registrar Entrega')

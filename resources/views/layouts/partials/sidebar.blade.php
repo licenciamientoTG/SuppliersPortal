@@ -14,7 +14,8 @@
       - All other authenticated users (staff roles) → sidebar-staff.blade.php
 --}}
 <div class="sidenav-menu">
-    <a href="{{ route('dashboard') }}" class="logo">
+    @php($isSupplierGuard = auth('supplier')->check())
+    <a href="{{ $isSupplierGuard ? route('supplier.documents.index') : route('dashboard') }}" class="logo">
         <span class="logo-light">
             <span class="logo-lg"><img src="{{ asset('images/logos/logo_TotalGas_hor_azul.png') }}" alt="TotalGas" class="sidenav-logo-img"></span>
             <span class="logo-sm"><img src="{{ asset('images/logos/logo_TotalGas_hor_azul.png') }}" alt="TotalGas" class="sidenav-logo-img"></span>
@@ -35,11 +36,11 @@
 
     <div data-simplebar>
         <ul class="side-nav">
-            @hasrole('supplier')
+            @if($isSupplierGuard)
                 @include('layouts.partials.sidebar-supplier')
             @else
                 @include('layouts.partials.sidebar-staff')
-            @endhasrole
+            @endif
         </ul>
 
         <!-- Help Box -->

@@ -32,11 +32,6 @@
                 <i class="ti ti-building-bank me-2 text-secondary"></i> Centros de Costo
             </a>
         </li>
-        <li>
-            <a class="dropdown-item js-open-user-modal" href="#" data-url="{{ route('users.supplier.edit', $user) }}">
-                <i class="ti ti-building-store me-2 text-secondary"></i> Datos de Proveedor
-            </a>
-        </li>
         <li><hr class="dropdown-divider"></li>
         <li>
             <a class="dropdown-item js-toggle-active" href="#" data-url="{{ route('users.toggle', $user) }}">

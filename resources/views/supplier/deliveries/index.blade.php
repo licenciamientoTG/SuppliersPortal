@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 
 @section('title', 'Entregas — Portal de Proveedores')
 @section('page.title', 'Mis Entregas')

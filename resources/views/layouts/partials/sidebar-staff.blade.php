@@ -314,8 +314,8 @@
     <div class="{{ $openSuppliers ? 'show' : '' }} collapse" id="sidebarGestionProveedores">
         <ul class="sub-menu">
             <li class="side-nav-item">
-                <a href="{{ route('cat-suppliers.index') }}"
-                    class="side-nav-link {{ request()->routeIs('cat-suppliers.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.suppliers.index') }}"
+                    class="side-nav-link {{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
                     <span class="menu-text">Lista de Proveedores</span>
                 </a>
             </li>

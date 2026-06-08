@@ -127,7 +127,7 @@ class QuotationRejectionWorkflowService
     public function cancelRejectedRfq(Rfq $rfq, int $userId, string $reason): void
     {
         DB::transaction(function () use ($rfq, $userId, $reason) {
-            $rfq->loadMissing('quotationSummary', 'quotationGroup', 'requisition', 'suppliers.user', 'requisition.requester');
+            $rfq->loadMissing('quotationSummary', 'quotationGroup', 'requisition', 'suppliers', 'requisition.requester');
 
             if ($rfq->quotationSummary && $rfq->quotationSummary->isPending()) {
                 $rfq->quotationSummary->reject($userId, $reason);
@@ -151,7 +151,7 @@ class QuotationRejectionWorkflowService
             $requisition->loadMissing([
                 'requester',
                 'rfqs.quotationSummary',
-                'rfqs.suppliers.user',
+                'rfqs.suppliers',
                 'quotationGroups',
             ]);
 
@@ -280,9 +280,7 @@ class QuotationRejectionWorkflowService
 
         if ($rfq->status !== 'DRAFT') {
             foreach ($rfq->suppliers as $supplier) {
-                if ($supplier->user) {
-                    $supplier->user->notify(new RfqCancelledForSupplierNotification($rfq, $reason));
-                }
+                $supplier->notify(new RfqCancelledForSupplierNotification($rfq, $reason));
             }
         }
     }

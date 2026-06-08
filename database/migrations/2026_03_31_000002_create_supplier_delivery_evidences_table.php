@@ -26,7 +26,9 @@ return new class extends Migration
             $table->string('file_format', 10)
                   ->comment('Extensión del archivo: pdf, jpg, png');
             $table->foreignId('uploaded_by')
+                  ->nullable()
                   ->constrained('users')
+                  ->nullOnDelete()
                   ->comment('Usuario proveedor que subió la evidencia');
             $table->dateTime('uploaded_at')
                   ->comment('Fecha y hora de carga');

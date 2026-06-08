@@ -30,7 +30,7 @@ class SupplierDeliveryController extends Controller
      */
     public function index()
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         if (!$supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado.');
@@ -59,7 +59,7 @@ class SupplierDeliveryController extends Controller
      */
     public function create(Request $request)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
         $order = $this->resolveOrder($request->query('type'), $request->query('id'));
 
         if (!$order) {
@@ -106,7 +106,7 @@ class SupplierDeliveryController extends Controller
      */
     public function store(Request $request)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         $request->validate([
             'order_type'              => 'required|in:standard,direct',
@@ -151,7 +151,7 @@ class SupplierDeliveryController extends Controller
                 'evidenceable_id'   => $order->id,
                 'file_path'         => $path,
                 'file_format'       => $extension,
-                'uploaded_by'       => Auth::id(),
+                'uploaded_by'       => Auth::guard('web')->id(),
                 'uploaded_at'       => now(),
             ]);
 

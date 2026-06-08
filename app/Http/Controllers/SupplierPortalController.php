@@ -20,7 +20,7 @@ class SupplierPortalController extends Controller
      */
     private function verifySupplierAccess(Rfq $rfq): void
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         if (!$supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
@@ -287,8 +287,7 @@ class SupplierPortalController extends Controller
      */
     public function dashboard()
     {
-        // Obtener el proveedor del usuario autenticado
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         if (!$supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
@@ -336,7 +335,7 @@ class SupplierPortalController extends Controller
      */
     public function showRfq(Rfq $rfq)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         if (!$supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
@@ -397,7 +396,7 @@ class SupplierPortalController extends Controller
         // PASO 1: VERIFICAR ACCESO DEL PROVEEDOR
         // =========================================================================
         $this->verifySupplierAccess($rfq);
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         // =========================================================================
         // PASO 2: VALIDAR DATOS DEL FORMULARIO
@@ -454,7 +453,7 @@ class SupplierPortalController extends Controller
      */
     public function quotationHistory()
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         $responses = RfqResponse::where('supplier_id', $supplier->id)
             ->with([
@@ -475,7 +474,7 @@ class SupplierPortalController extends Controller
      */
     public function downloadAttachment(RfqResponse $response)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         // Verificar que la respuesta pertenezca al proveedor
         if ($response->supplier_id !== $supplier->id) {
@@ -497,7 +496,7 @@ class SupplierPortalController extends Controller
      */
     public function deleteDraft(RfqResponse $response)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
 
         // Verificar acceso y que sea borrador
         if ($response->supplier_id !== $supplier->id) {

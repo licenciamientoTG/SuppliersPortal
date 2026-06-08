@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 
 {{-- TÍTULO DE LA PÁGINA --}}
 @section('title', 'Announcements')

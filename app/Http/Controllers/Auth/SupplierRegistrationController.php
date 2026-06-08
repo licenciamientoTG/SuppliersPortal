@@ -24,85 +24,65 @@ class SupplierRegistrationController extends Controller
     {
         $data = $request->validated();
 
-        return DB::transaction(function () use ($data) {
-            // 1) Crear usuario
-            $user = User::create([
-                'name'       => trim($data['first_name'] . ' ' . $data['last_name']),
-                'first_name' => $data['first_name'],
-                'last_name'  => $data['last_name'],
-                'email'      => $data['email'],
-                'password'   => $data['password'], // Se hashea por cast "hashed".
-                'is_active'  => true,
-            ]);
-
-            if (method_exists($user, 'assignRole')) {
-                $user->assignRole('supplier');
-            }
-
-            // 2) Preparar datos REPSE
+        return DB::transaction(function () use ($data, $request) {
             $repseData = $this->prepareRepseData($data);
 
-            // 3) Crear supplier (incluyendo campos REPSE)
             $supplier = Supplier::create([
-                'user_id'       => $user->id,
-                'company_name'  => $data['company_name'],
-                'rfc'           => strtoupper($data['rfc']),
-                'address'       => $data['address'],
-                'postal_code'   => $data['postal_code'],
-                'phone_number'  => $data['phone_number'],
-                'email'         => $user->email,
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'is_active' => true,
+                'company_name' => $data['company_name'],
+                'rfc' => strtoupper($data['rfc']),
+                'address' => $data['address'],
+                'postal_code' => $data['postal_code'],
+                'phone_number' => $data['phone_number'],
                 'contact_person' => $data['contact_person'],
                 'contact_phone' => $data['contact_phone'] ?? null,
                 'supplier_type' => $data['supplier_type'],
-                'person_type'   => $data['person_type'],
-                'tax_regimes'   => SupplierFiscalCatalog::normalizeSelectedRegimes(
+                'person_type' => $data['person_type'],
+                'tax_regimes' => SupplierFiscalCatalog::normalizeSelectedRegimes(
                     $data['person_type'],
                     $data['tax_regimes'] ?? []
                 ),
                 'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
                     $data['economic_activity'] ?? []
                 ),
-
-                // Nuevos campos REPSE
                 'provides_specialized_services' => $repseData['provides_specialized_services'],
-                'repse_registration_number'     => $repseData['repse_registration_number'],
-                'repse_expiry_date'            => $repseData['repse_expiry_date'],
-                'specialized_services_types'   => $repseData['specialized_services_types'],
-
-                // Condiciones de pago por defecto
+                'repse_registration_number' => $repseData['repse_registration_number'],
+                'repse_expiry_date' => $repseData['repse_expiry_date'],
+                'specialized_services_types' => $repseData['specialized_services_types'],
                 'default_payment_terms' => $data['default_payment_terms'],
-
-                // Bancarios: null hasta activación
-                'bank_name'      => null,
+                'bank_name' => null,
                 'account_number' => null,
-                'clabe'          => null,
-                'currency'       => null,
+                'clabe' => null,
+                'currency' => null,
+                'approval_status' => 'pending',
+                'document_status' => 'pending',
             ]);
 
             $this->notifyBuyersAboutNewSupplier($supplier);
+            $this->sendWelcomeToSupplier($supplier, $data['password']);
 
-            // 4) Correo de bienvenida al proveedor (con sus credenciales de acceso)
-            $this->sendWelcomeToSupplier($user, $data['password']);
+            Auth::guard('supplier')->login($supplier);
+            $request->session()->put('auth.guard', 'supplier');
 
-            // 5) Login + verificación de correo
-            Auth::login($user);
-
-            // 5) Mensaje personalizado según si requiere REPSE
             $message = $this->getSuccessMessage($repseData['provides_specialized_services']);
 
-            return redirect()->route('dashboard')->with('status', $message);
+            return redirect()->route('supplier.documents.index')->with('status', $message);
         });
     }
 
-    private function sendWelcomeToSupplier(User $user, string $plainPassword): void
+    private function sendWelcomeToSupplier(Supplier $supplier, string $plainPassword): void
     {
         try {
-            $user->notify(new SupplierWelcomeNotification($plainPassword));
+            $supplier->notify(new SupplierWelcomeNotification($plainPassword));
         } catch (\Exception $e) {
             Log::error('Error al enviar correo de bienvenida al proveedor.', [
-                'user_id'    => $user->id,
-                'user_email' => $user->email,
-                'error'      => $e->getMessage(),
+                'supplier_id' => $supplier->id,
+                'supplier_email' => $supplier->email,
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -110,8 +90,6 @@ class SupplierRegistrationController extends Controller
     private function notifyBuyersAboutNewSupplier(Supplier $supplier): void
     {
         try {
-            // Destinatarios: Compras (buyer) y Superadministrador. El scope role()
-            // con arreglo hace OR y devuelve cada usuario una sola vez (sin duplicados).
             $recipients = User::role(['buyer', 'superadmin'])->get();
 
             if ($recipients->isEmpty()) {
@@ -145,25 +123,22 @@ class SupplierRegistrationController extends Controller
         }
     }
 
-    /**
-     * Preparar y limpiar datos REPSE
-     */
     private function prepareRepseData(array $data): array
     {
         $providesSpecializedServices = ($data['provides_specialized_services'] ?? 0) == 1;
 
-        if (!$providesSpecializedServices) {
+        if (! $providesSpecializedServices) {
             return [
                 'provides_specialized_services' => false,
-                'repse_registration_number'     => null,
-                'repse_expiry_date'            => null,
-                'specialized_services_types'   => null,
+                'repse_registration_number' => null,
+                'repse_expiry_date' => null,
+                'specialized_services_types' => null,
             ];
         }
 
         $specializedServices = $data['specialized_services_types'] ?? [];
 
-        if (in_array('otros', $specializedServices) && !empty($data['otros_descripcion'])) {
+        if (in_array('otros', $specializedServices) && ! empty($data['otros_descripcion'])) {
             $key = array_search('otros', $specializedServices);
             if ($key !== false) {
                 $specializedServices[$key] = 'otros: ' . trim($data['otros_descripcion']);
@@ -172,15 +147,12 @@ class SupplierRegistrationController extends Controller
 
         return [
             'provides_specialized_services' => true,
-            'repse_registration_number'     => $this->formatRepseNumber($data['repse_registration_number'] ?? ''),
-            'repse_expiry_date'            => $data['repse_expiry_date'] ?? null,
-            'specialized_services_types'   => !empty($specializedServices) ? $specializedServices : null,
+            'repse_registration_number' => $this->formatRepseNumber($data['repse_registration_number'] ?? ''),
+            'repse_expiry_date' => $data['repse_expiry_date'] ?? null,
+            'specialized_services_types' => ! empty($specializedServices) ? $specializedServices : null,
         ];
     }
 
-    /**
-     * Formatear número REPSE (agregar prefijo si no existe)
-     */
     private function formatRepseNumber(string $number): ?string
     {
         if (empty($number)) {
@@ -189,19 +161,16 @@ class SupplierRegistrationController extends Controller
 
         $number = strtoupper(trim($number));
 
-        if (!str_starts_with($number, 'REPSE-')) {
+        if (! str_starts_with($number, 'REPSE-')) {
             $number = 'REPSE-' . $number;
         }
 
         return $number;
     }
 
-    /**
-     * Generar mensaje de éxito personalizado
-     */
     private function getSuccessMessage(bool $providesSpecializedServices): string
     {
-        $baseMessage = 'Cuenta creada exitosamente. Por favor, carga tus documentos en la sección `Documentación` en el menú lateral.';
+        $baseMessage = 'Cuenta creada exitosamente. Por favor, carga tus documentos en la sección Documentación.';
 
         if ($providesSpecializedServices) {
             $baseMessage .= ' Como proveedor de servicios especializados, asegúrate de subir también tu certificado REPSE.';

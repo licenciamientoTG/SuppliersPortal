@@ -543,7 +543,7 @@ class RfqController extends Controller
             'reason' => 'required|string|min:10|max:500',
         ]);
         try {
-            $rfq = Rfq::with(['requisition.requester', 'suppliers.user', 'rfqResponses', 'quotationGroup'])
+            $rfq = Rfq::with(['requisition.requester', 'suppliers', 'rfqResponses', 'quotationGroup'])
                 ->findOrFail($id);
             if ($rfq->status === 'COMPLETED') {
                 return response()->json(['success' => false, 'message' => 'No se puede cancelar una solicitud completada.'], 422);
@@ -591,7 +591,7 @@ class RfqController extends Controller
         }
 
         // ✅ CORREGIDO: Obtener proveedores con status APPROVED
-        $suppliers = Supplier::where('status', 'approved')
+        $suppliers = Supplier::approved()
             ->orderBy('company_name')
             ->get();
 
@@ -954,50 +954,13 @@ class RfqController extends Controller
                     'invited_at' => now(),
                 ]);
 
-                // Normalizar correos para comparación (evitar fallos por mayúsculas o espacios en SQL Server)
-                $supplierEmail = strtolower(trim($supplier->email));
-                $user = $supplier->user; // Relación definida en el modelo Supplier
-                $userEmail = $user ? strtolower(trim($user->email)) : null;
+                $supplier->notify(new NewRfqForSupplierNotification($rfq));
 
-                /**
-                 * ESTRATEGIA DE FUEGO SELECTIVO:
-                 * Si el correo de la empresa y el del usuario son el mismo, enviamos solo uno.
-                 * Priorizamos al modelo 'User' para que se registre la notificación en la DB
-                 * y aparezca en la "campanita" del template Zircos.
-                 */
-                if ($user && $supplierEmail === $userEmail) {
-                    // Caso A: Correos idénticos. Notificación única al Usuario.
-                    $user->notify(new NewRfqForSupplierNotification($rfq));
-
-                    Log::info('📧 Notificación única enviada (Correo duplicado detectado)', [
-                        'rfq_id' => $rfq->id,
-                        'supplier_id' => $supplier->id,
-                        'email' => $supplierEmail
-                    ]);
-                } else {
-                    // Caso B: Correos diferentes o no existe usuario vinculado.
-
-                    // Notificar siempre al correo institucional de la empresa (Supplier)
-                    $supplier->notify(new NewRfqForSupplierNotification($rfq));
-
-                    // Si existe un usuario con correo distinto, enviarle también su notificación
-                    if ($user) {
-                        $user->notify(new NewRfqForSupplierNotification($rfq));
-
-                        Log::info('📧 Notificación doble enviada (Correos distintos)', [
-                            'rfq_id' => $rfq->id,
-                            'supplier_id' => $supplier->id,
-                            'empresa_email' => $supplierEmail,
-                            'usuario_email' => $userEmail
-                        ]);
-                    } else {
-                        Log::info('📧 Notificación enviada solo a correo institucional', [
-                            'rfq_id' => $rfq->id,
-                            'supplier_id' => $supplier->id,
-                            'empresa_email' => $supplierEmail
-                        ]);
-                    }
-                }
+                Log::info('RFQ notification sent to supplier account', [
+                    'rfq_id' => $rfq->id,
+                    'supplier_id' => $supplier->id,
+                    'supplier_email' => strtolower(trim((string) $supplier->email)),
+                ]);
             }
 
             return response()->json([

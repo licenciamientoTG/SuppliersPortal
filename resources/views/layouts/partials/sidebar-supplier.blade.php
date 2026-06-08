@@ -1,5 +1,5 @@
 @php
-    $u = auth()->user();
+    $u = auth('supplier')->user();
     $openSupplierRfq = request()->routeIs('supplier.rfq.*') || request()->routeIs('supplier.quotations.*');
     $openFacturacion = request()->routeIs('supplier.invoices.*');
 @endphp
@@ -8,8 +8,7 @@
 
 <li class="side-nav-title">PORTAL DE PROVEEDORES</li>
 
-@moduleAccess('supplier_documents')
-@if ($u->mustFinishSupplierOnboarding())
+@if ($u->hasRestrictedPortalAccess())
     <li class="side-nav-item">
         <a href="{{ route('supplier.documents.index') }}"
             class="side-nav-link {{ request()->routeIs('supplier.documents.*') ? 'active' : '' }}">
@@ -19,7 +18,6 @@
         </a>
     </li>
 @else
-    @moduleAccess('dashboard')
     <li class="side-nav-item">
         <a href="{{ route('supplier.dashboard') }}"
             class="side-nav-link {{ request()->routeIs('supplier.dashboard') ? 'active' : '' }}">
@@ -27,9 +25,7 @@
             <span class="menu-text">Dashboard</span>
         </a>
     </li>
-    @endmoduleAccess
 
-    @moduleAccess('quotations')
     <li class="side-nav-item">
         <a class="side-nav-link {{ $openSupplierRfq ? '' : 'collapsed' }}"
             data-bs-toggle="collapse"
@@ -58,7 +54,6 @@
             </ul>
         </div>
     </li>
-    @endmoduleAccess
 
     <li class="side-nav-item">
         <a href="{{ route('supplier.documents.index') }}"
@@ -68,7 +63,6 @@
         </a>
     </li>
 
-    @moduleAccess('supplier_communicator')
     <li class="side-nav-item">
         <a href="{{ route('supplier.announcements.inbox') }}"
             class="side-nav-link {{ request()->routeIs('supplier.announcements.*') ? 'active' : '' }}">
@@ -76,9 +70,7 @@
             <span class="menu-text">Comunicados</span>
         </a>
     </li>
-    @endmoduleAccess
 
-    @moduleAccess('receptions')
     <li class="side-nav-item">
         <a href="{{ route('supplier.deliveries.index') }}"
             class="side-nav-link {{ request()->routeIs('supplier.deliveries.*') ? 'active' : '' }}">
@@ -86,9 +78,7 @@
             <span class="menu-text">Mis Entregas</span>
         </a>
     </li>
-    @endmoduleAccess
 
-    @moduleAccess('supplier_billing')
     <li class="side-nav-item">
         <a class="side-nav-link {{ $openFacturacion ? '' : 'collapsed' }}"
             data-bs-toggle="collapse"
@@ -115,6 +105,4 @@
             </ul>
         </div>
     </li>
-    @endmoduleAccess
 @endif
-@endmoduleAccess

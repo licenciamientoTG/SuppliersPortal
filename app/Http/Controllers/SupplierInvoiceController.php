@@ -17,7 +17,7 @@ class SupplierInvoiceController extends Controller
 
     public function index()
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
         abort_if(! $supplier, 403);
 
         $invoices = SupplierInvoice::with(['financialProvision.reception', 'receivable'])
@@ -30,7 +30,7 @@ class SupplierInvoiceController extends Controller
 
     public function create()
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
         abort_if(! $supplier, 403);
 
         $orders = $this->supplierOrders($supplier->id);
@@ -40,7 +40,7 @@ class SupplierInvoiceController extends Controller
 
     public function store(Request $request)
     {
-        $supplier = Auth::user()->supplier;
+        $supplier = Auth::guard('supplier')->user();
         abort_if(! $supplier, 403);
 
         $validated = $request->validate([
@@ -58,7 +58,7 @@ class SupplierInvoiceController extends Controller
             order: $order,
             xmlFile: $request->file('xml_file'),
             pdfFile: $request->file('pdf_file'),
-            uploader: Auth::user(),
+            uploader: Auth::guard('web')->user(),
             origin: SupplierInvoice::ORIGIN_SUPPLIER,
         );
 

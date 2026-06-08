@@ -100,6 +100,8 @@ class DocumentReviewController extends Controller
                 'reviewed_by'  => $request->user()->id,
                 'reviewed_at'  => now(),
             ]);
+
+            $document->supplier?->recalculateDocumentStatus();
         });
 
         // Respuesta JSON para AJAX
@@ -130,6 +132,8 @@ class DocumentReviewController extends Controller
                 'reviewed_by'      => $request->user()->id,
                 'reviewed_at'      => now(),
             ]);
+
+            $document->supplier?->recalculateDocumentStatus();
         });
 
         if ($request->wantsJson()) {

@@ -16,7 +16,7 @@ class NotificationController extends Controller
     public function index(Request $request): View
     {
         $notifications = $this->notificationCenter
-            ->queryForUser($request->user())
+            ->queryForUser($this->resolveAuthenticatable($request))
             ->latest()
             ->paginate(20);
 
@@ -25,7 +25,7 @@ class NotificationController extends Controller
 
     public function open(Request $request, string $notification): RedirectResponse
     {
-        $notificationModel = $this->notificationCenter->findForUser($request->user(), $notification);
+        $notificationModel = $this->notificationCenter->findForUser($this->resolveAuthenticatable($request), $notification);
 
         abort_unless($notificationModel, 404);
 
@@ -40,7 +40,7 @@ class NotificationController extends Controller
 
     public function markAsRead(Request $request, string $notification): RedirectResponse
     {
-        $notificationModel = $this->notificationCenter->findForUser($request->user(), $notification);
+        $notificationModel = $this->notificationCenter->findForUser($this->resolveAuthenticatable($request), $notification);
 
         abort_unless($notificationModel, 404);
 
@@ -53,8 +53,12 @@ class NotificationController extends Controller
 
     public function markAllAsRead(Request $request): RedirectResponse
     {
-        $this->notificationCenter->markAllAsReadForUser($request->user());
+        $this->notificationCenter->markAllAsReadForUser($this->resolveAuthenticatable($request));
 
         return back()->with('status', 'Todas las notificaciones fueron marcadas como leídas.');
+    }
+    private function resolveAuthenticatable(Request $request): mixed
+    {
+        return $request->user('supplier') ?? $request->user('web') ?? $request->user();
     }
 }

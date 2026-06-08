@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,5 +28,23 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertGuest();
+    }
+
+    public function test_suppliers_can_authenticate_with_their_own_guard(): void
+    {
+        $supplier = Supplier::factory()->create([
+            'email' => 'proveedor@login.test',
+            'password' => 'Password123!',
+            'approval_status' => 'pending',
+            'document_status' => 'pending',
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => $supplier->email,
+            'password' => 'Password123!',
+        ]);
+
+        $response->assertRedirect(route('supplier.documents.index'));
+        $this->assertAuthenticated('supplier');
     }
 }

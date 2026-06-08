@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Supplier;
 use App\Models\SupplierSiroc;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class SupplierSirocController extends Controller
@@ -14,6 +15,7 @@ class SupplierSirocController extends Controller
      */
     public function index(Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
         $sirocs = $supplier->sirocs()->latest()->paginate(10);
         return view('sirocs.suppliers.index', compact('supplier', 'sirocs'));
     }
@@ -35,6 +37,7 @@ class SupplierSirocController extends Controller
      */
     public function create(Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
         return view('sirocs.suppliers.create', compact('supplier'));
     }
 
@@ -43,6 +46,7 @@ class SupplierSirocController extends Controller
      */
     public function store(Request $request, Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
         $validated = $request->validate([
             'siroc_number'    => 'required|string|max:50',
             'contract_number' => 'nullable|string|max:100',
@@ -76,6 +80,7 @@ class SupplierSirocController extends Controller
      */
     public function show(Supplier $supplier, SupplierSiroc $siroc)
     {
+        $this->authorizeSupplier($supplier);
         return view('sirocs.suppliers.show', compact('supplier', 'siroc'));
     }
 
@@ -84,6 +89,7 @@ class SupplierSirocController extends Controller
      */
     public function edit(Supplier $supplier, SupplierSiroc $siroc)
     {
+        $this->authorizeSupplier($supplier);
         return view('sirocs.suppliers.edit', compact('supplier', 'siroc'));
     }
 
@@ -92,6 +98,7 @@ class SupplierSirocController extends Controller
      */
     public function update(Request $request, Supplier $supplier, SupplierSiroc $siroc)
     {
+        $this->authorizeSupplier($supplier);
         // Asegura que el SIROC corresponda al supplier de la ruta
         if ($siroc->supplier_id != $supplier->id) {
             return response()->json([
@@ -154,6 +161,7 @@ class SupplierSirocController extends Controller
      */
     public function destroy(Request $request, Supplier $supplier, SupplierSiroc $siroc)
     {
+        $this->authorizeSupplier($supplier);
         // Asegura pertenencia al supplier de la ruta
         if ($siroc->supplier_id != $supplier->id) {
             return response()->json([
@@ -180,6 +188,13 @@ class SupplierSirocController extends Controller
             return response()->json([
                 'message' => 'No se pudo eliminar el SIROC. Inténtalo nuevamente.'
             ], 500);
+        }
+    }
+
+    private function authorizeSupplier(Supplier $supplier): void
+    {
+        if (Auth::guard('supplier')->check()) {
+            abort_unless((int) Auth::guard('supplier')->id() === (int) $supplier->id, 403);
         }
     }
 }

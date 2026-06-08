@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\Supplier;
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -11,19 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -32,16 +26,15 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $credentials = $this->only('email', 'password');
+        $remember = $this->boolean('remember');
+        $guard = $this->resolveGuardForEmail((string) $this->input('email'));
+
+        if (! $guard || ! Auth::guard($guard)->attempt($credentials, $remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -49,24 +42,22 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        // ✅ Bloquea acceso si el usuario está inactivo
-        $user = Auth::user();
-        if (! $user->is_active) {
-            Auth::logout();
+        Auth::shouldUse($guard);
+
+        $authenticatable = Auth::guard($guard)->user();
+        if (! $authenticatable->is_active) {
+            Auth::guard($guard)->logout();
 
             throw ValidationException::withMessages([
                 'email' => 'Tu cuenta está inactiva. Contacta al administrador.',
             ]);
         }
 
+        $this->session()->put('auth.guard', $guard);
+
         RateLimiter::clear($this->throttleKey());
     }
 
-    /**
-     * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function ensureIsNotRateLimited(): void
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -85,11 +76,23 @@ class LoginRequest extends FormRequest
         ]);
     }
 
-    /**
-     * Get the rate limiting throttle key for the request.
-     */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());
+    }
+
+    private function resolveGuardForEmail(string $email): ?string
+    {
+        $normalized = Str::lower(trim($email));
+
+        if (User::query()->whereRaw('LOWER(email) = ?', [$normalized])->exists()) {
+            return 'web';
+        }
+
+        if (Supplier::query()->whereRaw('LOWER(email) = ?', [$normalized])->exists()) {
+            return 'supplier';
+        }
+
+        return null;
     }
 }

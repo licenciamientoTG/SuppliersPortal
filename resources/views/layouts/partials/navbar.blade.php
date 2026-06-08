@@ -1,10 +1,16 @@
 <!-- Topbar Start -->
 <header class="app-topbar">
+    @php
+        $authUser = auth('supplier')->user() ?? auth()->user();
+        $isSupplierGuard = auth('supplier')->check();
+        $homeRoute = $isSupplierGuard ? route('supplier.documents.index') : route('dashboard');
+        $displayName = $isSupplierGuard ? ($authUser?->company_name ?? $authUser?->name) : ($authUser?->name);
+    @endphp
     <div class="page-container topbar-menu">
         <div class="d-flex align-items-center gap-2">
 
             <!-- Brand Logo -->
-            <a href="{{ route('dashboard') }}" class="logo">
+            <a href="{{ $homeRoute }}" class="logo">
                 <span class="logo-light">
                     <span class="logo-lg"><img src="{{ asset('images/logos/logo_TotalGas_hor_verde.png') }}" alt="logo"></span>
                     <span class="logo-sm"><img src="{{ asset('images/logos/logo_TotalGas_hor_verde.png') }}" alt="small logo"></span>
@@ -51,7 +57,7 @@
         <div class="d-flex align-items-center gap-2">
 
             <!-- Log Viewer (solo dev) -->
-            @if(Auth::id() === 1)
+            @if(!$isSupplierGuard && Auth::id() === 1)
             <div class="topbar-item">
                 <a href="{{ route('dev.log.index') }}" class="topbar-link" title="Ver Log del sistema">
                     <i class="ti ti-bug fs-22 text-danger"></i>
@@ -314,23 +320,30 @@
             <div class="topbar-item nav-user">
                 <div class="dropdown">
                     <a class="topbar-link dropdown-toggle drop-arrow-none px-2" data-bs-toggle="dropdown" data-bs-offset="0,19" type="button" aria-haspopup="false" aria-expanded="false">
-                        <img src="{{ Auth::user()?->avatar ? asset('storage/' . Auth::user()?->avatar) : asset('images/users/avatar-1.jpg') }}" width="32" class="rounded-circle me-lg-2 d-flex" alt="user-image">
+                        <img src="{{ !$isSupplierGuard && Auth::user()?->avatar ? asset('storage/' . Auth::user()?->avatar) : asset('images/users/avatar-1.jpg') }}" width="32" class="rounded-circle me-lg-2 d-flex" alt="user-image">
                         <span class="d-lg-flex flex-column gap-1 d-none">
-                            <h5 class="my-0 fs-13 fw-semibold">{{ Auth::user()?->name }}</h5>
+                            <h5 class="my-0 fs-13 fw-semibold">{{ $displayName }}</h5>
                         </span>
                         <i class="ti ti-chevron-down d-none d-lg-block align-middle ms-2"></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
                         <!-- item-->
                         <div class="dropdown-header noti-title">
-                            <h6 class="text-overflow m-0">¡Bienvenido, {{ Auth::user()?->name }}!</h6>
+                            <h6 class="text-overflow m-0">¡Bienvenido, {{ $displayName }}!</h6>
                         </div>
 
                         <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#profileModal">
-                            <i class="ti ti-user-hexagon me-1 fs-17 align-middle"></i>
-                            <span class="align-middle">Mi cuenta</span>
-                        </a>
+                        @if($isSupplierGuard)
+                            <a href="{{ route('supplier.documents.index') }}" class="dropdown-item">
+                                <i class="ti ti-user-hexagon me-1 fs-17 align-middle"></i>
+                                <span class="align-middle">Mi cuenta</span>
+                            </a>
+                        @else
+                            <a href="javascript:void(0);" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                <i class="ti ti-user-hexagon me-1 fs-17 align-middle"></i>
+                                <span class="align-middle">Mi cuenta</span>
+                            </a>
+                        @endif
 
                         <!-- item-->
                         <a href="javascript:void(0);" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#reportIssueModal">
@@ -341,10 +354,12 @@
                         <div class="dropdown-divider"></div>
 
                         <!-- item-->
-                        <form id="lock-form" method="POST" action="{{ route('lockscreen.lock') }}">
-                            @csrf
-                            <button type="submit" class="dropdown-item"><i class="ti ti-lock-square-rounded me-1 fs-17 align-middle"></i> Bloquear pantalla</button>
-                        </form>
+                        @unless($isSupplierGuard)
+                            <form id="lock-form" method="POST" action="{{ route('lockscreen.lock') }}">
+                                @csrf
+                                <button type="submit" class="dropdown-item"><i class="ti ti-lock-square-rounded me-1 fs-17 align-middle"></i> Bloquear pantalla</button>
+                            </form>
+                        @endunless
 
                         <!-- item-->
                         <form action="{{ route('logout') }}" method="POST">

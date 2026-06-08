@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 
 @section('title', 'Mis Facturas')
 @section('page.title', 'Mis Facturas')

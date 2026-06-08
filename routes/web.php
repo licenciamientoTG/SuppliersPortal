@@ -74,11 +74,14 @@ Route::get('/', fn () => redirect()->route('login'));
 // ============================================================================
 //  Lock Screen (solo requiere autenticación, no lock)
 // ============================================================================
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth:web'])->group(function () {
     Route::post('/lock', [LockScreenController::class, 'lock'])->name('lockscreen.lock');
     Route::get('/lock', [LockScreenController::class, 'show'])->name('lockscreen.show');
     Route::post('/unlock', [LockScreenController::class, 'unlock'])->name('lockscreen.unlock');
 
+});
+
+Route::middleware(['auth:web,supplier'])->group(function () {
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::get('/{notification}/open', [NotificationController::class, 'open'])->name('open');
@@ -127,15 +130,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/datatable', [UserController::class, 'datatable'])->name('datatable');
         Route::get('/create', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
-
-        // Suppliers
-        Route::get('/suppliers', [UserController::class, 'SupplierIndex'])->name('suppliers.index');
-        Route::get('/suppliers/datatable', [UserController::class, 'suppliersDatatable'])->name('suppliers.datatable');
-        Route::get('/suppliers/{user}/edit', [UserController::class, 'editSupplier'])->name('suppliers.edit');
-        Route::patch('/suppliers/{user}/toggle', [UserController::class, 'toggleSupplier'])->name('suppliers.toggle');
-        Route::delete('/suppliers/{user}', [UserController::class, 'destroySupplier'])->name('suppliers.destroy');
-        Route::put('/suppliers/{user}', [UserController::class, 'updateSupplier'])->name('suppliers.update');
-
         // Staff (rutas con parámetros)
         Route::get('/{user}', [UserController::class, 'show'])->name('staff.show');
         Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
@@ -154,9 +148,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::patch('/{user}/cost-centers', [UserController::class, 'updateCostCenters'])->name('cost-centers.update');
 
         // Supplier relación directa
-        Route::get('/{user}/supplier/edit', [SupplierController::class, 'edit'])->name('supplier.edit');
-        Route::post('/{user}/supplier', [SupplierController::class, 'store'])->name('supplier.store');
-        Route::put('/{user}/supplier', [SupplierController::class, 'update'])->name('supplier.update');
     });
 
     // ========================================================================
@@ -180,6 +171,17 @@ Route::middleware(['auth', 'lock'])->group(function () {
             Route::get('/suppliers/{supplier}', [DocumentReviewController::class, 'showSupplier'])->name('suppliers.show');
             Route::post('/documents/{document}/accept', [DocumentReviewController::class, 'accept'])->name('documents.accept');
             Route::post('/documents/{document}/reject', [DocumentReviewController::class, 'reject'])->name('documents.reject');
+        });
+
+        Route::middleware('module.access:document_review')->prefix('suppliers')->name('suppliers.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'index'])->name('index');
+            Route::get('/datatable', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'datatable'])->name('datatable');
+            Route::get('/{supplier}/edit', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'edit'])->name('edit');
+            Route::put('/{supplier}', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'update'])->name('update');
+            Route::patch('/{supplier}/toggle', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'toggle'])->name('toggle');
+            Route::delete('/{supplier}', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'destroy'])->name('destroy');
+            Route::post('/{supplier}/approve', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'approve'])->name('approve');
+            Route::post('/{supplier}/reject', [\App\Http\Controllers\Admin\SupplierAdminController::class, 'reject'])->name('reject');
         });
     });
 
@@ -482,14 +484,14 @@ Route::middleware(['auth', 'lock'])->group(function () {
 }); // Fin del grupo auth + lock
 
 // ============================================================================
-//  Supplier Portal (auth + role:supplier) - UNIFICADO
+//  Supplier Portal (auth:supplier) - UNIFICADO
 // ============================================================================
-Route::middleware(['auth', 'role:supplier'])->prefix('supplier')->name('supplier.')->group(function () {
+Route::middleware(['auth:supplier'])->prefix('supplier')->name('supplier.')->group(function () {
     // Dashboard
-    Route::middleware('module.access:dashboard')->get('/dashboard', [SupplierPortalController::class, 'dashboard'])->name('dashboard');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/dashboard', [SupplierPortalController::class, 'dashboard'])->name('dashboard');
 
     // Announcements
-    Route::middleware('module.access:supplier_communicator')->prefix('announcements')->name('announcements.')->group(function () {
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->prefix('announcements')->name('announcements.')->group(function () {
         Route::get('/', [AnnouncementController::class, 'inbox'])->name('inbox');
         Route::get('/datatable', [AnnouncementController::class, 'supplierDatatable'])->name('datatable');
         Route::get('/{announcement}/pdf', [AnnouncementController::class, 'pdf'])->name('pdf');
@@ -499,34 +501,47 @@ Route::middleware(['auth', 'role:supplier'])->prefix('supplier')->name('supplier
     });
 
     // Documents
-    Route::middleware('module.access:supplier_documents')->prefix('documents')->name('documents.')->group(function () {
+    Route::prefix('documents')->name('documents.')->group(function () {
         Route::get('/', [SupplierDocumentController::class, 'index'])->name('index');
         Route::post('/{supplier}', [SupplierDocumentController::class, 'store'])->name('store');
         Route::delete('/{supplier}/{document}', [SupplierDocumentController::class, 'destroy'])->name('destroy');
         Route::post('/{supplier}/{document}/review', [SupplierDocumentController::class, 'review'])->name('review');
     });
 
+    Route::patch('/{supplier}/bank', [SupplierBankController::class, 'update'])->name('bank.update');
+    Route::delete('/{supplier}/bank', [SupplierBankController::class, 'destroy'])->name('bank.destroy');
+    Route::patch('/{supplier}/repse', [SupplierBankController::class, 'updateRepse'])->name('repse.update');
+    Route::prefix('{supplier}/sirocs')->name('sirocs.')->group(function () {
+        Route::get('/', [SupplierSirocController::class, 'index'])->name('index');
+        Route::get('/create', [SupplierSirocController::class, 'create'])->name('create');
+        Route::post('/', [SupplierSirocController::class, 'store'])->name('store');
+        Route::get('/{siroc}', [SupplierSirocController::class, 'show'])->name('show');
+        Route::get('/{siroc}/edit', [SupplierSirocController::class, 'edit'])->name('edit');
+        Route::put('/{siroc}', [SupplierSirocController::class, 'update'])->name('update');
+        Route::delete('/{siroc}', [SupplierSirocController::class, 'destroy'])->name('destroy');
+    });
+
     // RFQ
-    Route::middleware('module.access:quotations')->get('/rfq/{rfq}', [SupplierPortalController::class, 'showRfq'])->name('rfq.show');
-    Route::middleware('module.access:quotations')->post('/rfq/{rfq}/quotation', [SupplierPortalController::class, 'saveQuotation'])->name('rfq.quotation.save');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/rfq/{rfq}', [SupplierPortalController::class, 'showRfq'])->name('rfq.show');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->post('/rfq/{rfq}/quotation', [SupplierPortalController::class, 'saveQuotation'])->name('rfq.quotation.save');
 
     // Quotation History
-    Route::middleware('module.access:quotations')->get('/quotations/history', [SupplierPortalController::class, 'quotationHistory'])->name('quotations.history');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/quotations/history', [SupplierPortalController::class, 'quotationHistory'])->name('quotations.history');
 
     // Download attachment
-    Route::middleware('module.access:quotations')->get('/quotation/{response}/download', [SupplierPortalController::class, 'downloadAttachment'])->name('quotation.download');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/quotation/{response}/download', [SupplierPortalController::class, 'downloadAttachment'])->name('quotation.download');
 
     // Delete draft
-    Route::middleware('module.access:quotations')->delete('/quotation/{response}/draft', [SupplierPortalController::class, 'deleteDraft'])->name('quotation.draft.delete');
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->delete('/quotation/{response}/draft', [SupplierPortalController::class, 'deleteDraft'])->name('quotation.draft.delete');
 
     // Deliveries (registro de entrega física con remisión)
-    Route::middleware('module.access:receptions')->prefix('deliveries')->name('deliveries.')->group(function () {
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->prefix('deliveries')->name('deliveries.')->group(function () {
         Route::get('/', [SupplierDeliveryController::class, 'index'])->name('index');   // supplier.deliveries.index
         Route::get('/create', [SupplierDeliveryController::class, 'create'])->name('create'); // supplier.deliveries.create
         Route::post('/', [SupplierDeliveryController::class, 'store'])->name('store');  // supplier.deliveries.store
     });
 
-    Route::middleware('module.access:supplier_billing')->prefix('invoices')->name('invoices.')->group(function () {
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/', [SupplierInvoiceController::class, 'index'])->name('index');
         Route::get('/create', [SupplierInvoiceController::class, 'create'])->name('create');
         Route::post('/', [SupplierInvoiceController::class, 'store'])->name('store');

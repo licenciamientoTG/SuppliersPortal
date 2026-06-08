@@ -126,7 +126,7 @@
                                     data-group-index="{{ $index }}"
                                     multiple
                                     required>
-                                @foreach(\App\Models\Supplier::where('status', 'approved')->orderBy('company_name')->get() as $supplier)
+                                @foreach(\App\Models\Supplier::approved()->orderBy('company_name')->get() as $supplier)
                                     <option value="{{ $supplier->id }}">{{ $supplier->company_name }}</option>
                                 @endforeach
                             </select>

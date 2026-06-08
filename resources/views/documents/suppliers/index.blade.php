@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 @php
     $needsBank = blank($supplier->bank_name); // true si null, vacío o solo espacios
 @endphp
@@ -7,9 +7,17 @@
 @php
     use Illuminate\Support\Facades\Storage;
 
-    $isSupplierPortal = auth()->user()?->hasRole('supplier');
+    $isSupplierPortal = auth('supplier')->check();
     $documentsStoreRoute = $isSupplierPortal ? 'supplier.documents.store' : 'documents.suppliers.store';
     $documentsDestroyRoute = $isSupplierPortal ? 'supplier.documents.destroy' : 'documents.suppliers.destroy';
+    $bankUpdateRoute = $isSupplierPortal ? 'supplier.bank.update' : 'suppliers.bank.update';
+    $bankDestroyRoute = $isSupplierPortal ? 'supplier.bank.destroy' : 'suppliers.bank.destroy';
+    $repseUpdateRoute = $isSupplierPortal ? 'supplier.repse.update' : 'suppliers.repse.update';
+    $sirocStoreRoute = $isSupplierPortal ? 'supplier.sirocs.store' : 'suppliers.sirocs.store';
+    $sirocShowRoute = $isSupplierPortal ? 'supplier.sirocs.show' : 'suppliers.sirocs.show';
+    $sirocEditRoute = $isSupplierPortal ? 'supplier.sirocs.edit' : 'suppliers.sirocs.edit';
+    $sirocUpdateRoute = $isSupplierPortal ? 'supplier.sirocs.update' : 'suppliers.sirocs.update';
+    $sirocDestroyRoute = $isSupplierPortal ? 'supplier.sirocs.destroy' : 'suppliers.sirocs.destroy';
 
     // Armar una lista simple de filas con el "último" documento por tipo
     // docsByType: Collection groupedBy('doc_type') que llega desde el controlador
@@ -376,7 +384,7 @@
                     </div>
 
                     {{-- Formulario de edición/creación --}}
-                    <form id="bankForm" autocomplete="off" data-url="{{ route('suppliers.bank.update', $supplier) }}" data-method="PATCH">
+                    <form id="bankForm" autocomplete="off" data-url="{{ route($bankUpdateRoute, $supplier) }}" data-method="PATCH">
                         @csrf
                         <div class="row g-4">
                             {{-- Columna izquierda: datos básicos --}}
@@ -506,7 +514,7 @@
                                 <i class="ti ti-device-floppy me-1"></i> Guardar cambios
                             </button>
                             <button type="button" id="btnDeleteBank" class="btn btn-outline-danger"
-                                    data-url="{{ route('suppliers.bank.destroy', $supplier) }}">
+                                    data-url="{{ route($bankDestroyRoute, $supplier) }}">
                                 <i class="ti ti-trash me-1"></i> Eliminar datos bancarios
                             </button>
                         </div>
@@ -546,7 +554,7 @@
                 <div class="card-body">
                     {{-- REPSE / Servicios especializados --}}
                     <form id="repseForm" autocomplete="off"
-                        data-url="{{ route('suppliers.repse.update', $supplier) }}"
+                        data-url="{{ route($repseUpdateRoute, $supplier) }}"
                         data-method="PATCH">
                         @csrf
                         <div class="row g-4">
@@ -728,7 +736,7 @@
                 <div class="card-body">
                     {{-- === ALTA DE SIROC (por proveedor) === --}}
                     <form id="sirocForm" autocomplete="off"
-                        data-url="{{ route('suppliers.sirocs.store', $supplier) }}"
+                        data-url="{{ route($sirocStoreRoute, $supplier) }}"
                         data-method="POST" enctype="multipart/form-data">
                         @csrf
 
@@ -939,9 +947,9 @@
                                         </td>
                                         <td class="col-actions text-end">
                                             <div class="d-flex justify-content-end gap-1">
-                                                <a href="{{ route('suppliers.sirocs.show', [$supplier, $s]) }}" class="btn btn-sm btn-outline-secondary" title="Ver"><i class="ti ti-eye"></i></a>
+                                                <a href="{{ route($sirocShowRoute, [$supplier, $s]) }}" class="btn btn-sm btn-outline-secondary" title="Ver"><i class="ti ti-eye"></i></a>
                                                 <button type="button" class="btn btn-sm btn-outline-primary js-edit-siroc"
-                                                    data-update-url="{{ route('suppliers.sirocs.update', [$s->supplier, $s]) }}"
+                                                    data-update-url="{{ route($sirocUpdateRoute, [$s->supplier, $s]) }}"
                                                     data-siroc-number="{{ e($s->siroc_number) }}"
                                                     data-contract-number="{{ e($s->contract_number) }}"
                                                     data-work-name="{{ e($s->work_name) }}"
@@ -953,7 +961,7 @@
                                                     data-file-url="{{ $s->siroc_file ? asset('storage/'.$s->siroc_file) : '' }}"
                                                     title="Editar"><i class="ti ti-pencil"></i></button>
                                                 <button class="btn btn-sm btn-outline-danger js-del-siroc"
-                                                        data-url="{{ route('suppliers.sirocs.destroy', [$supplier, $s]) }}"
+                                                        data-url="{{ route($sirocDestroyRoute, [$supplier, $s]) }}"
                                                         title="Eliminar"><i class="ti ti-trash"></i></button>
                                             </div>
                                         </td>

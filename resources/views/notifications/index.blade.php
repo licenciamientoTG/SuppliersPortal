@@ -1,11 +1,11 @@
-@extends('layouts.zircos')
+@extends(auth('supplier')->check() ? 'layouts.zircos-supplier' : 'layouts.zircos')
 
 @section('title', 'Notificaciones')
 
 @section('page.title', 'Notificaciones')
 
 @section('page.breadcrumbs')
-    <li class="breadcrumb-item"><a href="{{ auth()->user()?->hasRole('supplier') ? route('supplier.dashboard') : route('dashboard') }}">Inicio</a></li>
+    <li class="breadcrumb-item"><a href="{{ auth('supplier')->check() ? route('supplier.documents.index') : route('dashboard') }}">Inicio</a></li>
     <li class="breadcrumb-item active">Notificaciones</li>
 @endsection
 

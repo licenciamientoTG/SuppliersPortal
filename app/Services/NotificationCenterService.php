@@ -10,16 +10,22 @@ use Illuminate\Support\Collection;
 
 class NotificationCenterService
 {
-    public function queryForUser(User $user): Builder
+    public function queryForUser(User|Supplier $authenticatable): Builder
     {
-        $supplierId = $user->supplier?->id;
+        if ($authenticatable instanceof Supplier) {
+            return DatabaseNotification::query()
+                ->where('notifiable_type', Supplier::class)
+                ->where('notifiable_id', $authenticatable->id);
+        }
+
+        $supplierId = $authenticatable->supplier?->id;
 
         return DatabaseNotification::query()
-            ->where(function (Builder $query) use ($user, $supplierId) {
-                $query->where(function (Builder $userQuery) use ($user) {
+            ->where(function (Builder $query) use ($authenticatable, $supplierId) {
+                $query->where(function (Builder $userQuery) use ($authenticatable) {
                     $userQuery
                         ->where('notifiable_type', User::class)
-                        ->where('notifiable_id', $user->id);
+                        ->where('notifiable_id', $authenticatable->id);
                 });
 
                 if ($supplierId) {
@@ -32,31 +38,31 @@ class NotificationCenterService
             });
     }
 
-    public function unreadCountForUser(User $user): int
+    public function unreadCountForUser(User|Supplier $authenticatable): int
     {
-        return (int) $this->queryForUser($user)
+        return (int) $this->queryForUser($authenticatable)
             ->whereNull('read_at')
             ->count();
     }
 
-    public function recentForUser(User $user, int $limit = 5): Collection
+    public function recentForUser(User|Supplier $authenticatable, int $limit = 5): Collection
     {
-        return $this->queryForUser($user)
+        return $this->queryForUser($authenticatable)
             ->latest()
             ->limit($limit)
             ->get();
     }
 
-    public function findForUser(User $user, string $notificationId): ?DatabaseNotification
+    public function findForUser(User|Supplier $authenticatable, string $notificationId): ?DatabaseNotification
     {
-        return $this->queryForUser($user)
+        return $this->queryForUser($authenticatable)
             ->where('id', $notificationId)
             ->first();
     }
 
-    public function markAllAsReadForUser(User $user): void
+    public function markAllAsReadForUser(User|Supplier $authenticatable): void
     {
-        $this->queryForUser($user)
+        $this->queryForUser($authenticatable)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
     }

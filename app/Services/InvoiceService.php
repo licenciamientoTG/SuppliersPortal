@@ -29,7 +29,7 @@ class InvoiceService
         Model $order,
         UploadedFile $xmlFile,
         UploadedFile $pdfFile,
-        User $uploader,
+        ?User $uploader,
         string $origin,
     ): SupplierInvoice {
         $data = $this->parser->parse($xmlFile->get());
@@ -54,7 +54,7 @@ class InvoiceService
                     'total' => $data['total'],
                     'currency' => $data['currency'] ?: ($order->currency ?? 'MXN'),
                     'issued_at' => $data['issued_at'],
-                    'uploaded_by' => $uploader->id,
+                    'uploaded_by' => $uploader?->id,
                     'uploaded_origin' => $origin,
                     'status' => SupplierInvoice::STATUS_UPLOADED,
                 ]);

@@ -1,4 +1,4 @@
-@extends('layouts.zircos')
+@extends('layouts.zircos-supplier')
 
 @php
     // Verificamos si TODAS las partidas están ya en un estado que no sea DRAFT

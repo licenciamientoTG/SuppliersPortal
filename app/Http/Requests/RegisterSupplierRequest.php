@@ -23,7 +23,7 @@ class RegisterSupplierRequest extends FormRequest
         return [
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255', 'unique:suppliers,email', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
 
             'company_name' => ['required', 'string', 'max:255'],

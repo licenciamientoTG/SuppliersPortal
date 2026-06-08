@@ -6,11 +6,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BankDetailsRequest;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class SupplierBankController extends Controller
 {
     public function update(BankDetailsRequest $request, Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
+
         // Solo toma las llaves que te interesan
         $data = $request->validated();
 
@@ -43,6 +46,8 @@ class SupplierBankController extends Controller
 
     public function destroy(Request $request, Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
+
         $supplier->update([
             'bank_name'      => null,
             'bank_address'   => null,
@@ -61,6 +66,8 @@ class SupplierBankController extends Controller
 
     public function updateRepse(Request $request, \App\Models\Supplier $supplier)
     {
+        $this->authorizeSupplier($supplier);
+
         // Si no hay JS, puede llegar el fallback en CSV. Lo convertimos a JSON antes de validar.
         if ($request->filled('specialized_services_types_fallback') && !$request->filled('specialized_services_types')) {
             $csv = $request->input('specialized_services_types_fallback');
@@ -78,6 +85,13 @@ class SupplierBankController extends Controller
         $supplier->update($data);
 
         return response()->json(['ok' => true]);
+    }
+
+    private function authorizeSupplier(Supplier $supplier): void
+    {
+        if (Auth::guard('supplier')->check()) {
+            abort_unless((int) Auth::guard('supplier')->id() === (int) $supplier->id, 403);
+        }
     }
 
 }
