@@ -36,9 +36,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'company_id' => ['required', 'integer', 'exists:companies,id'],
             'purchase_type' => ['required', new Enum(PurchaseType::class)],
 
-            // Datos Presupuestales
-            'cost_center_id' => ['required', 'integer', 'exists:cost_centers,id'],
-
             // Ubicación de recepción (obligatoria)
             'receiving_location_id' => ['required', 'integer', 'exists:receiving_locations,id'],
 
@@ -54,6 +51,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'items.*.description' => ['required', 'string', 'max:500'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
+            'items.*.cost_center_id' => ['required', 'integer', 'exists:cost_centers,id'],
             'items.*.expense_category_id' => ['required', 'integer', 'exists:expense_categories,id'],
             'items.*.iva_rate' => ['required', 'numeric', 'in:0,8,16'],
 
@@ -80,8 +78,10 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'company_id.required' => 'Debe seleccionar una empresa.',
             'company_id.exists' => 'La empresa seleccionada no existe.',
             'purchase_type.required' => 'Debe seleccionar un tipo de compra.',
-            'cost_center_id.required' => 'Debe seleccionar un centro de costo.',
-            'cost_center_id.exists' => 'El centro de costo seleccionado no existe.',
+
+            // Centro de costo por partida
+            'items.*.cost_center_id.required' => 'Debe seleccionar un centro de costo para cada partida.',
+            'items.*.cost_center_id.exists' => 'El centro de costo seleccionado no existe.',
 
             // Ubicación de recepción
             'receiving_location_id.required' => 'Debe seleccionar una ubicación de recepción.',
@@ -126,8 +126,8 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'supplier_id' => 'proveedor',
             'company_id' => 'empresa',
             'purchase_type' => 'tipo de compra',
-            'cost_center_id' => 'centro de costo',
             'justification' => 'justificación',
+            'items.*.cost_center_id' => 'centro de costo',
             'quotation_file' => 'cotización',
             'support_documents' => 'documentos de soporte',
             'items.*.description' => 'descripción',
@@ -162,42 +162,48 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
                 }
             }
 
-            if ($this->filled('cost_center_id')) {
-                $costCenter = \App\Models\CostCenter::find($this->cost_center_id);
+            if ($this->has('items') && is_array($this->items)) {
+                foreach ($this->items as $index => $itemData) {
+                    $costCenterId = $itemData['cost_center_id'] ?? null;
+                    if (! $costCenterId) {
+                        continue;
+                    }
 
-                if (! $costCenter) {
-                    return;
-                }
+                    $costCenter = \App\Models\CostCenter::find($costCenterId);
+                    if (! $costCenter) {
+                        continue;
+                    }
 
-                if (! $this->user()->costCenters()
-                    ->where('cost_centers.id', $costCenter->id)
-                    ->where('cost_center_user.is_active', true)
-                    ->exists()) {
-                    $validator->errors()->add(
-                        'cost_center_id',
-                        'El centro de costo seleccionado no esta asignado a tu usuario.'
-                    );
-                }
+                    if (! $this->user()->costCenters()
+                        ->where('cost_centers.id', $costCenter->id)
+                        ->where('cost_center_user.is_active', true)
+                        ->exists()) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo seleccionado no está asignado a tu usuario.'
+                        );
+                    }
 
-                if ((int) $costCenter->company_id !== (int) $this->company_id) {
-                    $validator->errors()->add(
-                        'cost_center_id',
-                        'El centro de costo no pertenece a la empresa seleccionada.'
-                    );
-                }
+                    if ((int) $costCenter->company_id !== (int) $this->company_id) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo no pertenece a la empresa seleccionada.'
+                        );
+                    }
 
-                if (($costCenter->purchase_type?->value ?? $costCenter->purchase_type) !== $this->purchase_type) {
-                    $validator->errors()->add(
-                        'cost_center_id',
-                        'El centro de costo no coincide con el tipo de compra seleccionado.'
-                    );
-                }
+                    if (($costCenter->purchase_type?->value ?? $costCenter->purchase_type) !== $this->purchase_type) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo no coincide con el tipo de compra seleccionado.'
+                        );
+                    }
 
-                if ($costCenter->status !== 'ACTIVO' || $costCenter->deleted_at !== null) {
-                    $validator->errors()->add(
-                        'cost_center_id',
-                        'El centro de costo seleccionado no esta disponible.'
-                    );
+                    if ($costCenter->status !== 'ACTIVO' || $costCenter->deleted_at !== null) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo seleccionado no está disponible.'
+                        );
+                    }
                 }
             }
         });

@@ -87,7 +87,6 @@ class DirectPurchaseOrderController extends Controller
             $ocd = DirectPurchaseOrder::create([
                 'folio' => DirectPurchaseOrder::generateNextFolio(),
                 'supplier_id' => $request->supplier_id,
-                'cost_center_id' => $request->cost_center_id,
                 'receiving_location_id' => $request->receiving_location_id,
                 'application_month' => $applicationMonth,
                 'justification' => $request->justification,
@@ -110,7 +109,7 @@ class DirectPurchaseOrderController extends Controller
 
             DB::commit();
 
-            $ocd->refresh()->loadMissing('assignedApprover', 'supplier', 'costCenter', 'creator', 'authorizerRole');
+            $ocd->refresh()->loadMissing('assignedApprover', 'supplier', 'creator', 'authorizerRole');
             $this->notifyAssignedApprover($ocd);
 
             return redirect()
@@ -153,7 +152,7 @@ class DirectPurchaseOrderController extends Controller
 
             DB::commit();
 
-            $directPurchaseOrder->refresh()->loadMissing('assignedApprover', 'supplier', 'costCenter', 'creator', 'authorizerRole');
+            $directPurchaseOrder->refresh()->loadMissing('assignedApprover', 'supplier', 'creator', 'authorizerRole');
             $this->notifyAssignedApprover($directPurchaseOrder);
 
             return redirect()
@@ -354,7 +353,7 @@ class DirectPurchaseOrderController extends Controller
                 ->withErrors(['error' => 'Solo puede editar sus propias OCD.']);
         }
 
-        $directPurchaseOrder->load(['items', 'documents', 'costCenter.company']);
+        $directPurchaseOrder->load(['items', 'items.costCenter', 'documents']);
 
         $companies = Auth::user()->companies()
             ->where('is_active', true)
@@ -408,7 +407,6 @@ class DirectPurchaseOrderController extends Controller
 
             $updateData = [
                 'supplier_id' => $request->supplier_id,
-                'cost_center_id' => $request->cost_center_id,
                 'receiving_location_id' => $request->receiving_location_id,
                 'application_month' => $applicationMonth,
                 'justification' => $request->justification,
@@ -438,7 +436,7 @@ class DirectPurchaseOrderController extends Controller
             DB::commit();
 
             if ($wasReturned) {
-                $directPurchaseOrder->refresh()->loadMissing('assignedApprover', 'supplier', 'costCenter', 'creator', 'authorizerRole');
+                $directPurchaseOrder->refresh()->loadMissing('assignedApprover', 'supplier', 'creator', 'authorizerRole');
                 $this->notifyAssignedApprover($directPurchaseOrder);
 
                 return redirect()
@@ -503,7 +501,7 @@ class DirectPurchaseOrderController extends Controller
 
     private function prepareApprovalFlow(DirectPurchaseOrder $directPurchaseOrder): void
     {
-        $directPurchaseOrder->loadMissing('creator.employee', 'items', 'costCenter');
+        $directPurchaseOrder->loadMissing('creator.employee', 'items', 'items.costCenter');
 
         if ($this->hasActiveBudgetReservation($directPurchaseOrder)) {
             $this->budgetAllocationService->releaseDirectPurchaseOrder($directPurchaseOrder);
@@ -535,15 +533,13 @@ class DirectPurchaseOrderController extends Controller
     private function ensureBudgetAvailability(DirectPurchaseOrder $directPurchaseOrder): void
     {
         $directPurchaseOrder->loadMissing('items');
-        $itemsByCategory = $directPurchaseOrder->items->groupBy('expense_category_id');
 
-        foreach ($itemsByCategory as $categoryId => $items) {
-            $requiredAmount = (float) $items->sum('total');
+        foreach ($directPurchaseOrder->items as $item) {
             $budgetCheck = $this->validateBudgetAvailability(
-                $directPurchaseOrder->cost_center_id,
+                $item->cost_center_id,
                 $directPurchaseOrder->application_month,
-                (int) $categoryId,
-                $requiredAmount
+                (int) $item->expense_category_id,
+                (float) $item->total
             );
 
             if (! ($budgetCheck['available'] ?? false)) {
@@ -575,14 +571,15 @@ class DirectPurchaseOrderController extends Controller
         foreach ($items as $itemData) {
             DirectPurchaseOrderItem::create([
                 'direct_purchase_order_id' => $directPurchaseOrder->id,
-                'expense_category_id' => $itemData['expense_category_id'],
-                'description' => $itemData['description'],
-                'quantity' => $itemData['quantity'],
-                'unit_price' => $itemData['unit_price'],
-                'iva_rate' => $itemData['iva_rate'],
-                'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
-                'sku' => $itemData['sku'] ?? null,
-                'notes' => $itemData['notes'] ?? null,
+                'cost_center_id'           => $itemData['cost_center_id'],
+                'expense_category_id'      => $itemData['expense_category_id'],
+                'description'              => $itemData['description'],
+                'quantity'                 => $itemData['quantity'],
+                'unit_price'               => $itemData['unit_price'],
+                'iva_rate'                 => $itemData['iva_rate'],
+                'unit_of_measure'          => $itemData['unit_of_measure'] ?? null,
+                'sku'                      => $itemData['sku'] ?? null,
+                'notes'                    => $itemData['notes'] ?? null,
             ]);
         }
     }
