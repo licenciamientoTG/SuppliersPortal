@@ -24,18 +24,14 @@ class RequisitionForm extends Component
 
     // ===== PROPIEDADES DEL FORMULARIO =====
     public $company_id;
-    public $purchase_type;
-    public $cost_center_id;
     public $required_date;
     public $description = '';
-    public $hasHydratedCostCenterOnce = false;
 
     // ===== COLECCIONES =====
     public $companies = [];
     public $purchaseTypes = [];
-    public $costCenters = [];
     public $receivingLocations = [];
-    public $headerCostCenterCatalog = [];
+    public $costCenterCatalog = [];
 
     // ===== UBICACIÓN DE RECEPCIÓN =====
     public $receiving_location_id;
@@ -60,7 +56,7 @@ class RequisitionForm extends Component
 
         // Cargar ubicaciones de recepción activas
         $this->receivingLocations = ReceivingLocation::active()->orderBy('name')->get();
-        $this->headerCostCenterCatalog = Auth::user()->costCenters()
+        $this->costCenterCatalog = Auth::user()->costCenters()
             ->select([
                 'cost_centers.id',
                 'cost_centers.company_id',
@@ -102,15 +98,10 @@ class RequisitionForm extends Component
 
             // Cargar datos del formulario
             $this->company_id = $requisition->company_id;
-            $this->purchase_type = $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type;
             $this->description = $requisition->description;
             $this->required_date = $requisition->required_date
                 ? $requisition->required_date->format('Y-m-d')
                 : null;
-
-            // Cargar centros de costo de la compañía
-            $this->loadCostCenters($this->company_id, $this->purchase_type);
-            $this->cost_center_id = $requisition->cost_center_id;
 
             // Cargar ubicación de recepción de la cabecera
             $this->receiving_location_id = $requisition->receiving_location_id;
@@ -118,16 +109,21 @@ class RequisitionForm extends Component
             // Cargar partidas existentes
             $this->items = $requisition->items->map(function ($item) {
                 return [
-                    'product_id' => $item->product_service_id,
-                    'product_name' => "[{$item->product_code}] " . $item->productService->short_name ?? $item->description,
-                    'description' => $item->description,
-                    'quantity' => $item->quantity,
-                    'unit' => $item->unit,
-                    'expense_category_id' => $item->expense_category_id,
+                    'product_id'            => $item->product_service_id,
+                    'product_name'          => "[{$item->product_code}] " . ($item->productService->short_name ?? $item->description),
+                    'description'           => $item->description,
+                    'quantity'              => $item->quantity,
+                    'unit'                  => $item->unit,
+                    'expense_category_id'   => $item->expense_category_id,
                     'expense_category_name' => $item->expenseCategory->name ?? 'N/A',
-                    'budget_cedula_id' => $item->budget_cedula_id,
-                    'budget_cedula_name' => $item->budgetCedula->name ?? 'N/A',
-                    'notes' => $item->notes ?? '',
+                    'budget_cedula_id'      => $item->budget_cedula_id,
+                    'budget_cedula_name'    => $item->budgetCedula->name ?? 'N/A',
+                    'cost_center_id'        => $item->cost_center_id,
+                    'cost_center_name'      => $item->costCenter?->name ?? 'N/A',
+                    'purchase_type'         => $item->costCenter?->purchase_type instanceof \App\Enum\PurchaseType
+                        ? $item->costCenter->purchase_type->value
+                        : (string) ($item->costCenter?->purchase_type ?? ''),
+                    'notes'                 => $item->notes ?? '',
                 ];
             })->toArray();
 
@@ -172,33 +168,15 @@ class RequisitionForm extends Component
     {
         // Validar campos obligatorios
         $this->validate([
-            'company_id' => 'required|exists:companies,id',
-            'purchase_type' => 'required|in:' . implode(',', PurchaseType::values()),
-            'cost_center_id' => 'required|exists:cost_centers,id',
+            'company_id'            => 'required|exists:companies,id',
             'receiving_location_id' => 'required|exists:receiving_locations,id',
-            'required_date' => 'nullable|date|after_or_equal:today',
-            'description' => 'nullable|string|max:500',
+            'required_date'         => 'nullable|date|after_or_equal:today',
+            'description'           => 'nullable|string|max:500',
         ], [
-            'company_id.required' => 'La compañía es obligatoria.',
-            'purchase_type.required' => 'El tipo de compra es obligatorio.',
-            'cost_center_id.required' => 'El centro de costos es obligatorio.',
+            'company_id.required'            => 'La compañía es obligatoria.',
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
-            'required_date.after_or_equal' => 'La fecha requerida no puede ser anterior a hoy.',
+            'required_date.after_or_equal'   => 'La fecha requerida no puede ser anterior a hoy.',
         ]);
-
-        $validCostCenter = Auth::user()->costCenters()
-            ->where('cost_centers.id', $this->cost_center_id)
-            ->where('cost_centers.company_id', $this->company_id)
-            ->where('cost_centers.purchase_type', $this->purchase_type)
-            ->where('cost_centers.status', 'ACTIVO')
-            ->whereNull('cost_centers.deleted_at')
-            ->wherePivot('is_active', true)
-            ->exists();
-
-        if (! $validCostCenter) {
-            $this->addError('cost_center_id', 'El centro de costos no coincide con la empresa, el tipo de compra o tus asignaciones.');
-            return;
-        }
 
         // Validar que tenga al menos una partida (RN-003)
         if (empty($this->items)) {
@@ -215,8 +193,7 @@ class RequisitionForm extends Component
 
                 // Actualizar datos principales
                 $requisition->update([
-                    'company_id' => $this->company_id,
-                    'cost_center_id' => $this->cost_center_id,
+                    'company_id'            => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
                     'required_date' => $this->required_date,
                     'description' => $this->description,
@@ -238,6 +215,7 @@ class RequisitionForm extends Component
                         'description'         => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
                         'budget_cedula_id'    => $item['budget_cedula_id'],
+                        'cost_center_id'      => $item['cost_center_id'],
                         'item_category'       => $product->product_type,
                         'quantity'            => $item['quantity'],
                         'unit'                => $item['unit'],
@@ -250,8 +228,7 @@ class RequisitionForm extends Component
             } else {
                 // ===== MODO CREACIÓN =====
                 $requisition = Requisition::create([
-                    'company_id'           => $this->company_id,
-                    'cost_center_id'       => $this->cost_center_id,
+                    'company_id'            => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
                     'folio'                => Requisition::nextFolio(),
                     'requested_by'         => Auth::id(),
@@ -273,11 +250,12 @@ class RequisitionForm extends Component
                         'description'         => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
                         'budget_cedula_id'    => $item['budget_cedula_id'],
+                        'cost_center_id'      => $item['cost_center_id'],
                         'item_category'       => $product->product_type,
                         'quantity'            => $item['quantity'],
-                        'unit'               => $item['unit'],
+                        'unit'                => $item['unit'],
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
-                        'notes'              => $item['notes'] ?? null,
+                        'notes'               => $item['notes'] ?? null,
                     ]);
                 }
 
@@ -292,7 +270,7 @@ class RequisitionForm extends Component
                 ]);
 
                 $requisition->refresh();
-                $requisition->load('requester', 'costCenter', 'items');
+                $requisition->load('requester', 'items');
 
                 $sent = $requisition->submitToCompras();
 
@@ -327,74 +305,9 @@ class RequisitionForm extends Component
     {
         $userCompanyIds = Auth::user()->companies()->pluck('companies.id')->toArray();
 
-        if ($value && !in_array($value, $userCompanyIds)) {
+        if ($value && ! in_array($value, $userCompanyIds)) {
             $this->addError('company_id', 'No tienes permiso para usar esta compañía.');
             $this->company_id = null;
-            $this->cost_center_id = null;
-            $this->costCenters = [];
-            return;
-        }
-
-        $this->cost_center_id = null;
-
-        if ($value && $this->purchase_type) {
-            $this->loadCostCenters($value, $this->purchase_type);
-        } else {
-            $this->costCenters = [];
-        }
-    }
-
-    public function updatedPurchaseType($value)
-    {
-        if ($value && ! in_array($value, PurchaseType::values(), true)) {
-            $this->addError('purchase_type', 'Tipo de compra no vÃ¡lido.');
-            $this->purchase_type = null;
-            $this->cost_center_id = null;
-            $this->costCenters = [];
-            return;
-        }
-
-        $this->cost_center_id = null;
-
-        if ($this->company_id && $value) {
-            $this->loadCostCenters($this->company_id, $value);
-        } else {
-            $this->costCenters = [];
-        }
-    }
-
-    public function updatedCostCenterId($value)
-    {
-        if ($value) {
-            $this->hasHydratedCostCenterOnce = true;
-        }
-    }
-
-    /**
-     * Cargar centros de costo del usuario para una compañía.
-     */
-    private function loadCostCenters($companyId, $purchaseType)
-    {
-        $this->costCenters = Auth::user()->costCenters()
-            ->where('cost_centers.company_id', $companyId)
-            ->where('cost_centers.purchase_type', $purchaseType)
-            ->where('cost_centers.status', 'ACTIVO')
-            ->whereNull('cost_centers.deleted_at')
-            ->wherePivot('is_active', true)
-            ->orderBy('cost_centers.code')
-            ->get();
-
-        // ✅ Seleccionar automáticamente el centro de costo predeterminado
-        $defaultCostCenter = $this->costCenters->firstWhere('pivot.is_default', true);
-
-        if ($defaultCostCenter && !$this->cost_center_id) {
-            $this->cost_center_id = $defaultCostCenter->id;
-            return;
-        }
-
-        if ($this->costCenters->count() === 1 && !$this->cost_center_id && !$this->hasHydratedCostCenterOnce) {
-            $this->cost_center_id = $this->costCenters->first()->id;
-            $this->hasHydratedCostCenterOnce = true;
         }
     }
 
@@ -415,16 +328,19 @@ class RequisitionForm extends Component
         }
 
         $this->items[] = [
-            'product_id' => $itemData['product_id'],
-            'product_name' => $itemData['product_name'],
-            'description' => $itemData['description'],
-            'quantity' => $itemData['quantity'],
-            'unit' => $itemData['unit'],
-            'expense_category_id' => $itemData['expense_category_id'],
+            'product_id'            => $itemData['product_id'],
+            'product_name'          => $itemData['product_name'],
+            'description'           => $itemData['description'],
+            'quantity'              => $itemData['quantity'],
+            'unit'                  => $itemData['unit'],
+            'expense_category_id'   => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
-            'budget_cedula_id' => $itemData['budget_cedula_id'],
-            'budget_cedula_name' => $itemData['budget_cedula_name'],
-            'notes' => $itemData['notes'] ?? '',
+            'budget_cedula_id'      => $itemData['budget_cedula_id'],
+            'budget_cedula_name'    => $itemData['budget_cedula_name'],
+            'cost_center_id'        => $itemData['cost_center_id'],
+            'cost_center_name'      => $itemData['cost_center_name'],
+            'purchase_type'         => $itemData['purchase_type'],
+            'notes'                 => $itemData['notes'] ?? '',
         ];
 
         $this->dispatch('item-added', message: 'Partida agregada correctamente');
@@ -443,16 +359,19 @@ class RequisitionForm extends Component
         }
 
         $this->items[$index] = [
-            'product_id' => $itemData['product_id'],
-            'product_name' => $itemData['product_name'],
-            'description' => $itemData['description'],
-            'quantity' => $itemData['quantity'],
-            'unit' => $itemData['unit'],
-            'expense_category_id' => $itemData['expense_category_id'],
+            'product_id'            => $itemData['product_id'],
+            'product_name'          => $itemData['product_name'],
+            'description'           => $itemData['description'],
+            'quantity'              => $itemData['quantity'],
+            'unit'                  => $itemData['unit'],
+            'expense_category_id'   => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
-            'budget_cedula_id' => $itemData['budget_cedula_id'],
-            'budget_cedula_name' => $itemData['budget_cedula_name'],
-            'notes' => $itemData['notes'] ?? '',
+            'budget_cedula_id'      => $itemData['budget_cedula_id'],
+            'budget_cedula_name'    => $itemData['budget_cedula_name'],
+            'cost_center_id'        => $itemData['cost_center_id'],
+            'cost_center_name'      => $itemData['cost_center_name'],
+            'purchase_type'         => $itemData['purchase_type'],
+            'notes'                 => $itemData['notes'] ?? '',
         ];
 
         $this->dispatch('item-updated', message: 'Partida actualizada correctamente');
@@ -483,7 +402,21 @@ class RequisitionForm extends Component
 
     private function validateItemPayload(array $itemData): bool
     {
-        if (empty($itemData['product_id']) || empty($itemData['expense_category_id']) || empty($itemData['budget_cedula_id'])) {
+        if (empty($itemData['product_id'])
+            || empty($itemData['expense_category_id'])
+            || empty($itemData['budget_cedula_id'])
+            || empty($itemData['cost_center_id'])) {
+            return false;
+        }
+
+        $validCostCenter = Auth::user()->costCenters()
+            ->where('cost_centers.id', (int) $itemData['cost_center_id'])
+            ->where('cost_centers.status', 'ACTIVO')
+            ->whereNull('cost_centers.deleted_at')
+            ->wherePivot('is_active', true)
+            ->exists();
+
+        if (! $validCostCenter) {
             return false;
         }
 
@@ -492,12 +425,12 @@ class RequisitionForm extends Component
             ->where('expense_category_id', (int) $itemData['expense_category_id'])
             ->first();
 
-        if (! $cedula || ! $this->cost_center_id) {
+        if (! $cedula) {
             return false;
         }
 
         return app(BudgetCedulaCatalogService::class)->isValidCedulaForContext(
-            (int) $this->cost_center_id,
+            (int) $itemData['cost_center_id'],
             (int) $itemData['expense_category_id'],
             (int) $itemData['budget_cedula_id'],
             now()->year
