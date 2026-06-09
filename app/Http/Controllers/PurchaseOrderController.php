@@ -84,7 +84,7 @@ class PurchaseOrderController extends Controller
     public function datatableDirect(Request $request)
     {
         if ($request->ajax()) {
-            $directOrders = DirectPurchaseOrder::with(['supplier', 'creator', 'costCenter'])
+            $directOrders = DirectPurchaseOrder::with(['supplier', 'creator', 'items.costCenter'])
                 ->select('odc_direct_purchase_orders.*');
 
             return DataTables::of($directOrders)
@@ -104,7 +104,7 @@ class PurchaseOrderController extends Controller
                         '</span>';
                 })
                 ->addColumn('centro_costo', function ($ocd) {
-                    return $ocd->costCenter->name ?? 'N/A';
+                    return $ocd->primaryCostCenterLabel();
                 })
                 ->addColumn('total', function ($ocd) {
                     return '<span class="fw-bold text-primary">$' . number_format($ocd->total, 2) . '</span>';
@@ -167,7 +167,7 @@ class PurchaseOrderController extends Controller
             'receivingLocation',
             'receiver',
             'requisition.department',
-            'requisition.costCenter',
+            'requisition.items.costCenter',
             'requisition.company',
             'requisition.requester',
             'receptions.items.receivableItem',
@@ -184,9 +184,9 @@ class PurchaseOrderController extends Controller
     {
         $directPurchaseOrder->load([
             'items.expenseCategory',
+            'items.costCenter',
             'supplier',
             'creator',
-            'costCenter',
             'receivingLocation',
             'assignedApprover',
             'authorizerRole',

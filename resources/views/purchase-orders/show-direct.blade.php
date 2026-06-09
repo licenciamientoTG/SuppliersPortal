@@ -230,7 +230,11 @@
                         </h6>
                         <div class="mb-1">
                             <span class="info-label">Centro de Costos</span>
-                            <div class="info-value fw-semibold">{{ $ocd->costCenter->name ?? '—' }}</div>
+                            <div class="info-value fw-semibold">{{ $ocd->primaryCostCenterLabel() }}</div>
+                        </div>
+                        <div class="mb-1">
+                            <span class="info-label">Tipo de Compra</span>
+                            <div class="info-value">{{ $ocd->primaryPurchaseType() ?? '—' }}</div>
                         </div>
                         <div class="mb-1">
                             <span class="info-label">Mes de Aplicación</span>
@@ -359,6 +363,7 @@
                             <tr class="text-dark fw-bold small">
                                 <th style="width: 35px">#</th>
                                 <th>Descripción</th>
+                                <th class="text-muted" style="width: 160px">Centro de costo</th>
                                 <th class="text-muted" style="width: 110px">Categoría</th>
                                 <th class="text-center" style="width: 75px">Cant.</th>
                                 <th class="text-center" style="width: 55px">UM</th>
@@ -381,6 +386,9 @@
                                         @endif
                                     </td>
                                     <td class="small text-muted">
+                                        {{ $item->costCenter?->code ? $item->costCenter->code . ' - ' . $item->costCenter->name : ($item->costCenter?->name ?? '—') }}
+                                    </td>
+                                    <td class="small text-muted">
                                         {{ $item->expenseCategory->name ?? '—' }}
                                     </td>
                                     <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
@@ -397,7 +405,7 @@
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="5" rowspan="3" class="border-0 align-top">
+                                <td colspan="6" rowspan="3" class="border-0 align-top">
                                     <div class="bg-light p-3 rounded mt-2">
                                         <h6 class="fw-bold text-dark mb-2">Condiciones Comerciales:</h6>
                                         <ul class="small text-muted mb-0 ps-3">

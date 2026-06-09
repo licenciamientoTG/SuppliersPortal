@@ -86,7 +86,7 @@
                         </div>
                     </div>
 
-                    {{-- FILA 2: EMPRESA, CENTRO DE COSTO Y UBICACIÓN DE RECEPCIÓN --}}
+                    {{-- FILA 2: EMPRESA Y UBICACIÓN DE RECEPCIÓN --}}
                     <div class="row g-2 mb-3">
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Tipo de Compra <span class="text-danger">*</span></label>
@@ -103,7 +103,7 @@
                             </div>
                             @error('purchase_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Empresa <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-building-store"></i></span>
@@ -118,25 +118,7 @@
                             </div>
                             @error('company_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Centro de Costo <span class="text-danger">*</span></label>
-                            <div class="input-group input-group-sm input-group-select2">
-                                <span class="input-group-text"><i class="ti ti-chart-pie"></i></span>
-                                <select name="cost_center_id" id="cost_center_id" class="form-select form-select-sm @error('cost_center_id') is-invalid @enderror" required disabled>
-                                    <option value="">Seleccione empresa y tipo primero...</option>
-                                    @foreach($costCenters as $cc)
-                                        <option value="{{ $cc->id }}"
-                                                data-company-id="{{ $cc->company_id }}"
-                                                data-purchase-type="{{ $cc->purchase_type?->value ?? $cc->purchase_type }}"
-                                                {{ old('cost_center_id') == $cc->id ? 'selected' : '' }}>
-                                            {{ $cc->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @error('cost_center_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-5">
                             <label class="form-label small fw-bold">Ubicación de Recepción <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-map-pin"></i></span>
@@ -173,6 +155,7 @@
                             <thead class="table-light small">
                                 <tr>
                                     <th width="22%" class="ps-2">Descripción</th>
+                                    <th width="18%">Centro de costo</th>
                                     <th width="18%">Categoría de Gasto</th>
                                     <th width="6%">Cant.</th>
                                     <th width="9%">P. Unit.</th>
@@ -197,9 +180,17 @@
                                                        maxlength="500">
                                             </td>
                                             <td>
-                                                {{-- Las opciones se cargan vía AJAX al restaurar el CC --}}
+                                                <select name="items[{{ $index }}][cost_center_id]"
+                                                        class="form-select form-select-sm border-0 item-cost-center"
+                                                        data-selected="{{ $item['cost_center_id'] ?? '' }}"
+                                                        required disabled>
+                                                    <option value="">Seleccione empresa y tipo...</option>
+                                                </select>
+                                            </td>
+                                            <td>
                                                 <select name="items[{{ $index }}][expense_category_id]"
                                                         class="form-select form-select-sm border-0 item-expense-category"
+                                                        data-selected="{{ $item['expense_category_id'] ?? '' }}"
                                                         required disabled>
                                                     <option value="">Cargando...</option>
                                                 </select>
@@ -265,6 +256,13 @@
                                                    placeholder="Descripción"
                                                    required
                                                    maxlength="500">
+                                        </td>
+                                        <td>
+                                            <select name="items[0][cost_center_id]"
+                                                    class="form-select form-select-sm border-0 item-cost-center"
+                                                    required disabled>
+                                                <option value="">Seleccione empresa y tipo...</option>
+                                            </select>
                                         </td>
                                         <td>
                                             <select name="items[0][expense_category_id]"
@@ -491,18 +489,16 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    const costCenterCatalog = @json(
+        $costCenters->map(fn ($cc) => [
+            'id' => $cc->id,
+            'company_id' => $cc->company_id,
+            'purchase_type' => $cc->purchase_type?->value ?? $cc->purchase_type,
+            'label' => ($cc->code ? '[' . $cc->code . '] ' : '') . $cc->name,
+        ])->values()
+    );
 
-    // Opciones de categoría actuales (se reemplaza al cargar por CC)
-    let currentCategoryOptions = '<option value="">Seleccione CC primero...</option>';
-
-    // Valores de categoría a restaurar tras la carga AJAX (para old input)
-    let pendingCategoryRestore = null;
-
-    // ============================================
-    // INICIALIZACIÓN SELECT2
-    // ============================================
-
-    $('#supplier_id, #cost_center_id, #company_id, #purchase_type, #receiving_location_id').select2({
+    $('#supplier_id, #company_id, #purchase_type, #receiving_location_id').select2({
         theme: 'bootstrap-5',
         width: '100%',
         placeholder: 'Seleccione...',
@@ -550,21 +546,73 @@ $(document).ready(function() {
         });
     }
 
-    // ============================================
-    // CARGA DE CATEGORÍAS POR CENTRO DE COSTO
-    // ============================================
+    function initializeCostCenterSelect(element) {
+        element.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Centro de costo...',
+            minimumResultsForSearch: 5,
+            dropdownParent: element.closest('td'),
+            language: {
+                noResults: function() { return "Sin resultados"; },
+                searching: function() { return "Buscando..."; }
+            }
+        });
+    }
 
-    function loadCategoriesForCostCenter(costCenterId) {
+    function getFilteredCostCenters() {
+        const companyId = $('#company_id').val();
+        const purchaseType = $('#purchase_type').val();
+
+        if (!companyId || !purchaseType) {
+            return [];
+        }
+
+        return costCenterCatalog.filter(cc =>
+            String(cc.company_id) === String(companyId)
+            && String(cc.purchase_type) === String(purchaseType)
+        );
+    }
+
+    function buildCostCenterOptions(selectedValue = '') {
+        const options = getFilteredCostCenters();
+
+        if (!options.length) {
+            return {
+                html: '<option value="">Sin centros de costo disponibles</option>',
+                disabled: true
+            };
+        }
+
+        let html = '<option value="">Seleccione...</option>';
+        options.forEach(function(option) {
+            const selected = String(selectedValue) === String(option.id) ? ' selected' : '';
+            html += `<option value="${option.id}"${selected}>${option.label}</option>`;
+        });
+
+        return { html, disabled: false };
+    }
+
+    function resetCategorySelect(row, message = 'Seleccione CC primero...') {
+        const select = row.find('.item-expense-category');
+        if (select.hasClass('select2-hidden-accessible')) {
+            select.select2('destroy');
+        }
+        select.html(`<option value="">${message}</option>`).prop('disabled', true);
+    }
+
+    function loadCategoriesForRow(row, costCenterId, selectedValue = null, silent = false) {
+        const select = row.find('.item-expense-category');
+
         if (!costCenterId) {
-            resetCategorySelects();
+            resetCategorySelect(row);
             return;
         }
 
-        // Estado de carga en todos los selects
-        $('.item-expense-category').each(function() {
-            if ($(this).hasClass('select2-hidden-accessible')) $(this).select2('destroy');
-            $(this).prop('disabled', true).html('<option value="">Cargando...</option>');
-        });
+        if (select.hasClass('select2-hidden-accessible')) {
+            select.select2('destroy');
+        }
+        select.prop('disabled', true).html('<option value="">Cargando...</option>');
 
         $.ajax({
             url: "{{ route('direct-purchase-orders.categories') }}",
@@ -576,132 +624,75 @@ $(document).ready(function() {
                     response.categories.forEach(function(cat) {
                         options += `<option value="${cat.id}">${cat.name}</option>`;
                     });
-                    currentCategoryOptions = options;
-
-                    // Actualizar todos los selects existentes
-                    $('.item-expense-category').each(function(index) {
-                        $(this).html(options).prop('disabled', false);
-                        // Restaurar valor previo si aplica (tras fallo de validación)
-                        if (pendingCategoryRestore && pendingCategoryRestore[index]) {
-                            $(this).val(pendingCategoryRestore[index]);
-                        }
-                        initializeCategorySelect($(this));
-                    });
-                    pendingCategoryRestore = null;
-
+                    select.html(options).prop('disabled', false);
+                    if (selectedValue) {
+                        select.val(String(selectedValue));
+                    }
+                    initializeCategorySelect(select);
                 } else {
-                    resetCategorySelects('Sin categorías disponibles');
-                    Swal.fire({
+                    resetCategorySelect(row, 'Sin categorías disponibles');
+                    if (!silent) {
+                        Swal.fire({
                         icon: 'warning',
                         title: 'Sin categorías de gasto',
                         text: response.message || 'El centro de costo seleccionado no tiene categorías de gasto configuradas para el año actual.',
                         confirmButtonText: 'Entendido'
-                    });
+                        });
+                    }
                 }
             },
             error: function() {
-                resetCategorySelects('Error al cargar');
-                Swal.fire({
+                resetCategorySelect(row, 'Error al cargar');
+                if (!silent) {
+                    Swal.fire({
                     icon: 'error',
                     title: 'Error',
                     text: 'Ocurrió un error al consultar las categorías de gasto.',
                     confirmButtonText: 'Cerrar'
-                });
+                    });
+                }
             }
         });
     }
 
-    function resetCategorySelects(message) {
-        message = message || 'Seleccione CC primero...';
-        currentCategoryOptions = `<option value="">${message}</option>`;
-        $('.item-expense-category').each(function() {
-            if ($(this).hasClass('select2-hidden-accessible')) $(this).select2('destroy');
-            $(this).html(`<option value="">${message}</option>`).prop('disabled', true);
-        });
-    }
+    function refreshItemCostCenters() {
+        const options = buildCostCenterOptions();
+        const hasFilters = !!($('#company_id').val() && $('#purchase_type').val());
 
-    // ============================================
-    // FILTRADO DE CENTROS DE COSTO POR EMPRESA
-    // ============================================
+        $('.item-row').each(function() {
+            const row = $(this);
+            const select = row.find('.item-cost-center');
+            const selectedValue = select.val() || select.data('selected') || '';
 
-    const allCostCenterOptions = $('#cost_center_id option').clone();
+            if (select.hasClass('select2-hidden-accessible')) {
+                select.select2('destroy');
+            }
 
-    $('#company_id').on('change', function() {
-        const selectedCompanyId = $(this).val();
-        const selectedPurchaseType = $('#purchase_type').val();
-        const selectedCompanyName = $(this).find('option:selected').text();
-        const $costCenterSelect = $('#cost_center_id');
+            select.html(options.html).prop('disabled', options.disabled || !hasFilters);
 
-        $costCenterSelect.prop('disabled', true).html('<option value="">Cargando...</option>').trigger('change');
-        resetCategorySelects();
-
-        if (selectedCompanyId && selectedPurchaseType) {
-            const filteredOptions = allCostCenterOptions.filter(function() {
-                const companyId = $(this).data('company-id');
-                const purchaseType = $(this).data('purchase-type');
-                return !companyId || ((companyId == selectedCompanyId) && (purchaseType == selectedPurchaseType)) || $(this).val() === '';
-            });
-
-            $costCenterSelect.html(filteredOptions.clone());
-
-            if (filteredOptions.length > 1) {
-                $costCenterSelect.prop('disabled', false);
-                $costCenterSelect.find('option:first').text('Seleccione...');
+            if (selectedValue && select.find(`option[value="${selectedValue}"]`).length) {
+                select.val(String(selectedValue));
             } else {
-                $costCenterSelect.html('<option value="">Sin centros de costo asignados</option>');
-
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sin Centros de Costo Asignados',
-                    html: `
-                        <p class="mb-2">No tienes centros de costo asociados a la empresa <strong>${selectedCompanyName}</strong>.</p>
-                        <hr class="my-3">
-                        <p class="text-start mb-2"><strong>Para solicitar acceso:</strong></p>
-                        <ol class="text-start small">
-                            <li>Contacta al Administrador del Sistema</li>
-                            <li>Solicita que te asignen los centros de costo necesarios</li>
-                            <li>Indica claramente la empresa: <strong>${selectedCompanyName}</strong></li>
-                            <li>Especifica los centros de costo que necesitas</li>
-                        </ol>
-                        <div class="alert alert-info text-start mt-3 small mb-0">
-                            <i class="ti ti-info-circle me-1"></i>
-                            <strong>Contacto:</strong> Departamento de Desarrollo
-                        </div>
-                    `,
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#3085d6',
-                    width: '600px',
-                    customClass: { popup: 'text-start' }
-                });
+                select.val('');
             }
-        } else {
-            $costCenterSelect.html('<option value="">Seleccione empresa y tipo primero...</option>');
-        }
 
-        $costCenterSelect.trigger('change');
+            initializeCostCenterSelect(select);
+
+            const effectiveCostCenterId = select.val();
+            const categorySelected = row.find('.item-expense-category').data('selected') || row.find('.item-expense-category').val();
+            loadCategoriesForRow(row, effectiveCostCenterId, categorySelected, true);
+
+            select.removeData('selected');
+            row.find('.item-expense-category').removeData('selected');
+        });
+    }
+
+    $('#company_id, #purchase_type').on('change', refreshItemCostCenters);
+
+    $(document).on('change', '.item-cost-center', function() {
+        const row = $(this).closest('tr');
+        loadCategoriesForRow(row, $(this).val(), null, false);
     });
-
-    $('#purchase_type').on('change', function() {
-        $('#company_id').trigger('change');
-    });
-
-    // Al cambiar el CC cargar sus categorías disponibles
-    $('#cost_center_id').on('change', function() {
-        loadCategoriesForCostCenter($(this).val());
-    });
-
-    // Restaurar valores previos (tras fallo de validación)
-    @if(old('company_id'))
-        $('#company_id').trigger('change');
-        @if(old('cost_center_id'))
-            @if(old('items'))
-            pendingCategoryRestore = @json(array_column(old('items', []), 'expense_category_id'));
-            @endif
-            setTimeout(function() {
-                $('#cost_center_id').val('{{ old('cost_center_id') }}').trigger('change');
-            }, 100);
-        @endif
-    @endif
 
     // ============================================
     // CONTADOR DE CARACTERES
@@ -780,13 +771,18 @@ $(document).ready(function() {
     let itemIndex = {{ old('items') ? count(old('items')) : 1 }};
 
     $('#add-item-btn').on('click', function() {
-        const ccSelected = !!$('#cost_center_id').val();
+        const costCenterOptions = buildCostCenterOptions();
         const newRow = `
             <tr class="item-row">
                 <td class="ps-2"><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td>
-                    <select name="items[${itemIndex}][expense_category_id]" class="form-select form-select-sm border-0 item-expense-category" required ${ccSelected ? '' : 'disabled'}>
-                        ${currentCategoryOptions}
+                    <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required ${costCenterOptions.disabled ? 'disabled' : ''}>
+                        ${costCenterOptions.html}
+                    </select>
+                </td>
+                <td>
+                    <select name="items[${itemIndex}][expense_category_id]" class="form-select form-select-sm border-0 item-expense-category" required disabled>
+                        <option value="">Seleccione CC primero...</option>
                     </select>
                 </td>
                 <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control form-control-sm border-0 item-quantity" step="0.01" min="0.01" required></td>
@@ -807,32 +803,35 @@ $(document).ready(function() {
         $('#items-tbody').append(newRow);
 
         const lastRow = $('#items-tbody tr:last-child');
+        initializeCostCenterSelect(lastRow.find('.item-cost-center'));
         initializeIvaSelect(lastRow.find('.item-iva-rate'));
-        if (ccSelected) {
-            initializeCategorySelect(lastRow.find('.item-expense-category'));
-        }
 
         itemIndex++;
     });
 
     @if(old('items'))
         setTimeout(function() {
-            // Inicializar IVA selects; los de categoría los inicializa el callback AJAX
             $('.item-iva-rate').each(function() {
                 if (!$(this).hasClass('select2-hidden-accessible')) {
                     initializeIvaSelect($(this));
                 }
             });
+            refreshItemCostCenters();
             $('.item-row').each(function() {
                 calculateItemRow($(this));
             });
             calculateTotals();
         }, 100);
+    @else
+        refreshItemCostCenters();
     @endif
 
     $(document).on('click', '.remove-item-btn', function() {
         if ($('#items-tbody tr').length > 1) {
             const row = $(this).closest('tr');
+            if (row.find('.item-cost-center').hasClass('select2-hidden-accessible')) {
+                row.find('.item-cost-center').select2('destroy');
+            }
             row.find('.item-iva-rate').select2('destroy');
             if (row.find('.item-expense-category').hasClass('select2-hidden-accessible')) {
                 row.find('.item-expense-category').select2('destroy');

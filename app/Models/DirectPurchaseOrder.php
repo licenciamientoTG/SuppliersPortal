@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use App\Enum\PurchaseType;
+use App\Models\CostCenter;
 
 class DirectPurchaseOrder extends Model
 {
@@ -165,6 +167,51 @@ class DirectPurchaseOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(DirectPurchaseOrderItem::class);
+    }
+
+    public function primaryCostCenter(): ?CostCenter
+    {
+        if ($this->relationLoaded('items')) {
+            return $this->items
+                ->loadMissing('costCenter')
+                ->pluck('costCenter')
+                ->filter()
+                ->first();
+        }
+
+        return $this->items()
+            ->with('costCenter')
+            ->orderBy('id')
+            ->first()?->costCenter;
+    }
+
+    public function primaryCostCenterLabel(): string
+    {
+        $costCenter = $this->primaryCostCenter();
+
+        if (! $costCenter) {
+            return 'N/A';
+        }
+
+        return $costCenter->code
+            ? "{$costCenter->code} - {$costCenter->name}"
+            : $costCenter->name;
+    }
+
+    public function primaryPurchaseType(): ?string
+    {
+        $purchaseType = $this->primaryCostCenter()?->purchase_type;
+
+        if ($purchaseType instanceof PurchaseType) {
+            return $purchaseType->value;
+        }
+
+        return $purchaseType ? (string) $purchaseType : null;
+    }
+
+    public function primaryCompanyId(): ?int
+    {
+        return $this->primaryCostCenter()?->company_id;
     }
 
     public function approvals(): HasMany

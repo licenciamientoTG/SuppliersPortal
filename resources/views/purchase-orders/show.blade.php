@@ -132,11 +132,11 @@
                             <div class="info-value">{{ $purchaseOrder->requisition->department->name }}</div>
                         </div>
                         @endif
-                        @if($purchaseOrder->requisition->costCenter)
-                        <div class="mb-1">
-                            <span class="info-label">Centro de Costos</span>
-                            <div class="info-value">{{ $purchaseOrder->requisition->costCenter->name }}</div>
-                        </div>
+                        @if($purchaseOrder->requisition->primaryCostCenter())
+                            <div class="mb-1">
+                                <span class="info-label">Centro de Costos</span>
+                            <div class="info-value">{{ $purchaseOrder->requisition->primaryCostCenterLabel() }}</div>
+                            </div>
                         @endif
                         @if($purchaseOrder->requisition->required_date)
                         <div class="mb-0">
