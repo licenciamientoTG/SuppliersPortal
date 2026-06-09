@@ -66,7 +66,9 @@
                                         </div>
                                     </td>
                                     <td>
-                                        @php($primaryCostCenter = $requisition->primaryCostCenter())
+                                        @php
+                                            $primaryCostCenter = $requisition->primaryCostCenter();
+                                        @endphp
                                         <small class="text-muted">{{ $primaryCostCenter?->code ?? 'N/A' }}</small><br>
                                         {{ \Illuminate\Support\Str::limit($primaryCostCenter?->name ?? 'Sin centro de costo', 30) }}
                                     </td>
