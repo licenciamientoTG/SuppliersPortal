@@ -6,6 +6,9 @@ use App\Enum\ContractStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -38,32 +41,32 @@ class Contract extends Model
 
     // ── Relaciones ────────────────────────────────────────────────────────
 
-    public function supplier()
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function company()
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
     }
 
-    public function products()
+    public function products(): HasMany
     {
         return $this->hasMany(ContractProduct::class);
     }
 
-    public function cancelledByUser()
+    public function cancelledByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
-    public function creator()
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function updater()
+    public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
@@ -72,7 +75,7 @@ class Contract extends Model
 
     public function scopeEligible($query)
     {
-        return $query->where('status', 'active')
+        return $query->where('status', ContractStatus::ACTIVE->value)
             ->whereDate('end_date', '>=', Carbon::today()->toDateString())
             ->whereHas('supplier', fn($q) => $q->where('status', 'activo'));
     }
@@ -95,6 +98,9 @@ class Contract extends Model
     {
         if ($this->status === ContractStatus::CANCELLED) {
             return 'cancelled';
+        }
+        if (! $this->end_date) {
+            return 'active';
         }
         if ($this->end_date->lt(Carbon::today())) {
             return 'expired';
@@ -122,18 +128,21 @@ class Contract extends Model
 
     public static function nextFolio(): string
     {
-        $year   = date('Y');
-        $prefix = "CONT-{$year}-";
-        $last   = static::where('folio', 'like', $prefix . '%')
-            ->orderBy('folio', 'desc')
-            ->value('folio');
+        return DB::transaction(function () {
+            $year   = date('Y');
+            $prefix = "CONT-{$year}-";
+            $last   = static::where('folio', 'like', $prefix . '%')
+                ->lockForUpdate()
+                ->orderBy('folio', 'desc')
+                ->value('folio');
 
-        $n = 0;
-        if ($last && preg_match('/CONT-\d{4}-(\d+)/', $last, $m)) {
-            $n = (int) $m[1];
-        }
+            $n = 0;
+            if ($last && preg_match('/CONT-\d{4}-(\d+)/', $last, $m)) {
+                $n = (int) $m[1];
+            }
 
-        return sprintf('%s%03d', $prefix, $n + 1);
+            return sprintf('%s%03d', $prefix, $n + 1);
+        });
     }
 
     // ── ActivityLog ───────────────────────────────────────────────────────

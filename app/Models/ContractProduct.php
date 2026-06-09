@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ContractProduct extends Model
 {
@@ -22,12 +23,12 @@ class ContractProduct extends Model
         'unit_price' => 'decimal:4',
     ];
 
-    public function contract()
+    public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class);
     }
 
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(ProductService::class, 'product_service_id');
     }
