@@ -42,7 +42,7 @@ class RfqIndex extends Component
         ];
 
         $requisitions = Requisition::query()
-            ->with(['requester', 'company', 'costCenter', 'department'])
+            ->with(['requester', 'company', 'department', 'items.costCenter'])
             ->whereIn('status', $allowedStatuses)
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -50,7 +50,7 @@ class RfqIndex extends Component
                         ->orWhereHas('requester', function ($q2) {
                             $q2->where('name', 'like', '%' . $this->search . '%');
                         })
-                        ->orWhereHas('costCenter', function ($q2) {
+                        ->orWhereHas('items.costCenter', function ($q2) {
                             $q2->where('name', 'like', '%' . $this->search . '%')
                                 ->orWhere('code', 'like', '%' . $this->search . '%');
                         });

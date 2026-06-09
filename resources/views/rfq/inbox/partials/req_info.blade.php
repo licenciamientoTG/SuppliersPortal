@@ -28,7 +28,7 @@
                 <strong>Departamento:</strong> {{ $requisition->department->name ?? 'N/A' }} {{-- --}}
             </p>
             <p class="mb-0 small">
-                <strong>Centro de Costos:</strong> {{ $requisition->costCenter->name ?? 'N/A' }} {{-- --}}
+                <strong>Centro de Costos:</strong> {{ $requisition->primaryCostCenter()?->name ?? 'N/A' }} {{-- --}}
             </p>
             @if($requisition->receivingLocation)
             <p class="mb-0 small mt-1">

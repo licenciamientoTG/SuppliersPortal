@@ -23,7 +23,8 @@
     <div class="col-md-4">
         <label class="form-label text-muted text-uppercase fs-11 fw-bold">Centro de Costos</label>
         <div class="bg-light p-2 rounded border text-truncate">
-            <span>{{ $requisition->costCenter->code }} - {{ $requisition->costCenter->name }}</span>
+            @php($primaryCostCenter = $requisition->primaryCostCenter())
+            <span>{{ $primaryCostCenter?->code ?? 'N/A' }} - {{ $primaryCostCenter?->name ?? 'Sin centro de costo' }}</span>
         </div>
     </div>
 </div>

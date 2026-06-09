@@ -62,12 +62,13 @@
                                             <span class="avatar avatar-xs rounded-circle bg-primary-subtle text-primary me-2">
                                                 <i class="ti ti-user"></i>
                                             </span>
-                                            <span>{{ $requisition->requester->name }}</span>
+                                            <span>{{ $requisition->requester?->name ?? 'Sin solicitante' }}</span>
                                         </div>
                                     </td>
                                     <td>
-                                        <small class="text-muted">{{ $requisition->costCenter->code }}</small><br>
-                                        {{ Str::limit($requisition->costCenter->name, 30) }}
+                                        @php($primaryCostCenter = $requisition->primaryCostCenter())
+                                        <small class="text-muted">{{ $primaryCostCenter?->code ?? 'N/A' }}</small><br>
+                                        {{ \Illuminate\Support\Str::limit($primaryCostCenter?->name ?? 'Sin centro de costo', 30) }}
                                     </td>
                                     <td>
                                         @if($requisition->required_date)

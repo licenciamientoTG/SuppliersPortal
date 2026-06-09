@@ -66,7 +66,7 @@
                         <div>
                             <h5 class="mb-1 fw-bold text-success">✓ CONTROL PRESUPUESTAL ACTIVO</h5>
                             <p class="text-muted mb-0 small">
-                                Centro de Costos: <strong>{{ $rfq->requisition->costCenter->name }}</strong> |
+                                Centro de Costos: <strong>{{ $rfq->requisition->primaryCostCenter()?->name ?? 'N/A' }}</strong> |
                                 Periodo: <strong>{{ now()->translatedFormat('F Y') }}</strong>
                                 @if($rfq->requisition->required_date)
                                     | Fecha requerida: <strong class="text-danger">{{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}</strong>

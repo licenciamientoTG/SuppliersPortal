@@ -10,7 +10,8 @@
     </div>
     <div class="col-md-3">
         <small class="text-muted d-block">Centro de Costos</small>
-        {{ $requisition->costCenter->code }} - {{ $requisition->costCenter->name }}
+        @php($primaryCostCenter = $requisition->primaryCostCenter())
+        {{ $primaryCostCenter?->code ?? 'N/A' }} - {{ $primaryCostCenter?->name ?? 'Sin centro de costo' }}
     </div>
     <div class="col-md-3">
         <small class="text-muted d-block">Total de Partidas</small>
@@ -179,4 +180,3 @@
 }
 </style>
 @endpush
-

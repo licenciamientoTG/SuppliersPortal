@@ -37,8 +37,8 @@ class QuotationWizard extends Component
         $this->requisition = $requisition->load([
             'requester',
             'company',
-            'costCenter',
             'department',
+            'items.costCenter',
             'items.productService',
             'items.expenseCategory',
             'quotationGroups.items',
