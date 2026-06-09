@@ -48,7 +48,9 @@ class SupplierDeliveryController extends Controller
             ->get()
             ->each(fn($o) => $o->order_type = 'direct');
 
-        $orders = $purchaseOrders->merge($directOrders)->sortByDesc('issued_at')->values();
+        // `merge()` en colecciones Eloquent usa la llave primaria del modelo.
+        // Si una OC normal y una OCD comparten el mismo `id`, una pisa a la otra.
+        $orders = $purchaseOrders->concat($directOrders)->sortByDesc('issued_at')->values();
 
         return view('supplier.deliveries.index', compact('orders'));
     }
