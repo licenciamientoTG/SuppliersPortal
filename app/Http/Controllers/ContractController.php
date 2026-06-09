@@ -6,8 +6,10 @@ use App\Http\Requests\StoreContractRequest;
 use App\Http\Requests\UpdateContractRequest;
 use App\Models\Contract;
 use App\Models\Company;
+use App\Models\RequisitionItem;
 use App\Models\Supplier;
 use App\Services\ContractImportService;
+use Spatie\Activitylog\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -99,8 +101,8 @@ class ContractController extends Controller
     public function show(Contract $contract)
     {
         $contract->load(['supplier', 'company', 'products.product', 'creator', 'cancelledByUser']);
-        $history = activity()->forSubject($contract)->latest()->get();
-        $purchases = \App\Models\RequisitionItem::with(['requisition'])
+        $history = Activity::forSubject($contract)->latest()->get();
+        $purchases = RequisitionItem::with(['requisition'])
             ->where('contract_id', $contract->id)
             ->latest()
             ->paginate(20);
@@ -155,7 +157,7 @@ class ContractController extends Controller
             'cancellation_reason' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
 
-        abort_if($contract->status->value !== 'active', 422, 'El contrato ya no está activo.');
+        abort_if($contract->effective_status !== 'active', 422, 'El contrato ya no está activo.');
 
         $contract->update([
             'status'              => 'cancelled',
