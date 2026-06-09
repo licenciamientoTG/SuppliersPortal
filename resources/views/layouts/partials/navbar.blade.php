@@ -27,12 +27,6 @@
                 <i class="ti ti-menu-2 fs-22"></i>
             </button>
 
-            <!-- Horizontal Menu Toggle Button -->
-            <button class="topnav-toggle-button px-2" data-bs-toggle="collapse" data-bs-target="#topnav-menu-content">
-                <i class="ti ti-menu-2 fs-22"></i>
-            </button>
-
-
             <!-- Mega Menu Dropdown -->
             <div class="topbar-item d-none d-md-flex">
                 <div class="dropdown">
