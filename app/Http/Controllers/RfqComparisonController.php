@@ -29,7 +29,7 @@ class RfqComparisonController extends Controller
     {
         $rfq->load([
             'requisition.requester',
-            'requisition.costCenter',
+            'requisition.items.costCenter',
             'suppliers',
             'rfqResponses' => fn ($query) => $query->whereIn('status', ['SUBMITTED', 'SELECTED', 'REJECTED']),
             'quotationSummary.rejector',
@@ -64,7 +64,7 @@ class RfqComparisonController extends Controller
             'justification' => 'required|string|min:15',
         ]);
 
-        $rfq->loadMissing('requisition.requester', 'requisition.costCenter', 'rfqResponses.requisitionItem');
+        $rfq->loadMissing('requisition.requester', 'requisition.items.costCenter', 'rfqResponses.requisitionItem');
 
         $totals = $rfq->rfqResponses()
             ->where('supplier_id', $request->integer('supplier_id'))
