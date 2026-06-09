@@ -65,11 +65,21 @@ class SupplierAdminController extends Controller
             $rejectUrl = route('admin.suppliers.reject', $supplier);
             $docsUrl = route('admin.review.suppliers.show', $supplier);
 
+            $approvalActions = match ($supplier->approval_status) {
+                'pending' => <<<HTML
+                    <button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="{$approveUrl}" title="Aprobar"><i class="ti ti-circle-check"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-warning js-reject-supplier" data-url="{$rejectUrl}" title="Rechazar"><i class="ti ti-circle-x"></i></button>
+                HTML,
+                'rejected' => <<<HTML
+                    <button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="{$approveUrl}" title="Aprobar"><i class="ti ti-circle-check"></i></button>
+                HTML,
+                default => '',
+            };
+
             $actions = <<<HTML
                 <div class="d-flex justify-content-end gap-1">
                     <a href="{$editUrl}" class="btn btn-sm btn-outline-primary js-open-supplier-modal" data-url="{$editUrl}" title="Editar"><i class="ti ti-pencil"></i></a>
-                    <button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="{$approveUrl}" title="Aprobar"><i class="ti ti-circle-check"></i></button>
-                    <button type="button" class="btn btn-sm btn-outline-warning js-reject-supplier" data-url="{$rejectUrl}" title="Rechazar"><i class="ti ti-circle-x"></i></button>
+                    {$approvalActions}
                     <a href="{$docsUrl}" class="btn btn-sm btn-outline-info" target="_blank" title="Documentos"><i class="ti ti-file-description"></i></a>
                     <button type="button" class="btn btn-sm btn-outline-secondary js-toggle-supplier" data-url="{$toggleUrl}" title="Activar o desactivar"><i class="ti ti-switch-2"></i></button>
                     <button type="button" class="btn btn-sm btn-outline-danger js-delete-supplier" data-url="{$deleteUrl}" data-name="{$supplier->company_name}" title="Eliminar"><i class="ti ti-trash"></i></button>
@@ -193,6 +203,10 @@ class SupplierAdminController extends Controller
 
     public function approve(Request $request, Supplier $supplier)
     {
+        if ($supplier->approval_status === 'approved') {
+            return response()->json(['message' => 'El proveedor ya se encuentra aprobado.'], 422);
+        }
+
         $supplier->update([
             'approval_status' => 'approved',
             'approved_by' => $request->user()->id,
@@ -207,6 +221,16 @@ class SupplierAdminController extends Controller
 
     public function reject(Request $request, Supplier $supplier)
     {
+        if ($supplier->approval_status === 'approved') {
+            return response()->json([
+                'message' => 'Un proveedor aprobado no se rechaza desde esta acción directa. Revisa el flujo definido para cambios de estatus.',
+            ], 422);
+        }
+
+        if ($supplier->approval_status === 'rejected') {
+            return response()->json(['message' => 'El proveedor ya se encuentra rechazado.'], 422);
+        }
+
         $request->validate([
             'approval_notes' => ['required', 'string', 'min:5'],
         ]);
