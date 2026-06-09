@@ -80,7 +80,7 @@
 
     ROLES HANDLED:
       - superadmin     : full access to all sections
-      - staff          : Compras + Proveedores
+      - staff          : Compras + Proveedores + Órdenes de Compra
       - accounting     : Finanzas only
       - general_director : Compras + Finanzas
       - authorizer     : Compras → Aprobar cotización only

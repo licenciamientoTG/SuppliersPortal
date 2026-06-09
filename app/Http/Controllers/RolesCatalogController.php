@@ -34,7 +34,7 @@ class RolesCatalogController extends Controller
         'authorizer'       => ['label' => 'Autorizador',            'icon' => 'ti-stamp',            'color' => '#0284c7', 'desc' => 'Aprobación y rechazo de solicitudes del sistema.'],
         'catalog_admin'    => ['label' => 'Admin. de Catálogo',     'icon' => 'ti-package',          'color' => '#0891b2', 'desc' => 'Administración de productos, servicios y categorías.'],
         'department_head'  => ['label' => 'Jefe de Departamento',   'icon' => 'ti-building',         'color' => '#475569', 'desc' => 'Gestión financiera y de órdenes a nivel departamental.'],
-        'staff'            => ['label' => 'Staff',                  'icon' => 'ti-briefcase',        'color' => '#6b7280', 'desc' => 'Acceso de consulta a compras, proveedores y cotizaciones.'],
+        'staff'            => ['label' => 'Staff',                  'icon' => 'ti-briefcase',        'color' => '#6b7280', 'desc' => 'Acceso operativo a compras, proveedores y órdenes directas.'],
         'receiver'         => ['label' => 'Receptor',               'icon' => 'ti-clipboard-check',  'color' => '#ea580c', 'desc' => 'Recepción y seguimiento de órdenes de compra.'],
         'supplier'         => ['label' => 'Proveedor',              'icon' => 'ti-truck',            'color' => '#dc2626', 'desc' => 'Acceso al portal externo para proveedores registrados.'],
     ];
