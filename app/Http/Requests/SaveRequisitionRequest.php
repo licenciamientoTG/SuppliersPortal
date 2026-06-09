@@ -104,6 +104,12 @@ class SaveRequisitionRequest extends FormRequest
                 'exists:budget_cedulas,id',
             ],
 
+            'items.*.cost_center_id' => [
+                'required',
+                'integer',
+                'exists:cost_centers,id',
+            ],
+
             'items.*.quantity' => [
                 'required',
                 'numeric',
@@ -200,6 +206,8 @@ class SaveRequisitionRequest extends FormRequest
             'items.*.expense_category_id.exists' => 'La categoría de gasto seleccionada no existe.',
             'items.*.budget_cedula_id.required' => 'La subcategoría presupuestal es obligatoria.',
             'items.*.budget_cedula_id.exists' => 'La subcategoría presupuestal seleccionada no existe.',
+            'items.*.cost_center_id.required' => 'El centro de costo de la partida es obligatorio.',
+            'items.*.cost_center_id.exists' => 'El centro de costo de la partida no existe.',
             'items.*.quantity.required' => 'La cantidad es obligatoria.',
             'items.*.quantity.numeric' => 'La cantidad debe ser un número.',
             'items.*.quantity.min' => 'La cantidad debe ser mayor a cero.',
@@ -272,7 +280,7 @@ class SaveRequisitionRequest extends FormRequest
                 }
             }
 
-            if ($this->items && is_array($this->items) && $this->cost_center_id) {
+            if ($this->items && is_array($this->items)) {
                 $catalogService = app(BudgetCedulaCatalogService::class);
                 $fiscalYear = ($isUpdate && $requisition)
                     ? (int) ($requisition->fiscal_year ?? $requisition->created_at?->year ?? date('Y'))
@@ -281,8 +289,35 @@ class SaveRequisitionRequest extends FormRequest
                 foreach ($this->items as $index => $item) {
                     $expenseCategoryId = (int) ($item['expense_category_id'] ?? 0);
                     $budgetCedulaId = (int) ($item['budget_cedula_id'] ?? 0);
+                    $itemCostCenterId = (int) ($item['cost_center_id'] ?? 0);
 
-                    if (! $expenseCategoryId || ! $budgetCedulaId) {
+                    if (! $expenseCategoryId || ! $budgetCedulaId || ! $itemCostCenterId) {
+                        continue;
+                    }
+
+                    if (! $this->user()->costCenters()
+                        ->where('cost_centers.id', $itemCostCenterId)
+                        ->where('cost_center_user.is_active', true)
+                        ->exists()) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo de la partida no está asignado a tu usuario.'
+                        );
+
+                        continue;
+                    }
+
+                    $itemCostCenter = CostCenter::find($itemCostCenterId);
+                    $purchaseType = $this->purchase_type
+                        ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
+
+                    if ($itemCostCenter && $purchaseType
+                        && ($itemCostCenter->purchase_type?->value ?? $itemCostCenter->purchase_type) !== $purchaseType) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo de la partida no coincide con el tipo de compra seleccionado.'
+                        );
+
                         continue;
                     }
 
@@ -301,7 +336,7 @@ class SaveRequisitionRequest extends FormRequest
                     }
 
                     if (! $catalogService->isValidCedulaForContext(
-                        (int) $this->cost_center_id,
+                        $itemCostCenterId,
                         $expenseCategoryId,
                         $budgetCedulaId,
                         $fiscalYear

@@ -878,9 +878,17 @@
             const quantity = parseFloat($('#modal_quantity').val());
             const categoryId = $('#modal_expense_category').val();
             const budgetCedulaId = $('#modal_budget_cedula').val();
+            const costCenterId = $('#cost_center_id').val();
+            const costCenterName = $('#cost_center_id option:selected').text();
+            const purchaseType = $('#purchase_type').val();
 
             if (!budgetCedulaId) {
                 Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+                return;
+            }
+
+            if (!costCenterId) {
+                Swal.fire('Error', 'Selecciona un centro de costo antes de agregar la partida.', 'error');
                 return;
             }
 
@@ -937,6 +945,9 @@
                 expense_category_name: $('#modal_expense_category option:selected').text(),
                 budget_cedula_id: budgetCedulaId,
                 budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
+                cost_center_id: costCenterId,
+                cost_center_name: costCenterName,
+                purchase_type: purchaseType,
                 notes: $('#modal_notes').val() || ''
             };
 
@@ -1081,8 +1092,11 @@
                 container.append(`
                     ${idInput}
                     <input type="hidden" name="items[${index}][product_service_id]" value="${escapeAttribute(item.product_id)}">
+                    <input type="hidden" name="items[${index}][description]" value="${escapeAttribute(item.description)}">
+                    <input type="hidden" name="items[${index}][unit]" value="${escapeAttribute(item.unit)}">
                     <input type="hidden" name="items[${index}][expense_category_id]" value="${escapeAttribute(item.expense_category_id)}">
                     <input type="hidden" name="items[${index}][budget_cedula_id]" value="${escapeAttribute(item.budget_cedula_id)}">
+                    <input type="hidden" name="items[${index}][cost_center_id]" value="${escapeAttribute(item.cost_center_id)}">
                     <input type="hidden" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity)}">
                     <input type="hidden" name="items[${index}][notes]" value="${escapeAttribute(item.notes)}">
                 `);

@@ -593,6 +593,8 @@
                     <input type="hidden" name="items[${index}][quantity]" value="${escapeHtml(item.quantity)}">
                     <input type="hidden" name="items[${index}][unit]" value="${escapeHtml(item.unit)}">
                     <input type="hidden" name="items[${index}][expense_category_id]" value="${escapeHtml(item.expense_category_id)}">
+                    <input type="hidden" name="items[${index}][budget_cedula_id]" value="${escapeHtml(item.budget_cedula_id)}">
+                    <input type="hidden" name="items[${index}][cost_center_id]" value="${escapeHtml(item.cost_center_id)}">
                     <input type="hidden" name="items[${index}][notes]" value="${escapeHtml(item.notes)}">
                 `);
             });
@@ -638,6 +640,11 @@
                                 'unit' => $item->unit,
                                 'expense_category_id' => $item->expense_category_id,
                                 'expense_category_name' => $item->expenseCategory?->name ?? '—',
+                                'budget_cedula_id' => $item->budget_cedula_id,
+                                'budget_cedula_name' => $item->budgetCedula?->name ?? '—',
+                                'cost_center_id' => $item->cost_center_id,
+                                'cost_center_name' => $item->costCenter?->name ?? '—',
+                                'purchase_type' => $item->costCenter?->purchase_type?->value ?? $item->costCenter?->purchase_type ?? '',
                                 'notes' => $item->notes ?? ''
                             ];
                         })
@@ -682,7 +689,8 @@
                         $('#item_id').val(item.id || '');
                         $('#modal_product_id').val(item.product_id).trigger('change');
                         $('#modal_quantity').val(item.quantity);
-                        $('#modal_expense_category').val(item.expense_category_id);
+                        $budgetCedula.data('pending-value', item.budget_cedula_id || null);
+                        $('#modal_expense_category').val(item.expense_category_id).trigger('change');
                         $('#modal_notes').val(item.notes || '');
                     }, 500);
                 }
@@ -860,6 +868,10 @@
                 const productId = $('#modal_product_id').val();
                 const quantity = parseFloat($('#modal_quantity').val());
                 const categoryId = $('#modal_expense_category').val();
+                const budgetCedulaId = $('#modal_budget_cedula').val();
+                const costCenterId = $('#cost_center_id').val();
+                const costCenterName = $('#cost_center_id option:selected').text();
+                const purchaseType = $('input[name="purchase_type"]').val() || $('#purchase_type').val();
 
                 if (!productId) {
                     Swal.fire('Error', 'Selecciona un producto del catálogo (RN-001).', 'error');
@@ -873,6 +885,16 @@
 
                 if (!categoryId) {
                     Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
+                    return;
+                }
+
+                if (!budgetCedulaId) {
+                    Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+                    return;
+                }
+
+                if (!costCenterId) {
+                    Swal.fire('Error', 'Selecciona un centro de costo antes de agregar la partida.', 'error');
                     return;
                 }
 
@@ -909,6 +931,11 @@
                     unit: $('#modal_unit').val(),
                     expense_category_id: categoryId,
                     expense_category_name: $('#modal_expense_category option:selected').text(),
+                    budget_cedula_id: budgetCedulaId,
+                    budget_cedula_name: $('#modal_budget_cedula option:selected').text(),
+                    cost_center_id: costCenterId,
+                    cost_center_name: costCenterName,
+                    purchase_type: purchaseType,
                     notes: $('#modal_notes').val() || ''
                 };
 

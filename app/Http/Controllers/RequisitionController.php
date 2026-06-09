@@ -421,12 +421,16 @@ class RequisitionController extends Controller
         $cedulas = BudgetCedula::whereIn('id', collect($items)->pluck('budget_cedula_id')->filter()->all())
             ->get(['id', 'name'])
             ->keyBy('id');
+        $costCenters = CostCenter::whereIn('id', collect($items)->pluck('cost_center_id')->filter()->all())
+            ->get(['id', 'name', 'purchase_type'])
+            ->keyBy('id');
 
         return collect($items)
-            ->map(function (array $item) use ($products, $categories, $cedulas) {
+            ->map(function (array $item) use ($products, $categories, $cedulas, $costCenters) {
                 $product = $products->get((int) ($item['product_service_id'] ?? 0));
                 $category = $categories->get((int) ($item['expense_category_id'] ?? 0));
                 $cedula = $cedulas->get((int) ($item['budget_cedula_id'] ?? 0));
+                $costCenter = $costCenters->get((int) ($item['cost_center_id'] ?? 0));
 
                 return [
                     'id' => $item['id'] ?? null,
@@ -443,6 +447,10 @@ class RequisitionController extends Controller
                     'expense_category_name' => $category?->name ?? 'Categoría seleccionada',
                     'budget_cedula_id' => $item['budget_cedula_id'] ?? null,
                     'budget_cedula_name' => $cedula?->name ?? 'Subcategoría seleccionada',
+                    'cost_center_id' => $item['cost_center_id'] ?? null,
+                    'cost_center_name' => $costCenter?->name ?? 'Centro de costo seleccionado',
+                    'purchase_type' => $item['purchase_type']
+                        ?? ($costCenter?->purchase_type?->value ?? $costCenter?->purchase_type ?? ''),
                     'notes' => $item['notes'] ?? '',
                 ];
             })
@@ -552,12 +560,13 @@ class RequisitionController extends Controller
         $resolvedDescription = filled($itemData['description'] ?? null)
             ? trim((string) $itemData['description'])
             : $product->getRequisitionDescription();
+        $resolvedCostCenterId = (int) ($itemData['cost_center_id'] ?? $requisition->cost_center_id ?? 0);
 
         $data = [
             // === Datos del producto (heredados del catálogo) ===
             'product_service_id' => $product->id,
             'line_number' => $lineNumber,
-            'item_category' => optional($product->category)->name,
+            'item_category' => $product->product_type,
             'product_code' => $product->code,
 
             // Nunca permitir description null aunque el catálogo tenga campos legacy incompletos.
@@ -573,6 +582,7 @@ class RequisitionController extends Controller
             // RN-010A, RN-010B: Categoría de gasto OBLIGATORIA, definida por REQUISITOR
             'expense_category_id' => $itemData['expense_category_id'],
             'budget_cedula_id' => $itemData['budget_cedula_id'],
+            'cost_center_id' => $resolvedCostCenterId,
 
             // Cantidad solicitada (mínimo 0.001)
             'quantity' => max(0.001, (float) ($itemData['quantity'] ?? 1)),

@@ -203,7 +203,7 @@ class RequisitionItem extends Model
                 $product = ProductService::find($item->product_service_id);
                 if ($product) {
                     $item->description = $item->description ?? $product->getRequisitionDescription();
-                    $item->item_category = $item->item_category ?? $product->category?->name;
+                    $item->item_category = $item->item_category ?? $product->product_type;
                     $item->product_code = $item->product_code ?? $product->code;
                     $item->unit = $item->unit ?? $product->unit_of_measure;
                 }
