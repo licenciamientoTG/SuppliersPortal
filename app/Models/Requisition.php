@@ -21,7 +21,6 @@ class Requisition extends Model
         'company_id',
         'receiving_location_id',
         'department_id',
-        'fiscal_year',
         'folio',
         'requested_by',
         'required_date',

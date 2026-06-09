@@ -1260,7 +1260,7 @@ $(function() {
     }
 
     function getRequisitionFiscalYear() {
-        return {{ $isEditMode ? (int) ($requisition->fiscal_year ?? now()->year) : now()->year }};
+        return {{ $isEditMode ? (int) ($requisition->created_at?->year ?? now()->year) : now()->year }};
     }
 
     function resetBudgetCedulaSelect(message = 'Selecciona primero una categoría de gasto...') {

@@ -129,7 +129,7 @@
                         <i class="ti ti-calendar-stats me-1"></i> Ano fiscal
                     </dt>
                     <dd class="col-sm-7">
-                        <span class="fw-semibold">{{ $requisition->fiscal_year }}</span>
+                        <span class="fw-semibold">{{ $requisition->created_at?->year ?? now()->year }}</span>
                     </dd>
 
                     @if ($requisition->required_date)

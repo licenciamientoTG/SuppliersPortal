@@ -34,7 +34,7 @@ class SaveRequisitionRequest extends FormRequest
             ? $requisition->company_id
             : $this->company_id;
         $purchaseType = $this->purchase_type
-            ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
+            ?: $requisition?->primaryPurchaseType();
 
         $rules = [
             'purchase_type' => [
@@ -237,7 +237,7 @@ class SaveRequisitionRequest extends FormRequest
             if ($this->cost_center_id) {
                 $costCenter = CostCenter::find($this->cost_center_id);
                 $purchaseType = $this->purchase_type
-                    ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
+                    ?: $requisition?->primaryPurchaseType();
 
                 if (! $this->user()->costCenters()
                     ->where('cost_centers.id', $this->cost_center_id)
@@ -257,7 +257,7 @@ class SaveRequisitionRequest extends FormRequest
                 }
 
                 $fiscalYear = ($isUpdate && $requisition)
-                    ? (int) ($requisition->fiscal_year ?? $requisition->created_at?->year ?? date('Y'))
+                    ? (int) ($requisition->created_at?->year ?? date('Y'))
                     : (int) date('Y');
 
                 if ($costCenter && ! $costCenter->hasAnnualBudget($fiscalYear)) {
@@ -283,7 +283,7 @@ class SaveRequisitionRequest extends FormRequest
             if ($this->items && is_array($this->items)) {
                 $catalogService = app(BudgetCedulaCatalogService::class);
                 $fiscalYear = ($isUpdate && $requisition)
-                    ? (int) ($requisition->fiscal_year ?? $requisition->created_at?->year ?? date('Y'))
+                    ? (int) ($requisition->created_at?->year ?? date('Y'))
                     : (int) date('Y');
 
                 foreach ($this->items as $index => $item) {
@@ -309,7 +309,7 @@ class SaveRequisitionRequest extends FormRequest
 
                     $itemCostCenter = CostCenter::find($itemCostCenterId);
                     $purchaseType = $this->purchase_type
-                        ?: ($requisition?->costCenter?->purchase_type?->value ?? $requisition?->costCenter?->purchase_type);
+                        ?: $requisition?->primaryPurchaseType();
 
                     if ($itemCostCenter && $purchaseType
                         && ($itemCostCenter->purchase_type?->value ?? $itemCostCenter->purchase_type) !== $purchaseType) {

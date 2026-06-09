@@ -1,5 +1,4 @@
 @php
-    $year = old('fiscal_year', $requisition->fiscal_year ?? date('Y'));
     $currency = old('currency_code', $requisition->currency_code ?? 'MXN');
     $items = old('items', isset($requisition) && $requisition->exists ? $requisition->items->toArray() : []);
     $requiredRaw = old('required_date', optional($requisition->required_date)->format('Y-m-d'));
@@ -118,7 +117,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-{{ !empty($requisition->folio) ? '4' : '4' }}">
+                <div class="col-md-{{ !empty($requisition->folio) ? '5' : '6' }}">
                     <label for="company_id" class="form-label form-label-sm">Compañía <span
                             class="text-danger">*</span></label>
                     <div class="input-group input-group-sm">

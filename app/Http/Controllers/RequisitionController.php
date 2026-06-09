@@ -187,8 +187,6 @@ class RequisitionController extends Controller
                 $data = $request->validated();
                 $action = $request->input('submit_action', 'draft');
                 $action = $action === 'submit' ? 'submit' : 'draft';
-                $data['fiscal_year'] = now()->year;
-
                 $requisition = $this->createRequisition($data, 'draft');
                 $this->processRequisitionItems($requisition, $data['items'] ?? []);
 
@@ -469,8 +467,7 @@ class RequisitionController extends Controller
             'company_id' => $data['company_id'],
             'receiving_location_id' => $data['receiving_location_id'],
             'department_id' => $data['department_id'] ?? null,
-            'fiscal_year' => $data['fiscal_year'],
-            'folio' => Requisition::nextFolio($data['fiscal_year']),
+            'folio' => Requisition::nextFolio(),
             'requested_by' => Auth::id(),
             'required_date' => $data['required_date'] ?? null,
             'description' => $data['description'] ?? null,

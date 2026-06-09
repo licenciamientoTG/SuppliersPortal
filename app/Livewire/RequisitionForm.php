@@ -236,7 +236,6 @@ class RequisitionForm extends Component
                     'description'          => $this->description,
                     'status'               => 'draft',
                     'created_by'           => Auth::id(),
-                    'fiscal_year'          => now()->year,
                 ]);
 
                 // Crear partidas
