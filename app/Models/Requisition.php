@@ -19,8 +19,10 @@ class Requisition extends Model
 
     protected $fillable = [
         'company_id',
+        'cost_center_id',
         'receiving_location_id',
         'department_id',
+        'fiscal_year',
         'folio',
         'requested_by',
         'required_date',
@@ -93,6 +95,14 @@ class Requisition extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Centro de costo de cabecera de la requisición.
+     */
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class);
     }
 
     public function items(): HasMany
