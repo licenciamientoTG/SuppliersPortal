@@ -29,7 +29,12 @@ return new class extends Migration
                   ->nullable()
                   ->constrained('users')
                   ->nullOnDelete()
-                  ->comment('Usuario proveedor que subió la evidencia');
+                  ->comment('Usuario interno que subió la evidencia, si aplica');
+            $table->foreignId('uploaded_by_supplier_id')
+                  ->nullable()
+                  ->constrained('suppliers')
+                  ->noActionOnDelete()
+                  ->comment('Proveedor autenticado que subió la evidencia');
             $table->dateTime('uploaded_at')
                   ->comment('Fecha y hora de carga');
 
@@ -37,6 +42,7 @@ return new class extends Migration
 
             // Índices para consultas frecuentes
             $table->index('uploaded_by');
+            $table->index('uploaded_by_supplier_id');
             $table->index('uploaded_at');
         });
     }

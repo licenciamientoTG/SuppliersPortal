@@ -154,6 +154,7 @@ class SupplierDeliveryController extends Controller
                 'file_path'         => $path,
                 'file_format'       => $extension,
                 'uploaded_by'       => Auth::guard('web')->id(),
+                'uploaded_by_supplier_id' => $supplier->id,
                 'uploaded_at'       => now(),
             ]);
 

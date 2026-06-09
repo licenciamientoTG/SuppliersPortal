@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use App\Models\Supplier;
+use App\Models\User;
 
 /**
  * Evidencia de entrega del proveedor (remisión digital).
@@ -23,6 +25,7 @@ class SupplierDeliveryEvidence extends Model
         'file_path',
         'file_format',
         'uploaded_by',
+        'uploaded_by_supplier_id',
         'uploaded_at',
     ];
 
@@ -48,6 +51,11 @@ class SupplierDeliveryEvidence extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function supplierUploader(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'uploaded_by_supplier_id');
     }
 
     // =========================================================================
