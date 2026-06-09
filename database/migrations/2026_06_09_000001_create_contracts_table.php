@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->foreignId('cancelled_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->timestamp('cancelled_at')->nullable();
             $table->foreignId('created_by')->constrained('users')->noActionOnDelete();
-            $table->foreignId('updated_by')->constrained('users')->noActionOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->timestamps();
         });
     }
