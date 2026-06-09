@@ -30,6 +30,7 @@ class StoreContractRequest extends FormRequest
         return [
             'end_date.after'                         => 'La fecha de fin debe ser posterior a la fecha de inicio.',
             'products.required'                      => 'El contrato debe tener al menos un producto.',
+            'products.min'                           => 'El contrato debe tener al menos un producto.',
             'products.*.product_service_id.distinct' => 'No puedes agregar el mismo producto dos veces.',
         ];
     }

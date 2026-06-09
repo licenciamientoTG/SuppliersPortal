@@ -27,6 +27,7 @@ class UpdateContractRequest extends FormRequest
     {
         return [
             'end_date.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'products.min'   => 'El contrato debe tener al menos un producto.',
         ];
     }
 }

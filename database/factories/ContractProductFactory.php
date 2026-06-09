@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ContractProductFactory extends Factory
 {
+    protected $model = \App\Models\ContractProduct::class;
+
     public function definition(): array
     {
         return [
