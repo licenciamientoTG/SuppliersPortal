@@ -109,7 +109,7 @@
                                         <option value="">Seleccionar...</option>
                                         @foreach ($costCenters as $cc)
                                             <option value="{{ $cc->id }}"
-                                                {{ (int) old('cost_center_id', $requisition->cost_center_id) === (int) $cc->id ? 'selected' : '' }}>
+                                                {{ (int) ($selectedCostCenterId ?? 0) === (int) $cc->id ? 'selected' : '' }}>
                                                 {{ $cc->code ? "[{$cc->code}] {$cc->name}" : $cc->name }}
                                             </option>
                                         @endforeach
@@ -124,7 +124,7 @@
                                         <i class="ti ti-chart-pie"></i>
                                     </span>
                                     <input type="text" class="form-control bg-light"
-                                        value="{{ $requisition->costCenter->code ? "[{$requisition->costCenter->code}] {$requisition->costCenter->name}" : $requisition->costCenter->name }}" readonly>
+                                        value="{{ $requisition->primaryCostCenterLabel() }}" readonly>
                                 </div>
                                 <small class="form-text text-muted">No se puede cambiar</small>
                             @endif
@@ -703,7 +703,7 @@
             // =====================================================
             function loadProductsForCostCenter() {
                 const companyId = @json($requisition->company_id);
-                const costCenterId = @json($requisition->cost_center_id);
+                const costCenterId = @json($selectedCostCenterId);
 
                 $('#modal_product_id').prop('disabled', true).empty().append(
                     '<option value="">Cargando...</option>');

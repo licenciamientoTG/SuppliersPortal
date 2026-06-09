@@ -46,11 +46,11 @@ class RequisitionController extends Controller
     {
         // Usamos withCount para que el conteo venga en la consulta principal
         $query = Requisition::query()
-            ->with(['costCenter', 'requester', 'department'])
+            ->with(['items.costCenter', 'requester', 'department'])
             ->withCount('items');
 
         return DataTables::of($query)
-            ->addColumn('cost_center', fn($r) => e($r->costCenter?->name ?? '—'))
+            ->addColumn('cost_center', fn($r) => e($r->primaryCostCenterLabel()))
             ->addColumn('department', fn($r) => e($r->department?->name ?? '—'))
             ->addColumn('requester', fn($r) => e($r->requester?->name ?? '—'))
 
@@ -350,7 +350,6 @@ class RequisitionController extends Controller
     {
         $requisition->load([
             'company',
-            'costCenter',
             'receivingLocation',
             'department',
             'items.productService',
@@ -392,7 +391,7 @@ class RequisitionController extends Controller
             'companies' => $userCompanies,
             'costCenters' => $this->getCostCenters(
                 $selectedCompanyId,
-                old('purchase_type', $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type)
+                old('purchase_type', $requisition->primaryPurchaseType())
             ),
             'departments' => Department::active()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => RequisitionStatus::options(),
@@ -400,7 +399,8 @@ class RequisitionController extends Controller
             'receivingLocations' => ReceivingLocation::active()->where('portal_blocked', false)->orderBy('name')->get(['id', 'code', 'name', 'city']),
             'selectedCompanyId' => $selectedCompanyId,
             'purchaseTypes' => PurchaseType::values(),
-            'selectedPurchaseType' => old('purchase_type', $requisition->costCenter?->purchase_type?->value ?? $requisition->costCenter?->purchase_type),
+            'selectedPurchaseType' => old('purchase_type', $requisition->primaryPurchaseType()),
+            'selectedCostCenterId' => old('cost_center_id', $requisition->primaryCostCenter()?->id),
             'initialItems' => $this->hydrateFormItems(old('items', [])),
             'currentMonth' => (int) date('n'),
             'months' => $this->getMonthsOptions(),
@@ -467,7 +467,6 @@ class RequisitionController extends Controller
     {
         return Requisition::create([
             'company_id' => $data['company_id'],
-            'cost_center_id' => $data['cost_center_id'],
             'receiving_location_id' => $data['receiving_location_id'],
             'department_id' => $data['department_id'] ?? null,
             'fiscal_year' => $data['fiscal_year'],
@@ -493,7 +492,6 @@ class RequisitionController extends Controller
 
         // Solo permitir cambiar cost_center, department y receiving_location si está en draft
         if ($requisition->isDraft()) {
-            $updateData['cost_center_id'] = $data['cost_center_id'];
             $updateData['department_id'] = $data['department_id'] ?? null;
             $updateData['receiving_location_id'] = $data['receiving_location_id'];
         }
@@ -561,7 +559,7 @@ class RequisitionController extends Controller
         $resolvedDescription = filled($itemData['description'] ?? null)
             ? trim((string) $itemData['description'])
             : $product->getRequisitionDescription();
-        $resolvedCostCenterId = (int) ($itemData['cost_center_id'] ?? $requisition->cost_center_id ?? 0);
+        $resolvedCostCenterId = (int) ($itemData['cost_center_id'] ?? 0);
 
         $data = [
             // === Datos del producto (heredados del catálogo) ===
@@ -658,7 +656,7 @@ class RequisitionController extends Controller
     public function approvalDatatable(Request $request): JsonResponse
     {
         // 1. Query Base: Eager Loading para evitar N+1
-        $query = Requisition::with(['costCenter', 'requester', 'department'])
+        $query = Requisition::with(['items.costCenter', 'requester', 'department'])
             ->withCount('items')
             ->withCount('feedbacks')
             ->select('requisitions.*')
@@ -667,7 +665,7 @@ class RequisitionController extends Controller
 
         return DataTables::of($query)
             ->addColumn('cost_center_name', function ($row) {
-                return $row->costCenter ? ($row->costCenter->code . ' - ' . $row->costCenter->name) : 'N/A';
+                return $row->primaryCostCenterLabel();
             })
             ->addColumn('requester_name', function ($row) {
                 return $row->requester ? $row->requester->name : 'N/A';
@@ -735,7 +733,7 @@ class RequisitionController extends Controller
     public function reviewData(Requisition $requisition): JsonResponse
     {
         // Cargamos relaciones (usando los nombres CORRECTOS en inglés)
-        $requisition->load(['requester', 'costCenter', 'items.productService', 'items.expenseCategory']);
+        $requisition->load(['requester', 'items.costCenter', 'items.productService', 'items.expenseCategory']);
 
         return response()->json([
             'folio' => $requisition->folio,
@@ -751,9 +749,7 @@ class RequisitionController extends Controller
 
             'observaciones' => $requisition->description ?? 'Sin observaciones',
 
-            'cost_center' => $requisition->costCenter
-                ? ($requisition->costCenter->code . ' - ' . $requisition->costCenter->name)
-                : 'N/A',
+            'cost_center' => $requisition->primaryCostCenterLabel(),
 
             'partidas' => $requisition->items->map(fn($item) => [
                 // Usamos Null Safe aquí también por si acaso

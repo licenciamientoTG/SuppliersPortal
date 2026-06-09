@@ -58,7 +58,7 @@
                         </div>
                         <div class="col-md-3">
                             <h6 class="text-muted mb-1">Centro de Costos</h6>
-                            <p class="mb-0">{{ $requisition->costCenter->code ?? 'N/A' }} - {{ $requisition->costCenter->name ?? 'N/A' }}</p>
+                            <p class="mb-0">{{ $requisition->primaryCostCenterLabel() }}</p>
                         </div>
                         <div class="col-md-3">
                             <h6 class="text-muted mb-1">Total de Partidas</h6>

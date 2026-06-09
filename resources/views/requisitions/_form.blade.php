@@ -126,7 +126,7 @@
                         <select id="company_id" name="company_id"
                             class="form-select-sm @error('company_id') is-invalid @enderror form-select" required
                             data-url-costcenters="{{ route('api.cost-centers.by-company', ['company' => '__CID__']) }}"
-                            data-selected-cc="{{ old('cost_center_id', $requisition->cost_center_id ?? '') }}">
+                            data-selected-cc="{{ old('cost_center_id', $requisition->primaryCostCenter()?->id ?? '') }}">
                             <option value="">-- Selecciona --</option>
                             @foreach ($companies as $c)
                                 <option value="{{ $c->id }}"

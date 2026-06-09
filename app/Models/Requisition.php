@@ -19,7 +19,6 @@ class Requisition extends Model
 
     protected $fillable = [
         'company_id',
-        'cost_center_id',
         'receiving_location_id',
         'department_id',
         'fiscal_year',
@@ -95,14 +94,6 @@ class Requisition extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
-    }
-
-    /**
-     * Centro de costo de cabecera de la requisición.
-     */
-    public function costCenter(): BelongsTo
-    {
-        return $this->belongsTo(CostCenter::class);
     }
 
     public function items(): HasMany
@@ -351,6 +342,51 @@ class Requisition extends Model
         }
 
         return $this->feedbacks()->exists();
+    }
+
+    /**
+     * Obtiene el centro de costo principal desde las partidas.
+     */
+    public function primaryCostCenter(): ?CostCenter
+    {
+        if ($this->relationLoaded('items')) {
+            return $this->items
+                ->loadMissing('costCenter')
+                ->pluck('costCenter')
+                ->filter()
+                ->first();
+        }
+
+        return $this->items()
+            ->with('costCenter')
+            ->orderBy('line_number')
+            ->first()?->costCenter;
+    }
+
+    /**
+     * Etiqueta legible del centro de costo principal.
+     */
+    public function primaryCostCenterLabel(): string
+    {
+        $costCenter = $this->primaryCostCenter();
+
+        if (! $costCenter) {
+            return 'N/A';
+        }
+
+        return $costCenter->code
+            ? "{$costCenter->code} - {$costCenter->name}"
+            : $costCenter->name;
+    }
+
+    /**
+     * Tipo de compra principal derivado de la primera partida.
+     */
+    public function primaryPurchaseType(): ?string
+    {
+        $purchaseType = $this->primaryCostCenter()?->purchase_type;
+
+        return $purchaseType?->value ?? $purchaseType;
     }
 
     /**

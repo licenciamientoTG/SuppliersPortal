@@ -108,7 +108,7 @@
                         <i class="ti ti-hierarchy-3 me-1"></i> Centro de costo
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->costCenter?->code }} - {{ $requisition->costCenter?->name ?? '-' }}
+                        {{ $requisition->primaryCostCenterLabel() }}
                     </dd>
 
                     <dt class="col-sm-5 text-muted">

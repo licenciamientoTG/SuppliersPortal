@@ -69,7 +69,7 @@
                                     class="form-select @error('company_id') is-invalid @enderror" 
                                     required
                                     data-url-costcenters="{{ route('requisitions.cost-centers.by-company', ['company' => '__CID__']) }}"
-                                    data-selected-cc="{{ old('cost_center_id', $requisition->cost_center_id ?? '') }}">
+                                    data-selected-cc="{{ $selectedCostCenterId ?? '' }}">
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}"
