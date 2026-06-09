@@ -679,6 +679,29 @@ Route::get('/csrf-refresh', function () {
 })->name('csrf.refresh');
 
 // ============================================================================
+//  Contratos Comerciales
+// ============================================================================
+Route::middleware(['auth'])
+    ->controller(\App\Http\Controllers\ContractController::class)
+    ->prefix('contracts')
+    ->name('contracts.')
+    ->group(function () {
+        Route::get('/datatable', 'datatable')->name('datatable');
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/import', 'importForm')->name('import');
+        Route::get('/template', 'downloadTemplate')->name('template');
+        Route::post('/import/preview', 'importPreview')->name('import.preview');
+        Route::post('/import/confirm', 'importConfirm')->name('import.confirm');
+        Route::get('/requisition/create', 'requisitionCreate')->name('requisition.create');
+        Route::get('/{contract}', 'show')->name('show');
+        Route::get('/{contract}/edit', 'edit')->name('edit');
+        Route::put('/{contract}', 'update')->name('update');
+        Route::post('/{contract}/cancel', 'cancel')->name('cancel');
+    });
+
+// ============================================================================
 //  Autenticación
 // ============================================================================
 require __DIR__.'/auth.php';
