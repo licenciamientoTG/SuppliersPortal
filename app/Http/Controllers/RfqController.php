@@ -424,7 +424,7 @@ class RfqController extends Controller
         $rfq->load([
             'requisition.requester',
             'requisition.company',
-            'requisition.costCenter',
+            'requisition.items.costCenter',
             'requisition.receivingLocation',
             'quotationGroup.items.expenseCategory',
             'quotationGroup.items.productService',
@@ -450,8 +450,7 @@ class RfqController extends Controller
         $rfq->load([
             'requisition.department',
             'requisition.requester',
-            'requisition.items',
-            'requisition.costCenter',
+            'requisition.items.costCenter',
             'requisition.receivingLocation',
         ]);
 

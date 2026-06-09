@@ -10,7 +10,9 @@
     </div>
     <div class="col-md-3">
         <small class="text-muted d-block">Centro de Costos</small>
-        @php($primaryCostCenter = $requisition->primaryCostCenter())
+        @php
+            $primaryCostCenter = $requisition->primaryCostCenter();
+        @endphp
         {{ $primaryCostCenter?->code ?? 'N/A' }} - {{ $primaryCostCenter?->name ?? 'Sin centro de costo' }}
     </div>
     <div class="col-md-3">

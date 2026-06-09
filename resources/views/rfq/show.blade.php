@@ -327,7 +327,9 @@
                         <label class="form-label text-muted mb-1">Centro de Costo</label>
                         <p class="mb-0 fw-semibold">
                             <i class="ti ti-hierarchy-3 text-primary me-1"></i>
-                            @php($primaryCostCenter = $rfq->requisition?->primaryCostCenter())
+                            @php
+                                $primaryCostCenter = $rfq->requisition?->primaryCostCenter();
+                            @endphp
                             {{ $primaryCostCenter ? $primaryCostCenter->code . ' - ' . $primaryCostCenter->name : '—' }}
                         </p>
                     </div>
