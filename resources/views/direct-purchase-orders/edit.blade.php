@@ -33,6 +33,17 @@
     </div>
 @endif
 
+@php
+    $costCenterCatalog = $costCenters->map(function ($cc) {
+        return [
+            'id' => $cc->id,
+            'company_id' => $cc->company_id,
+            'purchase_type' => $cc->purchase_type?->value ?? $cc->purchase_type,
+            'label' => ($cc->code ? '[' . $cc->code . '] ' : '') . $cc->name,
+        ];
+    })->values();
+@endphp
+
 <form action="{{ route('direct-purchase-orders.update', $directPurchaseOrder->id) }}" method="POST" enctype="multipart/form-data" id="ocd-form">
     @csrf
     @method('PUT')
@@ -437,14 +448,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    const costCenterCatalog = @json(
-        $costCenters->map(fn ($cc) => [
-            'id' => $cc->id,
-            'company_id' => $cc->company_id,
-            'purchase_type' => $cc->purchase_type?->value ?? $cc->purchase_type,
-            'label' => ($cc->code ? '[' . $cc->code . '] ' : '') . $cc->name,
-        ])->values()
-    );
+    const costCenterCatalog = @json($costCenterCatalog);
 
     $('#supplier_id, #company_id, #purchase_type, #receiving_location_id').select2({
         theme: 'bootstrap-5',
