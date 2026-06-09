@@ -204,6 +204,25 @@ class ProductService extends Model
     }
 
     /**
+     * Descripción segura para requisiciones y documentos operativos.
+     */
+    public function getRequisitionDescription(): string
+    {
+        foreach ([
+            $this->technical_description,
+            $this->getAttribute('description'),
+            $this->short_name,
+            $this->code,
+        ] as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return 'Producto sin descripción';
+    }
+
+    /**
      * Verifica si tiene proveedor sugerido.
      */
     public function hasSuggestedVendor(): bool

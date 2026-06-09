@@ -432,9 +432,11 @@ class RequisitionController extends Controller
                     'id' => $item['id'] ?? null,
                     'product_id' => $item['product_service_id'] ?? null,
                     'product_name' => $product
-                        ? '['.$product->code.'] '.($product->short_name ?: str($product->description)->limit(60))
+                        ? '['.$product->code.'] '.($product->short_name ?: str($product->getRequisitionDescription())->limit(60))
                         : 'Producto seleccionado',
-                    'description' => $item['description'] ?? $product?->technical_description ?? $product?->description ?? '',
+                    'description' => filled($item['description'] ?? null)
+                        ? $item['description']
+                        : ($product?->getRequisitionDescription() ?? ''),
                     'quantity' => $item['quantity'] ?? 1,
                     'unit' => $item['unit'] ?? $product?->unit_of_measure ?? 'PIEZA',
                     'expense_category_id' => $item['expense_category_id'] ?? null,
@@ -547,6 +549,10 @@ class RequisitionController extends Controller
         }
 
         // Preparar datos de la partida heredando información del catálogo
+        $resolvedDescription = filled($itemData['description'] ?? null)
+            ? trim((string) $itemData['description'])
+            : $product->getRequisitionDescription();
+
         $data = [
             // === Datos del producto (heredados del catálogo) ===
             'product_service_id' => $product->id,
@@ -554,8 +560,8 @@ class RequisitionController extends Controller
             'item_category' => optional($product->category)->name,
             'product_code' => $product->code,
 
-            // Usar technical_description del catálogo si no se proporciona una descripción personalizada
-            'description' => $itemData['description'] ?? $product->technical_description,
+            // Nunca permitir description null aunque el catálogo tenga campos legacy incompletos.
+            'description' => $resolvedDescription,
 
             // Unidad de medida del catálogo
             'unit' => $product->unit_of_measure ?? 'PIEZA',
