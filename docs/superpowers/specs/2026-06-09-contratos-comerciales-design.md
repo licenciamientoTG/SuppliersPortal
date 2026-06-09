@@ -15,11 +15,13 @@ Registrar contratos marco con proveedores para productos específicos que no req
 
 ## Decisiones de diseño tomadas
 
-- **Precio fijo por producto en contrato** — `unit_price` almacenado en `contract_products`. La partida de requisición copia ese precio como snapshot al momento de crearse.
+- **Precio fijo por producto en contrato** — `unit_price` almacenado en `contract_products`. La partida de requisición copia ese precio como snapshot al momento de crearse. El precio del contrato puede editarse posteriormente; las requisiciones ya generadas conservan su snapshot sin afectarse.
 - **Sin flujo de aprobación del contrato** — Buyer/Compras crea el contrato y queda activo de inmediato.
 - **Proveedor activo** determinado por `suppliers.status = 'activo'`.
-- **Componente Livewire separado** (`ContractRequisitionForm`) para requisiciones por contrato. No se modifica el `RequisitionForm` existente.
+- **Componente Livewire separado** (`ContractRequisitionForm`) para requisiciones por contrato. No se modifica el `RequisitionForm` existente. Cualquier usuario con acceso a requisiciones puede crear una requisición por contrato.
 - **Estado `expired` es calculado**, no almacenado: `end_date < today AND status = active`. Evita jobs de sincronización y condiciones de carrera.
+- **Folio `CONT-YYYY-NNN`** — consecutivo global (todos los contratos), reinicia en 001 cada año calendario.
+- **OC automática al hacer submit de requisición por contrato** — se generan OCs directamente agrupadas por proveedor, sin pasar por cotización/RFQ.
 
 ---
 
@@ -141,7 +143,7 @@ suppliers ──────────────────────┐ 
    - Distintos contratos pueden coexistir en la misma requisición
 4. Re-validación al hacer submit (ver Sección 3)
 5. Guarda `requisition` (source_type=`contract`) + `requisition_items` con snapshot de precio
-6. Flujo posterior: va directo a generación de OC, **sin pasar por cotización/RFQ**
+6. Flujo posterior: al hacer submit se generan OCs automáticamente agrupadas por proveedor (una OC por proveedor con sus productos), **sin pasar por cotización/RFQ**
 
 ---
 
@@ -319,7 +321,7 @@ public function getActivitylogOptions(): LogOptions
 1. Livewire `ContractRequisitionForm`
 2. Cascada: empresa → contratos elegibles → productos → precio snapshot
 3. Re-validación en submit
-4. Flujo post-submit directo a OC (sin RFQ)
+4. Generación automática de OCs por proveedor al hacer submit (sin RFQ)
 5. Avisos UX: vencimiento próximo, proveedor inactivo
 
 ### Fase 4 — Historial y reportes (~1–2 días)
