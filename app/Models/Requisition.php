@@ -649,11 +649,19 @@ class Requisition extends Model
         return Attribute::make(
             get: function ($value) {
                 // Manejar el default 'draft' que viene de la migración si no está en mayúsculas
-                $val = strtoupper($value);
+                if ($value instanceof RequisitionStatus) {
+                    return $value;
+                }
+
+                if (! is_string($value) || trim($value) === '') {
+                    return RequisitionStatus::DRAFT;
+                }
+
+                $val = strtoupper(trim($value));
 
                 return RequisitionStatus::tryFrom($val) ?? RequisitionStatus::DRAFT;
             },
-            set: fn (RequisitionStatus|string $value) => is_string($value) ? strtoupper($value) : $value->value,
+            set: fn (RequisitionStatus|string $value) => is_string($value) ? strtoupper(trim($value)) : $value->value,
         );
     }
 }
