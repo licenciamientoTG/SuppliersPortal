@@ -16,8 +16,8 @@
 
     <input type="hidden" id="requisition_livewire_id" value="{{ $this->getId() }}">
 
-    {{-- Formulario --}}
-    <form>
+    {{-- El guardado se realiza mediante Livewire; evitamos formularios anidados. --}}
+    <div>
 
         {{-- Información General --}}
         <div class="card">
@@ -238,7 +238,7 @@
                 </button>
             </div>
         </div>
-    </form>
+    </div>
 
     {{-- Modal para agregar/editar partidas --}}
     <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore>
@@ -644,10 +644,11 @@ $(function() {
             return null;
         }
 
-        wire.$set('company_id', $('#company_id').val() || '');
-        wire.$set('receiving_location_id', $('#receiving_location_id').val() || '');
-        wire.$set('required_date', $('#required_date').val() || '');
-        wire.$set('description', $('#description').val() || '');
+        // Deferimos los valores para enviarlos junto con saveDraft/submit.
+        wire.$set('company_id', $('#company_id').val() || '', false);
+        wire.$set('receiving_location_id', $('#receiving_location_id').val() || '', false);
+        wire.$set('required_date', $('#required_date').val() || '', false);
+        wire.$set('description', $('#description').val() || '', false);
 
         return wire;
     }
