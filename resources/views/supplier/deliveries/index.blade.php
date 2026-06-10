@@ -71,7 +71,7 @@
                                             <span class="text-muted">Sin asignar</span>
                                         @endif
                                     </td>
-                                    <td>${{ number_format($order->total, 2) }} {{ $order->currency }}</td>
+                                    <td>{{ format_money($order->total, $order->currency, true) }}</td>
                                     <td>
                                         <span class="badge bg-{{ $order->getStatusBadgeClass() }}">
                                             {{ $order->getStatusLabel() }}

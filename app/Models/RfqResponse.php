@@ -403,8 +403,7 @@ class RfqResponse extends Model
      */
     private function formatCurrency(float $amount): string
     {
-        $symbol = $this->getCurrencySymbol();
-        return $symbol . number_format($amount, 2);
+        return format_money($amount, $this->currency);
     }
 
     /**

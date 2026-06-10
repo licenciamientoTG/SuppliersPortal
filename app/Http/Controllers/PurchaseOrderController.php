@@ -48,7 +48,7 @@ class PurchaseOrderController extends Controller
                         '</span>';
                 })
                 ->addColumn('total', function ($po) {
-                    return '<span class="fw-bold text-primary">$' . number_format($po->total, 2) . '</span>';
+                    return '<span class="fw-bold text-primary">' . format_money($po->total, $po->currency) . '</span>';
                 })
                 ->addColumn('status', function ($po) {
                     return '<span class="badge bg-' . $po->getStatusBadgeClass() . '">'
@@ -107,7 +107,7 @@ class PurchaseOrderController extends Controller
                     return $ocd->primaryCostCenterLabel();
                 })
                 ->addColumn('total', function ($ocd) {
-                    return '<span class="fw-bold text-primary">$' . number_format($ocd->total, 2) . '</span>';
+                    return '<span class="fw-bold text-primary">' . format_money($ocd->total, $ocd->currency) . '</span>';
                 })
                 ->addColumn('status', function ($ocd) {
                     return '<span class="badge bg-' . $ocd->getStatusBadgeClass() . '">'

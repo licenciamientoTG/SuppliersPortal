@@ -55,7 +55,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold text-muted">Total</label>
-                        <p class="fs-5 mb-0">${{ number_format($order->total, 2) }} {{ $order->currency }}</p>
+                        <p class="fs-5 mb-0">{{ format_money($order->total, $order->currency, true) }}</p>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold text-muted">Fecha de Emisión</label>
@@ -116,8 +116,8 @@
                                 <td>{{ $item->description ?? $item->concept ?? '—' }}</td>
                                 <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
                                 <td>{{ $item->unit ?? $item->unit_of_measure ?? '—' }}</td>
-                                <td class="text-end">${{ number_format($item->unit_price, 2) }}</td>
-                                <td class="text-end">${{ number_format($item->total ?? ($item->quantity * $item->unit_price), 2) }}</td>
+                                <td class="text-end">{{ format_money($item->unit_price, $order->currency) }}</td>
+                                <td class="text-end">{{ format_money($item->total ?? ($item->quantity * $item->unit_price), $order->currency) }}</td>
                             </tr>
                             @endforeach
                         </tbody>

@@ -132,7 +132,7 @@
                                 ? now()->diffInDays($rfq->response_deadline, false) 
                                 : null;
                             $daysRemainingLabel = $daysRemaining !== null
-                                ? number_format(abs($daysRemaining), 1)
+                                ? format_days(abs($daysRemaining))
                                 : null;
                         @endphp
                         <tr>
