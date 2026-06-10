@@ -7,6 +7,14 @@
     <li class="breadcrumb-item active">Nuevo</li>
 @endsection
 
+@push('styles')
+<style>
+    select.is-invalid + .select2-container .select2-selection--single {
+        border-color: #dc3545 !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid" x-data="contractForm()">
     <form action="{{ route('contracts.store') }}" method="POST">
@@ -18,7 +26,7 @@
             <div class="card-body row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Empresa <span class="text-danger">*</span></label>
-                    <select name="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                    <select name="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                         <option value="">Seleccionar...</option>
                         @foreach($companies as $co)
                             <option value="{{ $co->id }}" {{ old('company_id') == $co->id ? 'selected' : '' }}>
@@ -31,7 +39,7 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Proveedor <span class="text-danger">*</span></label>
-                    <select name="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
+                    <select name="supplier_id" id="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
                         <option value="">Seleccionar...</option>
                         @foreach($suppliers as $s)
                             <option value="{{ $s->id }}" {{ old('supplier_id') == $s->id ? 'selected' : '' }}>
@@ -45,14 +53,14 @@
                 <div class="col-md-3">
                     <label class="form-label">Fecha inicio <span class="text-danger">*</span></label>
                     <input type="date" name="start_date" class="form-control @error('start_date') is-invalid @enderror"
-                        value="{{ old('start_date') }}" x-model="startDate" required>
+                        value="{{ old('start_date', now()->toDateString()) }}" x-model="startDate" required>
                     @error('start_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Fecha fin <span class="text-danger">*</span></label>
                     <input type="date" name="end_date" class="form-control @error('end_date') is-invalid @enderror"
-                        value="{{ old('end_date') }}" x-model="endDate" required>
+                        value="{{ old('end_date', now()->addYear()->toDateString()) }}" x-model="endDate" required>
                     <template x-if="endInPast">
                         <div class="alert alert-warning py-1 mt-1 small">
                             La fecha de fin está en el pasado. El contrato quedará vencido al guardar.
@@ -85,7 +93,7 @@
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Producto/Servicio</th>
+                                <th style="min-width:220px">Producto/Servicio</th>
                                 <th>Precio unitario</th>
                                 <th>Moneda</th>
                                 <th>U/M</th>
@@ -97,7 +105,12 @@
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
                                     <td>
-                                        <select :name="`products[${index}][product_service_id]`" x-model="row.product_service_id" class="form-select form-select-sm" required>
+                                        <select
+                                            :name="`products[${index}][product_service_id]`"
+                                            x-model="row.product_service_id"
+                                            class="form-select form-select-sm"
+                                            required
+                                            x-init="$nextTick(() => $(this).select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }))">
                                             <option value="">Seleccionar...</option>
                                             @foreach($productServices as $prod)
                                                 <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
@@ -148,11 +161,19 @@
 
 @push('scripts')
 <script>
+$(document).ready(function () {
+    $('#company_id, #supplier_id').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccionar...',
+    });
+});
+
 function contractForm() {
     return {
         rows: [{ product_service_id: '', unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' }],
-        startDate: @json(old('start_date', '')),
-        endDate: @json(old('end_date', '')),
+        startDate: @json(old('start_date', now()->toDateString())),
+        endDate: @json(old('end_date', now()->addYear()->toDateString())),
         get endInPast() {
             return this.endDate && this.endDate < new Date().toISOString().slice(0, 10);
         },

@@ -8,6 +8,14 @@
     <li class="breadcrumb-item active">Editar</li>
 @endsection
 
+@push('styles')
+<style>
+    select.is-invalid + .select2-container .select2-selection--single {
+        border-color: #dc3545 !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid" x-data="contractForm()">
     <form action="{{ route('contracts.update', $contract) }}" method="POST">
@@ -20,7 +28,7 @@
             <div class="card-body row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Empresa <span class="text-danger">*</span></label>
-                    <select name="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                    <select name="company_id" id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
                         <option value="">Seleccionar...</option>
                         @foreach($companies as $co)
                             <option value="{{ $co->id }}" {{ old('company_id', $contract->company_id) == $co->id ? 'selected' : '' }}>
@@ -33,7 +41,7 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Proveedor <span class="text-danger">*</span></label>
-                    <select name="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
+                    <select name="supplier_id" id="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
                         <option value="">Seleccionar...</option>
                         @foreach($suppliers as $s)
                             <option value="{{ $s->id }}" {{ old('supplier_id', $contract->supplier_id) == $s->id ? 'selected' : '' }}>
@@ -87,7 +95,7 @@
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Producto/Servicio</th>
+                                <th style="min-width:220px">Producto/Servicio</th>
                                 <th>Precio unitario</th>
                                 <th>Moneda</th>
                                 <th>U/M</th>
@@ -99,7 +107,12 @@
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
                                     <td>
-                                        <select :name="`products[${index}][product_service_id]`" x-model="row.product_service_id" class="form-select form-select-sm" required>
+                                        <select
+                                            :name="`products[${index}][product_service_id]`"
+                                            x-model="row.product_service_id"
+                                            class="form-select form-select-sm"
+                                            required
+                                            x-init="$nextTick(() => { let $el = $(this); $el.select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }); if (row.product_service_id) $el.val(row.product_service_id).trigger('change'); })">
                                             <option value="">Seleccionar...</option>
                                             @foreach($productServices as $prod)
                                                 <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
@@ -150,6 +163,14 @@
 
 @push('scripts')
 <script>
+$(document).ready(function () {
+    $('#company_id, #supplier_id').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccionar...',
+    });
+});
+
 function contractForm() {
     return {
         rows: @json($contract->products->map(fn($p) => [
