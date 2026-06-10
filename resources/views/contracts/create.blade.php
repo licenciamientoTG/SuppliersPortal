@@ -110,7 +110,7 @@
                                             x-model="row.product_service_id"
                                             class="form-select form-select-sm"
                                             required
-                                            x-init="$nextTick(() => $(this).select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }))">
+                                            x-init="$nextTick(() => $($el).select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }))">
                                             <option value="">Seleccionar...</option>
                                             @foreach($productServices as $prod)
                                                 <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>

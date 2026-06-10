@@ -112,7 +112,7 @@
                                             x-model="row.product_service_id"
                                             class="form-select form-select-sm"
                                             required
-                                            x-init="$nextTick(() => { let $el = $(this); $el.select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }); if (row.product_service_id) $el.val(row.product_service_id).trigger('change'); })">
+                                            x-init="$nextTick(() => { let $sel = $($el); $sel.select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccionar...' }); if (row.product_service_id) $sel.val(row.product_service_id).trigger('change'); })">
                                             <option value="">Seleccionar...</option>
                                             @foreach($productServices as $prod)
                                                 <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
