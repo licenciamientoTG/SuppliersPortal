@@ -110,6 +110,14 @@ class RequisitionItem extends Model
         return $this->belongsTo(\App\Models\Contract::class);
     }
 
+    /**
+     * Producto de contrato vinculado a esta partida (snapshot de precio).
+     */
+    public function contractProduct(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\ContractProduct::class);
+    }
+
     // =========================================================================
     // MÉTODOS DE VALIDACIÓN
     // =========================================================================

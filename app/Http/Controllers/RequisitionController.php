@@ -355,6 +355,7 @@ class RequisitionController extends Controller
             'items.budgetCedula',
             'items.costCenter',
             'items.suggestedVendor',
+            'items.contractProduct',
             'requester',
             'creator',
             'pauser',

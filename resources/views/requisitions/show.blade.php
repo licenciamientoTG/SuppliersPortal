@@ -240,6 +240,7 @@
                         <th>Descripcion</th>
                         <th width="80" class="text-end">Cantidad</th>
                         <th width="80" class="text-center">Unidad</th>
+                        <th width="140" class="text-end">Precio Unit.</th>
                         <th width="150">Categoria Gasto</th>
                         <th width="180">Subcategoria Presupuestal</th>
                         <th width="150">Proveedor Sug.</th>
@@ -273,6 +274,25 @@
                         <td class="text-end fw-semibold">{{ number_format($item->quantity, 3) }}</td>
                         <td class="text-center">
                             <span class="badge bg-secondary">{{ $item->unit }}</span>
+                        </td>
+                        <td class="text-end">
+                            @if($item->unit_price)
+                                <span class="fw-semibold">
+                                    {{ $item->currency_code ?? 'MXN' }} {{ number_format($item->unit_price, 4) }}
+                                </span>
+                                @if($item->contract_product_id)
+                                    @php $currentPrice = $item->contractProduct?->unit_price; @endphp
+                                    @if($currentPrice && (float)$currentPrice !== (float)$item->unit_price)
+                                        <br>
+                                        <span class="badge bg-warning text-dark mt-1"
+                                            title="Precio actual en contrato: ${{ number_format($currentPrice, 4) }}">
+                                            <i class="ti ti-refresh me-1"></i>Precio actualizado en contrato
+                                        </span>
+                                    @endif
+                                @endif
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
                         </td>
                         <td>
                             <span class="badge bg-info">{{ $item->expenseCategory?->name ?? '-' }}</span>
