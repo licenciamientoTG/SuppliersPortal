@@ -65,7 +65,7 @@ class ContractController extends Controller
     public function create()
     {
         $companies = Company::where('is_active', true)->orderBy('name')->get();
-        $suppliers = Supplier::where('status', 'activo')->orderBy('company_name')->get();
+        $suppliers = Supplier::approved()->orderBy('company_name')->get();
         $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
         return view('contracts.create', compact('companies', 'suppliers', 'productServices'));
     }
@@ -117,7 +117,7 @@ class ContractController extends Controller
         abort_if($contract->effective_status !== 'active', 403, 'Solo se pueden editar contratos activos.');
         $contract->load('products');
         $companies = Company::where('is_active', true)->orderBy('name')->get();
-        $suppliers = Supplier::where('status', 'activo')->orderBy('company_name')->get();
+        $suppliers = Supplier::approved()->orderBy('company_name')->get();
         $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
         return view('contracts.edit', compact('contract', 'companies', 'suppliers', 'productServices'));
     }
