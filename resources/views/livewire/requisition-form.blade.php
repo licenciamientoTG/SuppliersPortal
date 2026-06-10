@@ -521,7 +521,11 @@ function confirmSaveDraft() {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            const wire = syncFormValuesToWire();
+            const wire = window.syncFormValuesToWire?.();
+            if (!wire) {
+                Swal.fire('Error', 'No se pudo conectar con el formulario de requisición.', 'error');
+                return;
+            }
             wire?.$call('saveDraft');
         }
     });
@@ -573,7 +577,11 @@ function confirmSubmit() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Validar que haya partidas antes de enviar
-            const wire = syncFormValuesToWire();
+            const wire = window.syncFormValuesToWire?.();
+            if (!wire) {
+                Swal.fire('Error', 'No se pudo conectar con el formulario de requisición.', 'error');
+                return;
+            }
             const itemsCount = Array.isArray(wire?.$get('items')) ? wire.$get('items').length : 0;
 
             if (itemsCount === 0) {
@@ -643,6 +651,7 @@ $(function() {
 
         return wire;
     }
+    window.syncFormValuesToWire = syncFormValuesToWire;
 
     function renderModalCostCenters(mode = 'reset') {
         const companyId    = $('#company_id').val() || '';
