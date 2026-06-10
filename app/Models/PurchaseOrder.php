@@ -21,6 +21,7 @@ class PurchaseOrder extends Model
         'requisition_id',
         'supplier_id',
         'quotation_summary_id',
+        'source_type',
         'receiving_location_id',
         'subtotal',
         'iva_amount',
