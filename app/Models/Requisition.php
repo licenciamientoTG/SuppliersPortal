@@ -57,6 +57,9 @@ class Requisition extends Model
         // Auditoría
         'created_by',
         'updated_by',
+
+        // Contratos comerciales
+        'source_type',
     ];
 
     protected $casts = [

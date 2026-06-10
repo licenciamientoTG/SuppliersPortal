@@ -27,6 +27,12 @@ class RequisitionItem extends Model
         'unit',
         'suggested_vendor_id',
         'notes',
+
+        // Contratos comerciales
+        'contract_id',
+        'contract_product_id',
+        'unit_price',
+        'currency_code',
     ];
 
     protected $casts = [
