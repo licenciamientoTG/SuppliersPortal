@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\ContractImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Mockery;
 use Tests\TestCase;
 
 class ContractImportTest extends TestCase
@@ -70,5 +71,75 @@ class ContractImportTest extends TestCase
         $result  = $service->preview($this->makeCsvFile($csv));
 
         $this->assertArrayHasKey('error', $result);
+    }
+
+    public function test_http_import_preview_stores_valid_rows_in_session(): void
+    {
+        $user     = User::factory()->create();
+        $company  = Company::factory()->create(['code' => 'TG001', 'is_active' => true]);
+        $supplier = Supplier::factory()->create(['rfc' => 'AAA010101AAA', 'status' => 'activo']);
+        $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
+
+        $fakeValidRows = [[
+            'line'               => 2,
+            'empresa_code'       => 'TG001',
+            'supplier_rfc'       => 'AAA010101AAA',
+            'company_id'         => $company->id,
+            'supplier_id'        => $supplier->id,
+            'start_date'         => '2026-01-01',
+            'end_date'           => '2026-12-31',
+            'contract_amount'    => 50000,
+            'product_service_id' => $product->id,
+            'product_code'       => 'PROD-001',
+            'unit_price'         => 250.00,
+            'currency_code'      => 'MXN',
+            'contract_key'       => 'TG001|AAA010101AAA|2026-01-01|2026-12-31',
+        ]];
+
+        // Mock the service so PhpSpreadsheet is not invoked; only the controller flow is tested
+        $mock = Mockery::mock(ContractImportService::class);
+        $mock->shouldReceive('preview')->once()->andReturn(['valid' => $fakeValidRows, 'errors' => []]);
+        $this->app->instance(ContractImportService::class, $mock);
+
+        // UploadedFile::fake() creates a file whose MIME is detected as text/csv, passing Laravel's mimes rule
+        $file = UploadedFile::fake()->createWithContent('contratos.csv', 'dummy');
+
+        $response = $this->actingAs($user)
+            ->post(route('contracts.import.preview'), ['file' => $file]);
+
+        $response->assertSuccessful();
+        $response->assertSessionHas('contract_import_valid');
+    }
+
+    public function test_http_import_confirm_creates_contract_and_redirects(): void
+    {
+        $user     = User::factory()->create();
+        $company  = Company::factory()->create(['code' => 'TG001', 'is_active' => true]);
+        $supplier = Supplier::factory()->create(['rfc' => 'AAA010101AAA', 'status' => 'activo']);
+        $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
+
+        // Build the valid rows array exactly as ContractImportService::preview() produces them
+        $validRows = [[
+            'line'               => 2,
+            'empresa_code'       => 'TG001',
+            'supplier_rfc'       => 'AAA010101AAA',
+            'company_id'         => $company->id,
+            'supplier_id'        => $supplier->id,
+            'start_date'         => '2026-01-01',
+            'end_date'           => '2026-12-31',
+            'contract_amount'    => 50000,
+            'product_service_id' => $product->id,
+            'product_code'       => 'PROD-001',
+            'unit_price'         => 250.00,
+            'currency_code'      => 'MXN',
+            'contract_key'       => 'TG001|AAA010101AAA|2026-01-01|2026-12-31',
+        ]];
+
+        $response = $this->actingAs($user)
+            ->withSession(['contract_import_valid' => $validRows])
+            ->post(route('contracts.import.confirm'));
+
+        $response->assertRedirect(route('contracts.index'));
+        $this->assertDatabaseHas('contracts', ['supplier_id' => $supplier->id]);
     }
 }

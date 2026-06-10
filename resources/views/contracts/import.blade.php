@@ -22,8 +22,8 @@
             <form action="{{ route('contracts.import.preview') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">
-                    <label class="form-label">Archivo CSV o Excel (máx. 500 filas, 5 MB)</label>
-                    <input type="file" name="file" class="form-control @error('file') is-invalid @enderror"
+                    <label class="form-label" for="import-file">Archivo CSV o Excel (máx. 500 filas, 5 MB)</label>
+                    <input type="file" name="file" id="import-file" class="form-control @error('file') is-invalid @enderror"
                         accept=".csv,.xlsx,.xls" required>
                     @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
