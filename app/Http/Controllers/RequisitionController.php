@@ -174,7 +174,7 @@ class RequisitionController extends Controller
      */
     public function create(): View
     {
-        return $this->loadFormData(new Requisition());
+        return view('requisitions.create-livewire');
     }
 
     /**
@@ -214,7 +214,7 @@ class RequisitionController extends Controller
      */
     public function createLivewire(): View
     {
-        return $this->loadFormData(new Requisition());
+        return view('requisitions.create-livewire');
     }
 
     /**
@@ -869,5 +869,4 @@ class RequisitionController extends Controller
             ->with('success', 'Requisición duplicada exitosamente');
     }
 }
-
 

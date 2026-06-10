@@ -184,6 +184,16 @@ class RequisitionForm extends Component
             return;
         }
 
+        foreach ($this->items as $item) {
+            if (! $this->validateItemPayload($item)) {
+                $this->dispatch(
+                    'validation-error',
+                    message: 'Revisa las partidas: cada una debe tener un centro de costo y datos presupuestales válidos para la compañía seleccionada.'
+                );
+                return;
+            }
+        }
+
         try {
             DB::beginTransaction();
 
@@ -410,6 +420,7 @@ class RequisitionForm extends Component
 
         $validCostCenter = Auth::user()->costCenters()
             ->where('cost_centers.id', (int) $itemData['cost_center_id'])
+            ->where('cost_centers.company_id', (int) $this->company_id)
             ->where('cost_centers.status', 'ACTIVO')
             ->whereNull('cost_centers.deleted_at')
             ->wherePivot('is_active', true)

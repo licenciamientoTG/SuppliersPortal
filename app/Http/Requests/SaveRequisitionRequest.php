@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enum\PurchaseType;
 use App\Models\BudgetCedula;
 use App\Models\CostCenter;
 use App\Models\ProductService;
@@ -10,7 +9,6 @@ use App\Models\RequisitionItem;
 use App\Services\BudgetCedulaCatalogService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Enum;
 
 class SaveRequisitionRequest extends FormRequest
 {
@@ -30,30 +28,7 @@ class SaveRequisitionRequest extends FormRequest
         $requisition = $this->route('requisition');
         $isUpdate = $requisition !== null;
 
-        $companyId = $isUpdate
-            ? $requisition->company_id
-            : $this->company_id;
-        $purchaseType = $this->purchase_type
-            ?: $requisition?->primaryPurchaseType();
-
         $rules = [
-            'purchase_type' => [
-                'required',
-                new Enum(PurchaseType::class),
-            ],
-
-            'cost_center_id' => [
-                $isUpdate ? 'sometimes' : 'required',
-                'required',
-                'exists:cost_centers,id',
-                Rule::exists('cost_centers', 'id')->where(function ($query) use ($companyId, $purchaseType) {
-                    $query->where('company_id', $companyId)
-                        ->where('purchase_type', $purchaseType)
-                        ->where('status', 'ACTIVO')
-                        ->whereNull('deleted_at');
-                }),
-            ],
-
             'department_id' => [
                 'nullable',
                 'integer',
@@ -308,14 +283,23 @@ class SaveRequisitionRequest extends FormRequest
                     }
 
                     $itemCostCenter = CostCenter::find($itemCostCenterId);
-                    $purchaseType = $this->purchase_type
-                        ?: $requisition?->primaryPurchaseType();
+                    $companyId = $isUpdate
+                        ? (int) $requisition->company_id
+                        : (int) $this->company_id;
 
-                    if ($itemCostCenter && $purchaseType
-                        && ($itemCostCenter->purchase_type?->value ?? $itemCostCenter->purchase_type) !== $purchaseType) {
+                    if ($itemCostCenter && (int) $itemCostCenter->company_id !== $companyId) {
                         $validator->errors()->add(
                             "items.{$index}.cost_center_id",
-                            'El centro de costo de la partida no coincide con el tipo de compra seleccionado.'
+                            'El centro de costo de la partida no pertenece a la compaÃ±Ã­a de la requisiciÃ³n.'
+                        );
+
+                        continue;
+                    }
+
+                    if ($itemCostCenter && ! $itemCostCenter->hasAnnualBudget($fiscalYear)) {
+                        $validator->errors()->add(
+                            "items.{$index}.cost_center_id",
+                            'El centro de costo de la partida no tiene presupuesto para el aÃ±o fiscal.'
                         );
 
                         continue;
