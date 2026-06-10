@@ -42,7 +42,13 @@
       "PowerShell(cmd /c \"mklink /J \"\"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\\\\public\\\\storage\"\" \"\"Z:\\\\uploads\"\"\")",
       "PowerShell(php -l app/Services/ModuleAccessService.php)",
       "Bash(grep -E \"APP_URL|STORAGE_PUBLIC_PATH|FILESYSTEM\" .env)",
-      "Bash(grep -E \"APP_URL|STORAGE_PUBLIC_PATH|FILESYSTEM\" .env.example)"
+      "Bash(grep -E \"APP_URL|STORAGE_PUBLIC_PATH|FILESYSTEM\" .env.example)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\alfo.ochoa\\\\Documents\\\\Desarrollo\\\\SuppliersPortal\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Select-String \"2026_06_09\")",
+      "Bash(cat app/Enum/ContractStatus.php)",
+      "Bash(composer require *)",
+      "Bash(grep -n 'with\\\\s*=\\\\|protected $with' app/Models/RequisitionItem.php app/Models/ContractProduct.php)"
     ]
   }
 }
