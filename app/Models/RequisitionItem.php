@@ -102,6 +102,14 @@ class RequisitionItem extends Model
         return $this->belongsTo(Supplier::class, 'suggested_vendor_id');
     }
 
+    /**
+     * Contrato comercial asignado a esta partida.
+     */
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Contract::class);
+    }
+
     // =========================================================================
     // MÉTODOS DE VALIDACIÓN
     // =========================================================================
