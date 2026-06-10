@@ -13,6 +13,7 @@ use App\Services\BudgetCedulaCatalogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
 class RequisitionForm extends Component
@@ -329,6 +330,7 @@ class RequisitionForm extends Component
     // GESTIÓN DE PARTIDAS
     // =====================================================
 
+    #[Renderless]
     public function addItem($itemData)
     {
         if (! $this->validateItemPayload($itemData)) {
@@ -355,6 +357,7 @@ class RequisitionForm extends Component
         $this->dispatch('item-added', message: 'Partida agregada correctamente');
     }
 
+    #[Renderless]
     public function updateItem($index, $itemData)
     {
         if (!isset($this->items[$index])) {
@@ -386,6 +389,7 @@ class RequisitionForm extends Component
         $this->dispatch('item-updated', message: 'Partida actualizada correctamente');
     }
 
+    #[Renderless]
     public function removeItem($index)
     {
         if (isset($this->items[$index])) {

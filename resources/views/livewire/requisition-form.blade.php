@@ -124,9 +124,10 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
                     <i class="ti ti-list me-2"></i>Productos/Servicios
-                    @if(count($items) > 0)
-                        <span class="badge bg-primary ms-2">{{ count($items) }} partida(s)</span>
-                    @endif
+                    <span id="itemsCountBadge"
+                          class="badge bg-primary ms-2 {{ count($items) > 0 ? '' : 'd-none' }}">
+                        {{ count($items) }} partida(s)
+                    </span>
                 </h5>
                 <button type="button" class="btn btn-sm btn-primary" id="btnAddItem">
                     <i class="ti ti-plus me-1"></i> Agregar Partida
@@ -149,7 +150,7 @@
                                 <th width="100">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="requisitionItemsBody">
                             @forelse($items as $index => $item)
                                 <tr wire:key="item-{{ $index }}">
                                     <td>{{ $index + 1 }}</td>
@@ -201,7 +202,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">
+                                    <td colspan="10" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                         No hay partidas agregadas. Haz clic en "Agregar Partida"
                                     </td>
@@ -465,10 +466,16 @@ function confirmDeleteItem(index) {
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
             const wire = window.getRequisitionWire?.();
-            wire?.$call('removeItem', index);
+            if (!wire) {
+                Swal.fire('Error', 'No se pudo conectar con el formulario.', 'error');
+                return;
+            }
+
+            await wire.$call('removeItem', index);
+            window.renderRequisitionItems?.();
         }
     });
 }
@@ -636,6 +643,88 @@ $(function() {
     window.getRequisitionWire = getRequisitionWire;
 
     const costCenterCatalog = @json($costCenterCatalog);
+
+    function escapeHtml(value) {
+        return $('<div>').text(value ?? '').html();
+    }
+
+    function truncate(value, length) {
+        const text = String(value ?? '');
+        return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+    }
+
+    function renderRequisitionItems() {
+        const wire = getRequisitionWire();
+        const items = Array.isArray(wire?.$get('items')) ? wire.$get('items') : [];
+        const $body = $('#requisitionItemsBody');
+        const $badge = $('#itemsCountBadge');
+
+        if (!$body.length) {
+            return;
+        }
+
+        $badge.text(`${items.length} partida(s)`).toggleClass('d-none', items.length === 0);
+
+        if (items.length === 0) {
+            $body.html(`
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        <i class="ti ti-inbox fs-1 d-block mb-2"></i>
+                        No hay partidas agregadas. Haz clic en "Agregar Partida"
+                    </td>
+                </tr>
+            `);
+            return;
+        }
+
+        $body.html(items.map((item, index) => {
+            const productName = escapeHtml(item.product_name);
+            const description = escapeHtml(item.description);
+            const costCenterName = escapeHtml(item.cost_center_name || '—');
+            const purchaseType = escapeHtml(item.purchase_type || '');
+            const expenseCategory = escapeHtml(item.expense_category_name || '—');
+            const budgetCedula = escapeHtml(item.budget_cedula_name || '—');
+            const notes = escapeHtml(item.notes || '');
+            const notesCell = notes
+                ? `<span class="text-primary cursor-help" title="${notes}">
+                       <i class="ti ti-note"></i> ${escapeHtml(truncate(item.notes, 30))}
+                   </span>`
+                : '<span class="text-muted">—</span>';
+
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${productName}</strong></td>
+                    <td title="${description}">${escapeHtml(truncate(item.description, 50))}</td>
+                    <td>${escapeHtml(item.quantity)}</td>
+                    <td>${escapeHtml(item.unit)}</td>
+                    <td>
+                        <span class="badge bg-secondary" title="${costCenterName}">
+                            ${escapeHtml(truncate(item.cost_center_name || '—', 25))}
+                        </span>
+                        <small class="d-block text-muted">${purchaseType}</small>
+                    </td>
+                    <td><span class="badge bg-info">${expenseCategory}</span></td>
+                    <td>
+                        <div class="fw-semibold text-body">${budgetCedula}</div>
+                        <small class="text-muted">Cédula presupuestal</small>
+                    </td>
+                    <td>${notesCell}</td>
+                    <td class="text-nowrap">
+                        <button type="button" class="btn btn-sm btn-warning btn-edit-item"
+                                data-index="${index}" title="Editar">
+                            <i class="ti ti-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger"
+                                onclick="confirmDeleteItem(${index})" title="Eliminar">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join(''));
+    }
+    window.renderRequisitionItems = renderRequisitionItems;
 
     function syncFormValuesToWire() {
         const wire = getRequisitionWire();
@@ -1522,6 +1611,8 @@ $(function() {
             } else {
                 await wire.$call('addItem', itemData);
             }
+
+            renderRequisitionItems();
         } catch (error) {
             console.error('Error al guardar partida:', error);
             Swal.fire('Error', 'No se pudo guardar la partida.', 'error');
