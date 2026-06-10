@@ -64,7 +64,9 @@
                 <div class="col-md-3">
                     <label class="form-label">Monto contrato</label>
                     <input type="number" name="contract_amount" step="0.01" min="0"
-                        class="form-control" value="{{ old('contract_amount', 0) }}">
+                        class="form-control @error('contract_amount') is-invalid @enderror"
+                        value="{{ old('contract_amount', 0) }}">
+                    @error('contract_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             </div>
         </div>
@@ -95,9 +97,9 @@
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
                                     <td>
-                                        <select :name="`products[${index}][product_service_id]`" class="form-select form-select-sm" required>
+                                        <select :name="`products[${index}][product_service_id]`" x-model="row.product_service_id" class="form-select form-select-sm" required>
                                             <option value="">Seleccionar...</option>
-                                            @foreach(\App\Models\ProductService::where('is_active', true)->orderBy('short_name')->get() as $prod)
+                                            @foreach($productServices as $prod)
                                                 <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
                                             @endforeach
                                         </select>
@@ -148,14 +150,14 @@
 <script>
 function contractForm() {
     return {
-        rows: [{ unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' }],
-        startDate: '{{ old("start_date") }}',
-        endDate: '{{ old("end_date") }}',
+        rows: [{ product_service_id: '', unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' }],
+        startDate: @json(old('start_date', '')),
+        endDate: @json(old('end_date', '')),
         get endInPast() {
             return this.endDate && this.endDate < new Date().toISOString().slice(0, 10);
         },
         addRow() {
-            this.rows.push({ unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' });
+            this.rows.push({ product_service_id: '', unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' });
         },
         removeRow(index) {
             if (this.rows.length > 1) this.rows.splice(index, 1);

@@ -66,7 +66,9 @@
                 <div class="col-md-3">
                     <label class="form-label">Monto contrato</label>
                     <input type="number" name="contract_amount" step="0.01" min="0"
-                        class="form-control" value="{{ old('contract_amount', $contract->contract_amount) }}">
+                        class="form-control @error('contract_amount') is-invalid @enderror"
+                        value="{{ old('contract_amount', $contract->contract_amount) }}">
+                    @error('contract_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             </div>
         </div>
@@ -97,10 +99,10 @@
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
                                     <td>
-                                        <select :name="`products[${index}][product_service_id]`" class="form-select form-select-sm" required>
+                                        <select :name="`products[${index}][product_service_id]`" x-model="row.product_service_id" class="form-select form-select-sm" required>
                                             <option value="">Seleccionar...</option>
-                                            @foreach(\App\Models\ProductService::where('is_active', true)->orderBy('short_name')->get() as $prod)
-                                                <option value="{{ $prod->id }}" :selected="row.product_service_id == {{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
+                                            @foreach($productServices as $prod)
+                                                <option value="{{ $prod->id }}">{{ $prod->short_name ?? $prod->code }}</option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -157,12 +159,12 @@ function contractForm() {
             'unit_of_measure' => $p->unit_of_measure,
             'notes' => $p->notes,
         ])),
-        startDate: '{{ $contract->start_date->format("Y-m-d") }}',
-        endDate: '{{ $contract->end_date->format("Y-m-d") }}',
+        startDate: @json($contract->start_date->format('Y-m-d')),
+        endDate: @json($contract->end_date->format('Y-m-d')),
         get endInPast() {
             return this.endDate && this.endDate < new Date().toISOString().slice(0, 10);
         },
-        addRow() { this.rows.push({ unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' }); },
+        addRow() { this.rows.push({ product_service_id: '', unit_price: '', currency_code: 'MXN', unit_of_measure: '', notes: '' }); },
         removeRow(index) { if (this.rows.length > 1) this.rows.splice(index, 1); },
     };
 }

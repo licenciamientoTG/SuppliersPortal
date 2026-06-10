@@ -6,6 +6,7 @@ use App\Http\Requests\StoreContractRequest;
 use App\Http\Requests\UpdateContractRequest;
 use App\Models\Contract;
 use App\Models\Company;
+use App\Models\ProductService;
 use App\Models\RequisitionItem;
 use App\Models\Supplier;
 use App\Services\ContractImportService;
@@ -65,7 +66,8 @@ class ContractController extends Controller
     {
         $companies = Company::where('is_active', true)->orderBy('name')->get();
         $suppliers = Supplier::where('status', 'activo')->orderBy('company_name')->get();
-        return view('contracts.create', compact('companies', 'suppliers'));
+        $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
+        return view('contracts.create', compact('companies', 'suppliers', 'productServices'));
     }
 
     public function store(StoreContractRequest $request)
@@ -116,7 +118,8 @@ class ContractController extends Controller
         $contract->load('products');
         $companies = Company::where('is_active', true)->orderBy('name')->get();
         $suppliers = Supplier::where('status', 'activo')->orderBy('company_name')->get();
-        return view('contracts.edit', compact('contract', 'companies', 'suppliers'));
+        $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
+        return view('contracts.edit', compact('contract', 'companies', 'suppliers', 'productServices'));
     }
 
     public function update(UpdateContractRequest $request, Contract $contract)
