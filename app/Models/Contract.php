@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -128,21 +127,19 @@ class Contract extends Model
 
     public static function nextFolio(): string
     {
-        return DB::transaction(function () {
-            $year   = date('Y');
-            $prefix = "CONT-{$year}-";
-            $last   = static::where('folio', 'like', $prefix . '%')
-                ->lockForUpdate()
-                ->orderBy('folio', 'desc')
-                ->value('folio');
+        $year   = date('Y');
+        $prefix = "CONT-{$year}-";
+        $last   = static::where('folio', 'like', $prefix . '%')
+            ->lockForUpdate()
+            ->orderBy('folio', 'desc')
+            ->value('folio');
 
-            $n = 0;
-            if ($last && preg_match('/CONT-\d{4}-(\d+)/', $last, $m)) {
-                $n = (int) $m[1];
-            }
+        $n = 0;
+        if ($last && preg_match('/CONT-\d{4}-(\d+)/', $last, $m)) {
+            $n = (int) $m[1];
+        }
 
-            return sprintf('%s%03d', $prefix, $n + 1);
-        });
+        return sprintf('%s%03d', $prefix, $n + 1);
     }
 
     // ── ActivityLog ───────────────────────────────────────────────────────

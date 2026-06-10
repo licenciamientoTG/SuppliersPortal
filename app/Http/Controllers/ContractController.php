@@ -211,16 +211,24 @@ class ContractController extends Controller
 
         $result = $service->preview($request->file('file'));
 
+        // Fix #2 — store validated rows in session instead of a forgeable hidden field
+        session(['contract_import_valid' => $result['valid']]);
+
         return view('contracts.import-preview', compact('result'));
     }
 
     public function importConfirm(Request $request, ContractImportService $service)
     {
-        $request->validate([
-            'valid_rows' => ['required', 'string'],
-        ]);
+        // Fix #2 — retrieve from session, not from user-supplied POST data
+        $validRows = session('contract_import_valid', []);
 
-        $validRows = json_decode($request->valid_rows, true);
+        if (empty($validRows)) {
+            return redirect()->route('contracts.importForm')
+                ->with('error', 'No hay filas válidas en sesión. Vuelva a cargar el archivo.');
+        }
+
+        session()->forget('contract_import_valid');
+
         $created = $service->confirm($validRows);
 
         return redirect()->route('contracts.index')

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\Contract;
+use App\Models\ProductService;
 use App\Models\Supplier;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
@@ -35,9 +36,10 @@ class ContractImportService
             ];
         }
 
-        $validRows     = [];
-        $errorRows     = [];
-        $seenContracts = []; // clave: empresa+rfc+start+end
+        $validRows              = [];
+        $errorRows              = [];
+        $seenContracts          = []; // clave: empresa+rfc+start+end (normalizado)
+        $seenProductsPerContract = []; // clave: contractKey+product_id
 
         foreach ($rows as $i => $row) {
             [$empresaCode, $supplierRfc, $startDate, $endDate, $contractAmount, $productCode, $unitPrice, $currency]
@@ -66,8 +68,12 @@ class ContractImportService
                 $errors[] = "end_date debe ser posterior a start_date.";
             }
 
-            $product = \App\Models\ProductService::where('code', $productCode)
-                ->where('is_active', true)
+            // Fix #4 — normalize dates before building contract key
+            $normalizedStart = $startDate ? Carbon::parse($startDate)->toDateString() : $startDate;
+            $normalizedEnd   = $endDate   ? Carbon::parse($endDate)->toDateString()   : $endDate;
+
+            $product = ProductService::where('code', $productCode)
+                ->active()
                 ->first();
             if (! $product) {
                 $errors[] = "Producto '{$productCode}' no encontrado o inactivo.";
@@ -77,18 +83,21 @@ class ContractImportService
                 $errors[] = "unit_price inválido: '{$unitPrice}'.";
             }
 
-            // Deduplicación en archivo
-            $contractKey = "{$empresaCode}|{$supplierRfc}|{$startDate}|{$endDate}";
-            if (isset($seenContracts[$contractKey]) && empty($errors)) {
-                // mismo contrato en múltiples filas → agrupar (correcto)
+            // Fix #4 — use normalized dates in contract key
+            $contractKey = "{$empresaCode}|{$supplierRfc}|{$normalizedStart}|{$normalizedEnd}";
+
+            // Fix #5 — in-file duplicate product check
+            $productKey = "{$contractKey}|{$product?->id}";
+            if ($product && isset($seenProductsPerContract[$productKey])) {
+                $errors[] = "Producto '{$productCode}' duplicado para el mismo contrato en este archivo.";
             }
 
             // Deduplicación en BD
             if (empty($errors) && $company && $supplier) {
                 $exists = Contract::where('company_id', $company->id)
                     ->where('supplier_id', $supplier->id)
-                    ->whereDate('start_date', Carbon::parse($startDate)->toDateString())
-                    ->whereDate('end_date', Carbon::parse($endDate)->toDateString())
+                    ->whereDate('start_date', $normalizedStart)
+                    ->whereDate('end_date', $normalizedEnd)
                     ->exists();
                 if ($exists) {
                     $errors[] = "Ya existe un contrato para empresa+proveedor+fechas en BD.";
@@ -101,8 +110,8 @@ class ContractImportService
                 'supplier_rfc'       => $supplierRfc,
                 'company_id'         => $company?->id,
                 'supplier_id'        => $supplier?->id,
-                'start_date'         => $startDate,
-                'end_date'           => $endDate,
+                'start_date'         => $normalizedStart,
+                'end_date'           => $normalizedEnd,
                 'contract_amount'    => is_numeric($contractAmount) ? $contractAmount : 0,
                 'product_service_id' => $product?->id,
                 'product_code'       => $productCode,
@@ -115,7 +124,8 @@ class ContractImportService
                 $parsedRow['errors'] = $errors;
                 $errorRows[] = $parsedRow;
             } else {
-                $seenContracts[$contractKey] = true;
+                $seenContracts[$contractKey]          = true;
+                $seenProductsPerContract[$productKey] = true;
                 $validRows[] = $parsedRow;
             }
         }
@@ -134,7 +144,11 @@ class ContractImportService
         $grouped = collect($validRows)->groupBy('contract_key');
         $count   = 0;
 
-        DB::transaction(function () use ($grouped, &$count) {
+        // Fix #6 — resolve once outside the loop
+        $userId = Auth::id();
+        $user   = Auth::user();
+
+        DB::transaction(function () use ($grouped, &$count, $userId, $user) {
             foreach ($grouped as $key => $rows) {
                 $first   = $rows->first();
                 $folio   = Contract::nextFolio();
@@ -147,8 +161,8 @@ class ContractImportService
                     'end_date'        => $first['end_date'],
                     'contract_amount' => $first['contract_amount'],
                     'status'          => 'active',
-                    'created_by'      => Auth::id(),
-                    'updated_by'      => Auth::id(),
+                    'created_by'      => $userId,
+                    'updated_by'      => $userId,
                 ]);
 
                 foreach ($rows as $row) {
@@ -161,7 +175,7 @@ class ContractImportService
                 }
 
                 activity('contracts')
-                    ->causedBy(Auth::user())
+                    ->causedBy($user)
                     ->performedOn($contract)
                     ->event('bulk_imported')
                     ->withProperties([
