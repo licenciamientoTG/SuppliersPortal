@@ -9,6 +9,7 @@
         'purchase_orders',
         'receptions',
         'products_services',
+        'contracts',
     ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
 
     $showFinanceSection = collect([
@@ -218,6 +219,16 @@
     </a>
 </li>
 @endmoduleAccess
+
+@hasanyrole('superadmin|staff')
+<li class="side-nav-item">
+    <a href="{{ route('contracts.index') }}"
+        class="side-nav-link {{ request()->routeIs('contracts.*') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-file-invoice"></i></span>
+        <span class="menu-text">Contratos</span>
+    </a>
+</li>
+@endhasanyrole
 @endif
 
 @if ($showFinanceSection)
