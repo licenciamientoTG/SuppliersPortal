@@ -48,7 +48,8 @@
       "Bash(Select-String \"2026_06_09\")",
       "Bash(cat app/Enum/ContractStatus.php)",
       "Bash(composer require *)",
-      "Bash(grep -n 'with\\\\s*=\\\\|protected $with' app/Models/RequisitionItem.php app/Models/ContractProduct.php)"
+      "Bash(grep -n 'with\\\\s*=\\\\|protected $with' app/Models/RequisitionItem.php app/Models/ContractProduct.php)",
+      "Bash(composer dump-autoload *)"
     ]
   }
 }
