@@ -129,9 +129,17 @@
                                         </select>
                                     </td>
                                     <td>
-                                        <input type="text" :name="`products[${index}][unit_of_measure]`"
-                                            class="form-control form-control-sm" x-model="row.unit_of_measure"
-                                            placeholder="PZA" required>
+                                        <select :name="`products[${index}][unit_of_measure]`"
+                                            class="form-select form-select-sm" x-model="row.unit_of_measure" required>
+                                            <option value="">U/M</option>
+                                            @foreach($unitsOfMeasure as $group => $units)
+                                            <optgroup label="{{ $group }}">
+                                                @foreach($units as $code => $label)
+                                                <option value="{{ $code }}">{{ $label }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                            @endforeach
+                                        </select>
                                     </td>
                                     <td>
                                         <input type="text" :name="`products[${index}][notes]`"

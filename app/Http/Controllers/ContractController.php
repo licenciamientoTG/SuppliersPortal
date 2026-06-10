@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreContractRequest;
 use App\Http\Requests\UpdateContractRequest;
 use App\Models\Contract;
+use App\Enum\UnitOfMeasure;
 use App\Models\Company;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
@@ -67,7 +68,8 @@ class ContractController extends Controller
         $companies = Company::where('is_active', true)->orderBy('name')->get();
         $suppliers = Supplier::approved()->orderBy('company_name')->get();
         $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
-        return view('contracts.create', compact('companies', 'suppliers', 'productServices'));
+        $unitsOfMeasure = UnitOfMeasure::groupedOptions();
+        return view('contracts.create', compact('companies', 'suppliers', 'productServices', 'unitsOfMeasure'));
     }
 
     public function store(StoreContractRequest $request)
@@ -119,7 +121,8 @@ class ContractController extends Controller
         $companies = Company::where('is_active', true)->orderBy('name')->get();
         $suppliers = Supplier::approved()->orderBy('company_name')->get();
         $productServices = ProductService::where('is_active', true)->orderBy('short_name')->get();
-        return view('contracts.edit', compact('contract', 'companies', 'suppliers', 'productServices'));
+        $unitsOfMeasure = UnitOfMeasure::groupedOptions();
+        return view('contracts.edit', compact('contract', 'companies', 'suppliers', 'productServices', 'unitsOfMeasure'));
     }
 
     public function update(UpdateContractRequest $request, Contract $contract)
