@@ -179,15 +179,20 @@ $(document).ready(function () {
     });
 });
 
+@php
+$contractRows = $contract->products->map(function ($p) {
+    return [
+        'product_service_id' => $p->product_service_id,
+        'unit_price'         => $p->unit_price,
+        'currency_code'      => $p->currency_code,
+        'unit_of_measure'    => $p->unit_of_measure,
+        'notes'              => $p->notes,
+    ];
+})->values()->toArray();
+@endphp
 function contractForm() {
     return {
-        rows: @json($contract->products->map(fn($p) => [
-            'product_service_id' => $p->product_service_id,
-            'unit_price' => $p->unit_price,
-            'currency_code' => $p->currency_code,
-            'unit_of_measure' => $p->unit_of_measure,
-            'notes' => $p->notes,
-        ])),
+        rows: @json($contractRows),
         startDate: @json($contract->start_date->format('Y-m-d')),
         endDate: @json($contract->end_date->format('Y-m-d')),
         get endInPast() {
