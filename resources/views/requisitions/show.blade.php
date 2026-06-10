@@ -276,7 +276,7 @@
                             <span class="badge bg-secondary">{{ $item->unit }}</span>
                         </td>
                         <td class="text-end">
-                            @if($item->unit_price)
+                            @if(!is_null($item->unit_price))
                                 <span class="fw-semibold">
                                     {{ $item->currency_code ?? 'MXN' }} {{ number_format($item->unit_price, 4) }}
                                 </span>
@@ -285,7 +285,7 @@
                                     @if($currentPrice && (float)$currentPrice !== (float)$item->unit_price)
                                         <br>
                                         <span class="badge bg-warning text-dark mt-1"
-                                            title="Precio actual en contrato: ${{ number_format($currentPrice, 4) }}">
+                                            title="Precio actual en contrato: {{ $item->currency_code ?? 'MXN' }} {{ number_format($currentPrice, 4) }}">
                                             <i class="ti ti-refresh me-1"></i>Precio actualizado en contrato
                                         </span>
                                     @endif
