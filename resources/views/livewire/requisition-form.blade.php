@@ -1405,7 +1405,27 @@ $(function() {
         $('#itemModal').modal('show');
     }
 
-    $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', function() {
+    function hideItemModalBeforeMorph() {
+        return new Promise((resolve) => {
+            const $modal = $('#itemModal');
+
+            if (! $modal.hasClass('show')) {
+                resolve();
+                return;
+            }
+
+            $modal.one('hidden.bs.modal', resolve);
+            $modal.modal('hide');
+        });
+    }
+
+    $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', async function() {
+        const $saveButton = $(this);
+
+        if ($saveButton.prop('disabled')) {
+            return;
+        }
+
         const purchaseType   = $('#modal_purchase_type').val();
         const costCenterId   = $('#modal_cost_center_id').val();
         const costCenterName = $('#modal_cost_center_id option:selected').data('name') || '';
@@ -1491,13 +1511,23 @@ $(function() {
             return;
         }
 
-        if (editIndex !== '' && editIndex !== null) {
-            wire.$call('updateItem', parseInt(editIndex), itemData);
-        } else {
-            wire.$call('addItem', itemData);
-        }
+        $saveButton.prop('disabled', true);
 
-        $('#itemModal').modal('hide');
+        try {
+            // Bootstrap debe terminar de modificar el modal antes del morph de Livewire.
+            await hideItemModalBeforeMorph();
+
+            if (editIndex !== '' && editIndex !== null) {
+                await wire.$call('updateItem', parseInt(editIndex), itemData);
+            } else {
+                await wire.$call('addItem', itemData);
+            }
+        } catch (error) {
+            console.error('Error al guardar partida:', error);
+            Swal.fire('Error', 'No se pudo guardar la partida.', 'error');
+        } finally {
+            $saveButton.prop('disabled', false);
+        }
     });
 
     // =====================================================
