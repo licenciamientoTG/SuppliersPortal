@@ -157,7 +157,7 @@
                             </td>
                             <td>
                                 <span class="text-nowrap">
-                                    ${{ number_format($response->unit_price, 2) }}
+                                    {{ format_money($response->unit_price, $response->currency) }}
                                 </span>
                             </td>
                             <td>
@@ -165,7 +165,7 @@
                             </td>
                             <td>
                                 <strong class="text-primary text-nowrap">
-                                    ${{ number_format($response->subtotal, 2) }}
+                                    {{ format_money($response->subtotal, $response->currency) }}
                                 </strong>
                             </td>
                             <td>

@@ -540,22 +540,22 @@
                                             <span class="text-muted">—</span>
                                         @endif
                                     </td>
-                                    <td class="text-end">${{ number_format($resp->unit_price, 2) }}</td>
+                                    <td class="text-end">{{ format_money($resp->unit_price, $resp->currency) }}</td>
                                     <td class="text-end">
                                         @if($resp->discount_percentage)
                                             <span class="badge bg-warning text-dark">{{ $resp->discount_percentage }}%</span>
                                         @elseif($resp->discount_amount)
-                                            ${{ number_format($resp->discount_amount, 2) }}
+                                            {{ format_money($resp->discount_amount, $resp->currency) }}
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
                                     </td>
-                                    <td class="text-end">${{ number_format($resp->subtotal, 2) }}</td>
-                                    <td class="text-end">${{ number_format($resp->iva_amount, 2) }}</td>
-                                    <td class="text-end fw-bold text-success">${{ number_format($resp->total, 2) }}</td>
+                                    <td class="text-end">{{ format_money($resp->subtotal, $resp->currency) }}</td>
+                                    <td class="text-end">{{ format_money($resp->iva_amount, $resp->currency) }}</td>
+                                    <td class="text-end fw-bold text-success">{{ format_money($resp->total, $resp->currency) }}</td>
                                     <td class="text-center">
                                         @if($resp->delivery_days)
-                                            <span class="badge bg-light text-dark border">{{ $resp->delivery_days }} días</span>
+                                            <span class="badge bg-light text-dark border">{{ format_days($resp->delivery_days) }} días</span>
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
@@ -628,7 +628,7 @@
                                 <tr>
                                     <td colspan="6" class="text-end">Total de la oferta:</td>
                                     <td class="text-end text-success">
-                                        ${{ number_format($responses->sum('total'), 2) }}
+                                        {{ format_money($responses->sum('total')) }}
                                     </td>
                                     <td colspan="3"></td>
                                 </tr>

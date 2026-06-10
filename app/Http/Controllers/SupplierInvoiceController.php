@@ -75,7 +75,7 @@ class SupplierInvoiceController extends Controller
             ->map(fn($order) => [
                 'type' => 'standard',
                 'id' => $order->id,
-                'label' => "OC {$order->folio} - $" . number_format((float) $order->total, 2),
+                'label' => "OC {$order->folio} - " . format_money($order->total, $order->currency),
             ]);
 
         $direct = DirectPurchaseOrder::where('supplier_id', $supplierId)
@@ -84,7 +84,7 @@ class SupplierInvoiceController extends Controller
             ->map(fn($order) => [
                 'type' => 'direct',
                 'id' => $order->id,
-                'label' => "OCD {$order->folio} - $" . number_format((float) $order->total, 2),
+                'label' => "OCD {$order->folio} - " . format_money($order->total, $order->currency),
             ]);
 
         return $regular->merge($direct)->values();

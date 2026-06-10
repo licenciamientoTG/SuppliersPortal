@@ -256,6 +256,6 @@ class QuotationGroup extends Model
      */
     public function getSubtotalFormattedAttribute(): string
     {
-        return '$' . number_format($this->calculateSubtotal(), 2);
+        return format_money($this->calculateSubtotal());
     }
 }

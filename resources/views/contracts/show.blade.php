@@ -45,7 +45,7 @@
         <div class="card-body row g-3">
             <div class="col-md-4"><strong>Proveedor:</strong><br>{{ $contract->supplier->company_name }}</div>
             <div class="col-md-4"><strong>Empresa:</strong><br>{{ $contract->company->name }}</div>
-            <div class="col-md-4"><strong>Monto contrato:</strong><br>${{ number_format($contract->contract_amount, 2) }}</div>
+            <div class="col-md-4"><strong>Monto contrato:</strong><br>{{ format_money($contract->contract_amount) }}</div>
             <div class="col-md-4"><strong>Vigencia:</strong><br>{{ $contract->start_date->format('d/m/Y') }} — {{ $contract->end_date->format('d/m/Y') }}</div>
             <div class="col-md-4"><strong>Creado por:</strong><br>{{ $contract->creator->name }}</div>
             @if($contract->effective_status === 'cancelled')
@@ -81,7 +81,7 @@
                             @foreach($contract->products as $cp)
                             <tr>
                                 <td>{{ $cp->product->short_name ?? $cp->product->code ?? $cp->product_service_id }}</td>
-                                <td>${{ number_format($cp->unit_price, 4) }}</td>
+                                <td>{{ format_money($cp->unit_price, $cp->currency_code) }}</td>
                                 <td>{{ $cp->currency_code }}</td>
                                 <td>{{ $cp->unit_of_measure }}</td>
                                 <td>{{ $cp->notes ?? '—' }}</td>
@@ -130,7 +130,7 @@
                                 </td>
                                 <td>{{ $item->description }}</td>
                                 <td>{{ $item->quantity }}</td>
-                                <td>${{ number_format($item->unit_price, 4) }} {{ $item->currency_code }}</td>
+                                <td>{{ format_money($item->unit_price, $item->currency_code, true) }}</td>
                                 <td>{{ $item->created_at->format('d/m/Y') }}</td>
                             </tr>
                             @empty

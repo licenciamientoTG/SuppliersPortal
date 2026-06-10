@@ -177,17 +177,17 @@ class QuotationSummary extends Model
 
     public function getSubtotalFormattedAttribute(): string
     {
-        return '$'.number_format((float) $this->subtotal, 2);
+        return format_money($this->subtotal);
     }
 
     public function getIvaAmountFormattedAttribute(): string
     {
-        return '$'.number_format((float) $this->iva_amount, 2);
+        return format_money($this->iva_amount);
     }
 
     public function getTotalFormattedAttribute(): string
     {
-        return '$'.number_format((float) $this->total, 2);
+        return format_money($this->total);
     }
 
     public function getApprovalStatusLabelAttribute(): string
