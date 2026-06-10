@@ -70,6 +70,17 @@
                 @error('newItem.quantity')<div class="text-danger small">{{ $message }}</div>@enderror
             </div>
 
+            <div class="col-md-3">
+                <label class="form-label" for="expense-cat-select">Categoría de gasto <span class="text-danger">*</span></label>
+                <select id="expense-cat-select" wire:model="newItem.expense_category_id" class="form-select">
+                    <option value="">Seleccionar...</option>
+                    @foreach($expenseCategories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                    @endforeach
+                </select>
+                @error('newItem.expense_category_id')<div class="text-danger small">{{ $message }}</div>@enderror
+            </div>
+
             @if($newItemSnapshotPrice)
             <div class="col-12">
                 <span class="badge bg-light text-dark border">
@@ -94,7 +105,7 @@
         <div class="card-body p-0">
             <table class="table table-sm mb-0">
                 <thead>
-                    <tr><th>Contrato</th><th>Proveedor</th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Avisos</th><th></th></tr>
+                    <tr><th>Contrato</th><th>Proveedor</th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Cat. Gasto</th><th>Avisos</th><th></th></tr>
                 </thead>
                 <tbody>
                     @foreach($items as $index => $item)
@@ -104,6 +115,7 @@
                         <td>{{ $item['product_name'] }}</td>
                         <td>{{ $item['quantity'] }} {{ $item['unit_of_measure'] }}</td>
                         <td>${{ number_format($item['unit_price'], 4) }} {{ $item['currency_code'] }}</td>
+                        <td>{{ $item['expense_category_name'] ?? '—' }}</td>
                         <td>
                             @if($item['expiry_warning'])
                                 <span class="badge bg-warning text-dark" title="Vence el {{ $item['expiry_warning'] }}">

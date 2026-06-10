@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractProduct;
+use App\Models\ExpenseCategory;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
@@ -23,9 +24,10 @@ class ContractRequisitionForm extends Component
     public array $items = [];
 
     // Catálogos
-    public $companies      = [];
-    public $locations      = [];
+    public $companies         = [];
+    public $locations         = [];
     public $eligibleContracts = [];
+    public $expenseCategories = [];
 
     // Estado de partida nueva
     public $newItem = [
@@ -34,6 +36,7 @@ class ContractRequisitionForm extends Component
         'quantity'               => 1,
         'cost_center_id'         => '',
         'budget_category_id'     => '',
+        'expense_category_id'    => '',
         'notes'                  => '',
     ];
     public $newItemContractProducts = [];
@@ -42,8 +45,9 @@ class ContractRequisitionForm extends Component
 
     public function mount(): void
     {
-        $this->companies = Company::where('is_active', true)->orderBy('name')->get();
-        $this->locations = ReceivingLocation::orderBy('name')->get();
+        $this->companies         = Company::where('is_active', true)->orderBy('name')->get();
+        $this->locations         = ReceivingLocation::orderBy('name')->get();
+        $this->expenseCategories = ExpenseCategory::orderBy('name')->get();
     }
 
     public function updatedCompanyId(): void
@@ -89,10 +93,12 @@ class ContractRequisitionForm extends Component
             'newItem.contract_id'         => ['required', 'integer'],
             'newItem.contract_product_id' => ['required', 'integer'],
             'newItem.quantity'            => ['required', 'numeric', 'min:0.001'],
+            'newItem.expense_category_id' => ['required', 'integer'],
         ], [
             'newItem.contract_id.required'         => 'Selecciona un contrato.',
             'newItem.contract_product_id.required' => 'Selecciona un producto.',
             'newItem.quantity.required'            => 'Ingresa la cantidad.',
+            'newItem.expense_category_id.required' => 'Selecciona una categoría de gasto.',
         ]);
 
         $contract = Contract::find($this->newItem['contract_id']);
@@ -126,13 +132,15 @@ class ContractRequisitionForm extends Component
             'quantity'               => $this->newItem['quantity'],
             'cost_center_id'         => $this->newItem['cost_center_id'],
             'budget_category_id'     => $this->newItem['budget_category_id'],
+            'expense_category_id'    => $this->newItem['expense_category_id'],
+            'expense_category_name'  => ExpenseCategory::find($this->newItem['expense_category_id'])?->name ?? '—',
             'notes'                  => $this->newItem['notes'],
             'expiry_warning'         => $daysLeft <= 30 ? $contract->end_date->format('d/m/Y') : null,
         ];
 
         $this->reset(['newItem', 'newItemContractProducts', 'newItemSnapshotPrice', 'newItemCurrency']);
         $this->newItem = ['contract_id' => '', 'contract_product_id' => '', 'quantity' => 1,
-                          'cost_center_id' => '', 'budget_category_id' => '', 'notes' => ''];
+                          'cost_center_id' => '', 'budget_category_id' => '', 'expense_category_id' => '', 'notes' => ''];
     }
 
     public function removeItem(int $index): void
@@ -187,6 +195,7 @@ class ContractRequisitionForm extends Component
                     'currency_code'       => $cp->currency_code,
                     'cost_center_id'      => $itemData['cost_center_id'] ?: null,
                     'budget_cedula_id'    => $itemData['budget_category_id'] ?: null,
+                    'expense_category_id' => $itemData['expense_category_id'] ?: null,
                     'notes'               => $itemData['notes'] ?? null,
                     'created_by'          => Auth::id(),
                     'updated_by'          => Auth::id(),
