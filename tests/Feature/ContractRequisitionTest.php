@@ -72,6 +72,9 @@ class ContractRequisitionTest extends TestCase
         $this->assertEquals($supplier->id, $po->supplier_id);
         $this->assertNull($po->quotation_summary_id);
         $this->assertDatabaseCount('purchase_order_items', 1);
+        $this->assertEquals(1000.00, $po->subtotal);
+        $this->assertEquals(160.00, $po->iva_amount);
+        $this->assertEquals(1160.00, $po->total);
     }
 
     public function test_two_suppliers_create_two_pos(): void
@@ -120,5 +123,8 @@ class ContractRequisitionTest extends TestCase
         app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
 
         $this->assertDatabaseCount('purchase_orders', 2);
+        $this->assertDatabaseCount('purchase_order_items', 2);
+        $this->assertDatabaseHas('purchase_orders', ['supplier_id' => $supplier1->id]);
+        $this->assertDatabaseHas('purchase_orders', ['supplier_id' => $supplier2->id]);
     }
 }
