@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -277,6 +278,18 @@ class ContractRequisitionForm extends Component
             });
         } catch (ValidationException $exception) {
             throw $exception;
+        } catch (RuntimeException $exception) {
+            Log::error('Contract requisition runtime failure.', [
+                'company_id' => $this->company_id,
+                'receiving_location_id' => $this->receiving_location_id,
+                'items_count' => count($this->items),
+                'message' => $exception->getMessage(),
+                'exception' => $exception,
+            ]);
+
+            throw ValidationException::withMessages([
+                'items' => $exception->getMessage(),
+            ]);
         } catch (Throwable $exception) {
             Log::error('Contract requisition submission failed.', [
                 'company_id' => $this->company_id,

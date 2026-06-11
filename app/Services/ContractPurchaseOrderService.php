@@ -9,6 +9,7 @@ use App\Notifications\PurchaseOrderIssuedNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ContractPurchaseOrderService
@@ -26,6 +27,8 @@ class ContractPurchaseOrderService
     public function generateFromRequisition(Requisition $requisition): Collection
     {
         return DB::transaction(function () use ($requisition) {
+            $this->assertPurchaseOrderSchemaCompatibility();
+
             $requisition->loadMissing('items.contract.supplier', 'requester');
 
             $itemsBySupplier = $requisition->items
@@ -86,8 +89,17 @@ class ContractPurchaseOrderService
                 $purchaseOrders->push($po);
 
                 DB::afterCommit(function () use ($po) {
-                    $po->loadMissing('supplier', 'creator', 'requisition.requester');
-                    $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
+                    try {
+                        $po->loadMissing('supplier', 'creator', 'requisition.requester');
+                        $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
+                    } catch (\Throwable $exception) {
+                        Log::error('Failed to notify supplier about issued contract purchase order.', [
+                            'purchase_order_id' => $po->id,
+                            'folio' => $po->folio,
+                            'supplier_id' => $po->supplier_id,
+                            'exception' => $exception,
+                        ]);
+                    }
                 });
             }
 
@@ -130,5 +142,29 @@ class ContractPurchaseOrderService
         }
 
         return sprintf('%s%04d', $prefix, $n + 1);
+    }
+
+    private function assertPurchaseOrderSchemaCompatibility(): void
+    {
+        $schema = DB::selectOne("
+            SELECT
+                MAX(CASE WHEN COLUMN_NAME = 'source_type' THEN 1 ELSE 0 END) AS has_source_type,
+                MAX(CASE WHEN COLUMN_NAME = 'quotation_summary_id' AND IS_NULLABLE = 'YES' THEN 1 ELSE 0 END) AS quotation_summary_nullable
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'purchase_orders'
+              AND TABLE_SCHEMA = 'dbo'
+        ");
+
+        if (! $schema || ! (int) ($schema->has_source_type ?? 0)) {
+            throw new RuntimeException(
+                'La tabla purchase_orders no tiene la columna source_type. Falta ejecutar la migracion 2026_06_09_000005_make_quotation_summary_nullable_in_purchase_orders.'
+            );
+        }
+
+        if (! (int) ($schema->quotation_summary_nullable ?? 0)) {
+            throw new RuntimeException(
+                'La columna purchase_orders.quotation_summary_id sigue obligatoria. Falta ejecutar la migracion 2026_06_09_000005_make_quotation_summary_nullable_in_purchase_orders.'
+            );
+        }
     }
 }
