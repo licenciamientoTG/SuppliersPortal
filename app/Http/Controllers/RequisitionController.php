@@ -356,6 +356,7 @@ class RequisitionController extends Controller
             'items.costCenter',
             'items.suggestedVendor',
             'items.contractProduct',
+            'purchaseOrders.supplier',
             'requester',
             'creator',
             'pauser',
@@ -869,4 +870,3 @@ class RequisitionController extends Controller
             ->with('success', 'Requisición duplicada exitosamente');
     }
 }
-

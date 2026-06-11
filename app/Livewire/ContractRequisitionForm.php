@@ -265,7 +265,13 @@ class ContractRequisitionForm extends Component
                     ]);
                 }
 
-                app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
+                $purchaseOrders = app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
+
+                if ($purchaseOrders->count() === 1) {
+                    $this->redirect(route('purchase-orders.show', $purchaseOrders->first()), navigate: true);
+
+                    return;
+                }
 
                 $this->redirect(route('requisitions.show', $requisition), navigate: true);
             });
