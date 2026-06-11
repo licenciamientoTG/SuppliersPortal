@@ -66,6 +66,7 @@ class InvoiceService
                     'currency' => $data['currency'] ?: ($order->currency ?? 'MXN'),
                     'issued_at' => $data['issued_at'],
                     'uploaded_by' => $uploader?->id,
+                    'uploaded_by_supplier_id' => $origin === SupplierInvoice::ORIGIN_SUPPLIER ? $supplier->id : null,
                     'uploaded_origin' => $origin,
                     'status' => SupplierInvoice::STATUS_UPLOADED,
                 ]);

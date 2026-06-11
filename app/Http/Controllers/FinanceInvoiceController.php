@@ -86,7 +86,7 @@ class FinanceInvoiceController extends Controller
 
     public function show(SupplierInvoice $invoice)
     {
-        $invoice->load(['supplier', 'financialProvision.reception', 'receivable', 'uploader']);
+        $invoice->load(['supplier', 'financialProvision.reception', 'receivable', 'uploader', 'supplierUploader']);
 
         return view('finance.invoices.show', compact('invoice'));
     }
