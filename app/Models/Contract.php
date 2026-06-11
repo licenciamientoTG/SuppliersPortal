@@ -76,7 +76,7 @@ class Contract extends Model
     {
         return $query->where('status', ContractStatus::ACTIVE->value)
             ->whereDate('end_date', '>=', Carbon::today()->toDateString())
-            ->whereHas('supplier', fn($q) => $q->where('status', 'activo'));
+            ->whereHas('supplier', fn($q) => $q->where('approval_status', 'approved')->where('is_active', true));
     }
 
     public function scopeByCompany($query, int $companyId)
@@ -90,7 +90,8 @@ class Contract extends Model
     {
         return $this->status === ContractStatus::ACTIVE
             && $this->end_date->gte(Carbon::today())
-            && $this->supplier->status === 'activo';
+            && $this->supplier->approval_status === 'approved'
+            && $this->supplier->is_active;
     }
 
     public function getEffectiveStatusAttribute(): string
