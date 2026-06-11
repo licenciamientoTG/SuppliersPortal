@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Notification;
 use Throwable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class InvoiceService
 {
@@ -34,7 +35,14 @@ class InvoiceService
         ?User $uploader,
         string $origin,
     ): SupplierInvoice {
-        $data = $this->parser->parse($xmlFile->get());
+        try {
+            $data = $this->parser->parse($xmlFile->get());
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'xml_file' => $exception->getMessage(),
+            ]);
+        }
+
         $this->validateInvoiceData($supplier, $data);
 
         return DB::transaction(function () use ($supplier, $order, $xmlFile, $pdfFile, $uploader, $origin, $data) {

@@ -65,11 +65,12 @@
                     </div>
                 @endif
 
-                @if ($errors->any())
+                @php($viewErrors = $errors ?? null)
+                @if ($viewErrors?->any())
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <strong>Ocurrieron errores:</strong>
                         <ul class="mb-0">
-                            @foreach ($errors->all() as $error)
+                            @foreach ($viewErrors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>

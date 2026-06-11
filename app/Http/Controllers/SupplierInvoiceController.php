@@ -8,6 +8,8 @@ use App\Models\SupplierInvoice;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SupplierInvoiceController extends Controller
 {
@@ -53,14 +55,31 @@ class SupplierInvoiceController extends Controller
         $order = $this->invoiceService->resolveOrder($validated['order_type'], (int) $validated['order_id']);
         abort_unless((int) $order->supplier_id === (int) $supplier->id, 403);
 
-        $invoice = $this->invoiceService->upload(
-            supplier: $supplier,
-            order: $order,
-            xmlFile: $request->file('xml_file'),
-            pdfFile: $request->file('pdf_file'),
-            uploader: Auth::guard('web')->user(),
-            origin: SupplierInvoice::ORIGIN_SUPPLIER,
-        );
+        try {
+            $invoice = $this->invoiceService->upload(
+                supplier: $supplier,
+                order: $order,
+                xmlFile: $request->file('xml_file'),
+                pdfFile: $request->file('pdf_file'),
+                uploader: Auth::guard('web')->user(),
+                origin: SupplierInvoice::ORIGIN_SUPPLIER,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            Log::error('Supplier invoice upload failed.', [
+                'supplier_id' => $supplier->id,
+                'order_type' => $validated['order_type'],
+                'order_id' => (int) $validated['order_id'],
+                'exception' => $exception,
+            ]);
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'xml_file' => 'No se pudo cargar la factura. Revisa el XML/PDF y vuelve a intentar.',
+                ]);
+        }
 
         return redirect()
             ->route('supplier.invoices.index')
