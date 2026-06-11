@@ -18,6 +18,8 @@ use App\Services\ContractPurchaseOrderService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -189,8 +191,9 @@ class ContractRequisitionForm extends Component
             'supplier_id' => $contract->supplier_id,
             'supplier_name' => $contract->supplier->company_name,
             'contract_product_id' => $cp->id,
-            'product_name' => $product?->name ?? "Producto #{$cp->product_service_id}",
+            'product_name' => $this->resolveProductDisplayName($product, $cp),
             'product_service_id' => $cp->product_service_id,
+            'description' => $this->resolveProductDescription($product, $cp),
             'product_code' => $product?->code,
             'item_category' => $product?->product_type,
             'unit_price' => (float) $cp->unit_price,
@@ -225,45 +228,61 @@ class ContractRequisitionForm extends Component
             'items' => ['required', 'array', 'min:1'],
         ]);
 
-        DB::transaction(function () {
-            $validatedItems = $this->validateSubmissionItems();
+        try {
+            DB::transaction(function () {
+                $validatedItems = $this->validateSubmissionItems();
 
-            $requisition = Requisition::create([
-                'folio' => Requisition::nextFolio(),
+                $requisition = Requisition::create([
+                    'folio' => Requisition::nextFolio(),
+                    'company_id' => $this->company_id,
+                    'required_date' => $this->required_date,
+                    'receiving_location_id' => $this->receiving_location_id,
+                    'description' => $this->notes,
+                    'source_type' => 'contract',
+                    'status' => RequisitionStatus::COMPLETED->value,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                    'requested_by' => Auth::id(),
+                ]);
+
+                foreach ($validatedItems as $itemData) {
+                    $requisition->items()->create([
+                        'product_service_id' => $itemData['product_service_id'],
+                        'description' => $itemData['description'],
+                        'item_category' => $itemData['item_category'],
+                        'product_code' => $itemData['product_code'],
+                        'quantity' => $itemData['quantity'],
+                        'unit' => $itemData['unit_of_measure'],
+                        'suggested_vendor_id' => $itemData['suggested_vendor_id'],
+                        'contract_id' => $itemData['contract_id'],
+                        'contract_product_id' => $itemData['contract_product_id'],
+                        'unit_price' => $itemData['unit_price'],
+                        'currency_code' => $itemData['currency_code'],
+                        'cost_center_id' => $itemData['cost_center_id'],
+                        'budget_cedula_id' => $itemData['budget_cedula_id'],
+                        'expense_category_id' => $itemData['expense_category_id'],
+                        'notes' => $itemData['notes'] ?? null,
+                    ]);
+                }
+
+                app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
+
+                $this->redirect(route('requisitions.show', $requisition), navigate: true);
+            });
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            Log::error('Contract requisition submission failed.', [
                 'company_id' => $this->company_id,
-                'required_date' => $this->required_date,
                 'receiving_location_id' => $this->receiving_location_id,
-                'description' => $this->notes,
-                'source_type' => 'contract',
-                'status' => RequisitionStatus::COMPLETED->value,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
-                'requested_by' => Auth::id(),
+                'items_count' => count($this->items),
+                'exception' => $exception,
             ]);
 
-            foreach ($validatedItems as $itemData) {
-                $requisition->items()->create([
-                    'product_service_id' => $itemData['product_service_id'],
-                    'description' => $itemData['product_name'],
-                    'item_category' => $itemData['item_category'],
-                    'product_code' => $itemData['product_code'],
-                    'quantity' => $itemData['quantity'],
-                    'unit' => $itemData['unit_of_measure'],
-                    'contract_id' => $itemData['contract_id'],
-                    'contract_product_id' => $itemData['contract_product_id'],
-                    'unit_price' => $itemData['unit_price'],
-                    'currency_code' => $itemData['currency_code'],
-                    'cost_center_id' => $itemData['cost_center_id'],
-                    'budget_cedula_id' => $itemData['budget_cedula_id'],
-                    'expense_category_id' => $itemData['expense_category_id'],
-                    'notes' => $itemData['notes'] ?? null,
-                ]);
-            }
-
-            app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
-
-            $this->redirect(route('requisitions.show', $requisition), navigate: true);
-        });
+            throw ValidationException::withMessages([
+                'items' => 'No se pudo generar la requisicion y la OC. Verifica las migraciones recientes de compras por contrato y vuelve a intentar.',
+            ]);
+        }
     }
 
     protected function refreshBudgetCedulas(): void
@@ -389,10 +408,12 @@ class ContractRequisitionForm extends Component
                 'unit_price' => (float) $contractProduct->unit_price,
                 'currency_code' => $contractProduct->currency_code,
                 'unit_of_measure' => $contractProduct->unit_of_measure,
-                'product_name' => $product->name ?? $item['product_name'],
+                'product_name' => $this->resolveProductDisplayName($product, $contractProduct),
+                'description' => $this->resolveProductDescription($product, $contractProduct),
                 'product_code' => $product->code,
                 'item_category' => $product->product_type,
                 'budget_cedula_id' => (int) $budgetCedula->id,
+                'suggested_vendor_id' => $product->default_vendor_id,
             ]);
         }
 
@@ -427,6 +448,24 @@ class ContractRequisitionForm extends Component
             'notes' => '',
         ];
         $this->newItemCurrency = 'MXN';
+    }
+
+    protected function resolveProductDisplayName(?ProductService $product, ContractProduct $contractProduct): string
+    {
+        $displayName = $product?->getDisplayName();
+
+        return is_string($displayName) && trim($displayName) !== ''
+            ? trim($displayName)
+            : "Producto #{$contractProduct->product_service_id}";
+    }
+
+    protected function resolveProductDescription(?ProductService $product, ContractProduct $contractProduct): string
+    {
+        $description = $product?->getRequisitionDescription();
+
+        return is_string($description) && trim($description) !== ''
+            ? trim($description)
+            : $this->resolveProductDisplayName($product, $contractProduct);
     }
 
     public function render()

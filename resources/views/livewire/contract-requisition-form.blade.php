@@ -65,7 +65,7 @@
                 <select id="product-select" wire:model.live="newItem.contract_product_id" class="form-select" @if (! $newItem['contract_id']) disabled @endif>
                     <option value="">Seleccionar producto...</option>
                     @foreach ($newItemContractProducts as $cp)
-                        <option value="{{ $cp->id }}">{{ $cp->product->name ?? "Producto #{$cp->product_service_id}" }}</option>
+                        <option value="{{ $cp->id }}">{{ $cp->product?->getDisplayName() ?? "Producto #{$cp->product_service_id}" }}</option>
                     @endforeach
                 </select>
                 @error('newItem.contract_product_id')<div class="text-danger small">{{ $message }}</div>@enderror

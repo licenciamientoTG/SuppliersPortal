@@ -274,6 +274,8 @@ class ContractRequisitionTest extends TestCase
             'cost_center_id' => $costCenter->id,
             'product_type' => 'PRODUCTO',
             'code' => 'PROD-001',
+            'short_name' => 'Bomba industrial',
+            'technical_description' => 'Bomba industrial modelo X',
             'created_by' => $user->id,
         ]);
 
@@ -309,6 +311,7 @@ class ContractRequisitionTest extends TestCase
             ->call('updatedNewItemExpenseCategoryId')
             ->set('newItem.budget_cedula_id', $budgetCedula->id)
             ->call('addItem')
+            ->assertSet('items.0.product_name', 'Bomba industrial')
             ->call('submit')
             ->assertHasNoErrors();
 
@@ -321,6 +324,7 @@ class ContractRequisitionTest extends TestCase
             'requisition_id' => $requisition->id,
             'item_category' => 'PRODUCTO',
             'product_code' => 'PROD-001',
+            'description' => 'Bomba industrial modelo X',
             'budget_cedula_id' => $budgetCedula->id,
             'cost_center_id' => $costCenter->id,
         ]);
