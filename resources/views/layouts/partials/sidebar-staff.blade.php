@@ -132,6 +132,13 @@
         <span class="menu-text">Requisiciones</span>
     </a>
 </li>
+<li class="side-nav-item">
+    <a href="{{ route('contracts.requisition.create') }}"
+        class="side-nav-link {{ request()->routeIs('contracts.requisition.create') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-file-invoice"></i></span>
+        <span class="menu-text">Req. por Contrato</span>
+    </a>
+</li>
 @endmoduleAccess
 
 @moduleAccess('quotations')

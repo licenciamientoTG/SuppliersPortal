@@ -23,9 +23,9 @@ class ContractPurchaseOrderService
      * Requiere que todos los items tengan contract_id, unit_price snapshot y
      * una sola moneda por proveedor.
      */
-    public function generateFromRequisition(Requisition $requisition): void
+    public function generateFromRequisition(Requisition $requisition): Collection
     {
-        DB::transaction(function () use ($requisition) {
+        return DB::transaction(function () use ($requisition) {
             $requisition->loadMissing('items.contract.supplier', 'requester');
 
             $itemsBySupplier = $requisition->items
@@ -34,6 +34,7 @@ class ContractPurchaseOrderService
             $this->ensureSingleCurrencyPerSupplier($itemsBySupplier);
 
             $issuedAt = now();
+            $purchaseOrders = collect();
 
             foreach ($itemsBySupplier as $supplierId => $items) {
                 $first = $items->first();
@@ -82,6 +83,7 @@ class ContractPurchaseOrderService
                 }
 
                 $this->budgetAllocationService->commitOrder($po);
+                $purchaseOrders->push($po);
 
                 DB::afterCommit(function () use ($po) {
                     $po->loadMissing('supplier', 'creator', 'requisition.requester');
@@ -93,6 +95,8 @@ class ContractPurchaseOrderService
                 'status' => 'COMPLETED',
                 'updated_by' => Auth::id() ?? $requisition->updated_by,
             ]);
+
+            return $purchaseOrders;
         });
     }
 

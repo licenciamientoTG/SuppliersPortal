@@ -55,8 +55,9 @@ class ContractRequisitionForm extends Component
     public function mount(): void
     {
         $this->fiscalYear = (int) now()->year;
+        $this->required_date = now()->addDay()->toDateString();
         $this->companies = Company::where('is_active', true)->orderBy('name')->get();
-        $this->locations = ReceivingLocation::orderBy('name')->get();
+        $this->locations = ReceivingLocation::active()->orderBy('name')->get();
         $this->expenseCategories = ExpenseCategory::orderBy('name')->get();
     }
 
@@ -313,19 +314,19 @@ class ContractRequisitionForm extends Component
 
             if (! $contractProduct || (int) $contractProduct->contract_id !== (int) $contract->id) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." ya no tiene un producto de contrato valido.",
+                    'items' => 'La partida '.($index + 1).' ya no tiene un producto de contrato valido.',
                 ]);
             }
 
             if (! $product) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." no tiene un producto valido en el catalogo.",
+                    'items' => 'La partida '.($index + 1).' no tiene un producto valido en el catalogo.',
                 ]);
             }
 
             if (! $costCenter || (int) $costCenter->company_id !== (int) $this->company_id) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." tiene un centro de costo invalido para la empresa seleccionada.",
+                    'items' => 'La partida '.($index + 1).' tiene un centro de costo invalido para la empresa seleccionada.',
                 ]);
             }
 
@@ -338,19 +339,19 @@ class ContractRequisitionForm extends Component
 
             if (! $assignedToUser) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." usa un centro de costo no asignado a tu usuario.",
+                    'items' => 'La partida '.($index + 1).' usa un centro de costo no asignado a tu usuario.',
                 ]);
             }
 
             if (! $costCenter->hasAnnualBudget($this->fiscalYear)) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." usa un centro de costo sin presupuesto configurado para {$this->fiscalYear}.",
+                    'items' => 'La partida '.($index + 1)." usa un centro de costo sin presupuesto configurado para {$this->fiscalYear}.",
                 ]);
             }
 
             if (! $budgetCedula || (int) $budgetCedula->expense_category_id !== (int) $item['expense_category_id']) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." tiene una cedula presupuestal que no corresponde a la categoria seleccionada.",
+                    'items' => 'La partida '.($index + 1).' tiene una cedula presupuestal que no corresponde a la categoria seleccionada.',
                 ]);
             }
 
@@ -361,7 +362,7 @@ class ContractRequisitionForm extends Component
                 $this->fiscalYear
             )) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." usa una cedula presupuestal no permitida para ese centro de costo.",
+                    'items' => 'La partida '.($index + 1).' usa una cedula presupuestal no permitida para ese centro de costo.',
                 ]);
             }
 
@@ -379,7 +380,7 @@ class ContractRequisitionForm extends Component
 
             if (! ($budgetCheck['available'] ?? false)) {
                 throw ValidationException::withMessages([
-                    'items' => "La partida ".($index + 1)." no tiene presupuesto suficiente. ".($budgetCheck['message'] ?? ''),
+                    'items' => 'La partida '.($index + 1).' no tiene presupuesto suficiente. '.($budgetCheck['message'] ?? ''),
                 ]);
             }
 
