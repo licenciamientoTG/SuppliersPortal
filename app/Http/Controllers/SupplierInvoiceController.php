@@ -9,6 +9,7 @@ use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -90,10 +91,12 @@ class SupplierInvoiceController extends Controller
                 'exception' => $exception,
             ]);
 
+            $message = $this->resolveUploadErrorMessage($exception);
+
             return back()
                 ->withInput()
                 ->withErrors([
-                    'xml_file' => 'Ocurrió un error inesperado al procesar la factura. Si el problema continúa, contacta a soporte.',
+                    'xml_file' => $message,
                 ]);
         }
 
@@ -123,5 +126,22 @@ class SupplierInvoiceController extends Controller
             ]);
 
         return $regular->merge($direct)->values();
+    }
+
+    private function resolveUploadErrorMessage(Throwable $exception): string
+    {
+        if ($exception instanceof QueryException) {
+            $message = trim($exception->getPrevious()?->getMessage() ?: $exception->getMessage());
+
+            return $message !== ''
+                ? "Error al guardar la factura: {$message}"
+                : 'Ocurrió un error de base de datos al guardar la factura.';
+        }
+
+        $message = trim($exception->getMessage());
+
+        return $message !== ''
+            ? $message
+            : 'Ocurrió un error inesperado al procesar la factura. Si el problema continúa, contacta a soporte.';
     }
 }

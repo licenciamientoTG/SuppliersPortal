@@ -7,8 +7,12 @@ use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Services\InvoiceService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class FinanceInvoiceController extends Controller
 {
@@ -47,14 +51,33 @@ class FinanceInvoiceController extends Controller
         $order = $this->invoiceService->resolveOrder($validated['order_type'], (int) $validated['order_id']);
         abort_unless((int) $order->supplier_id === (int) $supplier->id, 422, 'La orden no pertenece al proveedor seleccionado.');
 
-        $invoice = $this->invoiceService->upload(
-            supplier: $supplier,
-            order: $order,
-            xmlFile: $request->file('xml_file'),
-            pdfFile: $request->file('pdf_file'),
-            uploader: Auth::user(),
-            origin: SupplierInvoice::ORIGIN_FINANCE,
-        );
+        try {
+            $invoice = $this->invoiceService->upload(
+                supplier: $supplier,
+                order: $order,
+                xmlFile: $request->file('xml_file'),
+                pdfFile: $request->file('pdf_file'),
+                uploader: Auth::user(),
+                origin: SupplierInvoice::ORIGIN_FINANCE,
+            );
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            Log::error('Finance invoice upload failed.', [
+                'supplier_id' => $supplier->id,
+                'order_type' => $validated['order_type'],
+                'order_id' => (int) $validated['order_id'],
+                'exception' => $exception,
+            ]);
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'xml_file' => $this->resolveUploadErrorMessage($exception),
+                ]);
+        }
 
         return redirect()
             ->route('invoices.index')
@@ -104,5 +127,22 @@ class FinanceInvoiceController extends Controller
             ]);
 
         return collect($regular)->merge($direct)->values();
+    }
+
+    private function resolveUploadErrorMessage(Throwable $exception): string
+    {
+        if ($exception instanceof QueryException) {
+            $message = trim($exception->getPrevious()?->getMessage() ?: $exception->getMessage());
+
+            return $message !== ''
+                ? "Error al guardar la factura: {$message}"
+                : 'Ocurrió un error de base de datos al guardar la factura.';
+        }
+
+        $message = trim($exception->getMessage());
+
+        return $message !== ''
+            ? $message
+            : 'Ocurrió un error inesperado al procesar la factura. Si el problema continúa, contacta a soporte.';
     }
 }
