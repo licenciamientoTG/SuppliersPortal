@@ -278,7 +278,7 @@ class ContractRequisitionForm extends Component
                 }
 
                 session()->flash('status', $successMessage);
-                $this->redirect(route('requisitions.index'), navigate: true);
+                $this->redirectRoute('contracts.requisition.create');
             });
         } catch (ValidationException $exception) {
             throw $exception;
