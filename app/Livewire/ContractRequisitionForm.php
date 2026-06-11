@@ -268,13 +268,17 @@ class ContractRequisitionForm extends Component
 
                 $purchaseOrders = app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
 
-                if ($purchaseOrders->count() === 1) {
-                    $this->redirect(route('purchase-orders.show', $purchaseOrders->first()), navigate: true);
+                $successMessage = "Requisicion {$requisition->folio} generada correctamente.";
 
-                    return;
+                if ($purchaseOrders->isNotEmpty()) {
+                    $successMessage .= ' ';
+                    $successMessage .= $purchaseOrders->count() === 1
+                        ? "Se emitio la OC {$purchaseOrders->first()->folio}."
+                        : "Se emitieron {$purchaseOrders->count()} ordenes de compra.";
                 }
 
-                $this->redirect(route('requisitions.show', $requisition), navigate: true);
+                session()->flash('status', $successMessage);
+                $this->redirect(route('requisitions.index'), navigate: true);
             });
         } catch (ValidationException $exception) {
             throw $exception;
