@@ -12,7 +12,9 @@ use App\Notifications\SupplierInvoiceUploadedNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -77,7 +79,7 @@ class InvoiceService
             if ($provision) {
                 $this->financialProvisionService->reconcile($provision, $invoice);
             } elseif ($origin === SupplierInvoice::ORIGIN_SUPPLIER) {
-                $this->notifyAccounting(new SupplierInvoiceUploadedNotification($invoice));
+                $this->notifyAccounting(new SupplierInvoiceUploadedNotification($invoice), $invoice);
             }
 
             return $invoice->fresh(['financialProvision', 'receivable']);
@@ -119,11 +121,20 @@ class InvoiceService
         }
     }
 
-    private function notifyAccounting(object $notification): void
+    private function notifyAccounting(object $notification, ?SupplierInvoice $invoice = null): void
     {
-        $users = User::role('accounting')->get();
-        if ($users->isNotEmpty()) {
-            Notification::send($users, $notification);
+        try {
+            $users = User::role('accounting')->get();
+            if ($users->isNotEmpty()) {
+                Notification::send($users, $notification);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Failed to notify accounting after supplier invoice upload.', [
+                'supplier_invoice_id' => $invoice?->id,
+                'uuid' => $invoice?->uuid,
+                'supplier_id' => $invoice?->supplier_id,
+                'exception' => $exception,
+            ]);
         }
     }
 }
