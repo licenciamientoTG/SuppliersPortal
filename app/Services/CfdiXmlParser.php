@@ -14,8 +14,10 @@ class CfdiXmlParser
         $xml = simplexml_load_string($xmlContents);
 
         if (! $xml instanceof SimpleXMLElement) {
-            throw new RuntimeException('El XML de factura no es válido.');
+            throw new RuntimeException($this->formatXmlErrors());
         }
+
+        libxml_clear_errors();
 
         $namespaces = $xml->getNamespaces(true);
         $cfdi = $namespaces['cfdi'] ?? $namespaces[''] ?? null;
@@ -31,16 +33,50 @@ class CfdiXmlParser
             throw new RuntimeException('El XML no contiene UUID de timbre fiscal.');
         }
 
+        $issuerRfc = strtoupper(trim((string) ($issuer['Rfc'] ?? $issuer['rfc'] ?? '')));
+        if ($issuerRfc === '') {
+            throw new RuntimeException('El XML no contiene el RFC del emisor.');
+        }
+
+        $receiverRfc = strtoupper(trim((string) ($receiver['Rfc'] ?? $receiver['rfc'] ?? '')));
+        if ($receiverRfc === '') {
+            throw new RuntimeException('El XML no contiene el RFC del receptor.');
+        }
+
+        $subtotal = round((float) ($attributes['SubTotal'] ?? $attributes['subTotal'] ?? 0), 2);
+        $total = round((float) ($attributes['Total'] ?? $attributes['total'] ?? 0), 2);
+
+        if ($total <= 0) {
+            throw new RuntimeException('El XML no contiene un total válido.');
+        }
+
         return [
             'uuid' => $uuid,
-            'issuer_rfc' => strtoupper(trim((string) ($issuer['Rfc'] ?? $issuer['rfc'] ?? ''))),
-            'receiver_rfc' => strtoupper(trim((string) ($receiver['Rfc'] ?? $receiver['rfc'] ?? ''))),
-            'subtotal' => round((float) ($attributes['SubTotal'] ?? $attributes['subTotal'] ?? 0), 2),
-            'iva_amount' => $this->sumIva($xml, $namespaces),
-            'total' => round((float) ($attributes['Total'] ?? $attributes['total'] ?? 0), 2),
+            'issuer_rfc' => $issuerRfc,
+            'receiver_rfc' => $receiverRfc,
+            'subtotal' => $subtotal,
+            'iva_amount' => $this->sumIva($xml),
+            'total' => $total,
             'currency' => strtoupper((string) ($attributes['Moneda'] ?? $attributes['moneda'] ?? 'MXN')),
             'issued_at' => $this->parseDate((string) ($attributes['Fecha'] ?? $attributes['fecha'] ?? '')),
         ];
+    }
+
+    private function formatXmlErrors(): string
+    {
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+
+        if ($errors === []) {
+            return 'El XML de factura no es válido.';
+        }
+
+        $message = trim((string) ($errors[0]->message ?? ''));
+        $message = preg_replace('/\s+/', ' ', $message ?? '');
+
+        return $message !== ''
+            ? "El XML de factura no es válido: {$message}"
+            : 'El XML de factura no es válido.';
     }
 
     private function firstNodeAttributes(SimpleXMLElement $root, string $node): array
@@ -71,6 +107,7 @@ class CfdiXmlParser
                     foreach ($child->attributes() as $key => $value) {
                         $attributes[$key] = (string) $value;
                     }
+
                     return $attributes;
                 }
             }
@@ -79,7 +116,7 @@ class CfdiXmlParser
         return [];
     }
 
-    private function sumIva(SimpleXMLElement $xml, array $namespaces): float
+    private function sumIva(SimpleXMLElement $xml): float
     {
         $total = 0.0;
         foreach ($xml->xpath('//*[local-name()="Traslado"]') ?: [] as $node) {

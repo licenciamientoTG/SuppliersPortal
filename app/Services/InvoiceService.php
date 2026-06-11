@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
 use App\Models\PurchaseOrder;
+use App\Models\Company;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\User;
@@ -116,9 +117,39 @@ class InvoiceService
 
     private function validateInvoiceData(Supplier $supplier, array $data): void
     {
+        if (($data['issuer_rfc'] ?? '') === '') {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene el RFC del emisor.',
+            ]);
+        }
+
+        if (($data['receiver_rfc'] ?? '') === '') {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene el RFC del receptor.',
+            ]);
+        }
+
         if (($data['issuer_rfc'] ?? '') !== strtoupper((string) $supplier->rfc)) {
             throw ValidationException::withMessages([
                 'xml_file' => 'El RFC emisor del XML no coincide con el RFC del proveedor.',
+            ]);
+        }
+
+        $activeCompanyRfcs = Company::query()
+            ->where('is_active', true)
+            ->whereNotNull('rfc')
+            ->pluck('rfc')
+            ->map(fn (string $rfc) => strtoupper(trim($rfc)));
+
+        if ($activeCompanyRfcs->isNotEmpty() && ! $activeCompanyRfcs->contains($data['receiver_rfc'])) {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El RFC receptor del XML no corresponde a una empresa activa de TotalGas.',
+            ]);
+        }
+
+        if (($data['total'] ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene un total válido.',
             ]);
         }
 
