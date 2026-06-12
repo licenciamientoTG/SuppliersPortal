@@ -34,6 +34,7 @@ class SupplierInvoice extends Model
         'currency',
         'issued_at',
         'uploaded_by',
+        'uploaded_by_supplier_id',
         'uploaded_origin',
         'status',
         'linked_at',
@@ -68,6 +69,11 @@ class SupplierInvoice extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function supplierUploader(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'uploaded_by_supplier_id');
     }
 
     public function getStatusLabel(): string

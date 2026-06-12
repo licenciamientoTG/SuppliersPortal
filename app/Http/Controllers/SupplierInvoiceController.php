@@ -8,6 +8,10 @@ use App\Models\SupplierInvoice;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class SupplierInvoiceController extends Controller
 {
@@ -48,19 +52,53 @@ class SupplierInvoiceController extends Controller
             'order_id' => 'required|integer',
             'xml_file' => 'required|file|mimes:xml|max:5120',
             'pdf_file' => 'required|file|mimes:pdf|max:10240',
+        ], [
+            'order_type.required' => 'Debes seleccionar el tipo de orden.',
+            'order_type.in' => 'El tipo de orden seleccionado no es válido.',
+            'order_id.required' => 'Debes seleccionar una orden de compra.',
+            'order_id.integer' => 'La orden de compra seleccionada no es válida.',
+            'xml_file.required' => 'Debes adjuntar el archivo XML del CFDI.',
+            'xml_file.file' => 'El archivo XML no es válido.',
+            'xml_file.mimes' => 'El archivo XML debe tener extensión .xml.',
+            'xml_file.max' => 'El archivo XML no debe exceder 5 MB.',
+            'pdf_file.required' => 'Debes adjuntar el archivo PDF de la factura.',
+            'pdf_file.file' => 'El archivo PDF no es válido.',
+            'pdf_file.mimes' => 'El archivo PDF debe tener extensión .pdf.',
+            'pdf_file.max' => 'El archivo PDF no debe exceder 10 MB.',
         ]);
 
         $order = $this->invoiceService->resolveOrder($validated['order_type'], (int) $validated['order_id']);
         abort_unless((int) $order->supplier_id === (int) $supplier->id, 403);
 
-        $invoice = $this->invoiceService->upload(
-            supplier: $supplier,
-            order: $order,
-            xmlFile: $request->file('xml_file'),
-            pdfFile: $request->file('pdf_file'),
-            uploader: Auth::guard('web')->user(),
-            origin: SupplierInvoice::ORIGIN_SUPPLIER,
-        );
+        try {
+            $invoice = $this->invoiceService->upload(
+                supplier: $supplier,
+                order: $order,
+                xmlFile: $request->file('xml_file'),
+                pdfFile: $request->file('pdf_file'),
+                uploader: Auth::guard('web')->user(),
+                origin: SupplierInvoice::ORIGIN_SUPPLIER,
+            );
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            Log::error('Supplier invoice upload failed.', [
+                'supplier_id' => $supplier->id,
+                'order_type' => $validated['order_type'],
+                'order_id' => (int) $validated['order_id'],
+                'exception' => $exception,
+            ]);
+
+            $message = $this->resolveUploadErrorMessage($exception);
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'xml_file' => $message,
+                ]);
+        }
 
         return redirect()
             ->route('supplier.invoices.index')
@@ -88,5 +126,22 @@ class SupplierInvoiceController extends Controller
             ]);
 
         return $regular->merge($direct)->values();
+    }
+
+    private function resolveUploadErrorMessage(Throwable $exception): string
+    {
+        if ($exception instanceof QueryException) {
+            $message = trim($exception->getPrevious()?->getMessage() ?: $exception->getMessage());
+
+            return $message !== ''
+                ? "Error al guardar la factura: {$message}"
+                : 'Ocurrió un error de base de datos al guardar la factura.';
+        }
+
+        $message = trim($exception->getMessage());
+
+        return $message !== ''
+            ? $message
+            : 'Ocurrió un error inesperado al procesar la factura. Si el problema continúa, contacta a soporte.';
     }
 }

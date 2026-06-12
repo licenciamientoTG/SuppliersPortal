@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ReceptionService
 {
@@ -110,7 +111,18 @@ class ReceptionService
         // para garantizar que el commit ya ocurrió antes de despachar el trabajo).
         app(BudgetAllocationService::class)->consumeOrder($order);
         app(FinancialProvisionService::class)->createForReception($reception);
-        $this->notifyReception($reception, $order);
+
+        try {
+            $this->notifyReception($reception, $order);
+        } catch (Throwable $exception) {
+            Log::error('Failed to send reception completion notifications.', [
+                'reception_id' => $reception->id,
+                'reception_folio' => $reception->folio,
+                'order_id' => $order->id,
+                'order_folio' => $order->folio,
+                'exception' => $exception,
+            ]);
+        }
 
         return $reception;
     }
@@ -339,6 +351,20 @@ class ReceptionService
         });
         $buyers->each(fn($u) => $notifiables->push($u));
 
-        $notifiables->unique('id')->each->notify($notification);
+        $notifiables->unique('id')->each(function ($notifiable) use ($notification, $reception, $order) {
+            try {
+                $notifiable->notify($notification);
+            } catch (Throwable $exception) {
+                Log::warning('Reception notification delivery failed for a recipient.', [
+                    'reception_id' => $reception->id,
+                    'reception_folio' => $reception->folio,
+                    'order_id' => $order->id,
+                    'order_folio' => $order->folio,
+                    'notifiable_type' => get_class($notifiable),
+                    'notifiable_id' => $notifiable->id ?? null,
+                    'exception' => $exception,
+                ]);
+            }
+        });
     }
 }

@@ -191,6 +191,11 @@ class Requisition extends Model
         return $this->hasMany(Rfq::class);
     }
 
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
     /**
      * Resumen de cotización.
      */

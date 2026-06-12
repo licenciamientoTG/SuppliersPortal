@@ -14,7 +14,9 @@ use App\Notifications\FinancialProvisionDiscrepancyNotification;
 use App\Notifications\FinancialProvisionPendingInvoiceNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 
 class FinancialProvisionService
 {
@@ -178,9 +180,16 @@ class FinancialProvisionService
 
     private function notifyAccounting(object $notification): void
     {
-        $users = User::role('accounting')->get();
-        if ($users->isNotEmpty()) {
-            Notification::send($users, $notification);
+        try {
+            $users = User::role('accounting')->get();
+            if ($users->isNotEmpty()) {
+                Notification::send($users, $notification);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Failed to notify accounting from financial provision workflow.', [
+                'notification' => get_class($notification),
+                'exception' => $exception,
+            ]);
         }
     }
 }

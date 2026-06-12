@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
 use App\Models\PurchaseOrder;
+use App\Models\Company;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\User;
@@ -12,9 +13,12 @@ use App\Notifications\SupplierInvoiceUploadedNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class InvoiceService
 {
@@ -32,7 +36,14 @@ class InvoiceService
         ?User $uploader,
         string $origin,
     ): SupplierInvoice {
-        $data = $this->parser->parse($xmlFile->get());
+        try {
+            $data = $this->parser->parse($xmlFile->get());
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'xml_file' => $exception->getMessage(),
+            ]);
+        }
+
         $this->validateInvoiceData($supplier, $data);
 
         return DB::transaction(function () use ($supplier, $order, $xmlFile, $pdfFile, $uploader, $origin, $data) {
@@ -55,6 +66,7 @@ class InvoiceService
                     'currency' => $data['currency'] ?: ($order->currency ?? 'MXN'),
                     'issued_at' => $data['issued_at'],
                     'uploaded_by' => $uploader?->id,
+                    'uploaded_by_supplier_id' => $origin === SupplierInvoice::ORIGIN_SUPPLIER ? $supplier->id : null,
                     'uploaded_origin' => $origin,
                     'status' => SupplierInvoice::STATUS_UPLOADED,
                 ]);
@@ -77,7 +89,7 @@ class InvoiceService
             if ($provision) {
                 $this->financialProvisionService->reconcile($provision, $invoice);
             } elseif ($origin === SupplierInvoice::ORIGIN_SUPPLIER) {
-                $this->notifyAccounting(new SupplierInvoiceUploadedNotification($invoice));
+                $this->notifyAccounting(new SupplierInvoiceUploadedNotification($invoice), $invoice);
             }
 
             return $invoice->fresh(['financialProvision', 'receivable']);
@@ -106,9 +118,39 @@ class InvoiceService
 
     private function validateInvoiceData(Supplier $supplier, array $data): void
     {
+        if (($data['issuer_rfc'] ?? '') === '') {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene el RFC del emisor.',
+            ]);
+        }
+
+        if (($data['receiver_rfc'] ?? '') === '') {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene el RFC del receptor.',
+            ]);
+        }
+
         if (($data['issuer_rfc'] ?? '') !== strtoupper((string) $supplier->rfc)) {
             throw ValidationException::withMessages([
                 'xml_file' => 'El RFC emisor del XML no coincide con el RFC del proveedor.',
+            ]);
+        }
+
+        $activeCompanyRfcs = Company::query()
+            ->where('is_active', true)
+            ->whereNotNull('rfc')
+            ->pluck('rfc')
+            ->map(fn (string $rfc) => strtoupper(trim($rfc)));
+
+        if ($activeCompanyRfcs->isNotEmpty() && ! $activeCompanyRfcs->contains($data['receiver_rfc'])) {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El RFC receptor del XML no corresponde a una empresa activa de TotalGas.',
+            ]);
+        }
+
+        if (($data['total'] ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'xml_file' => 'El XML no contiene un total válido.',
             ]);
         }
 
@@ -119,11 +161,20 @@ class InvoiceService
         }
     }
 
-    private function notifyAccounting(object $notification): void
+    private function notifyAccounting(object $notification, ?SupplierInvoice $invoice = null): void
     {
-        $users = User::role('accounting')->get();
-        if ($users->isNotEmpty()) {
-            Notification::send($users, $notification);
+        try {
+            $users = User::role('accounting')->get();
+            if ($users->isNotEmpty()) {
+                Notification::send($users, $notification);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Failed to notify accounting after supplier invoice upload.', [
+                'supplier_invoice_id' => $invoice?->id,
+                'uuid' => $invoice?->uuid,
+                'supplier_id' => $invoice?->supplier_id,
+                'exception' => $exception,
+            ]);
         }
     }
 }

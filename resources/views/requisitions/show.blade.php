@@ -342,6 +342,53 @@
     </div>
 </div>
 
+@if ($requisition->source_type === 'contract' && $requisition->purchaseOrders->isNotEmpty())
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="ti ti-file-invoice me-2"></i>Ordenes de Compra Generadas
+        </h5>
+        <span class="badge bg-success">{{ $requisition->purchaseOrders->count() }}</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio OC</th>
+                        <th>Proveedor</th>
+                        <th>Moneda</th>
+                        <th class="text-end">Total</th>
+                        <th>Estado</th>
+                        <th class="text-center">Accion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($requisition->purchaseOrders as $purchaseOrder)
+                    <tr>
+                        <td class="fw-bold">{{ $purchaseOrder->folio }}</td>
+                        <td>{{ $purchaseOrder->supplier?->company_name ?? '-' }}</td>
+                        <td>{{ $purchaseOrder->currency ?? 'MXN' }}</td>
+                        <td class="text-end fw-semibold">{{ number_format((float) $purchaseOrder->total, 2) }}</td>
+                        <td>
+                            <span class="badge bg-{{ $purchaseOrder->getStatusBadgeClass() }}">
+                                {{ $purchaseOrder->getStatusLabel() }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ route('purchase-orders.show', $purchaseOrder) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="ti ti-eye me-1"></i>Ver OC
+                            </a>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="d-flex justify-content-between mt-3">
     <a href="{{ route('requisitions.index') }}" class="btn btn-outline-secondary">
         <i class="ti ti-arrow-left me-1"></i>Regresar al Listado
