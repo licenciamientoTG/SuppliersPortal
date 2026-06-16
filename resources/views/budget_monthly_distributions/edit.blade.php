@@ -193,3 +193,51 @@
     });
 </script>
 @endpush
+
+@push('scripts')
+<script>
+    (function() {
+        function parseFormattedMoney(value) {
+            const normalized = String(value || '')
+                .replace(/[^\d.,-]/g, '')
+                .replace(/,/g, '');
+
+            const parsed = Number.parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        document.addEventListener('input', function(e) {
+            if (!e.target.classList.contains('distribution-input')) {
+                return;
+            }
+
+            const initialValue = Number.parseFloat(e.target.dataset.initialValue || '0');
+            const currentValue = parseFormattedMoney(e.target.value);
+
+            if (Math.abs(currentValue - initialValue) > 0.009) {
+                formChanged = true;
+            }
+        });
+
+        document.addEventListener('blur', function(e) {
+            if (!e.target.classList.contains('distribution-input')) {
+                return;
+            }
+
+            const minValue = parseFormattedMoney(e.target.dataset.minAmount || '0');
+            const currentValue = parseFormattedMoney(e.target.value);
+
+            if (minValue > 0 && currentValue < minValue) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Monto mínimo requerido',
+                    text: `Este mes tiene compromisos o consumos. El monto mínimo es: $${minValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    confirmButtonText: 'Entendido'
+                });
+                e.target.value = minValue.toFixed(2);
+                e.target.focus();
+            }
+        }, true);
+    })();
+</script>
+@endpush

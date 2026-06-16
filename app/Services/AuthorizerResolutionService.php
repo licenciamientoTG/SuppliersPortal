@@ -52,21 +52,18 @@ class AuthorizerResolutionService
         $currentEmployee = $requesterEmployee;
         $visited = [];
 
-        while (! empty($currentEmployee->leader)) {
-            $leaderNumber = trim((string) $currentEmployee->leader);
+        while ($this->hasLeaderReference($currentEmployee)) {
+            [$candidates, $visitedKey, $chainReference] = $this->resolveLeaderCandidates($currentEmployee);
 
-            if ($leaderNumber === '' || isset($visited[$leaderNumber])) {
+            if ($visitedKey === null || isset($visited[$visitedKey])) {
                 break;
             }
 
-            $visited[$leaderNumber] = true;
-            $candidates = Employee::query()
-                ->where('employee_number', $leaderNumber)
-                ->get();
+            $visited[$visitedKey] = true;
 
             if ($candidates->isEmpty()) {
                 $chain[] = [
-                    'employee_number' => $leaderNumber,
+                    'employee_number' => $chainReference,
                     'status' => 'leader_not_found',
                 ];
                 break;
@@ -126,6 +123,11 @@ class AuthorizerResolutionService
         throw new RuntimeException('No se encontró ningún superior con rol autorizador suficiente para este monto.');
     }
 
+    private function hasLeaderReference(Employee $employee): bool
+    {
+        return ! empty($employee->leader_id) || trim((string) $employee->leader) !== '';
+    }
+
     public function resolveEmployeeForUser(User $user): ?Employee
     {
         return Employee::query()
@@ -133,6 +135,37 @@ class AuthorizerResolutionService
             ->orderByRaw("CASE WHEN is_active = 'SI' THEN 0 ELSE 1 END")
             ->orderByDesc('id')
             ->first();
+    }
+
+    private function resolveLeaderCandidates(Employee $employee): array
+    {
+        if (! empty($employee->leader_id)) {
+            $candidates = Employee::query()
+                ->whereKey($employee->leader_id)
+                ->get();
+
+            if ($candidates->isNotEmpty()) {
+                return [
+                    $candidates,
+                    'id:' . $employee->leader_id,
+                    $candidates->first()->employee_number ?? ('id:' . $employee->leader_id),
+                ];
+            }
+        }
+
+        $leaderNumber = trim((string) $employee->leader);
+
+        if ($leaderNumber === '') {
+            return [collect(), null, null];
+        }
+
+        return [
+            Employee::query()
+                ->where('employee_number', $leaderNumber)
+                ->get(),
+            'leader:' . $leaderNumber,
+            $leaderNumber,
+        ];
     }
 
     private function pickPreferredEmployee($candidates): Employee
