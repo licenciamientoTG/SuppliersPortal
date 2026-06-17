@@ -215,6 +215,29 @@
                 });
             });
 
+            // Activar/Desactivar vía AJAX, sin salir de la página
+            $(document).on('submit', '.js-status-action-form', function(e) {
+                e.preventDefault();
+                const form = $(this);
+
+                $.ajax({
+                    url: form.attr('action'),
+                    type: 'POST',
+                    data: form.serialize(),
+                    dataType: 'json'
+                }).done(function(res) {
+                    table.ajax.reload(null, false);
+                    toastOk(res.message);
+                }).fail(function(xhr) {
+                    const msg = xhr.responseJSON?.message || 'No se pudo completar la acción.';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No se pudo completar',
+                        text: msg
+                    });
+                });
+            });
+
             // Modal para rechazar
             $(document).on('click', '.js-reject-btn', function(e) {
                 e.preventDefault();
@@ -249,5 +272,19 @@
                 });
             });
         });
+
+        window.toastOk = window.toastOk || function(msg = 'Operación exitosa') {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true
+            });
+            Toast.fire({
+                icon: 'success',
+                title: msg
+            });
+        };
     </script>
 @endpush

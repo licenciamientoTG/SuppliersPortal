@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Enum\ProductServiceStatus;
 use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Company;
+use App\Models\ContractProduct;
 use App\Models\CostCenter;
 use App\Models\ProductService;
+use App\Models\RequisitionItem;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,7 +103,7 @@ class ProductServiceController extends Controller
 
                     if ($canDeactivate) {
                         $deactivateUrl = route('products-services.deactivate', $p->id);
-                        $html .= '<form action="' . $deactivateUrl . '" method="POST" class="d-inline">'
+                        $html .= '<form action="' . $deactivateUrl . '" method="POST" class="js-status-action-form d-inline">'
                             . csrf_field()
                             . '<button type="submit" class="btn btn-sm btn-outline-secondary" title="Desactivar"><i class="ti ti-circle-off"></i></button>'
                             . '</form>';
@@ -109,7 +111,7 @@ class ProductServiceController extends Controller
 
                     if ($canReactivate) {
                         $reactivateUrl = route('products-services.reactivate', $p->id);
-                        $html .= '<form action="' . $reactivateUrl . '" method="POST" class="d-inline">'
+                        $html .= '<form action="' . $reactivateUrl . '" method="POST" class="js-status-action-form d-inline">'
                             . csrf_field()
                             . '<button type="submit" class="btn btn-sm btn-outline-success" title="Reactivar"><i class="ti ti-circle-check"></i></button>'
                             . '</form>';
@@ -360,6 +362,14 @@ class ProductServiceController extends Controller
      */
     public function destroy(ProductService $productService): RedirectResponse
     {
+        $usageMessage = $this->usageBlockingMessage($productService);
+
+        if ($usageMessage) {
+            return redirect()
+                ->route('products-services.index')
+                ->with('error', $usageMessage);
+        }
+
         $productService->deleted_by = Auth::id();
         $productService->save();
         $productService->delete();
@@ -367,6 +377,33 @@ class ProductServiceController extends Controller
         return redirect()
             ->route('products-services.index')
             ->with('success', 'Producto/Servicio eliminado correctamente.');
+    }
+
+    /**
+     * Si el producto/servicio está en uso, regresa el mensaje explicando dónde.
+     * Si no está en uso, regresa null.
+     */
+    protected function usageBlockingMessage(ProductService $productService): ?string
+    {
+        $requisitionItem = RequisitionItem::with('requisition')
+            ->where('product_service_id', $productService->id)
+            ->first();
+
+        if ($requisitionItem) {
+            $folio = $requisitionItem->requisition?->folio ?? "#{$requisitionItem->requisition_id}";
+            return "No se puede eliminar el producto/servicio \"{$productService->code}\": está registrado como partida en la requisición {$folio}.";
+        }
+
+        $contractProduct = ContractProduct::with('contract')
+            ->where('product_service_id', $productService->id)
+            ->first();
+
+        if ($contractProduct) {
+            $folio = $contractProduct->contract?->folio ?? "#{$contractProduct->contract_id}";
+            return "No se puede eliminar el producto/servicio \"{$productService->code}\": está registrado como parte del contrato {$folio}.";
+        }
+
+        return null;
     }
 
     /**
@@ -431,12 +468,11 @@ class ProductServiceController extends Controller
     /**
      * Desactiva un producto/servicio (Administrador del Catálogo)
      */
-    public function deactivate(ProductService $productService): RedirectResponse
+    public function deactivate(Request $request, ProductService $productService): RedirectResponse|JsonResponse
     {
         if ($productService->status !== ProductServiceStatus::ACTIVE->value) {
-            return redirect()
-                ->route('products-services.show', $productService)
-                ->with('error', 'Solo se pueden desactivar productos en estado Activo.');
+            return $this->statusActionResponse($request, $productService, false,
+                'Solo se pueden desactivar productos en estado Activo.');
         }
 
         $productService->status = ProductServiceStatus::INACTIVE->value;
@@ -444,26 +480,23 @@ class ProductServiceController extends Controller
         $productService->updated_by = Auth::id();
         $productService->save();
 
-        return redirect()
-            ->route('products-services.show', $productService)
-            ->with('success', 'Producto/Servicio desactivado. Ya no aparecerá en nuevas requisiciones.');
+        return $this->statusActionResponse($request, $productService, true,
+            'Producto/Servicio desactivado. Ya no aparecerá en nuevas requisiciones.');
     }
 
     /**
      * Reactiva un producto/servicio (Administrador del Catálogo)
      */
-    public function reactivate(ProductService $productService): RedirectResponse
+    public function reactivate(Request $request, ProductService $productService): RedirectResponse|JsonResponse
     {
         if ($productService->status !== ProductServiceStatus::INACTIVE->value) {
-            return redirect()
-                ->route('products-services.show', $productService)
-                ->with('error', 'Solo se pueden reactivar productos en estado Inactivo.');
+            return $this->statusActionResponse($request, $productService, false,
+                'Solo se pueden reactivar productos en estado Inactivo.');
         }
 
         if (!$productService->hasCompleteAccountingStructure()) {
-            return redirect()
-                ->route('products-services.show', $productService)
-                ->with('error', 'El producto debe tener estructura contable completa para reactivarse.');
+            return $this->statusActionResponse($request, $productService, false,
+                'El producto debe tener estructura contable completa para reactivarse.');
         }
 
         $productService->status = ProductServiceStatus::ACTIVE->value;
@@ -471,9 +504,23 @@ class ProductServiceController extends Controller
         $productService->updated_by = Auth::id();
         $productService->save();
 
+        return $this->statusActionResponse($request, $productService, true,
+            'Producto/Servicio reactivado. Ya está disponible para requisiciones nuevamente.');
+    }
+
+    /**
+     * Responde en JSON si la petición es AJAX (catálogo en tabla), o redirige
+     * al detalle del producto/servicio si es un envío de formulario normal.
+     */
+    protected function statusActionResponse(Request $request, ProductService $productService, bool $success, string $message): RedirectResponse|JsonResponse
+    {
+        if ($request->wantsJson()) {
+            return response()->json(['success' => $success, 'message' => $message], $success ? 200 : 422);
+        }
+
         return redirect()
             ->route('products-services.show', $productService)
-            ->with('success', 'Producto/Servicio reactivado. Ya está disponible para requisiciones nuevamente.');
+            ->with($success ? 'success' : 'error', $message);
     }
 
     /**
