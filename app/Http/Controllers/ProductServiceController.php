@@ -73,18 +73,14 @@ class ProductServiceController extends Controller
                 $deleteUrl = route('products-services.destroy', $p->id);
 
                 // Opciones según el estado
-                $canEdit = in_array($p->status, [ProductServiceStatus::PENDING->value, ProductServiceStatus::REJECTED->value]);
                 $canActivate = $p->status === ProductServiceStatus::PENDING->value;
                 $canDeactivate = $p->status === ProductServiceStatus::ACTIVE->value;
                 $canReject = $p->status === ProductServiceStatus::PENDING->value;
                 $canReactivate = $p->status === ProductServiceStatus::INACTIVE->value;
 
                 $html = '<div class="d-flex justify-content-end gap-1">'
-                    . '<a class="btn btn-sm btn-outline-secondary" href="' . $showUrl . '" title="Ver"><i class="ti ti-eye"></i></a>';
-
-                if ($canEdit) {
-                    $html .= '<a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '" title="Editar"><i class="ti ti-pencil"></i></a>';
-                }
+                    . '<a class="btn btn-sm btn-outline-secondary" href="' . $showUrl . '" title="Ver"><i class="ti ti-eye"></i></a>'
+                    . '<a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '" title="Editar"><i class="ti ti-pencil"></i></a>';
 
                 // Acciones de estado (solo para Administrador del Catálogo)
                 if (auth()->check() && auth()->user()->hasRole(['catalog_admin', 'superadmin'])) {
