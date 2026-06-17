@@ -182,16 +182,21 @@ class OneGoalSupplierSeeder extends Seeder
     private function personType(array $row): string
     {
         $rfc = $this->cleanRfc($row['rfc'] ?? null);
+        $tipProv = (int) ($row['tip_prov'] ?? 0);
 
         if ($rfc === 'XEXX010101000') {
             return 'extranjero';
         }
 
-        if ((int) ($row['tip_prov'] ?? 0) === 2 || strlen((string) $rfc) === 13) {
+        if ($tipProv === 1) {
+            return 'moral';
+        }
+
+        if ($tipProv === 2) {
             return 'fisica';
         }
 
-        return 'moral';
+        return strlen((string) $rfc) === 13 ? 'fisica' : 'moral';
     }
 
     /**
