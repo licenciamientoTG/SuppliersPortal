@@ -52,6 +52,7 @@ $(function () {
 
     const table = $('#suppliersTable').DataTable({
         processing: true,
+        serverSide: true,
         responsive: false,
         ajax: "{{ route('admin.suppliers.datatable') }}",
         columns: [

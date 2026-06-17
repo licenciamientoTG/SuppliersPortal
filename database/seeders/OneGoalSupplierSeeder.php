@@ -22,7 +22,7 @@ class OneGoalSupplierSeeder extends Seeder
         $this->configureOneGoalConnection();
 
         $rows = DB::connection(self::CONNECTION)->select($this->sourceSql());
-        $password = Hash::make(env('ONEGOAL_SUPPLIER_DEFAULT_PASSWORD', 'Password123!'));
+        $password = Hash::make(env('ONEGOAL_SUPPLIER_DEFAULT_PASSWORD', 'Fl3x.2025'));
         $imported = 0;
 
         foreach ($rows as $row) {
