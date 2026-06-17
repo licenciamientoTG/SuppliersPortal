@@ -74,6 +74,21 @@
                 <strong>Diferencia:</strong> <span id="difference" class="text-danger">$0.00</span>
             </div>
         </div>
+
+        <div class="budget-summary-bar mt-3">
+            <div class="budget-summary-card">
+                <span class="budget-summary-label">Monto anual</span>
+                <strong id="summaryBudgetTotal">${{ number_format($annualBudget->total_annual_amount, 2) }}</strong>
+            </div>
+            <div class="budget-summary-card">
+                <span class="budget-summary-label">Distribuido</span>
+                <strong id="sumDistributionsInline">$0.00</strong>
+            </div>
+            <div class="budget-summary-card">
+                <span class="budget-summary-label">Diferencia</span>
+                <strong id="differenceInline" class="text-danger">$0.00</strong>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -104,6 +119,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function parseMoney(value) {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        if (!value) {
+            return 0;
+        }
+
+        const normalized = String(value)
+            .replace(/[^\d.,-]/g, '')
+            .replace(/,/g, '');
+
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatMoneyInputValue(value) {
+        return Number(value || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function updateMoneyInputDisplay(input) {
+        input.value = formatMoneyInputValue(parseMoney(input.value));
+    }
+
+    function syncHiddenAmount(input) {
+        const hiddenSelector = input.dataset.hiddenInput;
+        if (!hiddenSelector) {
+            return;
+        }
+
+        const hiddenInput = document.querySelector(hiddenSelector);
+        if (hiddenInput) {
+            hiddenInput.value = parseMoney(input.value).toFixed(2);
+        }
+    }
+
     function selectedCategories() {
         const selectedIds = new Set((categorySelector.val() || []).map(Number));
         return categories.filter(category => selectedIds.has(category.id));
@@ -128,13 +183,15 @@ document.addEventListener('DOMContentLoaded', function() {
             row += '<td class="text-center p-1">';
             if (isEdit && distributionId) {
                 row += `<input type="hidden" name="distributions[${globalIndex}][id]" value="${distributionId}">`;
-                row += `<input type="number" name="distributions[${globalIndex}][assigned_amount]" class="form-control form-control-sm text-end distribution-input" data-category="${category.id}" data-cedula="${cedula.id}" data-month="${month}" value="${Number(assignedAmount).toFixed(2)}" step="0.01" min="${minimumRequired.toFixed(2)}" required>`;
+                row += `<input type="hidden" id="distribution-hidden-${distributionId}" name="distributions[${globalIndex}][assigned_amount]" value="${Number(assignedAmount).toFixed(2)}">`;
+                row += `<div class="money-input-wrap"><span class="money-prefix">$</span><input type="text" inputmode="decimal" class="form-control form-control-sm text-end distribution-input money-input" data-hidden-input="#distribution-hidden-${distributionId}" data-category="${category.id}" data-cedula="${cedula.id}" data-month="${month}" data-initial-value="${Number(assignedAmount).toFixed(2)}" value="${formatMoneyInputValue(assignedAmount)}" data-min-amount="${minimumRequired.toFixed(2)}" required></div>`;
                 if (minimumRequired > 0) {
                     row += `<small class="text-warning d-block"><i class="ti ti-lock"></i> Min: ${formatMoney(minimumRequired)}</small>`;
                 }
                 globalIndex++;
             } else {
-                row += `<input type="number" name="distributions[${cedula.id}][${month}]" class="form-control form-control-sm text-end distribution-input" data-category="${category.id}" data-cedula="${cedula.id}" data-month="${month}" value="${Number(assignedAmount).toFixed(2)}" step="0.01" min="0" required>`;
+                row += `<input type="hidden" id="distribution-hidden-${cedula.id}-${month}" name="distributions[${cedula.id}][${month}]" value="${Number(assignedAmount).toFixed(2)}">`;
+                row += `<div class="money-input-wrap"><span class="money-prefix">$</span><input type="text" inputmode="decimal" class="form-control form-control-sm text-end distribution-input money-input" data-hidden-input="#distribution-hidden-${cedula.id}-${month}" data-category="${category.id}" data-cedula="${cedula.id}" data-month="${month}" data-initial-value="${Number(assignedAmount).toFixed(2)}" value="${formatMoneyInputValue(assignedAmount)}" data-min-amount="0.00" required></div>`;
             }
             row += '</td>';
         }
@@ -201,8 +258,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function attachInputEvents() {
         document.querySelectorAll('.distribution-input').forEach(input => {
-            input.addEventListener('input', calculateTotals);
-            input.addEventListener('change', calculateTotals);
+            input.addEventListener('focus', () => {
+                input.value = parseMoney(input.value) === 0 ? '' : parseMoney(input.value).toFixed(2);
+            });
+
+            input.addEventListener('input', () => {
+                syncHiddenAmount(input);
+                calculateTotals();
+            });
+
+            input.addEventListener('blur', () => {
+                const minAmount = parseMoney(input.dataset.minAmount || 0);
+                let currentValue = parseMoney(input.value);
+
+                if (currentValue < minAmount) {
+                    currentValue = minAmount;
+                    input.value = currentValue.toFixed(2);
+                }
+
+                syncHiddenAmount(input);
+                updateMoneyInputDisplay(input);
+                calculateTotals();
+            });
+
+            syncHiddenAmount(input);
+            updateMoneyInputDisplay(input);
         });
     }
 
@@ -217,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 for (let month = 1; month <= 12; month++) {
                     const input = document.querySelector(`.distribution-input[data-cedula="${cedula.id}"][data-month="${month}"]`);
-                    const value = Number(input?.value || 0);
+                    const value = parseMoney(input?.value || 0);
                     cedulaTotal += value;
 
                     const monthTotalEl = document.querySelector(`.category-month-total[data-category="${category.id}"][data-month="${month}"]`);
@@ -253,6 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const difference = Math.abs(grandTotal - budgetTotalAmount);
         document.getElementById('sumDistributions').textContent = formatMoney(grandTotal);
         document.getElementById('difference').textContent = formatMoney(difference);
+        document.getElementById('sumDistributionsInline').textContent = formatMoney(grandTotal);
+        document.getElementById('differenceInline').textContent = formatMoney(difference);
         document.getElementById('validationAlert').classList.toggle('d-none', difference <= 0.01);
     }
 
@@ -270,8 +352,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const sumText = document.getElementById('sumDistributions').textContent.replace(/[$,]/g, '');
-        const total = Number(sumText);
+        document.querySelectorAll('.distribution-input').forEach(syncHiddenAmount);
+
+        const total = parseMoney(document.getElementById('sumDistributions').textContent);
         const difference = Math.abs(total - budgetTotalAmount);
 
         if (difference > 0.01) {
@@ -303,7 +386,51 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .distribution-input {
-    min-width: 88px;
+    min-width: 96px;
+    padding-left: 1.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.money-input-wrap {
+    position: relative;
+}
+
+.money-prefix {
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 0.85rem;
+    z-index: 3;
+}
+
+.budget-summary-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.budget-summary-card {
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+    border: 1px solid #d8e5ff;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+}
+
+.budget-summary-label {
+    display: block;
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+@media (max-width: 992px) {
+    .budget-summary-bar {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 @endpush
