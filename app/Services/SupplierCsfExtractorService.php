@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\SupplierFiscalCatalog;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -112,15 +113,19 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible localizar el QR o la URL fiscal dentro del PDF.');
         }
 
-        $response = Http::timeout(20)
-            ->withOptions([
-                'verify' => config('services.sat.verify_ssl', true),
-            ])
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 SuppliersPortal SAT CSF Reader',
-                'Accept-Language' => 'es-MX,es;q=0.9',
-            ])
-            ->get($satUrl);
+        try {
+            $response = Http::timeout(20)
+                ->withOptions([
+                    'verify' => config('services.sat.verify_ssl', true),
+                ])
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 SuppliersPortal SAT CSF Reader',
+                    'Accept-Language' => 'es-MX,es;q=0.9',
+                ])
+                ->get($satUrl);
+        } catch (ConnectionException $exception) {
+            throw new RuntimeException('No fue posible consultar la pagina del SAT para validar la constancia.');
+        }
 
         if (! $response->successful()) {
             throw new RuntimeException('No fue posible consultar la pagina del SAT para validar la constancia.');
@@ -180,6 +185,8 @@ class SupplierCsfExtractorService
 
     private function extractSatUrlFromEmbeddedImage(string $contents): ?string
     {
+        $this->assertQrDependenciesAreAvailable();
+
         foreach ($this->extractPdfImageCandidates($contents) as $index => $image) {
             $tempPath = storage_path('app/tmp/supplier-csf/qr-image-' . Str::uuid() . '-' . $index . '.jpg');
             $directory = dirname($tempPath);
@@ -204,6 +211,17 @@ class SupplierCsfExtractorService
         }
 
         return null;
+    }
+
+    private function assertQrDependenciesAreAvailable(): void
+    {
+        if (! class_exists(QrReader::class)) {
+            throw new RuntimeException('El lector QR no esta disponible en el servidor.');
+        }
+
+        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
+            throw new RuntimeException('El servidor no cuenta con la extension GD requerida para leer la constancia fiscal.');
+        }
     }
 
     private function extractPdfImageCandidates(string $contents): array

@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use RuntimeException;
+use Throwable;
 
 class SupplierRegistrationController extends Controller
 {
@@ -43,6 +44,15 @@ class SupplierRegistrationController extends Controller
         } catch (RuntimeException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
+            ], 422);
+        } catch (Throwable $exception) {
+            Log::error('Error inesperado al procesar constancia fiscal.', [
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'No fue posible procesar la constancia fiscal en este momento. Intenta de nuevo o contacta a soporte.',
             ], 422);
         }
 
