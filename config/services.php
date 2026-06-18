@@ -39,4 +39,8 @@ return [
         'key' => env('EXCHANGERATE_API_KEY'),
     ],
 
+    'sat' => [
+        'verify_ssl' => env('SAT_VERIFY_SSL', true),
+    ],
+
 ];

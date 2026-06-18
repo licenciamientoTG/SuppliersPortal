@@ -5,13 +5,21 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterSupplierRequest;
 use App\Models\Supplier;
+use App\Models\SupplierDocument;
 use App\Models\User;
 use App\Notifications\NewSupplierRegistrationForBuyerNotification;
 use App\Notifications\SupplierWelcomeNotification;
+use App\Rules\EfosNotListed;
+use App\Rules\ValidRfc;
+use App\Services\SupplierCsfExtractorService;
 use App\Support\SupplierFiscalCatalog;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use RuntimeException;
 
 class SupplierRegistrationController extends Controller
 {
@@ -20,47 +28,96 @@ class SupplierRegistrationController extends Controller
         return view('auth.supplier-register');
     }
 
-    public function store(RegisterSupplierRequest $request)
+    public function parseCsf(Request $request, SupplierCsfExtractorService $extractor): JsonResponse
+    {
+        $validated = $request->validate([
+            'csf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        ], [
+            'csf.required' => 'Debes cargar la constancia de situacion fiscal en PDF.',
+            'csf.mimes' => 'La constancia debe enviarse en formato PDF.',
+            'csf.max' => 'La constancia fiscal no puede exceder 10 MB.',
+        ]);
+
+        try {
+            $upload = $extractor->storeTemporaryUpload($validated['csf'], $request->session());
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'token' => $upload['token'],
+            'data' => $upload['parsed'],
+        ]);
+    }
+
+    public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor)
     {
         $data = $request->validated();
+        $isForeign = $request->boolean('is_foreign');
 
-        return DB::transaction(function () use ($data, $request) {
+        return DB::transaction(function () use ($data, $request, $extractor, $isForeign) {
             $repseData = $this->prepareRepseData($data);
+            $csfUpload = null;
+            $fiscalData = null;
 
-            $supplier = Supplier::create([
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'email' => $data['email'],
-                'password' => $data['password'],
-                'is_active' => true,
-                'company_name' => $data['company_name'],
-                'rfc' => strtoupper($data['rfc']),
-                'address' => $data['address'],
-                'postal_code' => $data['postal_code'],
-                'phone_number' => $data['phone_number'],
-                'contact_person' => $data['contact_person'],
-                'contact_phone' => $data['contact_phone'] ?? null,
-                'supplier_type' => $data['supplier_type'],
-                'person_type' => $data['person_type'],
-                'tax_regimes' => SupplierFiscalCatalog::normalizeSelectedRegimes(
-                    $data['person_type'],
-                    $data['tax_regimes'] ?? []
-                ),
-                'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
-                    $data['economic_activity'] ?? []
-                ),
-                'provides_specialized_services' => $repseData['provides_specialized_services'],
-                'repse_registration_number' => $repseData['repse_registration_number'],
-                'repse_expiry_date' => $repseData['repse_expiry_date'],
-                'specialized_services_types' => $repseData['specialized_services_types'],
-                'default_payment_terms' => $data['default_payment_terms'],
-                'bank_name' => null,
-                'account_number' => null,
-                'clabe' => null,
-                'currency' => null,
-                'approval_status' => 'pending',
-                'document_status' => 'pending',
-            ]);
+            if (! $isForeign) {
+                $csfUpload = $extractor->getTemporaryUpload((string) $data['csf_upload_token'], $request->session());
+
+                if (! $csfUpload) {
+                    return back()
+                        ->withErrors(['csf_upload_token' => 'La constancia fiscal debe cargarse y validarse nuevamente.'])
+                        ->withInput();
+                }
+
+                $fiscalData = $csfUpload['parsed'] ?? null;
+
+                if (! is_array($fiscalData)) {
+                    return back()
+                        ->withErrors(['csf_upload_token' => 'No fue posible recuperar los datos fiscales analizados de la constancia.'])
+                        ->withInput();
+                }
+
+                $fiscalValidator = Validator::make(
+                    [
+                        'rfc' => $fiscalData['rfc'] ?? null,
+                    ],
+                    [
+                        'rfc' => ['required', 'unique:suppliers,rfc', new ValidRfc(), new EfosNotListed()],
+                    ]
+                );
+
+                if ($fiscalValidator->fails()) {
+                    return back()
+                        ->withErrors(['csf_upload_token' => $fiscalValidator->errors()->first('rfc')])
+                        ->withInput();
+                }
+            }
+
+            $supplierData = $isForeign
+                ? $this->buildForeignSupplierData($data, $repseData)
+                : $this->buildNationalSupplierData($data, $fiscalData, $repseData);
+
+            $supplier = Supplier::create($supplierData);
+
+            if ($csfUpload) {
+                $documentPath = $extractor->persistTemporaryUploadAsDocument($supplier->id, $csfUpload);
+
+                SupplierDocument::create([
+                    'supplier_id' => $supplier->id,
+                    'uploaded_by' => null,
+                    'doc_type' => 'constancia_fiscal',
+                    'path_file' => $documentPath,
+                    'size_bytes' => $csfUpload['size_bytes'] ?? null,
+                    'mime_type' => $csfUpload['mime_type'] ?? 'application/pdf',
+                    'status' => 'pending_review',
+                    'uploaded_at' => now(),
+                ]);
+
+                $supplier->recalculateDocumentStatus();
+                $extractor->forgetTemporaryUpload((string) $data['csf_upload_token'], $request->session());
+            }
 
             $this->notifyBuyersAboutNewSupplier($supplier);
             $this->sendWelcomeToSupplier($supplier, $data['password']);
@@ -72,6 +129,79 @@ class SupplierRegistrationController extends Controller
 
             return redirect()->route('supplier.documents.index')->with('status', $message);
         });
+    }
+
+    private function buildNationalSupplierData(array $data, array $fiscalData, array $repseData): array
+    {
+        return [
+            'first_name' => $fiscalData['first_name'] ?: $fiscalData['company_name'],
+            'last_name' => $fiscalData['last_name'] ?? '',
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'is_active' => true,
+            'company_name' => $fiscalData['company_name'],
+            'rfc' => strtoupper((string) $fiscalData['rfc']),
+            'address' => $fiscalData['address'],
+            'postal_code' => $fiscalData['postal_code'],
+            'phone_number' => $data['phone_number'],
+            'contact_person' => $data['contact_person'],
+            'contact_phone' => $data['contact_phone'] ?? null,
+            'supplier_type' => $data['supplier_type'],
+            'person_type' => $fiscalData['person_type'],
+            'tax_regimes' => SupplierFiscalCatalog::normalizeSelectedRegimes(
+                $fiscalData['person_type'],
+                $fiscalData['tax_regimes'] ?? []
+            ),
+            'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
+                $data['economic_activity'] ?? []
+            ),
+            'provides_specialized_services' => $repseData['provides_specialized_services'],
+            'repse_registration_number' => $repseData['repse_registration_number'],
+            'repse_expiry_date' => $repseData['repse_expiry_date'],
+            'specialized_services_types' => $repseData['specialized_services_types'],
+            'default_payment_terms' => $data['default_payment_terms'],
+            'bank_name' => null,
+            'account_number' => null,
+            'clabe' => null,
+            'currency' => null,
+            'approval_status' => 'pending',
+            'document_status' => 'pending',
+        ];
+    }
+
+    private function buildForeignSupplierData(array $data, array $repseData): array
+    {
+        return [
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'is_active' => true,
+            'company_name' => $data['company_name'],
+            'rfc' => strtoupper((string) $data['rfc']),
+            'address' => $data['address'],
+            'postal_code' => $data['postal_code'],
+            'phone_number' => $data['phone_number'],
+            'contact_person' => $data['contact_person'],
+            'contact_phone' => $data['contact_phone'] ?? null,
+            'supplier_type' => $data['supplier_type'],
+            'person_type' => 'extranjero',
+            'tax_regimes' => [],
+            'economic_activity' => SupplierFiscalCatalog::normalizeActivities(
+                $data['economic_activity'] ?? []
+            ),
+            'provides_specialized_services' => $repseData['provides_specialized_services'],
+            'repse_registration_number' => $repseData['repse_registration_number'],
+            'repse_expiry_date' => $repseData['repse_expiry_date'],
+            'specialized_services_types' => $repseData['specialized_services_types'],
+            'default_payment_terms' => $data['default_payment_terms'],
+            'bank_name' => null,
+            'account_number' => null,
+            'clabe' => null,
+            'currency' => null,
+            'approval_status' => 'pending',
+            'document_status' => 'pending',
+        ];
     }
 
     private function sendWelcomeToSupplier(Supplier $supplier, string $plainPassword): void

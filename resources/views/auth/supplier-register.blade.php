@@ -1,6 +1,15 @@
-{{-- resources/views/auth/supplier-register.blade.php --}}
 @php
+    use App\Enum\PaymentTerm;
+
     $viewErrors = $errors ?? new \Illuminate\Support\ViewErrorBag();
+    $isForeign = filter_var(old('is_foreign', false), FILTER_VALIDATE_BOOLEAN);
+    $oldActivities = old('economic_activity', ['']);
+    $oldActivities = is_array($oldActivities) && $oldActivities !== [] ? $oldActivities : [''];
+    $selectedServices = old('specialized_services_types', []);
+    $repseEnabled = filter_var(old('provides_specialized_services', false), FILTER_VALIDATE_BOOLEAN);
+    $parsedToken = old('csf_upload_token');
+    $parsedRegimes = old('parsed_tax_regimes_display', '');
+    $personTypeValue = old('parsed_person_type', '');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -8,7 +17,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Laravel') }} - Registro de Proveedor</title>
+    <title>{{ config('app.name', 'Portal de Proveedores') }} - Registro de proveedor</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,1520 +25,771 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
-        * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
-
+        * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body {
             margin: 0;
-            padding: 20px;
             min-height: 100vh;
-            background: linear-gradient(135deg, #0d2b5e 0%, #1a4b96 50%, #0d2b5e 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+            background: linear-gradient(135deg, #0d2b5e 0%, #123d80 45%, #0f2c5b 100%);
+            padding: 24px;
+            color: #17212f;
         }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: -120px; right: -120px;
-            width: 400px; height: 400px;
-            border-radius: 50%;
-            background: rgba(169,202,72,.07);
-            pointer-events: none;
-            z-index: 0;
+        .page-shell {
+            max-width: 1080px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 22px;
+            align-items: start;
         }
-
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: -100px; left: -100px;
-            width: 350px; height: 350px;
-            border-radius: 50%;
-            background: rgba(169,202,72,.05);
-            pointer-events: none;
-            z-index: 0;
+        .hero-card, .form-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 18px;
+            box-shadow: 0 18px 48px rgba(7, 21, 45, 0.28);
         }
-
-        .auth-wrap {
-            width: 100%;
-            max-width: 780px;
-            position: relative;
-            z-index: 1;
+        .hero-card {
+            padding: 28px;
+            position: sticky;
+            top: 24px;
         }
-
-        /* ===== CARD ===== */
-        .reg-card {
-            background: #fff;
+        .hero-card img { width: 150px; height: auto; }
+        .hero-title {
+            margin: 18px 0 10px;
+            font-size: 1.8rem;
+            line-height: 1.1;
+            color: #123d80;
+        }
+        .hero-copy {
+            color: #4f5f73;
+            font-size: 0.95rem;
+            line-height: 1.65;
+        }
+        .hero-points {
+            margin: 22px 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 12px;
+        }
+        .hero-points li {
+            border: 1px solid #d9e4f2;
             border-radius: 14px;
-            box-shadow: 0 20px 60px rgba(0,0,0,.35);
-            overflow: hidden;
+            padding: 12px 14px;
+            background: #f8fbff;
+            font-size: 0.9rem;
+            color: #29425f;
         }
-
-        /* ===== TOP-BAR ===== */
-        .card-topbar {
+        .form-card { overflow: hidden; }
+        .form-header {
+            padding: 22px 26px;
+            border-bottom: 1px solid #e5edf6;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 14px;
-            padding: 14px 20px;
-            border-bottom: 3px solid #A9CA48;
+            gap: 12px;
         }
-
-        .topbar-divider {
-            width: 1px;
-            height: 32px;
-            background: #e9ecef;
-            flex-shrink: 0;
+        .form-header h1 {
+            margin: 0;
+            font-size: 1.45rem;
+            color: #143a72;
         }
-
-        .topbar-title-wrap { flex: 1; min-width: 0; }
-
-        .topbar-title {
-            display: block;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1a4b96;
-            line-height: 1.2;
+        .form-header p {
+            margin: 6px 0 0;
+            color: #61748a;
+            font-size: 0.92rem;
         }
-
-        .topbar-sub {
-            display: block;
-            font-size: 11px;
-            color: #6c757d;
+        .form-body {
+            padding: 26px;
+            display: grid;
+            gap: 22px;
         }
-
-        /* Step indicator */
-        .step-indicator {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-
-        .step-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .step-dot {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            transition: background 0.3s, border-color 0.3s, color 0.3s;
-        }
-
-        .step-dot.active {
-            background: #A9CA48;
-            color: #fff;
-            border: 2px solid #A9CA48;
-        }
-
-        .step-dot.inactive {
+        .section {
+            border: 1px solid #e5edf6;
+            border-radius: 16px;
+            padding: 20px;
             background: #fff;
-            color: #adb5bd;
-            border: 2px solid #dee2e6;
         }
-
-        .step-label {
-            font-size: 11px;
-            color: #adb5bd;
-            white-space: nowrap;
-        }
-
-        .step-label.active {
-            color: #A9CA48;
-            font-weight: 600;
-        }
-
-        .step-line {
-            width: 36px;
-            height: 3px;
-            background: #dee2e6;
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 16px;
-            transition: background 0.4s;
-        }
-
-        .step-line.done { background: #A9CA48; }
-
-        #progress-fill {
-            height: 100%;
-            background: #A9CA48;
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        /* ===== FORM BODY ===== */
-        .card-body-form { padding: 24px 24px 16px; }
-
-        /* ===== STEP SECTIONS ===== */
-        .step-section { display: none; }
-
-        .step-section.active {
-            display: block;
-            animation: fadeInSlide 0.3s ease-out;
-        }
-
-        .step-section:not(.hidden) { display: block; }
-
-        .step-section.hidden { display: none !important; }
-
-        @keyframes fadeInSlide {
-            from { opacity: 0; transform: translateX(10px); }
-            to   { opacity: 1; transform: translateX(0); }
-        }
-
-        /* ===== SECTION TITLES ===== */
         .section-title {
-            border-left: 3px solid #A9CA48;
-            padding-left: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #343a40;
-            margin: 0 0 16px;
+            margin: 0 0 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #173f75;
         }
-
-        /* ===== FORM GRID ===== */
-        .form-grid {
+        .section-copy {
+            margin: -4px 0 14px;
+            font-size: 0.9rem;
+            color: #607286;
+        }
+        .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
         }
-
-        .form-grid > .full { grid-column: 1 / -1; }
-
-        @media (max-width: 580px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .form-grid > .full { grid-column: auto; }
+        .grid .full { grid-column: 1 / -1; }
+        .field { display: grid; gap: 6px; }
+        .field label {
+            font-size: 0.86rem;
+            font-weight: 600;
+            color: #27425f;
         }
-
-        /* ===== FORM GROUP ===== */
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        /* ===== LABELS ===== */
-        .form-label {
-            font-size: 12px !important;
-            font-weight: 500 !important;
-            color: #495057 !important;
-        }
-
-        /* ===== REQUIRED ASTERISK ===== */
-        .required-label::after {
+        .field label.required::after {
             content: ' *';
-            color: #dc2626;
-            font-weight: 700;
+            color: #c53030;
         }
-
-        /* ===== INPUTS ===== */
-        .reg-input {
+        .field input,
+        .field textarea,
+        .field select {
             width: 100%;
-            border: 1.5px solid #dee2e6;
-            border-radius: 7px;
-            padding: 9px 12px;
-            font-size: 13px;
-            font-family: 'Poppins', sans-serif;
-            color: #343a40;
+            border-radius: 12px;
+            border: 1px solid #cfdcea;
+            padding: 11px 13px;
+            font-size: 0.94rem;
+            color: #17212f;
             background: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            outline: none;
-            appearance: none;
         }
-
-        .reg-input:focus {
-            border-color: #A9CA48;
-            box-shadow: 0 0 0 3px rgba(169,202,72,.15);
+        .field textarea { min-height: 92px; resize: vertical; }
+        .field input[readonly],
+        .field textarea[readonly] {
+            background: #f5f8fc;
+            color: #34506e;
         }
-
-        select.reg-input {
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%23adb5bd" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            padding-right: 30px;
+        .hint {
+            font-size: 0.8rem;
+            color: #6c7f92;
         }
-
-        textarea.reg-input {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        /* ===== HINTS ===== */
-        .input-hint { font-size: 11px; color: #adb5bd; }
-
-        /* ===== ERRORS ===== */
-        .input-error, .validation-error {
-            font-size: 11px !important;
-            color: #dc2626 !important;
+        .error {
+            font-size: 0.82rem;
+            color: #c53030;
             background: #fff5f5;
-            border: 1px solid #fecaca;
-            border-radius: 6px;
-            padding: 4px 8px;
+            border: 1px solid #fed7d7;
+            border-radius: 10px;
+            padding: 8px 10px;
         }
-
-        /* ===== RADIO BUTTONS ===== */
-        .radio-group { display: flex; flex-direction: row; gap: 16px; flex-wrap: wrap; }
-
-        .radio-option {
+        .toggle-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #495057;
-            user-select: none;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #f4f8fc;
         }
-
-        .radio-option input[type="radio"] { display: none; }
-
-        .radio-custom {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 2px solid #dee2e6;
-            position: relative;
-            flex-shrink: 0;
-            transition: border-color 0.2s;
+        .toggle-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
         }
-
-        .radio-option input:checked ~ .radio-custom { border-color: #A9CA48; }
-
-        .radio-option input:checked ~ .radio-custom::after {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 10px; height: 10px;
-            border-radius: 50%;
-            background: #A9CA48;
-        }
-
-        /* ===== REPSE CONTAINER ===== */
-        .repse-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            background: #f8f9fa;
-            border: 1.5px solid #dee2e6;
-            border-radius: 8px;
-            padding: 16px;
-        }
-
-        .repse-container > .full { grid-column: 1 / -1; }
-
-        @media (max-width: 580px) {
-            .repse-container { grid-template-columns: 1fr; }
-            .repse-container > .full { grid-column: auto; }
-        }
-
-        /* ===== MULTISELECT ===== */
-        .custom-multiselect { position: relative; width: 100%; }
-
-        .multiselect-header {
+        .upload-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 9px 12px;
-            border: 1.5px solid #dee2e6;
-            border-radius: 7px;
-            background: #fff;
-            cursor: pointer;
-            font-size: 13px;
-            color: #6c757d;
-            transition: border-color 0.2s;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: end;
         }
-
-        .multiselect-header:hover, .multiselect-header.active { border-color: #A9CA48; }
-
-        .dropdown-arrow { font-size: 11px; color: #adb5bd; transition: transform 0.2s; }
-        .multiselect-header.active .dropdown-arrow { transform: rotate(180deg); }
-
-        .multiselect-options {
-            position: absolute;
-            top: 100%; left: 0; right: 0;
-            background: #fff;
-            border: 1.5px solid #dee2e6;
-            border-top: none;
-            border-radius: 0 0 7px 7px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        .upload-row .field {
+            flex: 1 1 300px;
         }
-
-        .multiselect-options.show { display: block; }
-
-        .multiselect-option {
-            display: flex;
-            align-items: center;
-            padding: 9px 12px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #495057;
-            border-bottom: 1px solid #f3f4f6;
-            transition: background 0.15s;
-        }
-
-        .multiselect-option:hover { background: #f8f9fa; }
-        .multiselect-option:last-child { border-bottom: none; }
-        .multiselect-option input[type="checkbox"] { display: none; }
-
-        .checkmark {
-            width: 16px; height: 16px;
-            border: 1.5px solid #dee2e6;
-            border-radius: 3px;
-            margin-right: 10px;
-            position: relative;
-            flex-shrink: 0;
-            transition: all 0.15s;
-        }
-
-        .multiselect-option input:checked + .checkmark {
-            background: #A9CA48;
-            border-color: #A9CA48;
-        }
-
-        .multiselect-option input:checked + .checkmark::after {
-            content: '✓';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        /* ===== CARD FOOTER ===== */
-        .card-footer {
-            background: #fafafa;
-            border-top: 1px solid #f0f0f0;
-            padding: 14px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .footer-link {
-            color: #1a4b96;
-            font-size: 12px;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .footer-link:hover { text-decoration: underline; }
-
-        .btn-primary {
-            background: #1a4b96;
-            color: #fff;
+        .btn {
             border: none;
-            border-radius: 8px;
-            padding: 10px 24px;
-            font-size: 13px;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-size: 0.92rem;
             font-weight: 600;
-            font-family: 'Poppins', sans-serif;
             cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(12, 37, 74, 0.12);
+        }
+        .btn-primary {
+            background: #143a72;
+            color: #fff;
+        }
+        .btn-secondary {
+            background: #ecf2f9;
+            color: #173f75;
+        }
+        .btn-ghost {
+            background: transparent;
+            color: #173f75;
+            border: 1px solid #d0dceb;
+        }
+        .banner {
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 0.88rem;
+        }
+        .banner.info {
+            background: #eef6ff;
+            border: 1px solid #c9e1ff;
+            color: #1d4f8c;
+        }
+        .banner.success {
+            background: #eefbf3;
+            border: 1px solid #c9ecd5;
+            color: #266241;
+        }
+        .banner.error {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: #c53030;
+        }
+        .pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            transition: background 0.2s;
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            background: #edf4ff;
+            color: #1f4e8a;
         }
-
-        .btn-primary:hover { background: #15407f; }
-        .btn-arrow { color: #A9CA48; font-size: 15px; line-height: 1; }
-
-        .btn-secondary {
-            background: #fff;
-            border: 1.5px solid #dee2e6;
-            color: #6c757d;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 13px;
+        .regime-box {
+            min-height: 92px;
+            white-space: pre-line;
+        }
+        .activity-list {
+            display: grid;
+            gap: 10px;
+        }
+        .activity-item {
+            display: flex;
+            gap: 10px;
+        }
+        .activity-item input { flex: 1; }
+        .check-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .check-option {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid #d7e2ef;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #fbfdff;
+        }
+        .radio-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .radio-line label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             font-weight: 500;
-            font-family: 'Poppins', sans-serif;
-            cursor: pointer;
-            transition: border-color 0.2s, color 0.2s;
         }
-
-        .btn-secondary:hover { border-color: #adb5bd; color: #495057; }
-
-        @media (max-width: 480px) {
-            .card-topbar { flex-wrap: wrap; }
-            .step-indicator { width: 100%; justify-content: center; }
-            .card-footer { flex-direction: column-reverse; gap: 10px; }
-            .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+        .footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 0 26px 26px;
+        }
+        .footer-bar a {
+            color: #143a72;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .hidden { display: none !important; }
+        @media (max-width: 960px) {
+            .page-shell { grid-template-columns: 1fr; }
+            .hero-card { position: static; }
+        }
+        @media (max-width: 640px) {
+            body { padding: 14px; }
+            .form-header, .form-body, .footer-bar, .hero-card { padding-left: 18px; padding-right: 18px; }
+            .grid, .check-grid { grid-template-columns: 1fr; }
+            .footer-bar { flex-direction: column-reverse; align-items: stretch; }
+            .footer-bar .btn { width: 100%; }
         }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('[data-required="1"]').forEach(function (input) {
-                var group = input.closest('.form-group');
-                if (group) {
-                    var label = group.querySelector('label');
-                    if (label) label.classList.add('required-label');
-                }
-            });
-        });
-    </script>
-    {{-- Script de REPSE eliminado: su lógica está consolidada en el IIFE principal al final del body --}}
 </head>
-<body class="font-sans antialiased">
+<body>
+    <div class="page-shell">
+        <aside class="hero-card">
+            <img src="{{ asset('images/logos/logo_TotalGas_ver.png') }}" alt="TotalGas">
+            <h2 class="hero-title">Alta de proveedor con lectura de constancia fiscal</h2>
+            <p class="hero-copy">
+                Para proveedores nacionales, primero analizamos tu constancia de situacion fiscal en PDF y llenamos
+                automaticamente los datos del SAT. Para proveedores extranjeros, el registro sigue siendo manual.
+            </p>
+            <ul class="hero-points">
+                <li>Tu RFC, domicilio fiscal y regimenes se cargan desde SAT cuando la constancia es valida.</li>
+                <li>Actividades economicas, contacto, servicios y REPSE se siguen completando aqui.</li>
+                <li>Antes de enviar, deberas confirmar que los datos son correctos para deslinde ante fraude.</li>
+            </ul>
+        </aside>
 
-    <div class="auth-wrap">
-        <div class="reg-card">
-
-            <!-- Top-bar -->
-            <div class="card-topbar">
-                <img src="{{ asset('images/logos/logo_TotalGas_ver.png') }}" height="44" alt="TotalGas">
-                <div class="topbar-divider"></div>
-                <div class="topbar-title-wrap">
-                    <span class="topbar-title">Portal de Proveedores</span>
-                    <span class="topbar-sub">TotalGas Energy</span>
+        <main class="form-card">
+            <div class="form-header">
+                <div>
+                    <h1>Registro de proveedor</h1>
+                    <p>Completa la informacion para crear tu cuenta y continuar con la carga documental.</p>
                 </div>
-                <div class="step-indicator">
-                    <div class="step-group">
-                        <div id="dot-1" class="step-dot active">1</div>
-                        <span id="label-1" class="step-label active">Cuenta</span>
-                    </div>
-                    <div class="step-line" id="connector-1"><div id="progress-fill"></div></div>
-                    <div class="step-group">
-                        <div id="dot-2" class="step-dot inactive">2</div>
-                        <span id="label-2" class="step-label">Empresa</span>
-                    </div>
-                    <div class="step-line" id="connector-2"></div>
-                    <div class="step-group">
-                        <div id="dot-3" class="step-dot inactive">3</div>
-                        <span id="label-3" class="step-label">Servicios</span>
-                    </div>
-                </div>
+                <span class="pill">Formulario unico</span>
             </div>
 
             <form method="POST" action="{{ route('register') }}" id="supplier-form" novalidate>
                 @csrf
+                <input type="hidden" name="csf_upload_token" id="csf_upload_token" value="{{ $parsedToken }}">
+                <input type="hidden" name="parsed_person_type" id="parsed_person_type" value="{{ $personTypeValue }}">
+                <input type="hidden" name="parsed_tax_regimes_display" id="parsed_tax_regimes_display" value="{{ $parsedRegimes }}">
 
-                <!-- ===== STEP 1: Datos de la Cuenta ===== -->
-                <div data-step="1" class="step-section active">
-                    <div class="card-body-form">
-                        <div class="section-title">Datos de la Cuenta --</div>
-                        <div class="form-grid">
-
-                            <div class="form-group">
-                                <x-input-label for="first_name" :value="__('Nombre(s)')" class="form-label" />
-                                <x-text-input id="first_name" class="reg-input" type="text" name="first_name"
-                                    :value="old('first_name')" data-required="1" autofocus autocomplete="given-name" />
-                                <x-input-error :messages="$viewErrors->get('first_name')" class="input-error" />
-                            </div>
-
-                            <div class="form-group">
-                                <x-input-label for="last_name" :value="__('Apellidos')" class="form-label" />
-                                <x-text-input id="last_name" class="reg-input" type="text" name="last_name"
-                                    :value="old('last_name')" data-required="1" autocomplete="family-name" />
-                                <x-input-error :messages="$viewErrors->get('last_name')" class="input-error" />
-                            </div>
-
-                            <div class="form-group full">
-                                <x-input-label for="email" :value="__('Correo electrónico')" class="form-label" />
-                                <x-text-input id="email" class="reg-input" type="email" name="email"
-                                    :value="old('email')" data-required="1" autocomplete="username" />
-                                <x-input-error :messages="$viewErrors->get('email')" class="input-error" />
-                            </div>
-
-                            <div class="form-group">
-                                <x-input-label for="password" :value="__('Contraseña')" class="form-label" />
-                                <x-text-input id="password" class="reg-input" type="password" name="password"
-                                    data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$viewErrors->get('password')" class="input-error" />
-                                <x-password-requirements input-id="password" confirm-id="password_confirmation" theme="dark" />
-                            </div>
-
-                            <div class="form-group">
-                                <x-input-label for="password_confirmation" :value="__('Confirmar contraseña')" class="form-label" />
-                                <x-text-input id="password_confirmation" class="reg-input" type="password"
-                                    name="password_confirmation" data-required="1" autocomplete="new-password" />
-                                <x-input-error :messages="$viewErrors->get('password_confirmation')" class="input-error" />
-                            </div>
-
+                <div class="form-body">
+                    <section class="section">
+                        <h2 class="section-title">1. Tipo de registro</h2>
+                        <div class="toggle-row">
+                            <input type="hidden" name="is_foreign" value="0">
+                            <input type="checkbox" id="is_foreign" name="is_foreign" value="1" @checked($isForeign)>
+                            <label for="is_foreign" style="margin:0;">
+                                Soy proveedor extranjero y no cuento con constancia fiscal SAT para este registro
+                            </label>
                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                <!-- ===== STEP 2: Datos Fiscales ===== -->
-                <div data-step="2" class="step-section hidden">
-                    <div class="card-body-form">
-                        <div class="section-title">Datos Fiscales de la Empresa</div>
-                        <div class="form-grid">
-
-                            <div class="form-group full">
-                                <x-input-label for="company_name" :value="__('Razón social / Nombre comercial')" class="form-label" />
-                                <x-text-input id="company_name" class="reg-input" type="text" name="company_name"
-                                    :value="old('company_name')" data-required="1" />
-                                <x-input-error :messages="$viewErrors->get('company_name')" class="input-error" />
+                    <section class="section" id="csf-section">
+                        <h2 class="section-title">2. Constancia de situacion fiscal</h2>
+                        <p class="section-copy">
+                            Sube tu constancia en PDF para leer el QR y recuperar la informacion fiscal oficial.
+                        </p>
+                        <div class="upload-row">
+                            <div class="field">
+                                <label for="csf_file" class="required">Archivo PDF</label>
+                                <input type="file" id="csf_file" accept="application/pdf">
+                                <span class="hint">Solo PDF. Tamano maximo: 10 MB.</span>
                             </div>
-
-                            <div class="form-group">
-                                <x-input-label for="rfc" :value="__('RFC')" class="form-label" />
-                                <x-text-input id="rfc" class="reg-input" type="text" name="rfc"
-                                    :value="old('rfc')" data-required="1" maxlength="13"
-                                    style="text-transform: uppercase;" inputmode="latin" autocomplete="off" />
-                                <div class="input-hint">3–4 letras + 6 dígitos (YYMMDD) + 3 alfanuméricos</div>
-                                <x-input-error :messages="$viewErrors->get('rfc')" class="input-error" />
-                            </div>
-
-                            <div class="form-group">
-                                <x-input-label for="tax_regime" :value="__('Régimen fiscal')" class="form-label" />
-                                <select id="tax_regime" name="tax_regime" class="reg-input" data-required="1">
-                                    <option value="" disabled {{ old('tax_regime') ? '' : 'selected' }}>Selecciona una opción</option>
-                                    <option value="individual" {{ old('tax_regime') === 'individual' ? 'selected' : '' }}>Persona Física</option>
-                                    <option value="corporation" {{ old('tax_regime') === 'corporation' ? 'selected' : '' }}>Persona Moral</option>
-                                    <option value="resico" {{ old('tax_regime') === 'resico' ? 'selected' : '' }}>RESICO</option>
-                                </select>
-                                <x-input-error :messages="$viewErrors->get('tax_regime')" class="input-error" />
-                            </div>
-
-                            <div class="form-group full">
-                                <x-input-label for="economic_activity" :value="__('Actividad económica')" class="form-label" />
-                                <x-text-input id="economic_activity" class="reg-input" type="text" name="economic_activity"
-                                    :value="old('economic_activity.0', is_array(old('economic_activity')) ? '' : old('economic_activity'))" data-required="1" />
-                                <div class="input-hint">Tal como aparece en la constancia de situación fiscal</div>
-                                <x-input-error :messages="$viewErrors->get('economic_activity')" class="input-error" />
-                            </div>
-
-                            <div class="form-group full">
-                                <x-input-label for="address" :value="__('Domicilio fiscal')" class="form-label" />
-                                <textarea id="address" name="address" class="reg-input" rows="3"
-                                    data-required="1"
-                                    placeholder="Ingrese la dirección completa del domicilio fiscal">{{ old('address') }}</textarea>
-                                <x-input-error :messages="$viewErrors->get('address')" class="input-error" />
-                            </div>
-
-                            <div class="form-group">
-                                <x-input-label for="postal_code" :value="__('Código postal')" class="form-label" />
-                                <x-text-input id="postal_code" class="reg-input" type="text" name="postal_code"
-                                    :value="old('postal_code')" data-required="1" inputmode="numeric"
-                                    pattern="\d{5}" maxlength="5" minlength="5" autocomplete="postal-code" />
-                                <div class="input-hint">5 dígitos</div>
-                                <x-input-error :messages="$viewErrors->get('postal_code')" class="input-error" />
-                            </div>
-
+                            <button type="button" class="btn btn-secondary" id="parse-csf-button">Analizar constancia</button>
                         </div>
-                    </div>
-                </div>
+                        <div id="csf-feedback" class="banner info hidden" style="margin-top:14px;"></div>
+                        @if ($viewErrors->has('csf_upload_token'))
+                            <div class="error" style="margin-top:14px;">{{ $viewErrors->first('csf_upload_token') }}</div>
+                        @endif
+                    </section>
 
-                <!-- ===== STEP 3: Contacto y Servicios ===== -->
-                <div data-step="3" class="step-section hidden">
-                    <div class="card-body-form">
-                        <div class="section-title">Contacto y Tipo de Servicios</div>
-                        <div class="form-grid">
-
-                            <div class="form-group">
-                                <x-input-label for="phone_number" :value="__('Teléfono de la empresa')" class="form-label" />
-                                <x-text-input id="phone_number" class="reg-input" type="tel" name="phone_number"
-                                    :value="old('phone_number')" data-required="1" data-phone="10"
-                                    inputmode="numeric" pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
-                                <div class="input-hint">10 dígitos exactos</div>
-                                <x-input-error :messages="$viewErrors->get('phone_number')" class="input-error" />
+                    <section class="section">
+                        <h2 class="section-title">3. Datos fiscales</h2>
+                        <p class="section-copy">
+                            Los datos fiscales de proveedores nacionales se autollenan desde SAT. En proveedores extranjeros
+                            se capturan manualmente.
+                        </p>
+                        <div class="grid">
+                            <div class="field" id="person-type-wrapper">
+                                <label>Tipo de persona</label>
+                                <input type="text" id="person_type_display" value="{{ old('parsed_person_type') }}" readonly>
+                                <span class="hint">Se determina automaticamente por longitud del RFC cuando la fuente es SAT.</span>
                             </div>
 
-                            <div class="form-group">
-                                <x-input-label for="contact_person" :value="__('Persona de contacto')" class="form-label" />
-                                <x-text-input id="contact_person" class="reg-input" type="text" name="contact_person"
-                                    :value="old('contact_person')" data-required="1" />
-                                <x-input-error :messages="$viewErrors->get('contact_person')" class="input-error" />
+                            <div class="field">
+                                <label for="rfc" class="required">RFC</label>
+                                <input type="text" id="rfc" name="rfc" value="{{ old('rfc') }}" autocomplete="off">
+                                @if ($viewErrors->has('rfc'))<div class="error">{{ $viewErrors->first('rfc') }}</div>@endif
                             </div>
 
-                            <div class="form-group">
-                                <x-input-label for="contact_phone" :value="__('Teléfono de contacto (opcional)')" class="form-label" />
-                                <x-text-input id="contact_phone" class="reg-input" type="tel" name="contact_phone"
-                                    :value="old('contact_phone')" data-phone="10" inputmode="numeric"
-                                    pattern="\d{10}" maxlength="10" minlength="10" autocomplete="tel" />
-                                <div class="input-hint">10 dígitos si se proporciona</div>
-                                <x-input-error :messages="$viewErrors->get('contact_phone')" class="input-error" />
+                            <div class="field">
+                                <label for="first_name" class="required">Nombre(s)</label>
+                                <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" autocomplete="given-name">
+                                @if ($viewErrors->has('first_name'))<div class="error">{{ $viewErrors->first('first_name') }}</div>@endif
                             </div>
 
-                            <div class="form-group">
-                                <x-input-label for="supplier_type" :value="__('Tipo de proveedor')" class="form-label" />
-                                <select id="supplier_type" name="supplier_type" class="reg-input" data-required="1">
-                                    <option value="" disabled {{ old('supplier_type') ? '' : 'selected' }}>Selecciona una opción</option>
-                                    <option value="product" {{ old('supplier_type') === 'product' ? 'selected' : '' }}>Productos</option>
-                                    <option value="service" {{ old('supplier_type') === 'service' ? 'selected' : '' }}>Servicios</option>
-                                    <option value="product_service" {{ old('supplier_type') === 'product_service' ? 'selected' : '' }}>Productos y Servicios</option>
+                            <div class="field">
+                                <label for="last_name" class="required">Apellidos</label>
+                                <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" autocomplete="family-name">
+                                @if ($viewErrors->has('last_name'))<div class="error">{{ $viewErrors->first('last_name') }}</div>@endif
+                            </div>
+
+                            <div class="field full">
+                                <label for="company_name" class="required">Razon social / nombre comercial</label>
+                                <input type="text" id="company_name" name="company_name" value="{{ old('company_name') }}">
+                                <span class="hint">En persona fisica, se construye con nombre y apellidos.</span>
+                                @if ($viewErrors->has('company_name'))<div class="error">{{ $viewErrors->first('company_name') }}</div>@endif
+                            </div>
+
+                            <div class="field full">
+                                <label for="address" class="required">Domicilio fiscal</label>
+                                <textarea id="address" name="address">{{ old('address') }}</textarea>
+                                @if ($viewErrors->has('address'))<div class="error">{{ $viewErrors->first('address') }}</div>@endif
+                            </div>
+
+                            <div class="field">
+                                <label for="postal_code" class="required">Codigo postal</label>
+                                <input type="text" id="postal_code" name="postal_code" value="{{ old('postal_code') }}" maxlength="5">
+                                @if ($viewErrors->has('postal_code'))<div class="error">{{ $viewErrors->first('postal_code') }}</div>@endif
+                            </div>
+
+                            <div class="field full">
+                                <label for="tax_regimes_display">Regimenes fiscales SAT</label>
+                                <textarea id="tax_regimes_display" class="regime-box" readonly>{{ $parsedRegimes }}</textarea>
+                                <span class="hint">Solo informativo. Se toma la version obtenida desde SAT.</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">4. Cuenta y contacto</h2>
+                        <div class="grid">
+                            <div class="field full">
+                                <label for="email" class="required">Correo electronico</label>
+                                <input type="email" id="email" name="email" value="{{ old('email') }}" autocomplete="username">
+                                <span class="hint">Este correo se usara para ingresar al portal.</span>
+                                @if ($viewErrors->has('email'))<div class="error">{{ $viewErrors->first('email') }}</div>@endif
+                            </div>
+
+                            <div class="field">
+                                <label for="password" class="required">Contrasena</label>
+                                <input type="password" id="password" name="password" autocomplete="new-password">
+                                @if ($viewErrors->has('password'))<div class="error">{{ $viewErrors->first('password') }}</div>@endif
+                            </div>
+
+                            <div class="field">
+                                <label for="password_confirmation" class="required">Confirmar contrasena</label>
+                                <input type="password" id="password_confirmation" name="password_confirmation" autocomplete="new-password">
+                            </div>
+
+                            <div class="field">
+                                <label for="supplier_type" class="required">Tipo de proveedor</label>
+                                <select id="supplier_type" name="supplier_type">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="product" @selected(old('supplier_type') === 'product')>Productos</option>
+                                    <option value="service" @selected(old('supplier_type') === 'service')>Servicios</option>
+                                    <option value="product_service" @selected(old('supplier_type') === 'product_service')>Productos y servicios</option>
                                 </select>
-                                <x-input-error :messages="$viewErrors->get('supplier_type')" class="input-error" />
+                                @if ($viewErrors->has('supplier_type'))<div class="error">{{ $viewErrors->first('supplier_type') }}</div>@endif
                             </div>
 
-                            <div class="form-group full">
-                                <x-input-label for="default_payment_terms" :value="__('Condiciones de pago')" class="form-label" />
-                                <select id="default_payment_terms" name="default_payment_terms" class="reg-input" data-required="1">
-                                    @foreach(\App\Enum\PaymentTerm::options() as $value => $label)
-                                        <option value="{{ $value }}" {{ old('default_payment_terms', 'CASH') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                            <div class="field">
+                                <label for="phone_number" class="required">Telefono de la empresa</label>
+                                <input type="text" id="phone_number" name="phone_number" value="{{ old('phone_number') }}" maxlength="10">
+                                @if ($viewErrors->has('phone_number'))<div class="error">{{ $viewErrors->first('phone_number') }}</div>@endif
+                            </div>
+
+                            <div class="field">
+                                <label for="contact_person" class="required">Persona de contacto</label>
+                                <input type="text" id="contact_person" name="contact_person" value="{{ old('contact_person') }}">
+                                @if ($viewErrors->has('contact_person'))<div class="error">{{ $viewErrors->first('contact_person') }}</div>@endif
+                            </div>
+
+                            <div class="field">
+                                <label for="contact_phone">Telefono de contacto</label>
+                                <input type="text" id="contact_phone" name="contact_phone" value="{{ old('contact_phone') }}" maxlength="10">
+                                @if ($viewErrors->has('contact_phone'))<div class="error">{{ $viewErrors->first('contact_phone') }}</div>@endif
+                            </div>
+
+                            <div class="field full">
+                                <label for="default_payment_terms" class="required">Condiciones de pago</label>
+                                <select id="default_payment_terms" name="default_payment_terms">
+                                    <option value="">Seleccionar...</option>
+                                    @foreach (PaymentTerm::options() as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('default_payment_terms') === $value)>{{ $label }}</option>
                                     @endforeach
                                 </select>
-                                <div class="input-hint">Condiciones de pago por defecto para OC y cotizaciones.</div>
-                                <x-input-error :messages="$viewErrors->get('default_payment_terms')" class="input-error" />
+                                @if ($viewErrors->has('default_payment_terms'))<div class="error">{{ $viewErrors->first('default_payment_terms') }}</div>@endif
                             </div>
-
-                            <!-- REPSE Question -->
-                            <div class="form-group full">
-                                <x-input-label for="provides_specialized_services" :value="__('¿Presta servicios especializados u obras especializadas?')" class="form-label" />
-                                <div class="radio-group">
-                                    <label class="radio-option">
-                                        <input type="radio" name="provides_specialized_services" value="1" id="repse_yes"
-                                            {{ old('provides_specialized_services') === '1' ? 'checked' : '' }}>
-                                        <span class="radio-custom"></span>
-                                        Sí
-                                    </label>
-                                    <label class="radio-option">
-                                        <input type="radio" name="provides_specialized_services" value="0" id="repse_no"
-                                            {{ old('provides_specialized_services') === '0' ? 'checked' : '' }}>
-                                        <span class="radio-custom"></span>
-                                        No
-                                    </label>
-                                </div>
-                                <div class="input-hint">Limpieza, vigilancia, mantenimiento, contabilidad, etc.</div>
-                                <x-input-error :messages="$viewErrors->get('provides_specialized_services')" class="input-error" />
-                            </div>
-
-                            <!-- REPSE Fields (initially hidden) -->
-                            <div id="repse-fields" class="full repse-container" style="display: none;">
-
-                                <div class="form-group">
-                                    <x-input-label for="repse_registration_number" :value="__('Número de Registro REPSE')" class="form-label" />
-                                    <x-text-input id="repse_registration_number" class="reg-input" type="text"
-                                        name="repse_registration_number" :value="old('repse_registration_number')"
-                                        placeholder="Ej: REPSE-123456789" data-conditional-required="repse" />
-                                    <div class="input-hint">Formato: REPSE seguido del número asignado</div>
-                                    <x-input-error :messages="$viewErrors->get('repse_registration_number')" class="input-error" />
-                                </div>
-
-                                <div class="form-group">
-                                    <x-input-label for="repse_expiry_date" :value="__('Fecha de vencimiento REPSE')" class="form-label" />
-                                    <x-text-input id="repse_expiry_date" class="reg-input" type="date"
-                                        name="repse_expiry_date" :value="old('repse_expiry_date')"
-                                        data-conditional-required="repse" />
-                                    <div class="input-hint">El registro debe estar vigente</div>
-                                    <x-input-error :messages="$viewErrors->get('repse_expiry_date')" class="input-error" />
-                                </div>
-
-                                <div class="form-group full">
-                                    <x-input-label for="specialized_services_dropdown" :value="__('Tipos de servicios especializados')" class="form-label" />
-                                    <div class="custom-multiselect" id="custom-multiselect">
-                                        <div class="multiselect-header" onclick="toggleDropdown()">
-                                            <span id="selected-text">Seleccionar servicios...</span>
-                                            <span class="dropdown-arrow">▼</span>
-                                        </div>
-                                        <div class="multiselect-options" id="multiselect-options">
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="limpieza"
-                                                    {{ in_array('limpieza', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Servicios de limpieza
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="vigilancia"
-                                                    {{ in_array('vigilancia', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Vigilancia y seguridad
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="mantenimiento"
-                                                    {{ in_array('mantenimiento', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Mantenimiento
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="alimentacion"
-                                                    {{ in_array('alimentacion', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Servicios de alimentación
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="contabilidad"
-                                                    {{ in_array('contabilidad', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Servicios contables/administrativos
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="sistemas"
-                                                    {{ in_array('sistemas', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Servicios de sistemas/TI
-                                            </label>
-                                            <label class="multiselect-option">
-                                                <input type="checkbox" name="specialized_services_types[]" value="otros" id="otros_checkbox_select"
-                                                    {{ in_array('otros', old('specialized_services_types', [])) ? 'checked' : '' }}>
-                                                <span class="checkmark"></span>Otros
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="input-hint">Puede seleccionar múltiples servicios</div>
-                                    <x-input-error :messages="$viewErrors->get('specialized_services_types')" class="input-error" />
-                                </div>
-
-                                <div id="otros-input-custom" class="form-group full" style="display: none;">
-                                    <x-input-label for="otros_descripcion_custom" :value="__('Especifique otros servicios')" class="form-label" />
-                                    <x-text-input id="otros_descripcion_custom" class="reg-input" type="text"
-                                        name="otros_descripcion" :value="old('otros_descripcion')"
-                                        placeholder="Describa los otros servicios especializados..." />
-                                </div>
-                            </div>
-
                         </div>
-                    </div>
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">5. Actividades economicas</h2>
+                        <p class="section-copy">Estas actividades se siguen capturando manualmente.</p>
+                        <div class="activity-list" id="activity-list">
+                            @foreach ($oldActivities as $index => $activity)
+                                <div class="activity-item">
+                                    <input type="text" name="economic_activity[]" value="{{ $activity }}" placeholder="Actividad economica {{ $index + 1 }}">
+                                    <button type="button" class="btn btn-ghost remove-activity {{ $loop->first ? 'hidden' : '' }}">Quitar</button>
+                                </div>
+                            @endforeach
+                        </div>
+                        <button type="button" class="btn btn-ghost" id="add-activity" style="margin-top:12px;">Agregar actividad</button>
+                        @if ($viewErrors->has('economic_activity') || $viewErrors->has('economic_activity.*'))
+                            <div class="error" style="margin-top:12px;">
+                                {{ $viewErrors->first('economic_activity') ?: $viewErrors->first('economic_activity.*') }}
+                            </div>
+                        @endif
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">6. Servicios y REPSE</h2>
+                        <div class="grid">
+                            <div class="field full">
+                                <label class="required">Prestas servicios especializados?</label>
+                                <div class="radio-line">
+                                    <label><input type="radio" name="provides_specialized_services" value="1" @checked($repseEnabled)> Si</label>
+                                    <label><input type="radio" name="provides_specialized_services" value="0" @checked(! $repseEnabled)> No</label>
+                                </div>
+                                @if ($viewErrors->has('provides_specialized_services'))<div class="error">{{ $viewErrors->first('provides_specialized_services') }}</div>@endif
+                            </div>
+
+                            <div id="repse-fields" class="full {{ $repseEnabled ? '' : 'hidden' }}">
+                                <div class="grid">
+                                    <div class="field">
+                                        <label for="repse_registration_number" class="required">Numero REPSE</label>
+                                        <input type="text" id="repse_registration_number" name="repse_registration_number" value="{{ old('repse_registration_number') }}">
+                                        @if ($viewErrors->has('repse_registration_number'))<div class="error">{{ $viewErrors->first('repse_registration_number') }}</div>@endif
+                                    </div>
+                                    <div class="field">
+                                        <label for="repse_expiry_date" class="required">Vigencia REPSE</label>
+                                        <input type="date" id="repse_expiry_date" name="repse_expiry_date" value="{{ old('repse_expiry_date') }}">
+                                        @if ($viewErrors->has('repse_expiry_date'))<div class="error">{{ $viewErrors->first('repse_expiry_date') }}</div>@endif
+                                    </div>
+                                    <div class="field full">
+                                        <label class="required">Tipos de servicio especializado</label>
+                                        <div class="check-grid">
+                                            @foreach (['limpieza' => 'Limpieza', 'vigilancia' => 'Vigilancia', 'mantenimiento' => 'Mantenimiento', 'alimentacion' => 'Alimentacion', 'contabilidad' => 'Contabilidad', 'sistemas' => 'Sistemas', 'otros' => 'Otros'] as $value => $label)
+                                                <label class="check-option">
+                                                    <input type="checkbox" name="specialized_services_types[]" value="{{ $value }}" @checked(in_array($value, $selectedServices, true))>
+                                                    <span>{{ $label }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                        @if ($viewErrors->has('specialized_services_types') || $viewErrors->has('specialized_services_types.*'))
+                                            <div class="error">{{ $viewErrors->first('specialized_services_types') ?: $viewErrors->first('specialized_services_types.*') }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="field full {{ in_array('otros', $selectedServices, true) ? '' : 'hidden' }}" id="otros-wrapper">
+                                        <label for="otros_descripcion" class="required">Describe otros servicios</label>
+                                        <input type="text" id="otros_descripcion" name="otros_descripcion" value="{{ old('otros_descripcion') }}">
+                                        @if ($viewErrors->has('otros_descripcion'))<div class="error">{{ $viewErrors->first('otros_descripcion') }}</div>@endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">7. Confirmacion</h2>
+                        <div class="banner info" id="confirmation-copy">
+                            Confirma que la informacion mostrada y/o capturada corresponde a tus datos reales y autorizas
+                            su uso para el proceso de alta como proveedor.
+                        </div>
+                        <div class="toggle-row" style="margin-top:14px;">
+                            <input type="checkbox" id="accepted_prefilled_data" name="accepted_prefilled_data" value="1" @checked(old('accepted_prefilled_data'))>
+                            <label for="accepted_prefilled_data" style="margin:0;">
+                                Confirmo que estos datos son correctos y asumo responsabilidad sobre su veracidad.
+                            </label>
+                        </div>
+                        @if ($viewErrors->has('accepted_prefilled_data'))
+                            <div class="error" style="margin-top:12px;">{{ $viewErrors->first('accepted_prefilled_data') }}</div>
+                        @endif
+                    </section>
                 </div>
 
-                <!-- ===== SHARED FOOTER ===== -->
-                <div class="card-footer">
-                    <div>
-                        <a id="login-link" class="footer-link" href="{{ route('login') }}">
-                            {{ __('¿Ya tienes cuenta? Inicia sesión') }}
-                        </a>
-                        <button type="button" id="back-btn" class="btn-secondary" style="display:none">
-                            {{ __('Atrás') }}
-                        </button>
-                    </div>
-                    <div style="display:flex; gap:8px;">
-                        <button type="button" id="next-btn" class="btn-primary">
-                            {{ __('Siguiente') }} <span class="btn-arrow">→</span>
-                        </button>
-                        <button type="submit" id="submit-btn" class="btn-primary" style="display:none">
-                            {{ __('Registrar Proveedor') }} <span class="btn-arrow">→</span>
-                        </button>
-                    </div>
+                <div class="footer-bar">
+                    <a href="{{ route('login') }}">Ya tengo cuenta</a>
+                    <button type="submit" class="btn btn-primary">Crear cuenta y continuar</button>
                 </div>
-
             </form>
-        </div>
+        </main>
     </div>
 
-    @php
-        $collectPrefixedErrors = function (string $prefix) use ($viewErrors): array {
-            return collect($viewErrors->getMessages())
-                ->filter(fn ($messages, $key) => $key === $prefix || str_starts_with($key, $prefix . '.'))
-                ->flatten()
-                ->filter(fn ($message) => is_string($message) && $message !== '')
-                ->values()
-                ->all();
-        };
-
-        $supplierRegisterFiscalState = [
-            'personType' => old('person_type'),
-            'taxRegimes' => collect(old('tax_regimes', []))
-                ->map(fn ($regime) => is_array($regime) ? ($regime['code'] ?? null) : $regime)
-                ->filter()
-                ->values()
-                ->all(),
-            'economicActivities' => (function () {
-                $activities = old('economic_activity', ['']);
-                return is_array($activities) && count($activities) > 0 ? $activities : [''];
-            })(),
-            'errors' => [
-                'person_type' => $collectPrefixedErrors('person_type'),
-                'tax_regimes' => $collectPrefixedErrors('tax_regimes'),
-                'economic_activity' => $collectPrefixedErrors('economic_activity'),
-            ],
-        ];
-    @endphp
+    <template id="activity-template">
+        <div class="activity-item">
+            <input type="text" name="economic_activity[]" placeholder="Actividad economica">
+            <button type="button" class="btn btn-ghost remove-activity">Quitar</button>
+        </div>
+    </template>
 
     <script>
-        window.__supplierRegisterInitialStep = @json((int) session('supplier_registration_step', 1));
-        window.__supplierRegisterFiscalCatalog = @json([
-            'fisica' => \App\Support\SupplierFiscalCatalog::regimesFor('fisica'),
-            'moral' => \App\Support\SupplierFiscalCatalog::regimesFor('moral'),
-        ]);
-        window.__supplierRegisterFiscalState = @json($supplierRegisterFiscalState);
-    </script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const foreignToggle = document.getElementById('is_foreign');
+            const csfSection = document.getElementById('csf-section');
+            const parseButton = document.getElementById('parse-csf-button');
+            const csfFeedback = document.getElementById('csf-feedback');
+            const csfFileInput = document.getElementById('csf_file');
+            const csfTokenInput = document.getElementById('csf_upload_token');
+            const personTypeInput = document.getElementById('parsed_person_type');
+            const personTypeDisplay = document.getElementById('person_type_display');
+            const taxRegimesDisplay = document.getElementById('tax_regimes_display');
+            const parsedRegimesInput = document.getElementById('parsed_tax_regimes_display');
+            const firstNameInput = document.getElementById('first_name');
+            const lastNameInput = document.getElementById('last_name');
+            const companyNameInput = document.getElementById('company_name');
+            const rfcInput = document.getElementById('rfc');
+            const addressInput = document.getElementById('address');
+            const postalCodeInput = document.getElementById('postal_code');
+            const emailInput = document.getElementById('email');
+            const contactPersonInput = document.getElementById('contact_person');
+            const acceptedCheckbox = document.getElementById('accepted_prefilled_data');
+            const activityList = document.getElementById('activity-list');
+            const activityTemplate = document.getElementById('activity-template');
+            const addActivityButton = document.getElementById('add-activity');
+            const repseFields = document.getElementById('repse-fields');
+            const repseRadios = document.querySelectorAll('input[name="provides_specialized_services"]');
+            const otrosWrapper = document.getElementById('otros-wrapper');
 
-    <script>
-        (function () {
-            const form = document.getElementById('supplier-form');
-            const steps = Array.from(document.querySelectorAll('[data-step]'));
-            const nextBtn = document.getElementById('next-btn');
-            const backBtn = document.getElementById('back-btn');
-            const bar = document.getElementById('bar');
-            const dot1 = document.getElementById('dot-1');
-            const dot2 = document.getElementById('dot-2');
-            const dot3 = document.getElementById('dot-3');
-
-            let current = Number(window.__supplierRegisterInitialStep || 1);
-            const totalSteps = 3;
-
-            // ====== HELPERS DE ERROR INLINE ======
-            function showFieldError(field, message) {
-                field.style.borderColor = '#ef4444';
-                const container = field.closest('.form-group') || field.parentNode;
-                const existing = container.querySelector('.js-val-error');
-                if (existing) { existing.textContent = message; return; }
-                const div = document.createElement('div');
-                div.className = 'input-error js-val-error';
-                div.textContent = message;
-                container.appendChild(div);
+            function setFeedback(type, message) {
+                csfFeedback.className = 'banner ' + type;
+                csfFeedback.textContent = message;
+                csfFeedback.classList.remove('hidden');
             }
 
-            function clearFieldError(field) {
-                field.style.borderColor = '';
-                const container = field.closest('.form-group') || field.parentNode;
-                const existing = container.querySelector('.js-val-error');
-                if (existing) existing.remove();
+            function clearFeedback() {
+                csfFeedback.className = 'banner info hidden';
+                csfFeedback.textContent = '';
             }
 
-            function renderInlineError(container, messages) {
-                if (!container || !Array.isArray(messages) || messages.length === 0) return;
-                const div = document.createElement('div');
-                div.className = 'input-error js-server-error';
-                div.textContent = messages[0];
-                container.appendChild(div);
-            }
+            function updateFiscalMode() {
+                const isForeign = foreignToggle.checked;
+                csfSection.classList.toggle('hidden', isForeign);
 
-            function setupFiscalFields() {
-                const fiscalState = window.__supplierRegisterFiscalState || {};
-                const fiscalCatalog = window.__supplierRegisterFiscalCatalog || {};
-                const legacyTaxSelect = document.getElementById('tax_regime');
-                const legacyTaxGroup = legacyTaxSelect?.closest('.form-group');
-                const legacyEconomicInput = document.getElementById('economic_activity');
-                const legacyEconomicGroup = legacyEconomicInput?.closest('.form-group');
-
-                if (legacyTaxSelect) {
-                    legacyTaxSelect.disabled = true;
-                    legacyTaxSelect.removeAttribute('name');
-                }
-
-                if (legacyTaxGroup) {
-                    legacyTaxGroup.innerHTML = `
-                        <label for="person_type" class="form-label">Tipo de persona</label>
-                        <select id="person_type" name="person_type" class="reg-input" data-required="1">
-                            <option value="" ${fiscalState.personType ? '' : 'selected'} disabled>Selecciona una opción</option>
-                            <option value="fisica" ${fiscalState.personType === 'fisica' ? 'selected' : ''}>Persona física</option>
-                            <option value="moral" ${fiscalState.personType === 'moral' ? 'selected' : ''}>Persona moral</option>
-                            <option value="extranjero" ${fiscalState.personType === 'extranjero' ? 'selected' : ''}>Extranjero</option>
-                        </select>
-                    `;
-                    renderInlineError(legacyTaxGroup, fiscalState.errors?.person_type);
-                }
-
-                if (legacyEconomicInput) {
-                    legacyEconomicInput.disabled = true;
-                    legacyEconomicInput.removeAttribute('name');
-                }
-
-                if (legacyEconomicGroup) {
-                    const selectedCodes = new Set(Array.isArray(fiscalState.taxRegimes) ? fiscalState.taxRegimes : []);
-                    const groupsHtml = ['fisica', 'moral'].map((personType) => {
-                        const regimes = fiscalCatalog[personType] || [];
-                        const options = regimes.map((regime) => `
-                            <label class="multiselect-option" style="position: static; border: 1px solid #dee2e6; border-radius: 7px; padding: 10px 12px;">
-                                <input type="checkbox" name="tax_regimes[]" value="${regime.code}" ${selectedCodes.has(regime.code) ? 'checked' : ''}>
-                                <span class="checkmark"></span>${regime.code} - ${regime.label}
-                            </label>
-                        `).join('');
-
-                        return `
-                            <div class="full tax-regime-group" data-person-type="${personType}" style="display:none;">
-                                <div class="input-hint" style="margin-bottom: 8px;">Selecciona uno o varios regímenes SAT aplicables.</div>
-                                <div style="display:grid; gap:8px;">${options}</div>
-                            </div>
-                        `;
-                    }).join('');
-
-                    const activities = Array.isArray(fiscalState.economicActivities) && fiscalState.economicActivities.length > 0
-                        ? fiscalState.economicActivities
-                        : [''];
-                    const rowsHtml = activities.map((activity) => `
-                        <div class="activity-row" style="display:flex; gap:10px; align-items:flex-start;">
-                            <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(activity ?? '').replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
-                            <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
-                        </div>
-                    `).join('');
-
-                    const taxGroup = document.createElement('div');
-                    taxGroup.className = 'form-group full';
-                    taxGroup.innerHTML = `
-                        <label class="form-label">Regímenes fiscales</label>
-                        <div id="tax-regimes-wrapper" class="repse-container" data-selected-person-type="${fiscalState.personType || ''}">
-                            ${groupsHtml}
-                            <div id="tax-regimes-foreign-note" class="full input-hint" style="display:none;">
-                                Los proveedores extranjeros no capturan regímenes fiscales SAT en este formulario.
-                            </div>
-                        </div>
-                    `;
-
-                    legacyEconomicGroup.parentNode.insertBefore(taxGroup, legacyEconomicGroup);
-                    renderInlineError(taxGroup, fiscalState.errors?.tax_regimes);
-
-                    legacyEconomicGroup.innerHTML = `
-                        <label class="form-label">Actividades económicas</label>
-                        <div id="economic-activity-list" style="display:grid; gap:10px;">${rowsHtml}</div>
-                        <button type="button" id="add-economic-activity" class="btn-secondary" style="margin-top: 10px;">+ Agregar actividad</button>
-                        <div class="input-hint">Captura una o varias actividades tal como aparecen en la constancia de situación fiscal.</div>
-                    `;
-                    renderInlineError(legacyEconomicGroup, fiscalState.errors?.economic_activity);
-                }
-
-                const personTypeSelect = document.getElementById('person_type');
-                const taxGroups = () => Array.from(document.querySelectorAll('.tax-regime-group'));
-                const foreignNote = document.getElementById('tax-regimes-foreign-note');
-
-                function refreshTaxRegimeVisibility() {
-                    const selectedType = personTypeSelect?.value || '';
-                    taxGroups().forEach((group) => {
-                        const shouldShow = group.dataset.personType === selectedType;
-                        group.style.display = shouldShow ? 'block' : 'none';
-                        group.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-                            if (!shouldShow) checkbox.checked = false;
-                        });
-                    });
-
-                    if (foreignNote) {
-                        foreignNote.style.display = selectedType === 'extranjero' ? 'block' : 'none';
-                    }
-                }
-
-                personTypeSelect?.addEventListener('change', refreshTaxRegimeVisibility);
-                refreshTaxRegimeVisibility();
-
-                const activityList = document.getElementById('economic-activity-list');
-                const addActivityBtn = document.getElementById('add-economic-activity');
-
-                function buildActivityRow(value = '') {
-                    const row = document.createElement('div');
-                    row.className = 'activity-row';
-                    row.style.display = 'flex';
-                    row.style.gap = '10px';
-                    row.style.alignItems = 'flex-start';
-                    row.innerHTML = `
-                        <input class="reg-input activity-input" type="text" name="economic_activity[]" value="${String(value).replace(/"/g, '&quot;')}" data-required="1" placeholder="Tal como aparece en la constancia de situación fiscal">
-                        <button type="button" class="btn-secondary activity-remove" style="padding: 9px 12px; min-width: 44px;">-</button>
-                    `;
-                    return row;
-                }
-
-                function refreshActivityButtons() {
-                    const rows = activityList ? Array.from(activityList.querySelectorAll('.activity-row')) : [];
-                    rows.forEach((row) => {
-                        const removeBtn = row.querySelector('.activity-remove');
-                        if (removeBtn) removeBtn.disabled = rows.length === 1;
-                    });
-                }
-
-                addActivityBtn?.addEventListener('click', () => {
-                    if (!activityList) return;
-                    activityList.appendChild(buildActivityRow(''));
-                    refreshActivityButtons();
+                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
+                    input.readOnly = !isForeign;
                 });
 
-                activityList?.addEventListener('click', (event) => {
-                    const target = event.target;
-                    if (!(target instanceof HTMLElement) || !target.classList.contains('activity-remove')) return;
-                    const rows = activityList.querySelectorAll('.activity-row');
-                    if (rows.length === 1) {
-                        const input = rows[0].querySelector('input');
-                        if (input) input.value = '';
-                        return;
-                    }
-                    target.closest('.activity-row')?.remove();
-                    refreshActivityButtons();
-                });
+                personTypeDisplay.value = isForeign ? 'extranjero' : personTypeInput.value;
+                personTypeDisplay.readOnly = true;
+                taxRegimesDisplay.value = isForeign ? 'No aplica para proveedores extranjeros.' : parsedRegimesInput.value;
+                acceptedCheckbox.checked = false;
 
-                refreshActivityButtons();
-            }
-
-            setupFiscalFields();
-
-            // ====== ENFORCERS ======
-            const rfcEl = document.getElementById('rfc');
-            const RFC_REGEX = /^([A-ZÑ&]{3,4})\d{6}[A-Z0-9]{3}$/;
-            if (rfcEl) {
-                rfcEl.addEventListener('keydown', (e) => { if (e.key === ' ') e.preventDefault(); });
-                rfcEl.addEventListener('input', (e) => {
-                    let v = e.target.value.toUpperCase();
-                    v = v.replace(/\s+/g, '').replace(/[^A-Z0-9Ñ&]/g, '');
-                    e.target.value = v;
-                    e.target.setCustomValidity('');
-                    clearFieldError(rfcEl);
-                });
-                rfcEl.addEventListener('blur', () => {
-                    const v = rfcEl.value.trim();
-                    if (v.length > 0 && !RFC_REGEX.test(v)) {
-                        rfcEl.setCustomValidity('RFC inválido.');
-                        showFieldError(rfcEl, 'RFC inválido. Debe tener 3–4 letras + 6 dígitos de fecha (AAMMDD) + 3 alfanuméricos. Ej: XAXX010101000');
-                    } else if (v.length === 0) {
-                        rfcEl.setCustomValidity('');
-                        // No limpiar aquí; el submit mostrará "obligatorio" si aplica
-                    } else {
-                        rfcEl.setCustomValidity('');
-                        clearFieldError(rfcEl);
-                    }
-                });
-            }
-
-            const phoneInputs = Array.from(document.querySelectorAll('[data-phone="10"]'));
-            function sanitizePhone(el) {
-                let v = el.value.replace(/\D/g, '');
-                if (v.length > 10) v = v.slice(0, 10);
-                el.value = v;
-            }
-            phoneInputs.forEach((el) => {
-                el.addEventListener('keydown', (e) => { if (e.key === ' ') e.preventDefault(); });
-                el.addEventListener('input', () => { sanitizePhone(el); el.setCustomValidity(''); clearFieldError(el); });
-                el.addEventListener('blur', () => {
-                    const v = el.value;
-                    if (v.length === 0 && el.id === 'contact_phone') { el.setCustomValidity(''); clearFieldError(el); return; }
-                    if (v.length === 0) return; // campo requerido: el submit mostrará "obligatorio"
-                    if (!/^\d{10}$/.test(v)) {
-                        el.setCustomValidity('Debe tener exactamente 10 dígitos.');
-                        showFieldError(el, 'El teléfono debe tener exactamente 10 dígitos, sin espacios ni guiones. Ej: 5512345678');
-                    } else {
-                        el.setCustomValidity('');
-                        clearFieldError(el);
-                    }
-                });
-            });
-
-            // ====== REPSE ======
-            function updateConditionalRequired() {
-                const repseYes = document.getElementById('repse_yes');
-                const repseRequired = repseYes && repseYes.checked;
-                document.querySelectorAll('[data-conditional-required="repse"]').forEach(field => {
-                    field.required = repseRequired;
-                    if (repseRequired) {
-                        field.setAttribute('data-required', '1');
-                    } else {
-                        field.removeAttribute('data-required');
-                        field.required = false;
-                    }
-                });
-                const serviceCheckboxes = document.querySelectorAll('input[name="specialized_services_types[]"]');
-                const atLeastOneChecked = Array.from(serviceCheckboxes).some(cb => cb.checked);
-                if (repseRequired && !atLeastOneChecked) {
-                    if (serviceCheckboxes.length > 0) {
-                        serviceCheckboxes[0].setCustomValidity('Debe seleccionar al menos un tipo de servicio especializado');
-                    }
-                } else {
-                    serviceCheckboxes.forEach(cb => cb.setCustomValidity(''));
+                if (isForeign) {
+                    csfTokenInput.value = '';
+                    personTypeInput.value = 'extranjero';
+                    clearFeedback();
                 }
             }
 
-            document.querySelectorAll('input[name="provides_specialized_services"]').forEach(radio => {
-                radio.addEventListener('change', updateConditionalRequired);
-            });
-            document.querySelectorAll('input[name="specialized_services_types[]"]').forEach(checkbox => {
-                checkbox.addEventListener('change', updateConditionalRequired);
-            });
+            function applyParsedData(data) {
+                csfTokenInput.value = data.token;
+                personTypeInput.value = data.person_type || '';
+                personTypeDisplay.value = data.person_type || '';
+                firstNameInput.value = data.first_name || '';
+                lastNameInput.value = data.last_name || '';
+                companyNameInput.value = data.company_name || '';
+                rfcInput.value = data.rfc || '';
+                addressInput.value = data.address || '';
+                postalCodeInput.value = data.postal_code || '';
 
-            const repseExpiryDate = document.getElementById('repse_expiry_date');
-            if (repseExpiryDate) {
-                repseExpiryDate.addEventListener('blur', function() {
-                    const selectedDate = new Date(this.value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    if (this.value && selectedDate <= today) {
-                        this.setCustomValidity('La fecha de vencimiento debe ser posterior a hoy');
-                    } else {
-                        this.setCustomValidity('');
-                    }
-                });
-            }
+                const regimeText = Array.isArray(data.tax_regime_labels) ? data.tax_regime_labels.join('\n') : '';
+                taxRegimesDisplay.value = regimeText;
+                parsedRegimesInput.value = regimeText;
 
-            const repseNumber = document.getElementById('repse_registration_number');
-            if (repseNumber) {
-                repseNumber.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
-                repseNumber.addEventListener('blur', function() { this.setCustomValidity(''); });
-            }
-
-            // ====== STEP MANAGEMENT ======
-            function syncRequired() {
-                form.querySelectorAll('[data-required], [required]').forEach(el => el.required = false);
-                const currentStepEl = steps.find(s => Number(s.dataset.step) === current);
-                if (currentStepEl) {
-                    currentStepEl.querySelectorAll('[data-required]').forEach(el => el.required = true);
-                }
-                updateConditionalRequired();
-            }
-
-            function updateStepIndicator() {
-                const c1 = document.getElementById('connector-1');
-                const c2 = document.getElementById('connector-2');
-                const pf = document.getElementById('progress-fill');
-                const l1 = document.getElementById('label-1');
-                const l2 = document.getElementById('label-2');
-                const l3 = document.getElementById('label-3');
-
-                [dot1, dot2, dot3].forEach((d, i) => {
-                    if (d) d.className = i + 1 === current ? 'step-dot active' : 'step-dot inactive';
-                });
-                [l1, l2, l3].forEach((l, i) => {
-                    if (l) l.className = i + 1 === current ? 'step-label active' : 'step-label';
-                });
-                if (pf) pf.style.width = current >= 2 ? '100%' : '0%';
-                if (c1) c1.classList.toggle('done', current >= 2);
-                if (c2) c2.classList.toggle('done', current >= 3);
-
-                // Footer buttons
-                const loginLink = document.getElementById('login-link');
-                const nextBtnEl = document.getElementById('next-btn');
-                const submitBtnEl = document.getElementById('submit-btn');
-                const backBtnEl = document.getElementById('back-btn');
-                if (loginLink) loginLink.style.display = current === 1 ? '' : 'none';
-                if (backBtnEl) backBtnEl.style.display = current > 1 ? 'inline-flex' : 'none';
-                if (nextBtnEl) nextBtnEl.style.display = current < totalSteps ? 'inline-flex' : 'none';
-                if (submitBtnEl) submitBtnEl.style.display = current === totalSteps ? 'inline-flex' : 'none';
-
-                if (bar) bar.style.width = ((current - 1) / (totalSteps - 1) * 100) + '%';
-            }
-
-            function showStep(step) {
-                current = step;
-                window.__supplierRegisterCurrentStep = step;
-                steps.forEach(s => s.classList.toggle('hidden', Number(s.dataset.step) !== step));
-                updateStepIndicator();
-                syncRequired();
-                const currentStepEl = steps.find(s => Number(s.dataset.step) === step);
-                if (currentStepEl) {
-                    const firstInput = currentStepEl.querySelector('input, select, textarea');
-                    if (firstInput) firstInput.focus();
-                }
-            }
-
-            function validateCurrentStep() {
-                let valid = true;
-                const currentStepEl = steps.find(s => Number(s.dataset.step) === current);
-                if (!currentStepEl) return true;
-
-                // Limpiar errores inline previos de este paso
-                currentStepEl.querySelectorAll('.js-val-error').forEach(e => e.remove());
-
-                // Disparar blur para activar setCustomValidity en enforcers (RFC, teléfonos, etc.)
-                currentStepEl.querySelectorAll('input, select, textarea').forEach(el => {
-                    el.dispatchEvent(new Event('blur'));
-                });
-
-                // --- Campos obligatorios: mostrar error en TODOS, no solo el primero ---
-                const requiredFields = currentStepEl.querySelectorAll('[data-required="1"], [required]');
-                requiredFields.forEach(el => {
-                    const value = (el.value || '').trim();
-
-                    if (!value) {
-                        valid = false;
-                        showFieldError(el, 'Este campo es obligatorio.');
-                        return;
-                    }
-
-                    // Validaciones específicas que el browser no cubre nativamente
-                    if (el.id === 'password') {
-                        const hasMinLength = value.length >= 8;
-                        const hasUpper     = /[A-Z]/.test(value);
-                        const hasLower     = /[a-z]/.test(value);
-                        const hasNumber    = /[0-9]/.test(value);
-                        const hasSymbol    = /[^A-Za-z0-9]/.test(value);
-                        if (!hasMinLength || !hasUpper || !hasLower || !hasNumber || !hasSymbol) {
-                            valid = false;
-                            showFieldError(el, 'La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula, un número y un símbolo especial.');
-                            return;
-                        }
-                    }
-                    if (el.id === 'password_confirmation') {
-                        const pw = document.getElementById('password');
-                        if (pw && value !== pw.value) {
-                            valid = false;
-                            showFieldError(el, 'Las contraseñas no coinciden. Verifica que ambas sean iguales.');
-                            return;
-                        }
-                    }
-
-                    // Validaciones nativas del browser (email, pattern, etc.)
-                    if (!el.checkValidity()) {
-                        valid = false;
-                        let msg = el.validationMessage;
-                        if (el.id === 'rfc') {
-                            msg = 'RFC inválido. Debe tener 3–4 letras + 6 dígitos de fecha (AAMMDD) + 3 alfanuméricos. Ej: XAXX010101000';
-                        } else if (el.type === 'email') {
-                            msg = 'Ingresa un correo electrónico válido. Ej: nombre@empresa.com';
-                        } else if (el.dataset.phone === '10') {
-                            msg = 'El teléfono debe tener exactamente 10 dígitos, sin espacios ni guiones. Ej: 5512345678';
-                        }
-                        showFieldError(el, msg);
-                    } else {
-                        clearFieldError(el);
-                    }
-                });
-
-                // --- Radio: ¿presta servicios especializados? ---
-                const personTypeSelect = document.getElementById('person_type');
-                if (personTypeSelect && currentStepEl.contains(personTypeSelect)) {
-                    const selectedType = personTypeSelect.value;
-                    const taxRegimeCheckboxes = Array.from(document.querySelectorAll('input[name="tax_regimes[]"]'));
-                    const checkedTaxRegimes = taxRegimeCheckboxes.filter((checkbox) => checkbox.checked);
-
-                    if (selectedType && selectedType !== 'extranjero' && checkedTaxRegimes.length === 0) {
-                        valid = false;
-                        const taxRegimesWrapper = document.getElementById('tax-regimes-wrapper');
-                        const container = taxRegimesWrapper && (taxRegimesWrapper.closest('.form-group') || taxRegimesWrapper.parentNode);
-                        if (container && !container.querySelector('.js-val-error')) {
-                            const div = document.createElement('div');
-                            div.className = 'input-error js-val-error';
-                            div.textContent = 'Selecciona al menos un régimen fiscal SAT.';
-                            container.appendChild(div);
-                        }
-                    }
+                if (!emailInput.value && data.sat_email) {
+                    emailInput.value = data.sat_email;
                 }
 
-                const radios = currentStepEl.querySelectorAll('input[name="provides_specialized_services"]');
-                if (radios.length > 0 && !Array.from(radios).some(r => r.checked)) {
-                    valid = false;
-                    const radioGroup = currentStepEl.querySelector('.radio-group');
-                    const container = (radioGroup && (radioGroup.closest('.form-group') || radioGroup.parentNode));
-                    if (container && !container.querySelector('.js-val-error')) {
-                        const div = document.createElement('div');
-                        div.className = 'input-error js-val-error';
-                        div.textContent = 'Debes indicar si prestas servicios especializados (Sí o No).';
-                        container.appendChild(div);
-                    }
+                if (!contactPersonInput.value) {
+                    contactPersonInput.value = data.company_name || [data.first_name, data.last_name].filter(Boolean).join(' ');
                 }
 
-                // --- Checkboxes REPSE (si aplica) ---
-                const repseYes = document.getElementById('repse_yes');
-                if (repseYes && repseYes.checked && currentStepEl.contains(repseYes)) {
-                    const serviceCheckboxes = currentStepEl.querySelectorAll('input[name="specialized_services_types[]"]');
-                    const atLeastOneChecked = Array.from(serviceCheckboxes).some(cb => cb.checked);
-                    if (!atLeastOneChecked) {
-                        valid = false;
-                        const multiselectContainer = currentStepEl.querySelector('#custom-multiselect');
-                        const container = multiselectContainer && (multiselectContainer.closest('.form-group') || multiselectContainer.parentNode);
-                        if (container && !container.querySelector('.js-val-error')) {
-                            const div = document.createElement('div');
-                            div.className = 'input-error js-val-error';
-                            div.textContent = 'Selecciona al menos un tipo de servicio especializado.';
-                            container.appendChild(div);
-                        }
-                    }
-                }
-
-                return valid;
-            }
-
-            if (nextBtn) {
-                nextBtn.addEventListener('click', function () {
-                    current = Number(window.__supplierRegisterCurrentStep || current);
-                    if (!validateCurrentStep()) return;
-                    if (current < totalSteps) showStep(current + 1);
+                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
+                    input.readOnly = true;
                 });
-            }
-            if (backBtn) {
-                backBtn.addEventListener('click', function () {
-                    current = Number(window.__supplierRegisterCurrentStep || current);
-                    if (current > 1) showStep(current - 1);
-                });
+
+                acceptedCheckbox.checked = false;
             }
 
-            form.addEventListener('submit', async function (e) {
-                // Siempre prevenir envío nativo; nosotros controlamos el submit
-                e.preventDefault();
-                current = Number(window.__supplierRegisterCurrentStep || current);
-
-                // 1) Validar el paso actual primero (muestra errores inline)
-                if (!validateCurrentStep()) return;
-
-                // 2) Validar TODOS los pasos antes de enviar
-                let allValid = true;
-                let firstInvalidStep = null;
-                const savedStep = current;
-                for (let i = 1; i <= totalSteps; i++) {
-                    current = i;
-                    if (!validateCurrentStep()) {
-                        allValid = false;
-                        if (firstInvalidStep === null) firstInvalidStep = i;
-                    }
-                }
-                current = savedStep;
-
-                if (!allValid) {
-                    showStep(firstInvalidStep);
+            async function parseCsf() {
+                if (!csfFileInput.files.length) {
+                    setFeedback('error', 'Selecciona primero un archivo PDF de constancia fiscal.');
                     return;
                 }
 
-                // 3) Refrescar el token CSRF justo antes de enviar para evitar error 419
+                const formData = new FormData();
+                formData.append('csf', csfFileInput.files[0]);
+
+                parseButton.disabled = true;
+                parseButton.textContent = 'Analizando...';
+                clearFeedback();
+
                 try {
-                    const res = await fetch('/csrf-refresh', { credentials: 'same-origin' });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const tokenInput = form.querySelector('input[name="_token"]');
-                        if (tokenInput) tokenInput.value = data.token;
-                        const metaToken = document.querySelector('meta[name="csrf-token"]');
-                        if (metaToken) metaToken.setAttribute('content', data.token);
-                    }
-                } catch (err) { /* continuar de todas formas */ }
+                    const response = await fetch('{{ route('supplier.register.parse-csf') }}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json',
+                        },
+                        body: formData,
+                    });
 
-                // 4) Deshabilitar botón para prevenir doble envío
-                const submitBtnEl = document.getElementById('submit-btn');
-                if (submitBtnEl) {
-                    submitBtnEl.disabled = true;
-                    submitBtnEl.innerHTML = 'Registrando... <span class="btn-arrow">⟳</span>';
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        setFeedback('error', payload.message || 'No fue posible procesar la constancia fiscal.');
+                        return;
+                    }
+
+                    applyParsedData({
+                        token: payload.token,
+                        ...payload.data,
+                    });
+                    setFeedback('success', 'Constancia analizada correctamente. Revisa y confirma tus datos antes de enviar.');
+                } catch (error) {
+                    setFeedback('error', 'Ocurrio un error al analizar la constancia fiscal. Intenta de nuevo.');
+                } finally {
+                    parseButton.disabled = false;
+                    parseButton.textContent = 'Analizar constancia';
                 }
+            }
 
-                // 5) Enviar el formulario
-                form.submit();
+            function bindRemoveActivity(button) {
+                button.addEventListener('click', function () {
+                    const items = activityList.querySelectorAll('.activity-item');
+                    if (items.length <= 1) {
+                        const input = items[0].querySelector('input');
+                        if (input) {
+                            input.value = '';
+                        }
+                        return;
+                    }
+
+                    button.closest('.activity-item').remove();
+                    syncActivityButtons();
+                });
+            }
+
+            function syncActivityButtons() {
+                const items = activityList.querySelectorAll('.activity-item');
+                items.forEach(function (item, index) {
+                    const removeButton = item.querySelector('.remove-activity');
+                    if (removeButton) {
+                        removeButton.classList.toggle('hidden', items.length === 1 && index === 0);
+                    }
+                });
+            }
+
+            function updateRepseFields() {
+                const enabled = Array.from(repseRadios).some(function (radio) {
+                    return radio.checked && radio.value === '1';
+                });
+
+                repseFields.classList.toggle('hidden', !enabled);
+            }
+
+            function updateOtrosField() {
+                const checked = document.querySelector('input[name="specialized_services_types[]"][value="otros"]');
+                otrosWrapper.classList.toggle('hidden', !checked || !checked.checked);
+            }
+
+            parseButton.addEventListener('click', parseCsf);
+            foreignToggle.addEventListener('change', updateFiscalMode);
+            addActivityButton.addEventListener('click', function () {
+                const fragment = activityTemplate.content.cloneNode(true);
+                const removeButton = fragment.querySelector('.remove-activity');
+                bindRemoveActivity(removeButton);
+                activityList.appendChild(fragment);
+                syncActivityButtons();
             });
 
-            if (rfcEl) {
-                rfcEl.addEventListener('input', () => rfcEl.value = rfcEl.value.toUpperCase());
-            }
-
-            // Inicialización
-            showStep(current);
-            updateConditionalRequired();
-        })();
-
-        // ====== REPSE UX ======
-        document.addEventListener('DOMContentLoaded', function() {
-            const repseFields = document.getElementById('repse-fields');
-            const repseRadios = document.querySelectorAll('input[name="provides_specialized_services"]');
-
-            repseRadios.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const showFields = document.getElementById('repse_yes').checked;
-                    if (showFields) {
-                        repseFields.style.display = 'grid';
-                        repseFields.style.opacity = '0';
-                        repseFields.style.transform = 'translateY(-8px)';
-                        setTimeout(() => {
-                            repseFields.style.transition = 'all 0.3s ease';
-                            repseFields.style.opacity = '1';
-                            repseFields.style.transform = 'translateY(0)';
-                        }, 10);
-                    } else {
-                        repseFields.style.transition = 'all 0.3s ease';
-                        repseFields.style.opacity = '0';
-                        repseFields.style.transform = 'translateY(-8px)';
-                        setTimeout(() => { repseFields.style.display = 'none'; }, 300);
-                    }
-                });
+            activityList.querySelectorAll('.remove-activity').forEach(bindRemoveActivity);
+            repseRadios.forEach(function (radio) {
+                radio.addEventListener('change', updateRepseFields);
+            });
+            document.querySelectorAll('input[name="specialized_services_types[]"]').forEach(function (checkbox) {
+                checkbox.addEventListener('change', updateOtrosField);
             });
 
-            const serviceCheckboxes = document.querySelectorAll('input[name="specialized_services_types[]"]');
-            serviceCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const atLeastOneChecked = Array.from(serviceCheckboxes).some(cb => cb.checked);
-                    if (atLeastOneChecked) serviceCheckboxes.forEach(cb => cb.setCustomValidity(''));
+            updateFiscalMode();
+            updateRepseFields();
+            updateOtrosField();
 
-                    if (this.value === 'otros') {
-                        const otrosInput = document.getElementById('otros-input-custom');
-                        if (otrosInput) otrosInput.style.display = this.checked ? 'block' : 'none';
-                    }
-                });
-            });
-
-            const repseNumber = document.getElementById('repse_registration_number');
-            if (repseNumber) {
-                repseNumber.addEventListener('input', function() {
-                    let value = this.value.toUpperCase();
-                    if (value.length > 0 && !value.startsWith('REPSE-') && /^\d/.test(value)) {
-                        value = 'REPSE-' + value.replace(/[^0-9]/g, '');
-                    }
-                    this.value = value;
+            if (csfTokenInput.value && !foreignToggle.checked) {
+                setFeedback('success', 'Ya cuentas con una constancia fiscal validada en esta sesion. Puedes continuar con el registro.');
+                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
+                    input.readOnly = true;
                 });
             }
 
-            const repseExpiryDate = document.getElementById('repse_expiry_date');
-            if (repseExpiryDate) {
-                repseExpiryDate.addEventListener('change', function() {
-                    const selectedDate = new Date(this.value);
-                    const today = new Date();
-                    const threeMonthsFromNow = new Date();
-                    threeMonthsFromNow.setMonth(today.getMonth() + 3);
-                    this.classList.remove('date-warning', 'date-error');
-                    if (selectedDate <= today) {
-                        this.classList.add('date-error');
-                        this.setCustomValidity('La fecha de vencimiento debe ser posterior a hoy');
-                    } else if (selectedDate <= threeMonthsFromNow) {
-                        this.classList.add('date-warning');
-                        this.setCustomValidity('');
-                        this.title = 'Advertencia: El registro vence en menos de 3 meses';
-                    } else {
-                        this.setCustomValidity('');
-                        this.title = '';
-                    }
-                });
-            }
-
-            const dateStyles = document.createElement('style');
-            dateStyles.textContent = `
-                .date-warning { border-color: #f59e0b !important; background-color: #fef3c7; }
-                .date-error { border-color: #ef4444 !important; background-color: #fee2e2; }
-            `;
-            document.head.appendChild(dateStyles);
-
-            // Server errors: show the step with errors and reveal REPSE if needed
-            const errorFields = document.querySelectorAll('.input-error');
-            if (errorFields.length > 0 && repseFields) {
-                errorFields.forEach(error => {
-                    const repseError = error.closest('#repse-fields');
-                    if (repseError) {
-                        const repseYes = document.getElementById('repse_yes');
-                        if (repseYes) repseYes.checked = true;
-                        repseFields.style.display = 'grid';
-                    }
-                });
-            }
-
-            // Init multiselect text
-            updateSelectedText();
-            const otrosChecked = document.querySelector('#custom-multiselect input[value="otros"]:checked');
-            if (otrosChecked) {
-                const otrosInput = document.getElementById('otros-input-custom');
-                if (otrosInput) otrosInput.style.display = 'block';
-            }
-        });
-    </script>
-    <script>
-        // Multiselect personalizado
-        function toggleDropdown() {
-            const header = document.querySelector('.multiselect-header');
-            const options = document.getElementById('multiselect-options');
-            header.classList.toggle('active');
-            options.classList.toggle('show');
-        }
-
-        document.addEventListener('click', function(e) {
-            const multiselect = document.getElementById('custom-multiselect');
-            if (multiselect && !multiselect.contains(e.target)) {
-                const header = document.querySelector('.multiselect-header');
-                const options = document.getElementById('multiselect-options');
-                if (header) header.classList.remove('active');
-                if (options) options.classList.remove('show');
-            }
-        });
-
-        function updateSelectedText() {
-            const checkboxes = document.querySelectorAll('#custom-multiselect input[type="checkbox"]');
-            const selectedText = document.getElementById('selected-text');
-            if (!selectedText) return;
-            const checked = Array.from(checkboxes).filter(cb => cb.checked);
-            if (checked.length === 0) {
-                selectedText.textContent = 'Seleccionar servicios...';
-                selectedText.style.color = '#9ca3af';
-            } else if (checked.length === 1) {
-                selectedText.textContent = checked[0].parentElement.textContent.trim();
-                selectedText.style.color = '#111827';
-            } else {
-                selectedText.textContent = `${checked.length} servicios seleccionados`;
-                selectedText.style.color = '#111827';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const customCheckboxes = document.querySelectorAll('#custom-multiselect input[type="checkbox"]');
-            customCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    updateSelectedText();
-                    if (this.value === 'otros') {
-                        const otrosInput = document.getElementById('otros-input-custom');
-                        if (otrosInput) otrosInput.style.display = this.checked ? 'block' : 'none';
-                    }
-                });
-            });
+            syncActivityButtons();
         });
     </script>
 </body>

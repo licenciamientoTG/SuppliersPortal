@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:web,supplier')->group(function () {
     Route::get('/register', [SupplierRegistrationController::class, 'create'])->name('register');
+    Route::post('/register/csf/parse', [SupplierRegistrationController::class, 'parseCsf'])->name('supplier.register.parse-csf');
     Route::post('/register', [SupplierRegistrationController::class, 'store'])->name('supplier.register.store');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
