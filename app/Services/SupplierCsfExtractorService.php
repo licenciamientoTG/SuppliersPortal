@@ -117,6 +117,9 @@ class SupplierCsfExtractorService
             $response = Http::timeout(20)
                 ->withOptions([
                     'verify' => config('services.sat.verify_ssl', true),
+                    'curl' => [
+                        CURLOPT_SSL_CIPHER_LIST => config('services.sat.cipher_list', 'DEFAULT@SECLEVEL=1'),
+                    ],
                 ])
                 ->withHeaders([
                     'User-Agent' => 'Mozilla/5.0 SuppliersPortal SAT CSF Reader',

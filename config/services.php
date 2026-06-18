@@ -41,6 +41,7 @@ return [
 
     'sat' => [
         'verify_ssl' => env('SAT_VERIFY_SSL', false),
+        'cipher_list' => env('SAT_CIPHER_LIST', 'DEFAULT@SECLEVEL=1'),
     ],
 
 ];
