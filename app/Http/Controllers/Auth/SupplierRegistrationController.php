@@ -143,9 +143,20 @@ class SupplierRegistrationController extends Controller
 
     private function buildNationalSupplierData(array $data, array $fiscalData, array $repseData): array
     {
+        $firstName = trim((string) ($fiscalData['first_name'] ?? ''));
+        $lastName = trim((string) ($fiscalData['last_name'] ?? ''));
+
+        if ($firstName === '' && ! empty($data['first_name'])) {
+            $firstName = trim((string) $data['first_name']);
+        }
+
+        if ($lastName === '' && ! empty($data['last_name'])) {
+            $lastName = trim((string) $data['last_name']);
+        }
+
         return [
-            'first_name' => $fiscalData['first_name'] ?: $fiscalData['company_name'],
-            'last_name' => $fiscalData['last_name'] ?? '',
+            'first_name' => $firstName !== '' ? $firstName : $fiscalData['company_name'],
+            'last_name' => $lastName,
             'email' => $data['email'],
             'password' => $data['password'],
             'is_active' => true,

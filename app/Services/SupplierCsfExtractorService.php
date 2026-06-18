@@ -402,12 +402,18 @@ class SupplierCsfExtractorService
             $this->allValues($items, ['Régimen', 'Regimen'])
         );
 
+        $resolvedFirstName = $personType === 'fisica'
+            ? ($firstName ?: $companyName)
+            : ($firstName ?: '');
+
+        $resolvedLastName = $lastName;
+
         return [
             'source_url' => $parsed['source_url'] ?? null,
             'rfc' => $rfc,
             'person_type' => $personType,
-            'first_name' => $personType === 'fisica' ? $firstName : $companyName,
-            'last_name' => $personType === 'fisica' ? $lastName : '',
+            'first_name' => $resolvedFirstName,
+            'last_name' => $resolvedLastName,
             'company_name' => $companyName,
             'address' => $this->buildAddress($items),
             'postal_code' => $postalCode,

@@ -132,6 +132,11 @@
             background: #f5f8fc;
             color: #34506e;
         }
+        .field input.is-editable,
+        .field textarea.is-editable {
+            background: #fffdf2;
+            border-color: #e8d69a;
+        }
         .hint {
             font-size: 0.8rem;
             color: #6c7f92;
@@ -422,12 +427,14 @@
                             <div class="field">
                                 <label for="first_name" class="required">Nombre(s)</label>
                                 <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" autocomplete="given-name">
+                                <span class="hint" id="first-name-hint">Se obtiene desde la constancia fiscal cuando aplica.</span>
                                 @if ($viewErrors->has('first_name'))<div class="error">{{ $viewErrors->first('first_name') }}</div>@endif
                             </div>
 
                             <div class="field">
                                 <label for="last_name" class="required">Apellidos</label>
                                 <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" autocomplete="family-name">
+                                <span class="hint" id="last-name-hint">Se obtiene desde la constancia fiscal cuando aplica.</span>
                                 @if ($viewErrors->has('last_name'))<div class="error">{{ $viewErrors->first('last_name') }}</div>@endif
                             </div>
 
@@ -645,12 +652,15 @@
             const emailInput = document.getElementById('email');
             const contactPersonInput = document.getElementById('contact_person');
             const acceptedCheckbox = document.getElementById('accepted_prefilled_data');
+            const firstNameHint = document.getElementById('first-name-hint');
+            const lastNameHint = document.getElementById('last-name-hint');
             const activityList = document.getElementById('activity-list');
             const activityTemplate = document.getElementById('activity-template');
             const addActivityButton = document.getElementById('add-activity');
             const repseFields = document.getElementById('repse-fields');
             const repseRadios = document.querySelectorAll('input[name="provides_specialized_services"]');
             const otrosWrapper = document.getElementById('otros-wrapper');
+            const fiscalInputs = [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput];
 
             function setFeedback(type, message) {
                 csfFeedback.className = 'banner ' + type;
@@ -661,6 +671,31 @@
             function clearFeedback() {
                 csfFeedback.className = 'banner info hidden';
                 csfFeedback.textContent = '';
+            }
+
+            function setInputEditableState(input, editable) {
+                input.readOnly = !editable;
+                input.classList.toggle('is-editable', editable);
+            }
+
+            function applyReadonlyStateForNationalFlow() {
+                const isMoral = personTypeInput.value === 'moral';
+                const namesMissing = isMoral && (!firstNameInput.value.trim() || !lastNameInput.value.trim());
+
+                setInputEditableState(firstNameInput, namesMissing);
+                setInputEditableState(lastNameInput, namesMissing);
+                setInputEditableState(companyNameInput, false);
+                setInputEditableState(rfcInput, false);
+                setInputEditableState(addressInput, false);
+                setInputEditableState(postalCodeInput, false);
+
+                if (namesMissing) {
+                    firstNameHint.textContent = 'La constancia no incluyo este dato. Capturalo manualmente.';
+                    lastNameHint.textContent = 'La constancia no incluyo este dato. Capturalo manualmente.';
+                } else {
+                    firstNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
+                    lastNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
+                }
             }
 
             function syncSelectedFile() {
@@ -682,20 +717,24 @@
                 const isForeign = foreignToggle.checked;
                 csfSection.classList.toggle('hidden', isForeign);
 
-                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
-                    input.readOnly = !isForeign;
-                });
-
                 personTypeDisplay.value = isForeign ? 'extranjero' : personTypeInput.value;
                 personTypeDisplay.readOnly = true;
                 taxRegimesDisplay.value = isForeign ? 'No aplica para proveedores extranjeros.' : parsedRegimesInput.value;
                 acceptedCheckbox.checked = false;
 
                 if (isForeign) {
+                    fiscalInputs.forEach(function (input) {
+                        setInputEditableState(input, true);
+                    });
                     csfTokenInput.value = '';
                     personTypeInput.value = 'extranjero';
+                    firstNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
+                    lastNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
                     clearFeedback();
+                    return;
                 }
+
+                applyReadonlyStateForNationalFlow();
             }
 
             function applyParsedData(data) {
@@ -721,10 +760,7 @@
                     contactPersonInput.value = data.company_name || [data.first_name, data.last_name].filter(Boolean).join(' ');
                 }
 
-                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
-                    input.readOnly = true;
-                });
-
+                applyReadonlyStateForNationalFlow();
                 acceptedCheckbox.checked = false;
             }
 
@@ -843,9 +879,7 @@
 
             if (csfTokenInput.value && !foreignToggle.checked) {
                 setFeedback('success', 'Ya cuentas con una constancia fiscal validada en esta sesion. Puedes continuar con el registro.');
-                [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput].forEach(function (input) {
-                    input.readOnly = true;
-                });
+                applyReadonlyStateForNationalFlow();
             }
 
             syncActivityButtons();

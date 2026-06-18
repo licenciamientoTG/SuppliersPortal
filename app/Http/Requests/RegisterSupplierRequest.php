@@ -164,6 +164,16 @@ class RegisterSupplierRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if (! $this->boolean('is_foreign') && $this->input('parsed_person_type') === 'moral') {
+                if (! $this->filled('first_name')) {
+                    $validator->errors()->add('first_name', 'El nombre es obligatorio cuando la constancia no lo incluye.');
+                }
+
+                if (! $this->filled('last_name')) {
+                    $validator->errors()->add('last_name', 'Los apellidos son obligatorios cuando la constancia no los incluye.');
+                }
+            }
+
             if ($this->boolean('provides_specialized_services')) {
                 $services = $this->input('specialized_services_types', []);
 
