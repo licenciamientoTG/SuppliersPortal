@@ -913,7 +913,7 @@ $(document).ready(function() {
     function sendRFQ() {
         Swal.fire({ title: 'Enviando...', html: 'Por favor espera', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         $.ajax({
-            url: '{{ route("rfq.send", $rfq) }}',
+            url: '{{ route("rfq.send.single", $rfq) }}',
             method: 'POST',
             data: { _token: '{{ csrf_token() }}' },
             success: r => {
