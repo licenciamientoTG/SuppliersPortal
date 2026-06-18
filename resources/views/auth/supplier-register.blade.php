@@ -165,6 +165,56 @@
         .upload-row .field {
             flex: 1 1 300px;
         }
+        .upload-field {
+            display: grid;
+            gap: 10px;
+        }
+        .upload-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 56px;
+            border-radius: 14px;
+            border: 1px solid #cfdcea;
+            background: #fff;
+            padding: 8px 10px;
+        }
+        .upload-control.has-file {
+            border-color: #b8d0ec;
+            background: #f8fbff;
+        }
+        .upload-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 138px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            border: 1px solid #d0dceb;
+            background: #eef4fb;
+            color: #143a72;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s ease, border-color .15s ease, transform .15s ease;
+        }
+        .upload-trigger:hover {
+            background: #e5eef9;
+            border-color: #bdd0e8;
+            transform: translateY(-1px);
+        }
+        .upload-name {
+            min-width: 0;
+            flex: 1;
+            color: #4b6078;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .upload-name.is-empty {
+            color: #7f93a7;
+        }
         .btn {
             border: none;
             border-radius: 12px;
@@ -333,9 +383,13 @@
                             Sube tu constancia en PDF para leer el QR y recuperar la informacion fiscal oficial.
                         </p>
                         <div class="upload-row">
-                            <div class="field">
+                            <div class="field upload-field">
                                 <label for="csf_file" class="required">Archivo PDF</label>
-                                <input type="file" id="csf_file" accept="application/pdf">
+                                <div class="upload-control" id="csf-upload-control">
+                                    <input type="file" id="csf_file" accept="application/pdf" class="hidden">
+                                    <button type="button" class="upload-trigger" id="csf-upload-trigger">Seleccionar PDF</button>
+                                    <span class="upload-name is-empty" id="csf-file-name">Ningun archivo seleccionado</span>
+                                </div>
                                 <span class="hint">Solo PDF. Tamano maximo: 10 MB.</span>
                             </div>
                             <button type="button" class="btn btn-secondary" id="parse-csf-button">Analizar constancia</button>
@@ -574,6 +628,9 @@
             const parseButton = document.getElementById('parse-csf-button');
             const csfFeedback = document.getElementById('csf-feedback');
             const csfFileInput = document.getElementById('csf_file');
+            const csfUploadTrigger = document.getElementById('csf-upload-trigger');
+            const csfUploadControl = document.getElementById('csf-upload-control');
+            const csfFileName = document.getElementById('csf-file-name');
             const csfTokenInput = document.getElementById('csf_upload_token');
             const personTypeInput = document.getElementById('parsed_person_type');
             const personTypeDisplay = document.getElementById('person_type_display');
@@ -604,6 +661,21 @@
             function clearFeedback() {
                 csfFeedback.className = 'banner info hidden';
                 csfFeedback.textContent = '';
+            }
+
+            function syncSelectedFile() {
+                const file = csfFileInput.files && csfFileInput.files[0] ? csfFileInput.files[0] : null;
+
+                if (!file) {
+                    csfFileName.textContent = 'Ningun archivo seleccionado';
+                    csfFileName.classList.add('is-empty');
+                    csfUploadControl.classList.remove('has-file');
+                    return;
+                }
+
+                csfFileName.textContent = file.name;
+                csfFileName.classList.remove('is-empty');
+                csfUploadControl.classList.add('has-file');
             }
 
             function updateFiscalMode() {
@@ -740,6 +812,13 @@
             }
 
             parseButton.addEventListener('click', parseCsf);
+            csfUploadTrigger.addEventListener('click', function () {
+                csfFileInput.click();
+            });
+            csfFileInput.addEventListener('change', function () {
+                syncSelectedFile();
+                clearFeedback();
+            });
             foreignToggle.addEventListener('change', updateFiscalMode);
             addActivityButton.addEventListener('click', function () {
                 const fragment = activityTemplate.content.cloneNode(true);
@@ -760,6 +839,7 @@
             updateFiscalMode();
             updateRepseFields();
             updateOtrosField();
+            syncSelectedFile();
 
             if (csfTokenInput.value && !foreignToggle.checked) {
                 setFeedback('success', 'Ya cuentas con una constancia fiscal validada en esta sesion. Puedes continuar con el registro.');
