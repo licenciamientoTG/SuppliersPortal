@@ -5,6 +5,7 @@ namespace App\Services;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use Illuminate\Support\Str;
 
 class SatQrDataParser
 {
@@ -68,6 +69,7 @@ class SatQrDataParser
             'rfc' => $this->extractRfc($html, $sourceUrl),
             'summary' => [
                 'nombre_completo' => $this->firstAvailable($flatItems, [
+                    'Denominacion o Razon Social',
                     'Denominacion/Razon Social',
                 ], $this->buildPhysicalPersonName($flatItems) ?? $this->firstAvailable($flatItems, [
                     'Nombre',
@@ -128,9 +130,13 @@ class SatQrDataParser
 
     private function normalizeLabel(string $label): string
     {
-        $label = $this->cleanText($label);
+        $asciiLabel = Str::of($this->cleanText($label))
+            ->ascii()
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
 
-        return rtrim($label, ':');
+        return rtrim($asciiLabel, ':');
     }
 
     private function cleanText(string $value): string

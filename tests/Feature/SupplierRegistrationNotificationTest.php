@@ -147,6 +147,27 @@ class SupplierRegistrationNotificationTest extends TestCase
         $response->assertSessionHasErrors('accepted_prefilled_data');
     }
 
+    public function test_parse_csf_for_moral_person_returns_company_name_from_sat(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://siat.sat.gob.mx/*' => Http::response($this->fakeSatHtmlMoral(), 200),
+        ]);
+
+        $response = $this->postJson(route('supplier.register.parse-csf'), [
+            'csf' => UploadedFile::fake()->createWithContent(
+                'csf.pdf',
+                $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=15010752710_ACO041014H30')
+            ),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.person_type', 'moral')
+            ->assertJsonPath('data.company_name', 'ALVHER CORPORATIVO')
+            ->assertJsonPath('data.first_name', '')
+            ->assertJsonPath('data.last_name', '');
+    }
+
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
@@ -211,6 +232,45 @@ class SupplierRegistrationNotificationTest extends TestCase
     <table><tbody>
       <tr><td>Régimen:</td><td>Ingresos por Dividendos (socios y accionistas)</td></tr>
       <tr><td>Régimen:</td><td>Personas Físicas con Actividades Empresariales y Profesionales</td></tr>
+    </tbody></table>
+  </li>
+</ul>
+HTML;
+    }
+    private function fakeSatHtmlMoral(): string
+    {
+        return <<<'HTML'
+<ul><li>El RFC: ACO041014H30, tiene asociada la siguiente información.</li></ul>
+<ul>
+  <li data-role="list-divider">Datos de Identificación</li>
+  <li>
+    <table><tbody>
+      <tr><td>Denominación o Razón Social:</td><td>ALVHER CORPORATIVO</td></tr>
+      <tr><td>Régimen de capital:</td><td>SA DE CV</td></tr>
+      <tr><td>Situación del contribuyente:</td><td>ACTIVO</td></tr>
+    </tbody></table>
+  </li>
+</ul>
+<ul>
+  <li data-role="list-divider">Datos de Ubicación (domicilio fiscal, vigente)</li>
+  <li>
+    <table><tbody>
+      <tr><td>Tipo de vialidad:</td><td>CALLE</td></tr>
+      <tr><td>Nombre de la vialidad:</td><td>EJIDO LABOR DE DOLORES</td></tr>
+      <tr><td>Número exterior:</td><td>13202</td></tr>
+      <tr><td>Colonia:</td><td>LABOR DE TERRAZAS</td></tr>
+      <tr><td>Municipio o delegación:</td><td>CHIHUAHUA</td></tr>
+      <tr><td>Entidad Federativa:</td><td>CHIHUAHUA</td></tr>
+      <tr><td>CP:</td><td>31220</td></tr>
+      <tr><td>Correo electrónico:</td><td>cpalmaesparza@hotmail.com</td></tr>
+    </tbody></table>
+  </li>
+</ul>
+<ul>
+  <li data-role="list-divider">Características fiscales (vigente)</li>
+  <li>
+    <table><tbody>
+      <tr><td>Régimen:</td><td>Régimen General de Ley Personas Morales</td></tr>
     </tbody></table>
   </li>
 </ul>

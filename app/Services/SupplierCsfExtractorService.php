@@ -510,9 +510,17 @@ class SupplierCsfExtractorService
 
     private function firstValue(array $items, array $labels): ?string
     {
+        $lookup = $this->buildCanonicalItemLookup($items);
+
         foreach ($labels as $label) {
             if (! empty($items[$label][0])) {
                 return trim((string) $items[$label][0]);
+            }
+
+            $canonicalLabel = $this->canonicalLabel($label);
+
+            if (! empty($lookup[$canonicalLabel][0])) {
+                return trim((string) $lookup[$canonicalLabel][0]);
             }
         }
 
@@ -522,6 +530,7 @@ class SupplierCsfExtractorService
     private function allValues(array $items, array $labels): array
     {
         $values = [];
+        $lookup = $this->buildCanonicalItemLookup($items);
 
         foreach ($labels as $label) {
             foreach ($items[$label] ?? [] as $value) {
@@ -531,8 +540,49 @@ class SupplierCsfExtractorService
                     $values[] = $value;
                 }
             }
+
+            $canonicalLabel = $this->canonicalLabel($label);
+
+            foreach ($lookup[$canonicalLabel] ?? [] as $value) {
+                $value = trim((string) $value);
+
+                if ($value !== '') {
+                    $values[] = $value;
+                }
+            }
         }
 
         return array_values(array_unique($values));
+    }
+
+    private function buildCanonicalItemLookup(array $items): array
+    {
+        $lookup = [];
+
+        foreach ($items as $label => $values) {
+            $canonicalLabel = $this->canonicalLabel((string) $label);
+
+            if ($canonicalLabel === '') {
+                continue;
+            }
+
+            foreach (is_array($values) ? $values : [$values] as $value) {
+                $lookup[$canonicalLabel][] = $value;
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function canonicalLabel(?string $label): string
+    {
+        $label = Str::of($this->normalizeText($label))
+            ->replaceMatches('/[^a-z0-9]+/', ' ')
+            ->replaceMatches('/\b(de|del|la|las|el|los|y|o)\b/', ' ')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+
+        return $label;
     }
 }
