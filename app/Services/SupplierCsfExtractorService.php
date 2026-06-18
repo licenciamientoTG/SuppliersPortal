@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Zxing\QrReader;
 
 class SupplierCsfExtractorService
 {
@@ -149,7 +150,11 @@ class SupplierCsfExtractorService
 
         $candidates = array_values(array_unique(array_filter($candidates, fn ($url) => $this->isSatQrUrl($url))));
 
-        return $candidates[0] ?? null;
+        if ($candidates !== []) {
+            return $candidates[0];
+        }
+
+        return $this->extractSatUrlFromEmbeddedImage($contents);
     }
 
     private function decodePdfLiteralString(string $value): string
@@ -171,6 +176,176 @@ class SupplierCsfExtractorService
         return $host === 'siat.sat.gob.mx'
             && is_string($path)
             && str_contains($path, '/app/qr/faces/pages/mobile/validadorqr.jsf');
+    }
+
+    private function extractSatUrlFromEmbeddedImage(string $contents): ?string
+    {
+        foreach ($this->extractPdfImageCandidates($contents) as $index => $image) {
+            $tempPath = storage_path('app/tmp/supplier-csf/qr-image-' . Str::uuid() . '-' . $index . '.jpg');
+            $directory = dirname($tempPath);
+
+            if (! is_dir($directory)) {
+                mkdir($directory, 0777, true);
+            }
+
+            file_put_contents($tempPath, $image['bytes']);
+
+            try {
+                $qrUrl = $this->scanQrFromImage($tempPath);
+
+                if ($qrUrl && $this->isSatQrUrl($qrUrl)) {
+                    return $qrUrl;
+                }
+            } finally {
+                if (is_file($tempPath)) {
+                    @unlink($tempPath);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function extractPdfImageCandidates(string $contents): array
+    {
+        $pattern = '/(\d+)\s+(\d+)\s+obj\s*<<(?P<dict>.*?)>>\s*stream\r?\n/s';
+        preg_match_all($pattern, $contents, $matches, PREG_OFFSET_CAPTURE);
+
+        $images = [];
+
+        foreach ($matches[0] as $index => $wholeMatch) {
+            $dictionary = $matches['dict'][$index][0];
+
+            if (! str_contains($dictionary, '/Subtype /Image')) {
+                continue;
+            }
+
+            if (! preg_match('/\/Length\s+(\d+)/', $dictionary, $lengthMatch)) {
+                continue;
+            }
+
+            $length = (int) $lengthMatch[1];
+            $streamStart = $wholeMatch[1] + strlen($wholeMatch[0]);
+            $stream = substr($contents, $streamStart, $length);
+
+            if (! is_string($stream) || $stream === '') {
+                continue;
+            }
+
+            $filters = $this->extractFiltersFromDictionary($dictionary);
+            $bytes = $this->decodeImageStreamForQr($stream, $filters);
+
+            if ($bytes === null || $bytes === '') {
+                continue;
+            }
+
+            $images[] = [
+                'bytes' => $bytes,
+            ];
+        }
+
+        return $images;
+    }
+
+    private function extractFiltersFromDictionary(string $dictionary): array
+    {
+        if (! preg_match('/\/Filter\s*(\[(?<array>.*?)\]|\/(?<single>[A-Za-z0-9]+))/s', $dictionary, $matches)) {
+            return [];
+        }
+
+        if (! empty($matches['single'])) {
+            return [$matches['single']];
+        }
+
+        preg_match_all('/\/([A-Za-z0-9]+)/', $matches['array'] ?? '', $filterMatches);
+
+        return $filterMatches[1] ?? [];
+    }
+
+    private function decodeImageStreamForQr(string $stream, array $filters): ?string
+    {
+        $current = $stream;
+
+        foreach ($filters as $filter) {
+            if ($filter === 'FlateDecode') {
+                $decoded = @zlib_decode($current);
+
+                if ($decoded === false) {
+                    $decoded = @gzuncompress($current);
+                }
+
+                if ($decoded === false) {
+                    return null;
+                }
+
+                $current = $decoded;
+                continue;
+            }
+
+            if ($filter === 'DCTDecode') {
+                return $current;
+            }
+        }
+
+        if (str_starts_with($current, "\xFF\xD8\xFF")) {
+            return $current;
+        }
+
+        return null;
+    }
+
+    private function scanQrFromImage(string $imagePath): ?string
+    {
+        $reader = new QrReader($imagePath);
+        $text = $reader->text();
+
+        if (is_string($text) && $text !== '') {
+            return trim($text);
+        }
+
+        $image = @imagecreatefromstring((string) file_get_contents($imagePath));
+
+        if (! $image) {
+            return null;
+        }
+
+        try {
+            $crops = [
+                ['x' => 0, 'y' => 0, 'width' => 300, 'height' => 300],
+                ['x' => 0, 'y' => 0, 'width' => 260, 'height' => 320],
+                ['x' => 20, 'y' => 40, 'width' => 200, 'height' => 220],
+                ['x' => 30, 'y' => 70, 'width' => 170, 'height' => 190],
+            ];
+
+            foreach ($crops as $crop) {
+                $cropped = @imagecrop($image, $crop);
+
+                if (! $cropped) {
+                    continue;
+                }
+
+                $tempCropPath = storage_path('app/tmp/supplier-csf/qr-crop-' . Str::uuid() . '.jpg');
+
+                try {
+                    imagejpeg($cropped, $tempCropPath, 100);
+                    $cropText = (new QrReader($tempCropPath))->text();
+
+                    if (is_string($cropText) && trim($cropText) !== '') {
+                        return trim($cropText);
+                    }
+                } finally {
+                    imagedestroy($cropped);
+
+                    if (is_file($tempCropPath)) {
+                        @unlink($tempCropPath);
+                    }
+                }
+            }
+        } finally {
+            imagedestroy($image);
+        }
+
+        return null;
     }
 
     private function normalizeParsedResult(array $parsed): array
@@ -272,6 +447,17 @@ class SupplierCsfExtractorService
             $key = $this->normalizeText($label);
 
             if (! isset($catalog[$key])) {
+                foreach ($catalog as $catalogKey => $catalogRegime) {
+                    if (str_contains($key, $catalogKey) || str_contains($catalogKey, $key)) {
+                        $regime = $catalogRegime;
+                        $normalized[$regime['code']] = [
+                            'code' => $regime['code'],
+                            'label' => $regime['label'],
+                        ];
+                        continue 2;
+                    }
+                }
+
                 continue;
             }
 

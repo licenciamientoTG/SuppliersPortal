@@ -40,7 +40,7 @@ return [
     ],
 
     'sat' => [
-        'verify_ssl' => env('SAT_VERIFY_SSL', true),
+        'verify_ssl' => env('SAT_VERIFY_SSL', false),
     ],
 
 ];
