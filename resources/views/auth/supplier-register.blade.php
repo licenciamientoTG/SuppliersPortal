@@ -32,64 +32,44 @@
             background: linear-gradient(135deg, #0d2b5e 0%, #123d80 45%, #0f2c5b 100%);
             padding: 24px;
             color: #17212f;
+            overflow-x: hidden;
         }
         .page-shell {
-            max-width: 1080px;
+            max-width: 980px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 22px;
-            align-items: start;
+            min-height: calc(100vh - 48px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .hero-card, .form-card {
+        .form-card {
             background: rgba(255, 255, 255, 0.98);
             border-radius: 18px;
             box-shadow: 0 18px 48px rgba(7, 21, 45, 0.28);
+            overflow: hidden;
+            width: 100%;
         }
-        .hero-card {
-            padding: 28px;
-            position: sticky;
-            top: 24px;
-        }
-        .hero-card img { width: 150px; height: auto; }
-        .hero-title {
-            margin: 18px 0 10px;
-            font-size: 1.8rem;
-            line-height: 1.1;
-            color: #123d80;
-        }
-        .hero-copy {
-            color: #4f5f73;
-            font-size: 0.95rem;
-            line-height: 1.65;
-        }
-        .hero-points {
-            margin: 22px 0 0;
-            padding: 0;
-            list-style: none;
-            display: grid;
-            gap: 12px;
-        }
-        .hero-points li {
-            border: 1px solid #d9e4f2;
-            border-radius: 14px;
-            padding: 12px 14px;
-            background: #f8fbff;
-            font-size: 0.9rem;
-            color: #29425f;
-        }
-        .form-card { overflow: hidden; }
         .form-header {
-            padding: 22px 26px;
+            padding: 22px 26px 18px;
             border-bottom: 1px solid #e5edf6;
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 12px;
         }
+        .form-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .form-brand img {
+            width: 138px;
+            height: auto;
+            flex-shrink: 0;
+        }
         .form-header h1 {
             margin: 0;
-            font-size: 1.45rem;
+            font-size: 1.38rem;
             color: #143a72;
         }
         .form-header p {
@@ -293,39 +273,38 @@
         }
         .hidden { display: none !important; }
         @media (max-width: 960px) {
-            .page-shell { grid-template-columns: 1fr; }
-            .hero-card { position: static; }
+            .page-shell {
+                align-items: start;
+            }
         }
         @media (max-width: 640px) {
             body { padding: 14px; }
-            .form-header, .form-body, .footer-bar, .hero-card { padding-left: 18px; padding-right: 18px; }
+            .form-header, .form-body, .footer-bar { padding-left: 18px; padding-right: 18px; }
             .grid, .check-grid { grid-template-columns: 1fr; }
             .footer-bar { flex-direction: column-reverse; align-items: stretch; }
             .footer-bar .btn { width: 100%; }
+            .form-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .form-brand {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="page-shell">
-        <aside class="hero-card">
-            <img src="{{ asset('images/logos/logo_TotalGas_ver.png') }}" alt="TotalGas">
-            <h2 class="hero-title">Alta de proveedor con lectura de constancia fiscal</h2>
-            <p class="hero-copy">
-                Para proveedores nacionales, primero analizamos tu constancia de situacion fiscal en PDF y llenamos
-                automaticamente los datos del SAT. Para proveedores extranjeros, el registro sigue siendo manual.
-            </p>
-            <ul class="hero-points">
-                <li>Tu RFC, domicilio fiscal y regimenes se cargan desde SAT cuando la constancia es valida.</li>
-                <li>Actividades economicas, contacto, servicios y REPSE se siguen completando aqui.</li>
-                <li>Antes de enviar, deberas confirmar que los datos son correctos para deslinde ante fraude.</li>
-            </ul>
-        </aside>
-
         <main class="form-card">
             <div class="form-header">
-                <div>
-                    <h1>Registro de proveedor</h1>
-                    <p>Completa la informacion para crear tu cuenta y continuar con la carga documental.</p>
+                <div class="form-brand">
+                    <img src="{{ asset('images/logos/logo_TotalGas_ver.png') }}" alt="TotalGas">
+                    <div>
+                        <h1>Registro de proveedor</h1>
+                        <p>Completa tu alta y continua con la carga documental del portal.</p>
+                    </div>
                 </div>
                 <span class="pill">Formulario unico</span>
             </div>
