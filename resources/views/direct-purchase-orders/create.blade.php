@@ -495,6 +495,39 @@
         height: 100% !important;
         top: 0 !important;
     }
+
+    #items-table {
+        table-layout: auto;
+        min-width: 1180px;
+    }
+
+    #items-table th:nth-child(4),
+    #items-table td:nth-child(4) {
+        min-width: 90px;
+    }
+
+    #items-table th:nth-child(5),
+    #items-table td:nth-child(5),
+    #items-table th:nth-child(7),
+    #items-table td:nth-child(7),
+    #items-table th:nth-child(8),
+    #items-table td:nth-child(8),
+    #items-table th:nth-child(9),
+    #items-table td:nth-child(9) {
+        min-width: 120px;
+        white-space: nowrap;
+    }
+
+    #items-table .item-quantity,
+    #items-table .item-unit-price,
+    #items-table .item-subtotal,
+    #items-table .item-iva,
+    #items-table .item-total {
+        width: 100%;
+        min-width: 100%;
+        white-space: nowrap;
+        overflow: visible;
+    }
 </style>
 @endpush
 
