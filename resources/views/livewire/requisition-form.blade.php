@@ -453,6 +453,9 @@
 @push('scripts')
 <script>
 
+let itemModalInitialState = null;
+let allowItemModalClose = false;
+
 // =====================================================
 // FUNCIÓN PARA CONFIRMAR ELIMINACIÓN DE PARTIDA
 // =====================================================
@@ -857,7 +860,75 @@ $(function() {
         initializeExpenseCategorySelect();
     }
 
+    function getItemModalState() {
+        return JSON.stringify({
+            purchase_type: $('#modal_purchase_type').val() || '',
+            cost_center_id: $('#modal_cost_center_id').val() || '',
+            product_id: $('#modal_product_id').val() || '',
+            description: $('#modal_description').val() || '',
+            quantity: $('#modal_quantity').val() || '',
+            unit: $('#modal_unit').val() || '',
+            expense_category_id: $('#modal_expense_category').val() || '',
+            budget_cedula_id: $('#modal_budget_cedula').val() || '',
+            notes: $('#modal_notes').val() || ''
+        });
+    }
+
+    function setItemModalInitialState() {
+        itemModalInitialState = getItemModalState();
+    }
+
+    function itemModalHasUnsavedChanges() {
+        if (itemModalInitialState === null) {
+            return false;
+        }
+
+        return getItemModalState() !== itemModalInitialState;
+    }
+
+    function confirmItemModalClose(onConfirm) {
+        Swal.fire({
+            title: '¿Cerrar sin guardar?',
+            text: 'Tienes cambios sin guardar en la partida. Si continúas, se perderán.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cerrar',
+            cancelButtonText: 'Seguir editando',
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#0d6efd'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                onConfirm();
+            }
+        });
+    }
+
     initializeRequisitionSelects();
+
+    $('#itemModal')
+        .off('hide.bs.modal.requisitionGuard')
+        .on('hide.bs.modal.requisitionGuard', function(e) {
+            if (allowItemModalClose) {
+                return;
+            }
+
+            if (!itemModalHasUnsavedChanges()) {
+                itemModalInitialState = null;
+                return;
+            }
+
+            e.preventDefault();
+
+            confirmItemModalClose(() => {
+                allowItemModalClose = true;
+                $('#itemModal').modal('hide');
+            });
+        })
+        .off('hidden.bs.modal.requisitionGuard')
+        .on('hidden.bs.modal.requisitionGuard', function() {
+            allowItemModalClose = false;
+            itemModalInitialState = null;
+        });
 
     // =====================================================
     // LISTENER: Cambio de Tipo de Compra en modal
@@ -1497,6 +1568,7 @@ $(function() {
 
     openItemModal = function() {
         editingIndex = null;
+        allowItemModalClose = false;
 
         $('#itemModalTitle').text('Agregar Partida');
         document.getElementById('itemForm').reset();
@@ -1516,10 +1588,12 @@ $(function() {
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
 
         $('#itemModal').modal('show');
+        setTimeout(setItemModalInitialState, 100);
     }
 
     openItemModalForEdit = function(index, item) {
         editingIndex = index;
+        allowItemModalClose = false;
 
         $('#itemModalTitle').text('Editar Partida');
         $('#item_index').val(index);
@@ -1538,6 +1612,7 @@ $(function() {
             $('#modal_budget_cedula').data('pending-value', item.budget_cedula_id || null);
             $('#modal_expense_category').val(item.expense_category_id).trigger('change');
             $('#modal_notes').val(item.notes || '');
+            setTimeout(setItemModalInitialState, 200);
         }, 600);
 
         $('#itemModal').modal('show');
@@ -1552,6 +1627,7 @@ $(function() {
                 return;
             }
 
+            allowItemModalClose = true;
             $modal.one('hidden.bs.modal', resolve);
             $modal.modal('hide');
         });
