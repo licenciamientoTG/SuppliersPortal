@@ -193,7 +193,7 @@
                                             <select name="items[{{ $index }}][cost_center_id]"
                                                     class="form-select form-select-sm border-0 item-cost-center"
                                                     data-selected="{{ old("items.$index.cost_center_id", $item->cost_center_id) }}"
-                                                    required disabled>
+                                                    required>
                                                 <option value="">Seleccione empresa y tipo...</option>
                                             </select>
                                         </td>
@@ -528,12 +528,21 @@ $(document).ready(function() {
     }
 
     function buildCostCenterOptions(selectedValue = '') {
+        const companyId = $('#company_id').val();
+        const purchaseType = $('#purchase_type').val();
         const options = getFilteredCostCenters();
+
+        if (!companyId || !purchaseType) {
+            return {
+                html: '<option value="">Seleccione empresa y tipo...</option>',
+                disabled: false
+            };
+        }
 
         if (!options.length) {
             return {
                 html: '<option value="">Sin centros de costo disponibles</option>',
-                disabled: true
+                disabled: false
             };
         }
 
@@ -610,7 +619,6 @@ $(document).ready(function() {
 
     function refreshItemCostCenters() {
         const options = buildCostCenterOptions();
-        const hasFilters = !!($('#company_id').val() && $('#purchase_type').val());
 
         $('.item-row').each(function() {
             const row = $(this);
@@ -621,7 +629,7 @@ $(document).ready(function() {
                 select.select2('destroy');
             }
 
-            select.html(options.html).prop('disabled', options.disabled || !hasFilters);
+            select.html(options.html).prop('disabled', options.disabled);
 
             if (selectedValue && select.find(`option[value="${selectedValue}"]`).length) {
                 select.val(String(selectedValue));
@@ -735,7 +743,7 @@ $(document).ready(function() {
             <tr class="item-row">
                 <td class="ps-2"><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td>
-                    <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required ${costCenterOptions.disabled ? 'disabled' : ''}>
+                    <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required>
                         ${costCenterOptions.html}
                     </select>
                 </td>

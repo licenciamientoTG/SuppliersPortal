@@ -28,8 +28,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
 
     public function rules(): array
     {
-        $isUpdate = $this->route('directPurchaseOrder') !== null;
-
         return [
             // ✅ AGREGADOS: Proveedor y Mes de aplicación
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
@@ -60,8 +58,8 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'items.*.sku' => ['nullable', 'string', 'max:100'],
             'items.*.notes' => ['nullable', 'string'],
 
-            // Documentos: required en store, nullable en update
-            'quotation_file' => [$isUpdate ? 'nullable' : 'required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            // Documentos
+            'quotation_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'support_documents' => ['nullable', 'array', 'max:5'],
             'support_documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx', 'max:5120'],
         ];
@@ -111,7 +109,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'items.*.iva_rate.in' => 'La tasa de IVA debe ser 0%, 8% o 16%.',
 
             // Documentos
-            'quotation_file.required' => 'Debe adjuntar la cotización del proveedor.',
             'quotation_file.mimes' => 'La cotización debe ser un archivo PDF o imagen (JPG, PNG).',
             'quotation_file.max' => 'La cotización no puede pesar más de 5MB.',
             'support_documents.max' => 'No puede adjuntar más de 5 documentos de soporte.',

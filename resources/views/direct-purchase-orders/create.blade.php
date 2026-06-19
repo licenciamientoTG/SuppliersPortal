@@ -194,7 +194,7 @@
                                                 <select name="items[{{ $index }}][cost_center_id]"
                                                         class="form-select form-select-sm border-0 item-cost-center"
                                                         data-selected="{{ $item['cost_center_id'] ?? '' }}"
-                                                        required disabled>
+                                                        required>
                                                     <option value="">Seleccione empresa y tipo...</option>
                                                 </select>
                                             </td>
@@ -271,7 +271,7 @@
                                         <td>
                                             <select name="items[0][cost_center_id]"
                                                     class="form-select form-select-sm border-0 item-cost-center"
-                                                    required disabled>
+                                                    required>
                                                 <option value="">Seleccione empresa y tipo...</option>
                                             </select>
                                         </td>
@@ -334,8 +334,9 @@
                     {{-- ADJUNTOS COMPACTOS --}}
                     <div class="row g-2 mt-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Cotización <span class="text-danger">*</span></label>
-                            <input type="file" name="quotation_file" id="quotation_file" class="form-control form-control-sm @error('quotation_file') is-invalid @enderror" accept=".pdf,.jpg,.jpeg,.png" required>
+                            <label class="form-label small fw-bold">Cotización <span class="text-muted fw-normal">(opcional)</span></label>
+                            <input type="file" name="quotation_file" id="quotation_file" class="form-control form-control-sm @error('quotation_file') is-invalid @enderror" accept=".pdf,.jpg,.jpeg,.png">
+                            <small class="text-muted d-block">Documento opcional.</small>
                             <small class="text-muted">PDF, JPG o PNG (máx. 5MB)</small>
                             @error('quotation_file') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
@@ -579,12 +580,21 @@ $(document).ready(function() {
     }
 
     function buildCostCenterOptions(selectedValue = '') {
+        const companyId = $('#company_id').val();
+        const purchaseType = $('#purchase_type').val();
         const options = getFilteredCostCenters();
+
+        if (!companyId || !purchaseType) {
+            return {
+                html: '<option value="">Seleccione empresa y tipo...</option>',
+                disabled: false
+            };
+        }
 
         if (!options.length) {
             return {
                 html: '<option value="">Sin centros de costo disponibles</option>',
-                disabled: true
+                disabled: false
             };
         }
 
@@ -661,7 +671,6 @@ $(document).ready(function() {
 
     function refreshItemCostCenters() {
         const options = buildCostCenterOptions();
-        const hasFilters = !!($('#company_id').val() && $('#purchase_type').val());
 
         $('.item-row').each(function() {
             const row = $(this);
@@ -672,7 +681,7 @@ $(document).ready(function() {
                 select.select2('destroy');
             }
 
-            select.html(options.html).prop('disabled', options.disabled || !hasFilters);
+            select.html(options.html).prop('disabled', options.disabled);
 
             if (selectedValue && select.find(`option[value="${selectedValue}"]`).length) {
                 select.val(String(selectedValue));
@@ -780,7 +789,7 @@ $(document).ready(function() {
             <tr class="item-row">
                 <td class="ps-2"><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td>
-                    <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required ${costCenterOptions.disabled ? 'disabled' : ''}>
+                    <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required>
                         ${costCenterOptions.html}
                     </select>
                 </td>
