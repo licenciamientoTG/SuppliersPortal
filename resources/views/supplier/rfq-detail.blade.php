@@ -14,6 +14,12 @@
     $defaultCurrency = (in_array('USD', $acceptedCurrencies, true) && ! in_array('MXN', $acceptedCurrencies, true))
         ? 'USD'
         : 'MXN';
+
+    $itemPurchasingNotes = $items
+        ->pluck('notes')
+        ->filter(fn ($note) => filled($note))
+        ->unique()
+        ->values();
 @endphp
 
 @section('title', 'Cotizar RFQ - ' . $rfq->folio)
@@ -155,15 +161,6 @@
                         </div>
                         @endif
 
-                        @if($rfq->notes)
-                        @if($rfq->message || $rfq->requirements)<hr class="my-2">@endif
-                        <div class="mb-0">
-                            <label class="text-muted d-block fw-semibold" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="ti ti-notes me-1"></i>Observaciones de Compras
-                            </label>
-                            <p class="mb-0 small" style="white-space: pre-line;">{{ $rfq->notes }}</p>
-                        </div>
-                        @endif
                     </div>
                 </div>
                 @endif
@@ -197,6 +194,15 @@
                                 <i class="ti ti-calendar me-1 text-primary"></i>
                                 {{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}
                             </span>
+                        </div>
+                        @endif
+
+                        @if($itemPurchasingNotes->isNotEmpty())
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Nota de Compras</small>
+                            @foreach($itemPurchasingNotes as $note)
+                                <span class="d-block small" style="white-space: pre-line;">{{ $note }}</span>
+                            @endforeach
                         </div>
                         @endif
 
@@ -1543,3 +1549,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+

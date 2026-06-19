@@ -65,6 +65,7 @@
                                             data-delivery="{{ $winningResponses->max('delivery_days') ?? 0 }}"
                                             data-role="{{ $summary->authorizerRole?->name ?? 'Sin rol' }}"
                                             data-limit="{{ $summary->effective_authorization_limit !== null ? number_format((float) $summary->effective_authorization_limit, 2) : 'Sin límite' }}"
+                                            data-budget='@json($summary->budget_snapshot)'
                                             data-items='@json(json_decode($itemsJson, true))'>
                                             Revisar
                                         </button>
@@ -134,6 +135,49 @@
                         <div class="col-md-6">
                             <small class="text-muted d-block">Límite efectivo del aprobador</small>
                             <strong id="modal_limit"></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 bg-soft-success mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted d-block mb-0">Presupuesto asignado a revisar</small>
+                            <strong class="text-success" id="modal_budget_available_total"></strong>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">Asignado</small>
+                                <strong id="modal_budget_assigned_total"></strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">Comprometido</small>
+                                <strong id="modal_budget_committed_total"></strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">Disponible</small>
+                                <strong id="modal_budget_remaining_total"></strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">Solicitud</small>
+                                <strong id="modal_budget_requested_total"></strong>
+                            </div>
+                        </div>
+                        <div id="modal_budget_error" class="alert alert-warning py-2 px-3 mb-2 d-none"></div>
+                        <div class="table-responsive border rounded bg-white">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>CC / Categoría / Cédula</th>
+                                        <th>Mes</th>
+                                        <th class="text-end">Asignado</th>
+                                        <th class="text-end">Comprometido</th>
+                                        <th class="text-end">Disponible</th>
+                                        <th class="text-end">Solicitud</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal_budget_table"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -217,6 +261,42 @@
         $('#modal_justification').text(data.justification || 'Sin justificación registrada.');
         $('#modal_role').text(data.role || 'Sin rol');
         $('#modal_limit').text(data.limit ? '$' + data.limit : 'Sin límite');
+
+        const budget = data.budget || {};
+        $('#modal_budget_assigned_total').text(budget.assigned_total || '—');
+        $('#modal_budget_committed_total').text(budget.committed_total || '—');
+        $('#modal_budget_remaining_total').text(budget.available_total || '—');
+        $('#modal_budget_requested_total').text(budget.requested_total || '—');
+        $('#modal_budget_available_total').text(
+            budget.has_budget_totals ? `Disponible actual: ${budget.available_total || '—'}` : 'Centro de consumo libre o sin límite'
+        );
+        $('#modal_budget_error')
+            .toggleClass('d-none', !budget.error)
+            .text(budget.error || '');
+
+        let budgetHtml = '';
+        (budget.lines || []).forEach(line => {
+            budgetHtml += `
+                <tr>
+                    <td>
+                        <div class="fw-semibold">${line.cost_center || 'Sin centro de costo'}</div>
+                        <div class="text-muted small">${line.expense_category || 'Sin categoría'} · ${line.budget_cedula || 'Sin subcategoría'}</div>
+                        ${line.message ? `<div class="small ${line.is_available ? 'text-success' : 'text-danger'}">${line.message}</div>` : ''}
+                    </td>
+                    <td>${line.application_month || '—'}</td>
+                    <td class="text-end">${line.assigned_amount || '—'}</td>
+                    <td class="text-end">${line.committed_amount || '—'}</td>
+                    <td class="text-end">${line.available_amount || '—'}</td>
+                    <td class="text-end fw-semibold">${line.requested_amount || '—'}</td>
+                </tr>
+            `;
+        });
+
+        if (!budgetHtml) {
+            budgetHtml = '<tr><td colspan="6" class="text-center text-muted py-3">No se encontró desglose presupuestal para esta adjudicación.</td></tr>';
+        }
+
+        $('#modal_budget_table').html(budgetHtml);
 
         let itemsHtml = '';
         (data.items || []).forEach(item => {

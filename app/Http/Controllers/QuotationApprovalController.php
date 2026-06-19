@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class QuotationApprovalController extends Controller
 {
@@ -27,7 +28,9 @@ class QuotationApprovalController extends Controller
     {
         $pendingApprovals = QuotationSummary::with([
             'requisition',
-            'rfq.rfqResponses.requisitionItem',
+            'rfq.rfqResponses.requisitionItem.costCenter',
+            'rfq.rfqResponses.requisitionItem.expenseCategory',
+            'rfq.rfqResponses.requisitionItem.budgetCedula',
             'selectedSupplier',
             'authorizerRole',
             'requester',
@@ -35,9 +38,91 @@ class QuotationApprovalController extends Controller
             ->pending()
             ->assignedTo(Auth::id())
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->each(function (QuotationSummary $summary) {
+                $summary->setAttribute('budget_snapshot', $this->buildBudgetSnapshot($summary));
+            });
 
         return view('quotations.index', compact('pendingApprovals'));
+    }
+
+    private function buildBudgetSnapshot(QuotationSummary $summary): array
+    {
+        try {
+            $lines = collect($this->budgetAllocationService->buildQuotationSummaryBudgetLines($summary))
+                ->map(function (array $line) use ($summary) {
+                    $matchingResponse = $summary->rfq->rfqResponses->first(function ($response) use ($summary, $line) {
+                        $item = $response->requisitionItem;
+
+                        return (int) $response->supplier_id === (int) $summary->selected_supplier_id
+                            && (int) $item?->cost_center_id === (int) $line['cost_center_id']
+                            && (int) $item?->expense_category_id === (int) $line['expense_category_id']
+                            && (int) ($item?->budget_cedula_id ?? 0) === (int) ($line['budget_cedula_id'] ?? 0);
+                    });
+
+                    $item = $matchingResponse?->requisitionItem;
+                    $budgetCheck = $this->budgetAllocationService->checkAvailability(
+                        (int) $line['cost_center_id'],
+                        (int) $line['year'],
+                        (int) $line['month'],
+                        (int) $line['expense_category_id'],
+                        (float) $line['amount'],
+                        $line['budget_cedula_id'] ?? null
+                    );
+
+                    return [
+                        'application_month' => $line['application_month'],
+                        'cost_center' => trim(collect([
+                            $item?->costCenter?->code,
+                            $item?->costCenter?->name,
+                        ])->filter()->implode(' - ')),
+                        'expense_category' => $item?->expenseCategory?->name ?? 'Sin categoría',
+                        'budget_cedula' => $item?->budgetCedula?->name ?? 'Sin subcategoría',
+                        'requested_amount' => '$' . number_format((float) $line['amount'], 2),
+                        'assigned_amount' => array_key_exists('assigned_amount', $budgetCheck)
+                            ? '$' . number_format((float) $budgetCheck['assigned_amount'], 2)
+                            : 'Consumo libre',
+                        'committed_amount' => array_key_exists('committed_amount', $budgetCheck)
+                            ? '$' . number_format((float) $budgetCheck['committed_amount'], 2)
+                            : '—',
+                        'available_amount' => array_key_exists('available_amount', $budgetCheck)
+                            ? '$' . number_format((float) $budgetCheck['available_amount'], 2)
+                            : 'No limitado',
+                        'is_available' => (bool) ($budgetCheck['available'] ?? false),
+                        'message' => $budgetCheck['message'] ?? null,
+                        'assigned_raw' => isset($budgetCheck['assigned_amount']) ? (float) $budgetCheck['assigned_amount'] : null,
+                        'committed_raw' => isset($budgetCheck['committed_amount']) ? (float) $budgetCheck['committed_amount'] : null,
+                        'available_raw' => isset($budgetCheck['available_amount']) ? (float) $budgetCheck['available_amount'] : null,
+                        'requested_raw' => (float) $line['amount'],
+                    ];
+                })
+                ->values();
+
+            return [
+                'lines' => $lines->map(fn (array $line) => collect($line)->except([
+                    'assigned_raw',
+                    'committed_raw',
+                    'available_raw',
+                    'requested_raw',
+                ])->all())->all(),
+                'assigned_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['assigned_raw'] ?? 0), 2),
+                'committed_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['committed_raw'] ?? 0), 2),
+                'available_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['available_raw'] ?? 0), 2),
+                'requested_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['requested_raw'] ?? 0), 2),
+                'has_budget_totals' => $lines->contains(fn (array $line) => $line['assigned_raw'] !== null),
+                'error' => null,
+            ];
+        } catch (Throwable $exception) {
+            return [
+                'lines' => [],
+                'assigned_total' => '—',
+                'committed_total' => '—',
+                'available_total' => '—',
+                'requested_total' => '—',
+                'has_budget_totals' => false,
+                'error' => $exception->getMessage(),
+            ];
+        }
     }
 
     public function handle(Request $request, QuotationSummary $summary)

@@ -118,7 +118,10 @@
                                         ? \Carbon\Carbon::parse($quotationDate)->addDays($minValidity)
                                         : null;
                                     $isExpired = $expiryDate && $expiryDate->isPast();
-                                    $expiresSoon = $expiryDate && !$isExpired && $expiryDate->diffInDays(now()) <= 3;
+                                    $daysUntilExpiry = $expiryDate
+                                        ? max(0, now()->startOfDay()->diffInDays($expiryDate->copy()->startOfDay(), false))
+                                        : null;
+                                    $expiresSoon = $daysUntilExpiry !== null && !$isExpired && $daysUntilExpiry <= 3;
 
                                     // Monedas usadas por este proveedor
                                     $currencies = $supplierResponses->pluck('currency')->unique()->filter()->values();
@@ -150,7 +153,7 @@
                                                 </span>
                                             @elseif($expiresSoon)
                                                 <span class="badge bg-warning text-dark fs-9" title="Vence el {{ $expiryDate->format('d/m/Y') }}">
-                                                    <i class="ti ti-clock me-1"></i>VENCE EN {{ $expiryDate->diffInDays(now()) }}d
+                                                    <i class="ti ti-clock me-1"></i>VENCE EN {{ $daysUntilExpiry }}d
                                                 </span>
                                             @else
                                                 <span class="badge bg-success fs-9 shadow-sm">OFERTA VIGENTE</span>
