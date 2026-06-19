@@ -54,7 +54,7 @@
 
 
                     {{-- Ubicación de recepción --}}
-                    <div class="col-md-3">
+                    <div class="col-md-3" wire:ignore>
                         <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -754,6 +754,9 @@ $(function() {
             $cc.prop('disabled', true)
                .append('<option value="">Selecciona primero el tipo de compra...</option>');
             $('#modal_cost_center_help').text('');
+            initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
+                dropdownParent: $('#itemModal')
+            });
             return;
         }
 
@@ -766,6 +769,9 @@ $(function() {
             $cc.prop('disabled', true)
                .append('<option value="">Sin centros de costo para esta combinación</option>');
             $('#modal_cost_center_help').text('No tienes centros de costo asignados para este tipo de compra.');
+            initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
+                dropdownParent: $('#itemModal')
+            });
             return;
         }
 
@@ -788,6 +794,10 @@ $(function() {
         } else if (matches.length === 1) {
             $cc.val(String(matches[0].id));
         }
+
+        initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
+            dropdownParent: $('#itemModal')
+        });
 
         if ($cc.val()) {
             loadProductsForCostCenter();
@@ -824,7 +834,25 @@ $(function() {
         });
     }
 
+    function initializeHeaderSelects() {
+        initializeSearchableSelect($('#company_id'), 'Seleccionar compañía...');
+        initializeSearchableSelect($('#receiving_location_id'), 'Seleccionar ubicación de recepción...');
+    }
+
+    function initializeModalBaseSelects() {
+        initializeSearchableSelect($('#modal_purchase_type'), 'Seleccionar tipo de compra...', {
+            dropdownParent: $('#itemModal'),
+            minimumResultsForSearch: Infinity
+        });
+
+        initializeSearchableSelect($('#modal_cost_center_id'), 'Seleccionar centro de costo...', {
+            dropdownParent: $('#itemModal')
+        });
+    }
+
     function initializeRequisitionSelects() {
+        initializeHeaderSelects();
+        initializeModalBaseSelects();
         initializeExpenseCategorySelect();
     }
 
@@ -837,6 +865,26 @@ $(function() {
         .off('change.modalPurchaseType', '#modal_purchase_type')
         .on('change.modalPurchaseType', '#modal_purchase_type', function () {
             renderModalCostCenters('reset');
+        });
+
+    $(document)
+        .off('change.requisitionCompany', '#company_id')
+        .on('change.requisitionCompany', '#company_id', function () {
+            const wire = getRequisitionWire();
+
+            if (wire) {
+                wire.$set('company_id', $(this).val() || '', false);
+            }
+        });
+
+    $(document)
+        .off('change.requisitionLocation', '#receiving_location_id')
+        .on('change.requisitionLocation', '#receiving_location_id', function () {
+            const wire = getRequisitionWire();
+
+            if (wire) {
+                wire.$set('receiving_location_id', $(this).val() || '', false);
+            }
         });
 
     // =====================================================
