@@ -85,6 +85,7 @@
                             </span>
                             <input type="date"
                                    id="required_date"
+                                   value="{{ $required_date }}"
                                    class="form-control @error('required_date') is-invalid @enderror">
                         </div>
                         @error('required_date')
