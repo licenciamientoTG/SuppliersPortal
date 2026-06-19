@@ -56,6 +56,8 @@
 
     $deadline        = $rfq->response_deadline;
     $daysRemaining   = $deadline ? now()->diffInDays($deadline, false) : null;
+
+    $supplierEmails  = $rfq->suppliers->pluck('email')->filter()->implode(', ');
 @endphp
 
 {{-- ================================================================
@@ -850,14 +852,16 @@ $(document).ready(function() {
     $('[data-bs-toggle="tooltip"]').tooltip();
 
     function confirmSend() {
+        const folio = @json($rfq->folio);
+        const emails = @json($supplierEmails);
+        let emailsHtml = emails ? `<div class="mt-3 text-start"><p class="mb-1 text-muted small">Se notificará a:</p><ul class="list-group">${emails.split(', ').map(e => `<li class="list-group-item py-1 small"><i class="ti ti-mail me-2"></i>${e}</li>`).join('')}</ul></div>` : '';
+
         Swal.fire({
             icon: 'question',
-            title: '¿Enviar RFQ?',
-            html: '¿Confirmas el envío a los <strong>{{ $totalSuppliers }}</strong> proveedores invitados?<br>' +
-                  '<small class="text-muted">Se enviarán notificaciones por correo electrónico.</small>',
+            title: '¿Confirmar envío?',
+            html: `¿Enviar la solicitud <strong>${folio}</strong>?${emailsHtml}`,
             showCancelButton: true,
-            confirmButtonText: '<i class="ti ti-send me-1"></i>Sí, enviar',
-            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Sí, enviar',
             confirmButtonColor: '#198754'
         }).then(r => { if (r.isConfirmed) sendRFQ(); });
     }
@@ -911,19 +915,15 @@ $(document).ready(function() {
     });
 
     function sendRFQ() {
-        Swal.fire({ title: 'Enviando...', html: 'Por favor espera', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        $.ajax({
-            url: '{{ route("rfq.send.single", $rfq) }}',
-            method: 'POST',
-            data: { _token: '{{ csrf_token() }}' },
-            success: r => {
-                if (r.success) {
-                    Swal.fire({ icon: 'success', title: '¡Enviada!', text: r.message, timer: 2000, showConfirmButton: false })
+        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        $.post('{{ route("rfq.send.single", $rfq) }}', { _token: '{{ csrf_token() }}' })
+            .done(response => {
+                if (response.success) {
+                    Swal.fire({ icon: 'success', title: '¡Enviado!', text: response.message, timer: 2000 })
                         .then(() => location.reload());
                 }
-            },
-            error: xhr => Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'No se pudo enviar' })
-        });
+            })
+            .fail(xhr => Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'No se pudo enviar' }));
     }
 
     function cancelRFQ(reason) {
