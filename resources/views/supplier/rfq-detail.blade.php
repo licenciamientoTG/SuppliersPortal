@@ -471,6 +471,12 @@
                                                 @if(!empty($item->notes))
                                                     <div class="mt-2 p-2 rounded bg-info bg-opacity-10 border border-info border-opacity-25">
                                                         <small class="text-info-emphasis d-block">
+                                                            <i class="ti ti-info-circle me-1"></i><strong>Nota de compras:</strong>
+                                                        </small>
+                                                        <small class="text-info-emphasis d-block mt-1">
+                                                            {{ $item->notes }}
+                                                        </small>
+                                                        <small class="text-info-emphasis d-block mt-2">
                                                             <i class="ti ti-message-2 me-1"></i><strong>Observación del solicitante:</strong>
                                                         </small>
                                                         <small class="text-info-emphasis d-block mt-1">
