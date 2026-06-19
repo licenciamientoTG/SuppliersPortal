@@ -65,6 +65,8 @@ class RegisterSupplierRequest extends FormRequest
             'economic_activity' => ['required', 'array', 'min:1'],
             'economic_activity.*' => ['required', 'string', 'max:150'],
             'default_payment_terms' => ['required', Rule::in(array_column(PaymentTerm::cases(), 'value'))],
+            'accepted_currencies' => ['required', 'array', 'min:1'],
+            'accepted_currencies.*' => ['string', Rule::in(['MXN', 'USD'])],
         ];
     }
 
@@ -109,6 +111,10 @@ class RegisterSupplierRequest extends FormRequest
             'otros_descripcion.required_if' => 'Debe especificar que otros servicios ofrece.',
             'default_payment_terms.required' => 'Las condiciones de pago son obligatorias.',
             'default_payment_terms.in' => 'Las condiciones de pago seleccionadas no son validas.',
+            'accepted_currencies.required' => 'Debe seleccionar al menos una moneda que maneja.',
+            'accepted_currencies.array' => 'Las monedas deben enviarse como una lista valida.',
+            'accepted_currencies.min' => 'Debe seleccionar al menos una moneda que maneja.',
+            'accepted_currencies.*.in' => 'Solo se permiten las monedas MXN o USD.',
         ];
     }
 

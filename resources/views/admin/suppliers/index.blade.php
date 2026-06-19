@@ -24,6 +24,7 @@
                         <th>Teléfono</th>
                         <th>Correo</th>
                         <th>Banco</th>
+                        <th>Monedas</th>
                         <th>Último acceso</th>
                         <th>Aprobación</th>
                         <th>Documentos</th>
@@ -63,6 +64,7 @@ $(function () {
             { data: 'contact_phone' },
             { data: 'email' },
             { data: 'bank_name' },
+            { data: 'accepted_currencies', orderable: false, searchable: false, className: 'text-center' },
             { data: 'last_login' },
             { data: 'approval_status' },
             { data: 'document_status' },

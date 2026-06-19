@@ -730,6 +730,8 @@ class UserController extends Controller
             'supplier.postal_code' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'supplier.supplier_type' => ['nullable', 'in:product,service,product_service'],
             'supplier.currency' => ['nullable', 'string', 'max:3'],
+            'supplier.accepted_currencies' => ['required', 'array', 'min:1'],
+            'supplier.accepted_currencies.*' => ['string', Rule::in(['MXN', 'USD'])],
             'supplier.person_type' => ['nullable', 'in:fisica,moral,extranjero'],
             'supplier.status' => ['nullable', 'in:pending_docs,approved,rejected'],
             'supplier.tax_regimes' => ['nullable', 'array'],
@@ -778,6 +780,9 @@ class UserController extends Controller
             'supplier.swift_bic.min' => 'El código SWIFT/BIC debe tener entre 8 y 11 caracteres.',
             'supplier.swift_bic.max' => 'El código SWIFT/BIC debe tener entre 8 y 11 caracteres.',
             'supplier.default_payment_terms.in' => 'Las condiciones de pago seleccionadas no son válidas.',
+            'supplier.accepted_currencies.required' => 'Debe seleccionar al menos una moneda que maneja el proveedor.',
+            'supplier.accepted_currencies.min' => 'Debe seleccionar al menos una moneda que maneja el proveedor.',
+            'supplier.accepted_currencies.*.in' => 'Solo se permiten las monedas MXN o USD.',
             'supplier.repse_registration_number.required' => 'El número de registro REPSE es obligatorio cuando el proveedor presta servicios especializados.',
             'supplier.repse_expiry_date.required' => 'La vigencia REPSE es obligatoria cuando el proveedor presta servicios especializados.',
         ]);
@@ -834,6 +839,7 @@ class UserController extends Controller
                 : null,
             'supplier_type' => $request->input('supplier.supplier_type'),
             'currency' => $request->input('supplier.currency', 'MXN'),
+            'accepted_currencies' => $request->input('supplier.accepted_currencies', []),
             'person_type' => $request->input('supplier.person_type'),
             'status' => $request->input('supplier.status', $user->supplier->status ?? 'pending_docs'),
             'tax_regimes' => SupplierFiscalCatalog::normalizeSelectedRegimes(

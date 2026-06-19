@@ -40,6 +40,7 @@ class Supplier extends Authenticatable
         'account_number',
         'clabe',
         'currency',
+        'accepted_currencies',
         'approval_status',
         'document_status',
         'approved_by',
@@ -79,6 +80,7 @@ class Supplier extends Authenticatable
             'specialized_services_types' => 'array',
             'tax_regimes' => 'array',
             'economic_activity' => 'array',
+            'accepted_currencies' => 'array',
         ];
     }
 

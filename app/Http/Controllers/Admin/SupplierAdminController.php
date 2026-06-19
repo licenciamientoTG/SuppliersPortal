@@ -32,6 +32,7 @@ class SupplierAdminController extends Controller
             'contact_phone',
             'email',
             'bank_name',
+            'accepted_currencies',
             'last_login',
             'is_active',
             'approval_status',
@@ -94,6 +95,7 @@ class SupplierAdminController extends Controller
                 'contact_phone' => $supplier->contact_phone,
                 'email' => $supplier->email,
                 'bank_name' => $supplier->bank_name,
+                'accepted_currencies' => $this->currencyBadges($supplier->accepted_currencies),
                 'last_login' => optional($supplier->last_login)->format('Y-m-d H:i'),
                 'approval_status' => $this->badge($supplier->approval_status, [
                     'pending' => 'warning',
@@ -142,6 +144,8 @@ class SupplierAdminController extends Controller
             'postal_code' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'supplier_type' => ['nullable', 'in:product,service,product_service,both'],
             'currency' => ['nullable', 'string', 'max:3'],
+            'accepted_currencies' => ['required', 'array', 'min:1'],
+            'accepted_currencies.*' => ['string', Rule::in(['MXN', 'USD'])],
             'person_type' => ['nullable', 'in:fisica,moral,extranjero'],
             'tax_regimes' => ['nullable', 'array'],
             'economic_activity' => ['nullable', 'array'],
@@ -261,6 +265,24 @@ class SupplierAdminController extends Controller
         });
 
         return response()->json(['message' => 'Proveedor eliminado correctamente.']);
+    }
+
+    private function currencyBadges(?array $currencies): string
+    {
+        if (empty($currencies)) {
+            return '<span class="text-muted">—</span>';
+        }
+
+        $palette = [
+            'MXN' => 'success',
+            'USD' => 'primary',
+        ];
+
+        $badges = collect($currencies)
+            ->map(fn ($code) => '<span class="badge bg-' . ($palette[$code] ?? 'secondary') . '">' . e($code) . '</span>')
+            ->implode('');
+
+        return '<div class="d-inline-flex flex-column gap-1">' . $badges . '</div>';
     }
 
     private function badge(string $status, array $palette): string

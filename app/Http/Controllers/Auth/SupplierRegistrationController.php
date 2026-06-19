@@ -185,6 +185,7 @@ class SupplierRegistrationController extends Controller
             'account_number' => null,
             'clabe' => null,
             'currency' => null,
+            'accepted_currencies' => $data['accepted_currencies'],
             'approval_status' => 'pending',
             'document_status' => 'pending',
         ];
@@ -220,6 +221,7 @@ class SupplierRegistrationController extends Controller
             'account_number' => null,
             'clabe' => null,
             'currency' => null,
+            'accepted_currencies' => $data['accepted_currencies'],
             'approval_status' => 'pending',
             'document_status' => 'pending',
         ];

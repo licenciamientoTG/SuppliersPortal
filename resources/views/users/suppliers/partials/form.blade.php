@@ -192,6 +192,23 @@
           </select>
         </div>
 
+        @php
+          $acceptedCurrencies = old('supplier.accepted_currencies', $supplier->accepted_currencies ?? []);
+          $acceptedCurrencies = is_array($acceptedCurrencies) ? $acceptedCurrencies : [];
+        @endphp
+        <div class="col-md-4">
+          <label class="form-label form-label-sm mb-1">Moneda(s) que maneja</label>
+          <div class="d-flex gap-3 pt-1">
+            @foreach (['MXN' => 'Pesos (MXN)', 'USD' => 'Dólares (USD)'] as $value => $label)
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="acceptedCurrency{{ $value }}" name="supplier[accepted_currencies][]" value="{{ $value }}" @checked(in_array($value, $acceptedCurrencies, true))>
+                <label class="form-check-label" for="acceptedCurrency{{ $value }}">{{ $label }}</label>
+              </div>
+            @endforeach
+          </div>
+          <div class="form-text">Selecciona al menos una.</div>
+        </div>
+
         {{-- Condiciones de pago por defecto --}}
         @php
           $currentPaymentTerm = old('supplier.default_payment_terms',

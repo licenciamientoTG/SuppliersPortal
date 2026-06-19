@@ -6,6 +6,8 @@
     $oldActivities = old('economic_activity', ['']);
     $oldActivities = is_array($oldActivities) && $oldActivities !== [] ? $oldActivities : [''];
     $selectedServices = old('specialized_services_types', []);
+    $selectedCurrencies = old('accepted_currencies', []);
+    $selectedCurrencies = is_array($selectedCurrencies) ? $selectedCurrencies : [];
     $repseEnabled = filter_var(old('provides_specialized_services', false), FILTER_VALIDATE_BOOLEAN);
     $parsedToken = old('csf_upload_token');
     $parsedRegimes = old('parsed_tax_regimes_display', '');
@@ -524,6 +526,22 @@
                                     @endforeach
                                 </select>
                                 @if ($viewErrors->has('default_payment_terms'))<div class="error">{{ $viewErrors->first('default_payment_terms') }}</div>@endif
+                            </div>
+
+                            <div class="field full">
+                                <label class="required">¿En qué moneda(s) operas y/o cotizas?</label>
+                                <div class="check-grid">
+                                    @foreach (['MXN' => 'Pesos (MXN)', 'USD' => 'Dolares (USD)'] as $value => $label)
+                                        <label class="check-option">
+                                            <input type="checkbox" name="accepted_currencies[]" value="{{ $value }}" @checked(in_array($value, $selectedCurrencies, true))>
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <span class="hint">Selecciona al menos una. Marca ambas si cotizas en pesos y dolares.</span>
+                                @if ($viewErrors->has('accepted_currencies') || $viewErrors->has('accepted_currencies.*'))
+                                    <div class="error">{{ $viewErrors->first('accepted_currencies') ?: $viewErrors->first('accepted_currencies.*') }}</div>
+                                @endif
                             </div>
                         </div>
                     </section>

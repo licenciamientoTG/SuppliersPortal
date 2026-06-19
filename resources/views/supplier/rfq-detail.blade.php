@@ -6,6 +6,14 @@
         $resp = $responses->get($item->id);
         return $resp && $resp->status !== 'DRAFT';
     });
+
+    // Moneda por defecto según las monedas que maneja el proveedor.
+    // Solo es USD cuando el proveedor maneja USD pero NO MXN; en cualquier otro
+    // caso (ambas, solo MXN, o ninguna) se usa MXN. Siempre es editable.
+    $acceptedCurrencies = is_array($supplier->accepted_currencies) ? $supplier->accepted_currencies : [];
+    $defaultCurrency = (in_array('USD', $acceptedCurrencies, true) && ! in_array('MXN', $acceptedCurrencies, true))
+        ? 'USD'
+        : 'MXN';
 @endphp
 
 @section('title', 'Cotizar RFQ - ' . $rfq->folio)
@@ -602,8 +610,8 @@
                                         <div class="col-md-2">
                                             <label class="form-label-sm mb-1">Moneda</label>
                                             <select class="form-select form-select-sm" name="{{ $itemPrefix }}[currency]" {{ $isLocked ? 'disabled' : '' }}>
-                                                <option value="MXN" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? 'MXN') == 'MXN' ? 'selected' : '' }}>MXN ($)</option>
-                                                <option value="USD" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? 'MXN') == 'USD' ? 'selected' : '' }}>USD (US$)</option>
+                                                <option value="MXN" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? $defaultCurrency) == 'MXN' ? 'selected' : '' }}>MXN ($)</option>
+                                                <option value="USD" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? $defaultCurrency) == 'USD' ? 'selected' : '' }}>USD (US$)</option>
                                             </select>
                                         </div>
                                         

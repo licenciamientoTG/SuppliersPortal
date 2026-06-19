@@ -59,6 +59,21 @@
                     @endforeach
                 </select>
             </div>
+            @php
+                $acceptedCurrencies = old('accepted_currencies', $supplier->accepted_currencies ?? []);
+                $acceptedCurrencies = is_array($acceptedCurrencies) ? $acceptedCurrencies : [];
+            @endphp
+            <div class="col-md-3">
+                <label class="form-label">Moneda(s) que maneja</label>
+                <div class="d-flex gap-3 pt-1">
+                    @foreach (['MXN' => 'Pesos (MXN)', 'USD' => 'Dólares (USD)'] as $value => $label)
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="acceptedCurrency{{ $value }}" name="accepted_currencies[]" value="{{ $value }}" @checked(in_array($value, $acceptedCurrencies, true))>
+                            <label class="form-check-label" for="acceptedCurrency{{ $value }}">{{ $label }}</label>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
             <div class="col-md-3 d-flex align-items-end">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="supplierActive" name="is_active" value="1" {{ old('is_active', $supplier->is_active) ? 'checked' : '' }}>
