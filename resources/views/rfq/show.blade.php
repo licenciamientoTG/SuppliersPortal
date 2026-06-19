@@ -160,7 +160,7 @@
                         @elseif($daysRemaining === 0)
                             <div class="fw-bold fs-4 text-warning">Hoy</div>
                         @else
-                            <div class="fw-bold fs-4 text-info">{{ $daysRemaining }}</div>
+                            <div class="fw-bold fs-4 text-info">{{ number_format(floor($daysRemaining * 10) / 10, 1) }}</div>
                         @endif
                     @else
                         <div class="fw-bold fs-4 text-muted">—</div>
