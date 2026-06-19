@@ -464,14 +464,17 @@
                                                     @endif
                                                     @if($item->productService)
                                                         <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="font-size: 0.7rem;">
-                                                            <i class="ti ti-barcode me-1"></i>{{ $item->productService->code ?? $item->productService->name }}
+                                                            <i class="ti ti-package me-1"></i>{{ $item->productService->short_name ?? $item->productService->name ?? $item->description }}
                                                         </span>
                                                     @endif
                                                 </div>
                                                 @if(!empty($item->notes))
                                                     <div class="mt-2 p-2 rounded bg-info bg-opacity-10 border border-info border-opacity-25">
-                                                        <small class="text-info-emphasis">
-                                                            <i class="ti ti-info-circle me-1"></i><strong>Nota de compras:</strong> {{ $item->notes }}
+                                                        <small class="text-info-emphasis d-block">
+                                                            <i class="ti ti-message-2 me-1"></i><strong>Observación del solicitante:</strong>
+                                                        </small>
+                                                        <small class="text-info-emphasis d-block mt-1">
+                                                            {{ $item->notes }}
                                                         </small>
                                                     </div>
                                                 @endif

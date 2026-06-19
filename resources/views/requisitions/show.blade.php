@@ -108,7 +108,9 @@
                         <i class="ti ti-hierarchy-3 me-1"></i> Centro de costo
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        @php($costCenterLabels = $requisition->costCenterLabels())
+                        @php
+                            $costCenterLabels = $requisition->costCenterLabels();
+                        @endphp
                         @if (count($costCenterLabels) <= 1)
                             {{ $costCenterLabels[0] ?? 'N/A' }}
                         @else
@@ -246,8 +248,7 @@
                 <thead class="table-light">
                     <tr>
                         <th width="40" class="text-center">#</th>
-                        <th>Producto/Codigo</th>
-                        <th>Descripcion</th>
+                        <th>Producto</th>
                         <th width="80" class="text-end">Cantidad</th>
                         <th width="80" class="text-center">Unidad</th>
                         <th width="140" class="text-end">Precio Unit.</th>
@@ -262,7 +263,11 @@
                     <tr>
                         <td class="text-center text-muted">{{ $item->line_number }}</td>
                         <td>
-                            <strong>{{ $item->productService?->code ?? '-' }}</strong>
+                            <strong>{{ $item->productService?->short_name ?? $item->productService?->description ?? '-' }}</strong>
+                            @if ($item->productService?->code)
+                            <br>
+                            <small class="text-muted">{{ $item->productService->code }}</small>
+                            @endif
                             @if ($item->productService?->product_type)
                             <br>
                             <span class="badge bg-{{ $item->productService->product_type === 'SERVICIO' ? 'info' : 'primary' }} badge-sm">
@@ -270,9 +275,6 @@
                                 {{ $item->productService->product_type }}
                             </span>
                             @endif
-                        </td>
-                        <td>
-                            {{ $item->description }}
                             @if ($item->productService?->brand || $item->productService?->model)
                             <br>
                             <small class="text-muted">

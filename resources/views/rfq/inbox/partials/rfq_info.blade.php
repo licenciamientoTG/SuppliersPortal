@@ -41,8 +41,17 @@
                         @forelse($rfq->getItemsToQuote() ?? [] as $item)
                         <tr>
                             <td class="py-2">
-                                <span class="fw-medium text-dark">{{ $item->description }}</span><br>
-                                <small class="text-muted">SAT: {{ $item->productService->code ?? 'N/A' }} - {{ $item->productService->name ?? 'S/N' }}</small>
+                                <span class="fw-medium text-dark">{{ $item->productService->short_name ?? $item->productService->name ?? $item->description }}</span>
+                                @if(!empty($item->description) && ($item->productService->short_name ?? $item->productService->name ?? null) !== $item->description)
+                                    <br>
+                                    <small class="text-muted">{{ $item->description }}</small>
+                                @endif
+                                @if(!empty($item->notes))
+                                    <br>
+                                    <small class="text-info">
+                                        <i class="ti ti-message-2 me-1"></i>Observación del solicitante: {{ $item->notes }}
+                                    </small>
+                                @endif
                             </td>
                             <td class="text-center fw-bold py-2">{{ number_format($item->quantity, 2) }}</td>
                             <td class="text-center text-muted py-2">{{ $item->unit }}</td>
