@@ -108,7 +108,9 @@
                         <i class="ti ti-hierarchy-3 me-1"></i> Centro de costo
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        @php($costCenterLabels = $requisition->costCenterLabels())
+                        @php
+                            $costCenterLabels = $requisition->costCenterLabels();
+                        @endphp
                         @if (count($costCenterLabels) <= 1)
                             {{ $costCenterLabels[0] ?? 'N/A' }}
                         @else
