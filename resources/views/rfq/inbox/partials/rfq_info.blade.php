@@ -46,6 +46,12 @@
                                     <br>
                                     <small class="text-muted">{{ $item->description }}</small>
                                 @endif
+                                @if(!empty($item->notes))
+                                    <br>
+                                    <small class="text-info">
+                                        <i class="ti ti-message-2 me-1"></i>Observación del solicitante: {{ $item->notes }}
+                                    </small>
+                                @endif
                             </td>
                             <td class="text-center fw-bold py-2">{{ number_format($item->quantity, 2) }}</td>
                             <td class="text-center text-muted py-2">{{ $item->unit }}</td>
