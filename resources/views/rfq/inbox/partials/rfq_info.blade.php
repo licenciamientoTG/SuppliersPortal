@@ -49,10 +49,6 @@
                                 @if(!empty($item->notes))
                                     <br>
                                     <small class="text-info">
-                                        <i class="ti ti-info-circle me-1"></i>Nota de compras: {{ $item->notes }}
-                                    </small>
-                                    <br>
-                                    <small class="text-info">
                                         <i class="ti ti-message-2 me-1"></i>Observación del solicitante: {{ $item->notes }}
                                     </small>
                                 @endif

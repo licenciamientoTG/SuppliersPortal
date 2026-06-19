@@ -147,15 +147,6 @@
                         </div>
                         @endif
 
-                        @if($rfq->notes)
-                        @if($rfq->message || $rfq->requirements)<hr class="my-2">@endif
-                        <div class="mb-0">
-                            <label class="text-muted d-block fw-semibold" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="ti ti-notes me-1"></i>Observaciones de Compras
-                            </label>
-                            <p class="mb-0 small" style="white-space: pre-line;">{{ $rfq->notes }}</p>
-                        </div>
-                        @endif
                     </div>
                 </div>
                 @endif
@@ -189,6 +180,13 @@
                                 <i class="ti ti-calendar me-1 text-primary"></i>
                                 {{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}
                             </span>
+                        </div>
+                        @endif
+
+                        @if($rfq->notes)
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Nota de Compras</small>
+                            <span class="d-block small" style="white-space: pre-line;">{{ $rfq->notes }}</span>
                         </div>
                         @endif
 
@@ -471,12 +469,6 @@
                                                 @if(!empty($item->notes))
                                                     <div class="mt-2 p-2 rounded bg-info bg-opacity-10 border border-info border-opacity-25">
                                                         <small class="text-info-emphasis d-block">
-                                                            <i class="ti ti-info-circle me-1"></i><strong>Nota de compras:</strong>
-                                                        </small>
-                                                        <small class="text-info-emphasis d-block mt-1">
-                                                            {{ $item->notes }}
-                                                        </small>
-                                                        <small class="text-info-emphasis d-block mt-2">
                                                             <i class="ti ti-message-2 me-1"></i><strong>Observación del solicitante:</strong>
                                                         </small>
                                                         <small class="text-info-emphasis d-block mt-1">
