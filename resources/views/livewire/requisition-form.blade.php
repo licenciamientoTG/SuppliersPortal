@@ -457,6 +457,12 @@
 let itemModalInitialState = null;
 let allowItemModalClose = false;
 
+function getItemModalInstance() {
+    return bootstrap.Modal.getOrCreateInstance(document.getElementById('itemModal'), {
+        focus: false
+    });
+}
+
 // =====================================================
 // FUNCIÓN PARA CONFIRMAR ELIMINACIÓN DE PARTIDA
 // =====================================================
@@ -1588,7 +1594,7 @@ $(function() {
         initializeExpenseCategorySelect();
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
 
-        $('#itemModal').modal('show');
+        getItemModalInstance().show();
         setTimeout(setItemModalInitialState, 100);
     }
 
@@ -1616,7 +1622,7 @@ $(function() {
             setTimeout(setItemModalInitialState, 200);
         }, 600);
 
-        $('#itemModal').modal('show');
+        getItemModalInstance().show();
     }
 
     function hideItemModalBeforeMorph() {
@@ -1630,7 +1636,7 @@ $(function() {
 
             allowItemModalClose = true;
             $modal.one('hidden.bs.modal', resolve);
-            $modal.modal('hide');
+            getItemModalInstance().hide();
         });
     }
 

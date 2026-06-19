@@ -387,6 +387,39 @@ class Requisition extends Model
     }
 
     /**
+     * Centros de costo únicos usados por las partidas.
+     */
+    public function uniqueCostCenters()
+    {
+        if ($this->relationLoaded('items')) {
+            return $this->items
+                ->loadMissing('costCenter')
+                ->pluck('costCenter')
+                ->filter()
+                ->unique('id')
+                ->values();
+        }
+
+        return CostCenter::query()
+            ->whereIn('id', $this->items()->pluck('cost_center_id')->filter()->unique())
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Etiquetas legibles de todos los centros de costo de la requisición.
+     */
+    public function costCenterLabels(): array
+    {
+        return $this->uniqueCostCenters()
+            ->map(fn (CostCenter $costCenter) => $costCenter->code
+                ? "{$costCenter->code} - {$costCenter->name}"
+                : $costCenter->name)
+            ->values()
+            ->all();
+    }
+
+    /**
      * Tipo de compra principal derivado de la primera partida.
      */
     public function primaryPurchaseType(): ?string

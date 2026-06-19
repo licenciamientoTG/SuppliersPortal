@@ -108,7 +108,17 @@
                         <i class="ti ti-hierarchy-3 me-1"></i> Centro de costo
                     </dt>
                     <dd class="col-sm-7 fw-semibold">
-                        {{ $requisition->primaryCostCenterLabel() }}
+                        @php($costCenterLabels = $requisition->costCenterLabels())
+                        @if (count($costCenterLabels) <= 1)
+                            {{ $costCenterLabels[0] ?? 'N/A' }}
+                        @else
+                            <div class="d-flex flex-column gap-1">
+                                @foreach ($costCenterLabels as $label)
+                                    <span>{{ $label }}</span>
+                                @endforeach
+                            </div>
+                            <small class="text-muted">{{ count($costCenterLabels) }} centros de costo en las partidas</small>
+                        @endif
                     </dd>
 
                     <dt class="col-sm-5 text-muted">
