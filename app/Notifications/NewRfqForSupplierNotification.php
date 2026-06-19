@@ -36,7 +36,7 @@ class NewRfqForSupplierNotification extends Notification
                 'group'          => $this->rfq->quotationGroup->name,
                 'itemsCount'     => $itemsCount,
                 'deadline'       => $this->rfq->response_deadline->format('d/m/Y'),
-                'daysLeft'       => abs($daysUntilDeadline),
+                'daysLeft'       => number_format(floor(abs($daysUntilDeadline) * 10) / 10, 1),
                 'supplierMessage'=> $this->rfq->message,
                 'url'            => $portalUrl,
             ]);
