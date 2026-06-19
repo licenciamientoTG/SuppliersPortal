@@ -38,6 +38,18 @@ class SupplierPortalController extends Controller
      */
     private function validateQuotationData(Request $request): array
     {
+        // En modo borrador permitimos guardar avances parciales: descartamos las
+        // partidas que el proveedor aún no cotiza (sin precio unitario) para que no
+        // sean obligatorias ni se almacenen como respuestas vacías. El envío final
+        // sigue exigiendo todas las partidas pendientes.
+        if ($request->input('action') === 'save_draft' && is_array($request->input('items'))) {
+            $items = array_filter(
+                $request->input('items'),
+                static fn ($item) => isset($item['unit_price']) && trim((string) $item['unit_price']) !== ''
+            );
+            $request->merge(['items' => $items]);
+        }
+
         return $request->validate([
             'items' => 'nullable|array',
             'items.*.item_id' => 'required|exists:requisition_items,id',

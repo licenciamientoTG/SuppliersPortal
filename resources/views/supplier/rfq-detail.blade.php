@@ -1261,15 +1261,22 @@ $(document).ready(function() {
 
     // 3. Sincronización final de condiciones de pago antes de enviar
     $('#quotation-form').on('submit', function(e) {
+        const action = $('#quotation-form input[name="action"]').val();
         const globalVal = $('#global_payment_terms').val();
-        if (!globalVal) {
+
+        // Las condiciones de pago globales solo son obligatorias en el envío final.
+        // En borrador permitimos guardar un preliminar sin este dato.
+        if (action === 'submit' && !globalVal) {
             e.preventDefault();
             Swal.close(); // Cerrar cualquier loader abierto
             Swal.fire('Atención', 'Debes especificar las condiciones de pago globales.', 'warning');
             return false;
         }
-        // Aseguramos una última vez que todos tengan el valor
-        $('.item-payment-terms').val(globalVal);
+
+        // Aseguramos que todas las partidas tengan el valor (si se capturó)
+        if (globalVal) {
+            $('.item-payment-terms').val(globalVal);
+        }
     });
 });
 
