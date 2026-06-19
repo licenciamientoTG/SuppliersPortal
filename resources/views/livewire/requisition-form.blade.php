@@ -819,7 +819,7 @@ $(function() {
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: placeholder,
-            allowClear: true,
+            allowClear: options.allowClear ?? true,
             language: {
                 noResults: function() { return 'No se encontraron resultados'; },
                 searching: function() { return 'Buscando...'; }
@@ -830,7 +830,8 @@ $(function() {
 
     function initializeExpenseCategorySelect() {
         initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
-            dropdownParent: $('#itemModal')
+            dropdownParent: $('#itemModal'),
+            allowClear: false
         });
     }
 
@@ -1391,7 +1392,8 @@ $(function() {
     // =====================================================
     function initializeBudgetCedulaSelect() {
         initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcategoría presupuestal...', {
-            dropdownParent: $('#itemModal')
+            dropdownParent: $('#itemModal'),
+            allowClear: false
         });
     }
 
@@ -1479,13 +1481,12 @@ $(function() {
     $(document)
         .off('change.requisitionExpenseCategory', '#modal_expense_category')
         .on('change.requisitionExpenseCategory', '#modal_expense_category', function() {
-            loadBudgetCedulas();
-        });
+            if ($(this).val()) {
+                loadBudgetCedulas();
+                return;
+            }
 
-    $(document)
-        .off('select2:select.requisitionExpenseCategory', '#modal_expense_category')
-        .on('select2:select.requisitionExpenseCategory', '#modal_expense_category', function() {
-            loadBudgetCedulas();
+            resetBudgetCedulaSelect();
         });
 
     $(document)
