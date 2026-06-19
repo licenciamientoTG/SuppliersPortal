@@ -307,17 +307,7 @@
                             </div>
                         </div>
 
-                        {{-- Descripción completa --}}
-                        <div class="mb-3">
-                            <label for="modal_description" class="form-label fw-semibold">Descripción</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light">
-                                    <i class="ti ti-align-left"></i>
-                                </span>
-                                <textarea id="modal_description" class="form-control bg-light"
-                                    rows="2" style="resize: none;" readonly></textarea>
-                            </div>
-                        </div>
+                        <textarea id="modal_description" class="d-none"></textarea>
 
                         {{-- Cantidad y Unidad --}}
                         <div class="row mb-3">

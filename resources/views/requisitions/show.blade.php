@@ -248,7 +248,7 @@
                 <thead class="table-light">
                     <tr>
                         <th width="40" class="text-center">#</th>
-                        <th>Producto/Codigo</th>
+                        <th>Producto</th>
                         <th>Descripcion</th>
                         <th width="80" class="text-end">Cantidad</th>
                         <th width="80" class="text-center">Unidad</th>
@@ -264,7 +264,11 @@
                     <tr>
                         <td class="text-center text-muted">{{ $item->line_number }}</td>
                         <td>
-                            <strong>{{ $item->productService?->code ?? '-' }}</strong>
+                            <strong>{{ $item->productService?->short_name ?? $item->productService?->description ?? '-' }}</strong>
+                            @if ($item->productService?->code)
+                            <br>
+                            <small class="text-muted">{{ $item->productService->code }}</small>
+                            @endif
                             @if ($item->productService?->product_type)
                             <br>
                             <span class="badge bg-{{ $item->productService->product_type === 'SERVICIO' ? 'info' : 'primary' }} badge-sm">
