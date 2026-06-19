@@ -573,10 +573,16 @@ $(document).ready(function() {
             return costCenterCatalog;
         }
 
-        return costCenterCatalog.filter(cc =>
+        const exactMatches = costCenterCatalog.filter(cc =>
             String(cc.company_id) === String(companyId)
             && String(cc.purchase_type) === String(purchaseType)
         );
+
+        if (exactMatches.length) {
+            return exactMatches;
+        }
+
+        return costCenterCatalog.filter(cc => String(cc.company_id) === String(companyId));
     }
 
     function findCostCenterById(costCenterId) {
