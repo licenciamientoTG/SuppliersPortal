@@ -6,6 +6,12 @@
         $resp = $responses->get($item->id);
         return $resp && $resp->status !== 'DRAFT';
     });
+
+    $itemPurchasingNotes = $items
+        ->pluck('notes')
+        ->filter(fn ($note) => filled($note))
+        ->unique()
+        ->values();
 @endphp
 
 @section('title', 'Cotizar RFQ - ' . $rfq->folio)
@@ -183,10 +189,12 @@
                         </div>
                         @endif
 
-                        @if($rfq->notes)
+                        @if($itemPurchasingNotes->isNotEmpty())
                         <div class="mb-2">
                             <small class="text-muted d-block">Nota de Compras</small>
-                            <span class="d-block small" style="white-space: pre-line;">{{ $rfq->notes }}</span>
+                            @foreach($itemPurchasingNotes as $note)
+                                <span class="d-block small" style="white-space: pre-line;">{{ $note }}</span>
+                            @endforeach
                         </div>
                         @endif
 
@@ -1533,3 +1541,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
