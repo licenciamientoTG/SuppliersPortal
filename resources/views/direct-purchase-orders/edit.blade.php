@@ -518,13 +518,17 @@ $(document).ready(function() {
         const purchaseType = $('#purchase_type').val();
 
         if (!companyId || !purchaseType) {
-            return [];
+            return costCenterCatalog;
         }
 
         return costCenterCatalog.filter(cc =>
             String(cc.company_id) === String(companyId)
             && String(cc.purchase_type) === String(purchaseType)
         );
+    }
+
+    function findCostCenterById(costCenterId) {
+        return costCenterCatalog.find(cc => String(cc.id) === String(costCenterId)) || null;
     }
 
     function buildCostCenterOptions(selectedValue = '') {
@@ -534,7 +538,7 @@ $(document).ready(function() {
 
         if (!companyId || !purchaseType) {
             return {
-                html: '<option value="">Seleccione empresa y tipo...</option>',
+                html: '<option value="">Seleccione...</option>',
                 disabled: false
             };
         }
@@ -549,7 +553,7 @@ $(document).ready(function() {
         let html = '<option value="">Seleccione...</option>';
         options.forEach(function(option) {
             const selected = String(selectedValue) === String(option.id) ? ' selected' : '';
-            html += `<option value="${option.id}"${selected}>${option.label}</option>`;
+            html += `<option value="${option.id}" data-company-id="${option.company_id}" data-purchase-type="${option.purchase_type}"${selected}>${option.label}</option>`;
         });
 
         return { html, disabled: false };
@@ -652,6 +656,18 @@ $(document).ready(function() {
 
     $(document).on('change', '.item-cost-center', function() {
         const row = $(this).closest('tr');
+        const selectedCostCenter = findCostCenterById($(this).val());
+
+        if (selectedCostCenter) {
+            if (!$('#company_id').val() || $('#company_id').val() !== String(selectedCostCenter.company_id)) {
+                $('#company_id').val(String(selectedCostCenter.company_id)).trigger('change');
+            }
+
+            if (!$('#purchase_type').val() || $('#purchase_type').val() !== String(selectedCostCenter.purchase_type)) {
+                $('#purchase_type').val(String(selectedCostCenter.purchase_type)).trigger('change');
+            }
+        }
+
         loadCategoriesForRow(row, $(this).val(), null, false);
     });
 
