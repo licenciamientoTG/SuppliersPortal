@@ -249,7 +249,6 @@
                     <tr>
                         <th width="40" class="text-center">#</th>
                         <th>Producto</th>
-                        <th>Descripcion</th>
                         <th width="80" class="text-end">Cantidad</th>
                         <th width="80" class="text-center">Unidad</th>
                         <th width="140" class="text-end">Precio Unit.</th>
@@ -276,9 +275,6 @@
                                 {{ $item->productService->product_type }}
                             </span>
                             @endif
-                        </td>
-                        <td>
-                            {{ $item->description }}
                             @if ($item->productService?->brand || $item->productService?->model)
                             <br>
                             <small class="text-muted">

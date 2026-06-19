@@ -211,7 +211,6 @@
                             <tr>
                                 <th width="40">#</th>
                                 <th>Producto</th>
-                                <th>Descripción</th>
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Categoría de gasto</th>
@@ -1050,7 +1049,6 @@
                         <tr>
                             <td>${index + 1}</td>
                             <td><strong>${item.product_name}</strong></td>
-                            <td>${item.description}</td>
                             <td>${item.quantity}</td>
                             <td>${item.unit}</td>
                             <td><span class="badge bg-info">${item.expense_category_name}</span></td>

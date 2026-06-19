@@ -141,7 +141,6 @@
                             <tr>
                                 <th width="40">#</th>
                                 <th>Producto</th>
-                                <th>Descripción</th>
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Centro de Costo</th>
@@ -156,9 +155,6 @@
                                 <tr wire:key="item-{{ $index }}">
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $item['product_name'] }}</strong></td>
-                                    <td data-bs-toggle="tooltip" title="{{ $item['description'] }}">
-                                        {{ Str::limit($item['description'], 50) }}
-                                    </td>
                                     <td>{{ $item['quantity'] }}</td>
                                     <td>{{ $item['unit'] }}</td>
                                     <td>
@@ -203,7 +199,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">
+                                    <td colspan="9" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                         No hay partidas agregadas. Haz clic en "Agregar Partida"
                                     </td>
@@ -679,7 +675,6 @@ $(function() {
 
         $body.html(items.map((item, index) => {
             const productName = escapeHtml(item.product_name);
-            const description = escapeHtml(item.description);
             const costCenterName = escapeHtml(item.cost_center_name || '—');
             const purchaseType = escapeHtml(item.purchase_type || '');
             const expenseCategory = escapeHtml(item.expense_category_name || '—');
@@ -695,7 +690,6 @@ $(function() {
                 <tr>
                     <td>${index + 1}</td>
                     <td><strong>${productName}</strong></td>
-                    <td title="${description}">${escapeHtml(truncate(item.description, 50))}</td>
                     <td>${escapeHtml(item.quantity)}</td>
                     <td>${escapeHtml(item.unit)}</td>
                     <td>
