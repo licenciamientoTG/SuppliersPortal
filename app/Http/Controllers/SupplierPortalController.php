@@ -45,7 +45,12 @@ class SupplierPortalController extends Controller
         if ($request->input('action') === 'save_draft' && is_array($request->input('items'))) {
             $items = array_filter(
                 $request->input('items'),
-                static fn ($item) => isset($item['unit_price']) && trim((string) $item['unit_price']) !== ''
+                static function ($item) {
+                    $hasPrice = isset($item['unit_price']) && trim((string) $item['unit_price']) !== '';
+                    $notAvailable = ! empty($item['not_available']) && (string) $item['not_available'] === '1';
+
+                    return $hasPrice || $notAvailable;
+                }
             );
             $request->merge(['items' => $items]);
         }
@@ -53,11 +58,13 @@ class SupplierPortalController extends Controller
         return $request->validate([
             'items' => 'nullable|array',
             'items.*.item_id' => 'required|exists:requisition_items,id',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.iva_rate' => 'required|numeric|in:0,8,16',
+            'items.*.not_available' => 'nullable|boolean',
+            'items.*.unit_price' => ['exclude_if:items.*.not_available,1', 'required', 'numeric', 'min:0'],
+            'items.*.quantity' => ['exclude_if:items.*.not_available,1', 'required', 'numeric', 'min:0.01'],
+            'items.*.iva_rate' => ['exclude_if:items.*.not_available,1', 'required', 'numeric', 'in:0,8,16'],
             'items.*.currency' => 'nullable|string|in:MXN,USD,EUR',
             'items.*.delivery_days' => [
+                'exclude_if:items.*.not_available,1',
                 Rule::requiredIf(fn () => $request->input('action') === 'submit'),
                 'nullable',
                 'integer',
@@ -84,6 +91,19 @@ class SupplierPortalController extends Controller
      */
     private function calculateItemTotals(array $itemData): array
     {
+        $notAvailable = ! empty($itemData['not_available']) && (string) $itemData['not_available'] === '1';
+
+        if ($notAvailable) {
+            return [
+                'unit_price' => 0,
+                'quantity' => 0,
+                'subtotal' => 0,
+                'iva_rate' => 0,
+                'iva_amount' => 0,
+                'total' => 0,
+            ];
+        }
+
         $unitPrice = $itemData['unit_price'];
         $quantity = $itemData['quantity'];
         $ivaRate = $itemData['iva_rate'];
@@ -113,6 +133,7 @@ class SupplierPortalController extends Controller
         string $action
     ): RfqResponse {
         $totals = $this->calculateItemTotals($itemData);
+        $notAvailable = ! empty($itemData['not_available']) && (string) $itemData['not_available'] === '1';
 
         return RfqResponse::updateOrCreate(
             [
@@ -127,6 +148,7 @@ class SupplierPortalController extends Controller
                 'iva_rate' => $totals['iva_rate'],
                 'iva_amount' => $totals['iva_amount'],
                 'total' => $totals['total'],
+                'not_available' => $notAvailable,
                 'currency' => $itemData['currency'] ?? 'MXN',
                 'delivery_days' => $itemData['delivery_days'] ?? null,
                 'payment_terms' => $itemData['payment_terms'] ?? null,
