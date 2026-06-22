@@ -236,7 +236,10 @@
                     </div>
                     <div class="card-body p-3">
                         <div class="mb-3">
-                            <small class="text-muted d-block mb-2 fw-bold">Partidas cotizadas:</small>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted fw-bold mb-0">Partidas cotizadas:</small>
+                                <span id="summary-quoted-count" class="badge bg-light text-dark"></span>
+                            </div>
                             <div id="summary-items" class="small">
                                 {{-- Se llena dinámicamente con JavaScript --}}
                             </div>
@@ -984,6 +987,14 @@ $(document).ready(function() {
         }
 
         $('#summary-items').html(summaryHtml);
+
+        // Contador "X de Y cotizadas": Y = total de partidas, X = partidas que
+        // el proveedor sigue cotizando (no marcadas como "no disponible").
+        const totalItems = $('.quotation-item').length;
+        const quotedItems = $('.quotation-item').filter(function () {
+            return $(this).find('.item-not-available-flag').val() !== '1';
+        }).length;
+        $('#summary-quoted-count').text(`${quotedItems} de ${totalItems} cotizadas`);
     }
 
     function calculateGrandTotal() {
