@@ -7,6 +7,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\QuotationSummary;
 use App\Models\RfqResponse;
+use App\Models\User;
 use App\Notifications\QuotationApprovalApprovedNotification;
 use App\Notifications\QuotationApprovalRejectedNotification;
 use App\Services\BudgetAllocationService;
@@ -147,7 +148,6 @@ class QuotationApprovalController extends Controller
         ]);
 
         $summary->loadMissing('rfq.rfqResponses.requisitionItem', 'requisition.requester', 'selector', 'selectedSupplier', 'currentApprover');
-
         try {
             DB::transaction(function () use ($request, $summary) {
                 $rfq = $summary->rfq;
@@ -248,7 +248,13 @@ class QuotationApprovalController extends Controller
             ? new QuotationApprovalApprovedNotification($summary)
             : new QuotationApprovalRejectedNotification($summary);
 
-        collect([$summary->selector, $summary->requisition?->requester])
+        $buyers = User::role('buyer')->get();
+
+        $recipients = collect([$summary->selector, $summary->requisition?->requester])
+            ->filter()
+            ->merge($buyers);
+
+        $recipients
             ->filter()
             ->unique('id')
             ->each

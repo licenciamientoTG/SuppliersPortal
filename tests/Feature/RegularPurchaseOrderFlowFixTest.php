@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
 use App\Models\User;
+use App\Notifications\QuotationApprovalApprovedNotification;
 use App\Services\BudgetAllocationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Mockery;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RegularPurchaseOrderFlowFixTest extends TestCase
@@ -21,7 +23,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         Notification::fake();
         $this->withoutMiddleware();
 
-        ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture();
+        ['summary' => $summary, 'approver' => $approver, 'buyer' => $buyer] = $this->createRegularApprovalFixture();
 
         $this->actingAs($approver)
             ->post(route('approvals.quotations.handle', $summary), [
@@ -43,6 +45,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'purchase_order_id' => $purchaseOrder->id,
             'requisition_item_id' => $summary->rfq->rfqResponses()->first()->requisition_item_id,
         ]);
+        Notification::assertSentTo($buyer, QuotationApprovalApprovedNotification::class);
     }
 
     public function test_close_inactive_command_uses_issued_purchase_orders_instead_of_open_ones(): void
@@ -143,9 +146,13 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
 
     private function createRegularApprovalFixture(): array
     {
+        Role::findOrCreate('buyer', 'web');
+
         $approver = User::factory()->create();
         $requester = User::factory()->create();
         $selector = User::factory()->create();
+        $buyer = User::factory()->create();
+        $buyer->assignRole('buyer');
 
         $fixture = $this->createRegularPurchaseOrderFixture([
             'create_purchase_order' => false,
@@ -170,6 +177,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         return [
             'summary' => QuotationSummary::query()->with('rfq')->findOrFail($fixture['summary_id']),
             'approver' => $approver,
+            'buyer' => $buyer,
         ];
     }
 
