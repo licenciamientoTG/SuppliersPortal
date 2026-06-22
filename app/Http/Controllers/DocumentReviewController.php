@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-
 
 class DocumentReviewController extends Controller
 {
@@ -18,7 +15,7 @@ class DocumentReviewController extends Controller
      */
     public function index()
     {
-        $requiredTypes = SupplierDocument::REQUIRED_TYPES;
+        $requiredTypes = SupplierDocument::ALL_TYPES;
 
         // Bandeja: solo pendientes (para mostrar)
         $pendingDocs = SupplierDocument::with(['supplier:id,company_name,rfc', 'uploader:id,name'])
@@ -29,15 +26,15 @@ class DocumentReviewController extends Controller
 
         // KPIs (consultas independientes)
         $start = now()->startOfDay();
-        $end   = now()->endOfDay();
+        $end = now()->endOfDay();
 
-        $kpiPendientes     = SupplierDocument::where('status','pending_review')->count();
-        $kpiAprobadosHoy   = SupplierDocument::where('status','accepted')
-                                ->whereBetween('reviewed_at', [$start, $end])
-                                ->count();
-        $kpiRechazadosHoy  = SupplierDocument::where('status','rejected')
-                                ->whereBetween('reviewed_at', [$start, $end])
-                                ->count();
+        $kpiPendientes = SupplierDocument::where('status', 'pending_review')->count();
+        $kpiAprobadosHoy = SupplierDocument::where('status', 'accepted')
+            ->whereBetween('reviewed_at', [$start, $end])
+            ->count();
+        $kpiRechazadosHoy = SupplierDocument::where('status', 'rejected')
+            ->whereBetween('reviewed_at', [$start, $end])
+            ->count();
 
         // (Si quieres solo los revisados por el admin actual, añade ->where('reviewed_by', auth()->id()))
 
@@ -45,28 +42,31 @@ class DocumentReviewController extends Controller
         $suppliers = Supplier::with(['documents' => function ($query) {
             $query->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
         }])
-        ->select('id', 'company_name', 'rfc')
-        ->get();
+            ->select('id', 'company_name', 'rfc')
+            ->get();
 
-        $suppliersSummary = $suppliers->map(function ($s) use ($requiredTypes) {
+        $suppliersSummary = $suppliers->map(function ($s) {
             $docs = $s->documents; // Ya cargado, sin consulta adicional
+            $requiredTypes = SupplierDocument::requiredTypesFor($s);
+            $requiredDocs = $docs->whereIn('doc_type', $requiredTypes);
+
             return [
-                'supplier'         => $s,
-                'total_required'   => count($requiredTypes),
-                'uploaded'         => $docs->pluck('doc_type')->unique()->count(),
-                'accepted'         => $docs->where('status', 'accepted')->count(),
-                'rejected'         => $docs->where('status', 'rejected')->count(),
-                'last_activity_at' => optional($docs->max('uploaded_at'))?->toDateTimeString(),
+                'supplier' => $s,
+                'total_required' => count($requiredTypes),
+                'uploaded' => $requiredDocs->pluck('doc_type')->unique()->count(),
+                'accepted' => $requiredDocs->where('status', 'accepted')->count(),
+                'rejected' => $requiredDocs->where('status', 'rejected')->count(),
+                'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
             ];
         });
 
         return view('documents.admin.index', [
-            'pendingDocs'       => $pendingDocs,
-            'suppliersSummary'  => $suppliersSummary,
-            'requiredTypes'     => $requiredTypes,
-            'kpiPendientes'     => $kpiPendientes,
-            'kpiAprobadosHoy'   => $kpiAprobadosHoy,
-            'kpiRechazadosHoy'  => $kpiRechazadosHoy,
+            'pendingDocs' => $pendingDocs,
+            'suppliersSummary' => $suppliersSummary,
+            'requiredTypes' => $requiredTypes,
+            'kpiPendientes' => $kpiPendientes,
+            'kpiAprobadosHoy' => $kpiAprobadosHoy,
+            'kpiRechazadosHoy' => $kpiRechazadosHoy,
         ]);
     }
 
@@ -82,12 +82,12 @@ class DocumentReviewController extends Controller
             ->get()
             ->groupBy('doc_type');
 
-        $requiredTypes = SupplierDocument::REQUIRED_TYPES;
+        $requiredTypes = SupplierDocument::requiredTypesFor($supplier);
 
         return view('documents.admin.show_supplier', [
-            'supplier'     => $supplier,
-            'docsByType'   => $docs,
-            'requiredTypes'=> $requiredTypes,
+            'supplier' => $supplier,
+            'docsByType' => $docs,
+            'requiredTypes' => $requiredTypes,
         ]);
     }
 
@@ -95,10 +95,10 @@ class DocumentReviewController extends Controller
     {
         DB::transaction(function () use ($request, $document) {
             $document->update([
-                'status'       => 'accepted',
+                'status' => 'accepted',
                 'rejection_reason' => null,
-                'reviewed_by'  => $request->user()->id,
-                'reviewed_at'  => now(),
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
             ]);
 
             $document->supplier?->recalculateDocumentStatus();
@@ -107,9 +107,9 @@ class DocumentReviewController extends Controller
         // Respuesta JSON para AJAX
         if ($request->wantsJson()) {
             return response()->json([
-                'ok'          => true,
-                'id'          => $document->id,
-                'new_status'  => $document->status,
+                'ok' => true,
+                'id' => $document->id,
+                'new_status' => $document->status,
                 'reviewed_by' => $request->user()->name ?? '—',
                 'reviewed_at' => optional($document->reviewed_at)->format('Y-m-d H:i'),
             ]);
@@ -122,15 +122,15 @@ class DocumentReviewController extends Controller
     public function reject(Request $request, SupplierDocument $document)
     {
         $data = $request->validate([
-            'reason' => ['required','string','min:5','max:2000'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ], [], ['reason' => 'motivo de rechazo']);
 
         DB::transaction(function () use ($request, $document, $data) {
             $document->update([
-                'status'           => 'rejected',
+                'status' => 'rejected',
                 'rejection_reason' => $data['reason'],
-                'reviewed_by'      => $request->user()->id,
-                'reviewed_at'      => now(),
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
             ]);
 
             $document->supplier?->recalculateDocumentStatus();
@@ -138,12 +138,12 @@ class DocumentReviewController extends Controller
 
         if ($request->wantsJson()) {
             return response()->json([
-                'ok'               => true,
-                'id'               => $document->id,
-                'new_status'       => $document->status,
+                'ok' => true,
+                'id' => $document->id,
+                'new_status' => $document->status,
                 'rejection_reason' => $document->rejection_reason,
-                'reviewed_by'      => $request->user()->name ?? '—',
-                'reviewed_at'      => optional($document->reviewed_at)->format('Y-m-d H:i'),
+                'reviewed_by' => $request->user()->name ?? '—',
+                'reviewed_at' => optional($document->reviewed_at)->format('Y-m-d H:i'),
             ]);
         }
 

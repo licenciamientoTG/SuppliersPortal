@@ -91,7 +91,7 @@ class Supplier extends Authenticatable
 
     public function getFullNameAttribute(): string
     {
-        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+        return trim(($this->first_name ?? '').' '.($this->last_name ?? ''));
     }
 
     public function getUserAttribute(): ?User
@@ -148,13 +148,15 @@ class Supplier extends Authenticatable
 
     public function missingRequiredDocuments(): array
     {
+        $requiredTypes = SupplierDocument::requiredTypesFor($this);
+
         $present = $this->documents()
-            ->whereIn('doc_type', SupplierDocument::REQUIRED_TYPES)
+            ->whereIn('doc_type', $requiredTypes)
             ->pluck('doc_type')
             ->unique()
             ->all();
 
-        return array_values(array_diff(SupplierDocument::REQUIRED_TYPES, $present));
+        return array_values(array_diff($requiredTypes, $present));
     }
 
     public function requiresRepseRegistration(): bool
@@ -204,8 +206,10 @@ class Supplier extends Authenticatable
 
     public function recalculateDocumentStatus(): string
     {
+        $requiredTypes = SupplierDocument::requiredTypesFor($this);
+
         $docs = $this->documents()
-            ->whereIn('doc_type', SupplierDocument::REQUIRED_TYPES)
+            ->whereIn('doc_type', $requiredTypes)
             ->get(['doc_type', 'status', 'uploaded_at', 'created_at'])
             ->groupBy('doc_type')
             ->map(fn ($group) => $group->sortByDesc(fn ($doc) => $doc->uploaded_at ?? $doc->created_at)->first());
@@ -218,7 +222,7 @@ class Supplier extends Authenticatable
 
         $hasPending = $docs->contains(fn ($doc) => $doc->status === 'pending_review');
         $hasRejected = $docs->contains(fn ($doc) => $doc->status === 'rejected');
-        $missingRequired = array_diff(SupplierDocument::REQUIRED_TYPES, $docs->keys()->all());
+        $missingRequired = array_diff($requiredTypes, $docs->keys()->all());
 
         $status = match (true) {
             $hasPending => 'in_review',

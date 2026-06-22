@@ -23,7 +23,7 @@ class SupplierDocumentController extends Controller
 
         return view('documents.suppliers.index', [
             'supplier' => $supplier,
-            'requiredTypes' => SupplierDocument::REQUIRED_TYPES,
+            'requiredTypes' => SupplierDocument::requiredTypesFor($supplier),
             'docsByType' => $docs,
         ]);
     }
@@ -39,7 +39,7 @@ class SupplierDocumentController extends Controller
         $maxKb = SupplierDocument::maxKbFor($docType);
 
         $request->validate([
-            'doc_type' => ['required', Rule::in(SupplierDocument::REQUIRED_TYPES)],
+            'doc_type' => ['required', Rule::in(SupplierDocument::ALL_TYPES)],
             'file' => [
                 'required',
                 'file',
