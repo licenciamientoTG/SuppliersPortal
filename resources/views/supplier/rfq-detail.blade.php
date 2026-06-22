@@ -518,6 +518,28 @@
                                     {{-- El item_id lo dejamos habilitado para que el controlador sepa de qué partida hablamos --}}
                                     <input type="hidden" name="{{ $itemPrefix }}[item_id]" value="{{ $item->id }}" {{ $isLocked ? 'disabled' : '' }}>
 
+                                    {{-- Marca de "no disponible" para esta partida --}}
+                                    <input type="hidden"
+                                           class="item-not-available-flag"
+                                           name="{{ $itemPrefix }}[not_available]"
+                                           value="{{ old("{$itemPrefix}[not_available]", ($existingResponse && $existingResponse->not_available) ? '1' : '0') }}"
+                                           {{ $isLocked ? 'disabled' : '' }}>
+
+                                    @unless($isLocked)
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input toggle-not-available" type="checkbox"
+                                               id="not_available_{{ $index }}"
+                                               {{ ($existingResponse && $existingResponse->not_available) ? 'checked' : '' }}>
+                                        <label class="form-check-label small text-muted" for="not_available_{{ $index }}">
+                                            <i class="ti ti-ban me-1"></i>No puedo cotizar esta partida
+                                        </label>
+                                    </div>
+                                    @endunless
+
+                                    <span class="badge bg-warning text-dark item-unavailable-badge mb-2 {{ ($existingResponse && $existingResponse->not_available) ? '' : 'd-none' }}">
+                                        <i class="ti ti-ban me-1"></i>Marcada como no disponible
+                                    </span>
+
                                     {{-- Campos del Formulario --}}
                                     <div class="row g-2">
                                         
@@ -915,23 +937,37 @@ $(document).ready(function() {
 
     function updateSummaryPanel() {
         let summaryHtml = '';
-        
+
         $('.quotation-item').each(function(index) {
             const $item = $(this);
             const itemNumber = index + 1;
+            const isUnavailable = $item.find('.item-not-available-flag').val() === '1';
+
+            if (isUnavailable) {
+                summaryHtml += `
+                    <div class="d-flex justify-content-between align-items-start mb-2 text-warning">
+                        <div class="flex-grow-1 me-2">
+                            <span class="badge bg-warning text-dark badge-sm me-1">${itemNumber}</span>
+                            <small>No disponible</small>
+                        </div>
+                        <strong class="text-nowrap small">—</strong>
+                    </div>`;
+                return; // continue
+            }
+
             const total = parseFloat($item.find('.item-total').val()) || 0;
-            
+
             // Obtener descripción del header
             const description = $item.find('h6.fw-bold').text().trim();
-            const shortDescription = description.length > 30 
-                ? description.substring(0, 30) + '...' 
+            const shortDescription = description.length > 30
+                ? description.substring(0, 30) + '...'
                 : description;
-            
+
             // Determinar color según si tiene valor
             const hasValue = total > 0;
             const textClass = hasValue ? 'text-dark' : 'text-muted';
             const badgeClass = hasValue ? 'bg-primary' : 'bg-secondary';
-            
+
             summaryHtml += `
                 <div class="d-flex justify-content-between align-items-start mb-2 ${textClass}">
                     <div class="flex-grow-1 me-2">
@@ -942,11 +978,11 @@ $(document).ready(function() {
                 </div>
             `;
         });
-        
+
         if (summaryHtml === '') {
             summaryHtml = '<p class="text-muted text-center small mb-0">Sin partidas cotizadas</p>';
         }
-        
+
         $('#summary-items').html(summaryHtml);
     }
 
@@ -954,12 +990,15 @@ $(document).ready(function() {
         let grandTotal = 0;
         let grandSubtotal = 0;
         let grandIva = 0;
-        
+
         $('.quotation-item').each(function() {
+            if ($(this).find('.item-not-available-flag').val() === '1') {
+                return; // no suma
+            }
             const subtotal = parseFloat($(this).find('.subtotal').val()) || 0;
             const ivaAmount = parseFloat($(this).find('.iva-amount').val()) || 0;
             const total = parseFloat($(this).find('.item-total').val()) || 0;
-            
+
             grandSubtotal += subtotal;
             grandIva += ivaAmount;
             grandTotal += total;
@@ -985,7 +1024,37 @@ $(document).ready(function() {
 
     // Inicializar el panel de resumen
     updateSummaryPanel();
-    
+
+    // =========================================================================
+    // Marcar/desmarcar partida como "no disponible"
+    // =========================================================================
+    function applyNotAvailableState($item, isUnavailable) {
+        const $fields = $item.find('.unit-price, .quantity, .iva-rate, input[name$="[delivery_days]"]');
+        $item.find('.item-not-available-flag').val(isUnavailable ? '1' : '0');
+        $item.find('.item-unavailable-badge').toggleClass('d-none', !isUnavailable);
+        $item.toggleClass('opacity-50', isUnavailable);
+
+        if (isUnavailable) {
+            $item.find('.unit-price, .quantity').val('');
+        }
+        $fields.prop('disabled', isUnavailable).removeClass('is-invalid');
+
+        const index = $item.data('item-index');
+        calculateItemTotals(index);
+    }
+
+    $('.toggle-not-available').on('change', function() {
+        const $item = $(this).closest('.quotation-item');
+        applyNotAvailableState($item, this.checked);
+    });
+
+    // Estado inicial (por old() o datos guardados)
+    $('.toggle-not-available').each(function() {
+        if (this.checked) {
+            applyNotAvailableState($(this).closest('.quotation-item'), true);
+        }
+    });
+
     // =========================================================================
     // Validación de archivos PDF
     // =========================================================================
@@ -1215,7 +1284,28 @@ $(document).ready(function() {
         // Validación de campos obligatorios antes de mostrar el modal
         if (!validateFieldsBeforeSubmit()) return;
 
+        // Recolectar partidas marcadas como no disponibles
+        const unavailableNames = [];
+        $('.quotation-item').each(function() {
+            if ($(this).find('.item-not-available-flag').val() === '1') {
+                unavailableNames.push($(this).find('h6.fw-bold').text().trim());
+            }
+        });
+
         const grandTotal = $('#grand-total').text();
+        const baseSteps = [
+            `<i class="ti ti-currency-dollar step-icon"></i> <div class="step-content"><strong>Monto Total:</strong> Se enviará una oferta formal por <strong>$${grandTotal}</strong> (IVA incluido).</div>`,
+            '<i class="ti ti-lock step-icon"></i> <div class="step-content"><strong>Bloqueo de Edición:</strong> Una vez enviada, la cotización quedará en estado <strong>RECIBIDA</strong> y no podrá ser modificada.</div>',
+            '<i class="ti ti-bell-ringing step-icon"></i> <div class="step-content"><strong>Notificación:</strong> El departamento de compras será notificado inmediatamente para iniciar el proceso de comparativa.</div>'
+        ];
+
+        if (unavailableNames.length > 0) {
+            const lista = unavailableNames.map(n => `• ${n}`).join('<br>');
+            baseSteps.unshift(
+                `<i class="ti ti-ban step-icon"></i> <div class="step-content"><strong>Sin incluir ${unavailableNames.length} partida(s):</strong><br>${lista}<br>El comprador será notificado de esta falta de producto.</div>`
+            );
+        }
+
         confirmAction({
             title: 'Enviar Cotización Formal',
             headerIcon: 'ti ti-send',
@@ -1225,11 +1315,7 @@ $(document).ready(function() {
             icon: 'warning',
             confirmButtonText: 'Confirmar Envío',
             checkboxText: 'Confirmo que los montos y documentos son correctos',
-            steps: [
-                `<i class="ti ti-currency-dollar step-icon"></i> <div class="step-content"><strong>Monto Total:</strong> Se enviará una oferta formal por <strong>$${grandTotal}</strong> (IVA incluido).</div>`,
-                '<i class="ti ti-lock step-icon"></i> <div class="step-content"><strong>Bloqueo de Edición:</strong> Una vez enviada, la cotización quedará en estado <strong>RECIBIDA</strong> y no podrá ser modificada.</div>',
-                '<i class="ti ti-bell-ringing step-icon"></i> <div class="step-content"><strong>Notificación:</strong> El departamento de compras será notificado inmediatamente para iniciar el proceso de comparativa.</div>'
-            ]
+            steps: baseSteps
         });
     });
 
@@ -1245,7 +1331,10 @@ $(document).ready(function() {
 
         // Validar precios unitarios
         let hasErrors = false;
-        $('.quotation-item').each(function(index) {
+        $('.quotation-item').each(function() {
+            if ($(this).find('.item-not-available-flag').val() === '1') {
+                return; // partida no disponible: no requiere precio
+            }
             const unitPrice = $(this).find('.unit-price').val();
             if (!unitPrice || parseFloat(unitPrice) <= 0) {
                 $(this).find('.unit-price').addClass('is-invalid');
