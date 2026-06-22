@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enum\RequisitionStatus;
 use App\Models\QuotationSummary;
 use App\Models\Rfq;
+use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\QuotationApprovalRequestNotification;
 use App\Services\ApprovalService;
 use App\Services\AuthorizerResolutionService;
+use App\Services\BuyerNotificationService;
 use App\Services\BudgetAllocationService;
 use App\Services\QuotationRejectionWorkflowService;
 use Illuminate\Http\Request;
@@ -22,6 +24,7 @@ class RfqComparisonController extends Controller
         protected ApprovalService $approvalService,
         protected BudgetAllocationService $budgetAllocationService,
         protected AuthorizerResolutionService $authorizerResolutionService,
+        protected BuyerNotificationService $buyerNotificationService,
         protected QuotationRejectionWorkflowService $quotationRejectionWorkflowService
     ) {}
 
@@ -127,6 +130,7 @@ class RfqComparisonController extends Controller
 
             $escalated = collect($summary->approval_chain_snapshot)->contains(fn ($step) => ($step['status'] ?? null) !== 'eligible');
             $summary->currentApprover?->notify(new QuotationApprovalRequestNotification($summary, $escalated));
+            $this->notifyBuyersQuotationPendingApproval($summary, false);
 
             return redirect()
                 ->route('rfq.index')
@@ -162,6 +166,7 @@ class RfqComparisonController extends Controller
 
             $escalated = collect($summary->approval_chain_snapshot)->contains(fn ($step) => ($step['status'] ?? null) !== 'eligible');
             $summary->currentApprover?->notify(new QuotationApprovalRequestNotification($summary, $escalated));
+            $this->notifyBuyersQuotationPendingApproval($summary, true);
 
             return redirect()
                 ->route('rfq.comparison.index', $summary->rfq_id)
@@ -271,5 +276,41 @@ class RfqComparisonController extends Controller
             'budget_blocked' => ! empty($budgetMessages),
             'budget_messages' => array_values(array_unique($budgetMessages)),
         ];
+    }
+
+    private function notifyBuyersQuotationPendingApproval(QuotationSummary $summary, bool $reawarded): void
+    {
+        $summary->loadMissing(['rfq', 'requisition.requester', 'selectedSupplier', 'currentApprover']);
+
+        $heading = $reawarded ? 'Re-adjudicación enviada a aprobación' : 'Adjudicación enviada a aprobación';
+        $messagePrefix = $reawarded ? 'La re-adjudicación' : 'La adjudicación';
+
+        $this->buyerNotificationService->notify(
+            new BuyerWorkflowNotification(
+                type: 'buyer_quotation_pending_approval',
+                subject: $heading.' - '.($summary->rfq?->folio ?? 'RFQ'),
+                heading: $heading,
+                intro: 'la cotización adjudicada fue enviada al flujo de aprobación.',
+                details: [
+                    'RFQ' => $summary->rfq?->folio ?? 'N/A',
+                    'Requisición' => $summary->requisition?->folio ?? 'N/A',
+                    'Solicitante' => $summary->requisition?->requester?->name ?? 'N/A',
+                    'Proveedor adjudicado' => $summary->selectedSupplier?->company_name ?? 'N/A',
+                    'Monto total con IVA' => '$'.number_format((float) $summary->total, 2),
+                    'Aprobador actual' => $summary->currentApprover?->name ?? 'N/A',
+                ],
+                url: route('rfq.comparison.index', $summary->rfq_id),
+                buttonLabel: 'Ver comparativo',
+                message: $messagePrefix.' de la RFQ '.($summary->rfq?->folio ?? 'N/A').' fue enviada a aprobación.',
+                context: [
+                    'summary_id' => $summary->id,
+                    'rfq_id' => $summary->rfq_id,
+                    'rfq_folio' => $summary->rfq?->folio,
+                    'requisition_id' => $summary->requisition_id,
+                    'requisition_folio' => $summary->requisition?->folio,
+                    'reawarded' => $reawarded,
+                ],
+            ),
+        );
     }
 }

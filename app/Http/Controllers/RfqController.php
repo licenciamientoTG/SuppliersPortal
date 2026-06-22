@@ -14,13 +14,16 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Supplier;
+use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\RfqSentToSuppliersNotification;
 use App\Notifications\NewRfqForSupplierNotification;
+use App\Services\BuyerNotificationService;
 use App\Services\QuotationRejectionWorkflowService;
 class RfqController extends Controller
 {
     public function __construct(
-        private QuotationRejectionWorkflowService $quotationRejectionWorkflowService
+        private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
+        private BuyerNotificationService $buyerNotificationService,
     ) {}
 
     /**
@@ -508,6 +511,8 @@ class RfqController extends Controller
                 ]);
             }
 
+            $this->notifyBuyersRfqWasSent($rfq->fresh(['requisition.requester', 'suppliers']));
+
             DB::commit();
 
             return response()->json([
@@ -962,6 +967,8 @@ class RfqController extends Controller
                 ]);
             }
 
+            $this->notifyBuyersRfqWasSent($rfq->fresh(['requisition.requester', 'suppliers']));
+
             return response()->json([
                 'success' => true,
                 'message' => 'RFQ enviada exitosamente a ' . $rfq->suppliers->count() . ' proveedor(es).',
@@ -979,6 +986,34 @@ class RfqController extends Controller
                 'message' => 'Error en el frente de batalla: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function notifyBuyersRfqWasSent(Rfq $rfq): void
+    {
+        $this->buyerNotificationService->notify(
+            new BuyerWorkflowNotification(
+                type: 'buyer_rfq_sent',
+                subject: 'RFQ enviada a proveedores - '.$rfq->folio,
+                heading: 'RFQ enviada',
+                intro: 'la solicitud de cotización ya fue enviada a los proveedores seleccionados.',
+                details: [
+                    'RFQ' => $rfq->folio,
+                    'Requisición' => $rfq->requisition?->folio ?? 'N/A',
+                    'Solicitante' => $rfq->requisition?->requester?->name ?? 'N/A',
+                    'Proveedores notificados' => (string) $rfq->suppliers->count(),
+                    'Fecha límite' => $rfq->response_deadline?->format('d/m/Y') ?? 'No especificada',
+                ],
+                url: route('rfq.show', $rfq),
+                buttonLabel: 'Ver RFQ',
+                message: 'La RFQ '.$rfq->folio.' fue enviada a '.$rfq->suppliers->count().' proveedor(es).',
+                context: [
+                    'rfq_id' => $rfq->id,
+                    'rfq_folio' => $rfq->folio,
+                    'requisition_id' => $rfq->requisition_id,
+                    'requisition_folio' => $rfq->requisition?->folio,
+                ],
+            ),
+        );
     }
 }
 

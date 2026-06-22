@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enum\RequisitionStatus;
+use App\Services\BuyerNotificationService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -493,8 +494,7 @@ class Requisition extends Model
         // 📧 NOTIFICAR AL DEPARTAMENTO DE COMPRAS
         // =====================================================
         try {
-            // 👇 Usar 'buyer' que es el rol correcto
-            $purchasingUsers = \App\Models\User::role('buyer')->get();
+            $purchasingUsers = app(BuyerNotificationService::class)->recipients();
 
             if ($purchasingUsers->isEmpty()) {
                 Log::warning('⚠️ No se encontraron usuarios con rol buyer', [

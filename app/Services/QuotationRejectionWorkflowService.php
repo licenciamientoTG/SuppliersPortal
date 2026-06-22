@@ -8,6 +8,7 @@ use App\Models\QuotationSummary;
 use App\Models\Requisition;
 use App\Models\Rfq;
 use App\Models\RfqResponse;
+use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\RfqCancelledForRequesterNotification;
 use App\Notifications\RfqCancelledForSupplierNotification;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ class QuotationRejectionWorkflowService
     public function __construct(
         private BudgetAllocationService $budgetAllocationService,
         private AuthorizerResolutionService $authorizerResolutionService,
+        private BuyerNotificationService $buyerNotificationService,
     ) {}
 
     public function handleApprovalRejection(QuotationSummary $summary, int $userId, string $reason): void
@@ -141,6 +143,7 @@ class QuotationRejectionWorkflowService
             }
 
             $this->notifyRfqCancellation($rfq, $reason);
+            $this->notifyBuyersRfqCancellation($rfq, $reason);
             $this->refreshRequisitionStatus($rfq->requisition);
         });
     }
@@ -174,6 +177,7 @@ class QuotationRejectionWorkflowService
             }
 
             $requisition->cancel($reason, $userId);
+            $this->notifyBuyersRequisitionCancellation($requisition, $reason);
         });
     }
 
@@ -283,6 +287,63 @@ class QuotationRejectionWorkflowService
                 $supplier->notify(new RfqCancelledForSupplierNotification($rfq, $reason));
             }
         }
+    }
+
+    private function notifyBuyersRfqCancellation(Rfq $rfq, string $reason): void
+    {
+        $rfq->loadMissing(['requisition.requester', 'suppliers']);
+
+        $this->buyerNotificationService->notify(
+            new BuyerWorkflowNotification(
+                type: 'buyer_rfq_cancelled',
+                subject: 'RFQ cancelada - '.$rfq->folio,
+                heading: 'RFQ cancelada',
+                intro: 'la solicitud de cotización fue cancelada dentro del flujo de Compras.',
+                details: [
+                    'RFQ' => $rfq->folio,
+                    'Requisición' => $rfq->requisition?->folio ?? 'N/A',
+                    'Solicitante' => $rfq->requisition?->requester?->name ?? 'N/A',
+                    'Proveedores involucrados' => (string) $rfq->suppliers->count(),
+                    'Motivo' => $reason,
+                ],
+                url: route('rfq.show', $rfq),
+                buttonLabel: 'Ver RFQ',
+                message: 'La RFQ '.$rfq->folio.' fue cancelada.',
+                context: [
+                    'rfq_id' => $rfq->id,
+                    'rfq_folio' => $rfq->folio,
+                    'requisition_id' => $rfq->requisition_id,
+                    'requisition_folio' => $rfq->requisition?->folio,
+                ],
+            ),
+        );
+    }
+
+    private function notifyBuyersRequisitionCancellation(Requisition $requisition, string $reason): void
+    {
+        $requisition->loadMissing(['requester', 'rfqs']);
+
+        $this->buyerNotificationService->notify(
+            new BuyerWorkflowNotification(
+                type: 'buyer_requisition_cancelled',
+                subject: 'Requisición cancelada - '.$requisition->folio,
+                heading: 'Requisición cancelada',
+                intro: 'la requisición fue cancelada desde el flujo de Compras.',
+                details: [
+                    'Requisición' => $requisition->folio,
+                    'Solicitante' => $requisition->requester?->name ?? 'N/A',
+                    'RFQs relacionadas' => (string) $requisition->rfqs->count(),
+                    'Motivo' => $reason,
+                ],
+                url: route('requisitions.show', $requisition),
+                buttonLabel: 'Ver requisición',
+                message: 'La requisición '.$requisition->folio.' fue cancelada.',
+                context: [
+                    'requisition_id' => $requisition->id,
+                    'requisition_folio' => $requisition->folio,
+                ],
+            ),
+        );
     }
 
     private function generateReplacementFolio(): string

@@ -6,6 +6,7 @@ use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
 use App\Models\User;
 use App\Notifications\QuotationApprovalApprovedNotification;
+use App\Notifications\QuotationApprovalRejectedNotification;
 use App\Services\BudgetAllocationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +47,27 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'requisition_item_id' => $summary->rfq->rfqResponses()->first()->requisition_item_id,
         ]);
         Notification::assertSentTo($buyer, QuotationApprovalApprovedNotification::class);
+    }
+
+    public function test_rejected_regular_quotation_notifies_buyers(): void
+    {
+        Notification::fake();
+        $this->withoutMiddleware();
+
+        ['summary' => $summary, 'approver' => $approver, 'buyer' => $buyer] = $this->createRegularApprovalFixture();
+
+        $this->actingAs($approver)
+            ->post(route('approvals.quotations.handle', $summary), [
+                'status' => 'rejected',
+                'reason' => 'Se rechaza por falta de justificación financiera suficiente.',
+            ])
+            ->assertRedirect(route('approvals.quotations.index'));
+
+        $summary->refresh();
+
+        $this->assertSame('rejected', $summary->approval_status);
+        $this->assertNotNull($summary->rejected_at);
+        Notification::assertSentTo($buyer, QuotationApprovalRejectedNotification::class);
     }
 
     public function test_close_inactive_command_uses_issued_purchase_orders_instead_of_open_ones(): void

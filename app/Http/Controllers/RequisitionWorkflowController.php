@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
 use App\Mail\RequisitionFeedbackMail;
+use App\Notifications\BuyerWorkflowNotification;
+use App\Notifications\NewRequisitionForPurchasingNotification;
 use App\Models\Requisition;
 use App\Notifications\RequisitionFeedbackNotification;
 use App\Notifications\RequisitionInQuotationNotification;
 use App\Notifications\RequisitionRejectedNotification;
 use App\Notifications\RequisitionSubmittedNotification;
+use App\Services\BuyerNotificationService;
 use App\Services\QuotationRejectionWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +22,8 @@ use Illuminate\Support\Facades\Mail;
 class RequisitionWorkflowController extends Controller
 {
     public function __construct(
-        private QuotationRejectionWorkflowService $quotationRejectionWorkflowService
+        private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
+        private BuyerNotificationService $buyerNotificationService,
     ) {}
 
     public function validationInbox(Request $request)
@@ -117,6 +121,30 @@ class RequisitionWorkflowController extends Controller
         if ($requisition->requester) {
             $requisition->requester->notify(new RequisitionInQuotationNotification($requisition));
         }
+
+        $requisition->loadMissing(['requester', 'company']);
+
+        $this->buyerNotificationService->notify(
+            new BuyerWorkflowNotification(
+                type: 'buyer_requisition_in_quotation',
+                subject: 'Requisición lista para cotización - '.$requisition->folio,
+                heading: 'Requisición en cotización',
+                intro: 'la requisición fue validada y ya puede avanzar en el proceso de cotización.',
+                details: [
+                    'Requisición' => $requisition->folio,
+                    'Solicitante' => $requisition->requester?->name ?? 'N/A',
+                    'Empresa' => $requisition->company?->name ?? 'N/A',
+                    'Fecha requerida' => $requisition->required_date?->format('d/m/Y') ?? 'No especificada',
+                ],
+                url: route('requisitions.show', $requisition),
+                buttonLabel: 'Ver requisición',
+                message: 'La requisición '.$requisition->folio.' fue validada y pasó a cotización.',
+                context: [
+                    'requisition_id' => $requisition->id,
+                    'requisition_folio' => $requisition->folio,
+                ],
+            ),
+        );
 
         return $this->respond($request, true, '✅ Requisición validada. Puede proceder con el proceso de cotización.');
     }
@@ -267,6 +295,9 @@ class RequisitionWorkflowController extends Controller
             ]);
 
             $requisition->requester?->notify(new RequisitionSubmittedNotification($requisition));
+            $this->buyerNotificationService->notify(
+                new NewRequisitionForPurchasingNotification($requisition->fresh(['requester', 'company', 'department']))
+            );
 
             DB::commit();
 

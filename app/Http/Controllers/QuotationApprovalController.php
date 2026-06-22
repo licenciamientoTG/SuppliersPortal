@@ -7,9 +7,9 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\QuotationSummary;
 use App\Models\RfqResponse;
-use App\Models\User;
 use App\Notifications\QuotationApprovalApprovedNotification;
 use App\Notifications\QuotationApprovalRejectedNotification;
+use App\Services\BuyerNotificationService;
 use App\Services\BudgetAllocationService;
 use App\Services\QuotationRejectionWorkflowService;
 use Illuminate\Http\Request;
@@ -22,6 +22,7 @@ class QuotationApprovalController extends Controller
 {
     public function __construct(
         private BudgetAllocationService $budgetAllocationService,
+        private BuyerNotificationService $buyerNotificationService,
         private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
     ) {}
 
@@ -248,16 +249,9 @@ class QuotationApprovalController extends Controller
             ? new QuotationApprovalApprovedNotification($summary)
             : new QuotationApprovalRejectedNotification($summary);
 
-        $buyers = User::role('buyer')->get();
-
-        $recipients = collect([$summary->selector, $summary->requisition?->requester])
-            ->filter()
-            ->merge($buyers);
-
-        $recipients
-            ->filter()
-            ->unique('id')
-            ->each
-            ->notify($notification);
+        $this->buyerNotificationService->notify(
+            $notification,
+            [$summary->selector, $summary->requisition?->requester]
+        );
     }
 }
