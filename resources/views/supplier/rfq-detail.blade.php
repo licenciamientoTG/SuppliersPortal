@@ -288,8 +288,7 @@
                 <div class="card mb-3 shadow-sm">
                     <div class="card-header bg-light py-2">
                         <h6 class="mb-0">
-                            <i class="ti ti-file-text me-2"></i>
-                            Datos Generales de tu Cotización
+                            <i class="ti ti-file-text me-2"></i> Datos Generales de tu Cotización
                         </h6>
                     </div>
                     <div class="card-body p-3">
