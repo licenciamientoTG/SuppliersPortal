@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() !== 'sqlsrv') {
+            return;
+        }
+
         if (Schema::hasColumn('suppliers', 'user_id')) {
             DB::statement('ALTER TABLE suppliers ALTER COLUMN user_id BIGINT NULL');
         }

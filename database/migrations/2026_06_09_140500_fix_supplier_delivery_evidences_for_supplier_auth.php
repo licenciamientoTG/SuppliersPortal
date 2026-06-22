@@ -20,7 +20,9 @@ return new class extends Migration
             });
         }
 
-        DB::statement('ALTER TABLE supplier_delivery_evidences ALTER COLUMN uploaded_by BIGINT NULL');
+        if (DB::getDriverName() === 'sqlsrv') {
+            DB::statement('ALTER TABLE supplier_delivery_evidences ALTER COLUMN uploaded_by BIGINT NULL');
+        }
     }
 
     public function down(): void

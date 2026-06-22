@@ -75,7 +75,7 @@ return new class extends Migration
             }
         });
 
-        if (Schema::hasColumn('suppliers', 'economic_activity')) {
+        if (Schema::hasColumn('suppliers', 'economic_activity') && DB::getDriverName() === 'sqlsrv') {
             DB::statement('ALTER TABLE suppliers ALTER COLUMN economic_activity NVARCHAR(MAX) NULL');
         }
 
