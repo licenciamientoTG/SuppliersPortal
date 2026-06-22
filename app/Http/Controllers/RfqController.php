@@ -19,6 +19,7 @@ use App\Notifications\RfqSentToSuppliersNotification;
 use App\Notifications\NewRfqForSupplierNotification;
 use App\Services\BuyerNotificationService;
 use App\Services\QuotationRejectionWorkflowService;
+
 class RfqController extends Controller
 {
     public function __construct(
