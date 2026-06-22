@@ -72,6 +72,7 @@ class RfqComparisonController extends Controller
         $totals = $rfq->rfqResponses()
             ->where('supplier_id', $request->integer('supplier_id'))
             ->where('status', 'SUBMITTED')
+            ->where('not_available', false)
             ->selectRaw('SUM(subtotal) as subtotal, SUM(iva_amount) as iva, SUM(total) as total')
             ->first();
 
@@ -206,6 +207,7 @@ class RfqComparisonController extends Controller
         $responses = $rfq->rfqResponses
             ->where('supplier_id', $supplierId)
             ->where('status', 'SUBMITTED')
+            ->where('not_available', false)
             ->values();
 
         $reasons = [];

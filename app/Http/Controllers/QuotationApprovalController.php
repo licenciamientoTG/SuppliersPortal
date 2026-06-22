@@ -206,6 +206,7 @@ class QuotationApprovalController extends Controller
         $winningResponses = RfqResponse::with('requisitionItem')
             ->where('rfq_id', $summary->rfq_id)
             ->where('supplier_id', $summary->selected_supplier_id)
+            ->where('not_available', false)
             ->get();
 
         // A regular purchase order enters its operational cycle immediately
