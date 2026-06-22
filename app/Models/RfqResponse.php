@@ -54,6 +54,7 @@ class RfqResponse extends Model
         'submitted_at',
         'evaluated_by',
         'evaluated_at',
+        'not_available',
     ];
 
     protected $casts = [
@@ -72,6 +73,7 @@ class RfqResponse extends Model
         // OTROS
         'delivery_days' => 'integer',
         'meets_specs' => 'boolean',
+        'not_available' => 'boolean',
         'score' => 'integer',
         'submitted_at' => 'datetime',
         'evaluated_at' => 'datetime',
@@ -358,6 +360,22 @@ class RfqResponse extends Model
     public function scopeMeetsSpecs($query)
     {
         return $query->where('meets_specs', true);
+    }
+
+    /**
+     * Solo respuestas con partida cotizada (no marcadas como no disponible).
+     */
+    public function scopeQuoted($query)
+    {
+        return $query->where('not_available', false);
+    }
+
+    /**
+     * Solo respuestas de partidas marcadas como no disponibles por el proveedor.
+     */
+    public function scopeNotAvailable($query)
+    {
+        return $query->where('not_available', true);
     }
 
     public function scopeValid($query)
