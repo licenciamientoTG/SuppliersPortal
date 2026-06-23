@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
+use App\Models\QuotationGroup;
 use App\Models\QuotationSummary;
 use App\Models\Rfq;
 use App\Notifications\BuyerWorkflowNotification;
@@ -180,6 +181,75 @@ class RfqComparisonController extends Controller
             Log::error("Error en re-adjudicación RFQ {$rfq->id}: {$exception->getMessage()}");
 
             return back()->with('error', 'No fue posible crear la nueva vuelta de adjudicación: '.$exception->getMessage());
+        }
+    }
+
+    public function generateComplementaryRfq(Request $request, Rfq $rfq)
+    {
+        $validated = $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'integer|exists:requisition_items,id',
+            'supplier_ids' => 'required|array|min:1',
+            'supplier_ids.*' => 'integer|exists:suppliers,id',
+            'response_deadline' => 'required|date|after:today',
+            'message' => 'nullable|string',
+        ]);
+
+        try {
+            $newRfq = DB::transaction(function () use ($validated, $rfq) {
+                $group = QuotationGroup::create([
+                    'requisition_id' => $rfq->requisition_id,
+                    'name' => 'Complemento de '.$rfq->folio,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+
+                $attach = [];
+                foreach (array_values($validated['item_ids']) as $i => $itemId) {
+                    $attach[$itemId] = ['sort_order' => $i + 1];
+                }
+                $group->items()->attach($attach);
+
+                $newRfq = Rfq::create([
+                    'folio' => Rfq::nextFolio(),
+                    'requisition_id' => $rfq->requisition_id,
+                    'quotation_group_id' => $group->id,
+                    'supersedes_rfq_id' => $rfq->id,
+                    'source' => 'portal',
+                    'status' => 'SENT',
+                    'sent_at' => now(),
+                    'response_deadline' => $validated['response_deadline'],
+                    'message' => $validated['message'] ?? null,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+
+                $supplierData = [];
+                foreach ($validated['supplier_ids'] as $supplierId) {
+                    $supplierData[$supplierId] = ['invited_at' => now()];
+                }
+                $newRfq->suppliers()->attach($supplierData);
+
+                foreach ($validated['supplier_ids'] as $supplierId) {
+                    // El envío real de correo sigue siendo TODO en el sistema (igual que sendRFQ).
+                    Log::info('📧 RFQ complementaria enviada', [
+                        'rfq_id' => $newRfq->id,
+                        'folio' => $newRfq->folio,
+                        'supersedes_rfq_id' => $rfq->id,
+                        'supplier_id' => $supplierId,
+                    ]);
+                }
+
+                return $newRfq;
+            });
+
+            return redirect()
+                ->route('rfq.comparison.index', $rfq)
+                ->with('status', "RFQ complementaria {$newRfq->folio} generada y enviada a ".count($validated['supplier_ids']).' proveedor(es).');
+        } catch (Throwable $exception) {
+            Log::error("Error al generar RFQ complementaria desde {$rfq->id}: {$exception->getMessage()}");
+
+            return back()->with('error', 'No fue posible generar la RFQ complementaria: '.$exception->getMessage());
         }
     }
 
