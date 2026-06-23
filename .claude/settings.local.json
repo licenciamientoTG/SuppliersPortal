@@ -49,7 +49,16 @@
       "Bash(cat app/Enum/ContractStatus.php)",
       "Bash(composer require *)",
       "Bash(grep -n 'with\\\\s*=\\\\|protected $with' app/Models/RequisitionItem.php app/Models/ContractProduct.php)",
-      "Bash(composer dump-autoload *)"
+      "Bash(composer dump-autoload *)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(grep *)",
+      "Bash(python3 -)",
+      "Bash(python3 -c ' *)",
+      "Bash(awk '/@push.scripts./,/@endpush/' resources/views/supplier/rfq-detail.blade.php)",
+      "Bash(node -e ' *)",
+      "Bash(node *)",
+      "Bash(xargs cat)",
+      "Bash(tee /tmp/full_after.log)"
     ]
   }
 }
