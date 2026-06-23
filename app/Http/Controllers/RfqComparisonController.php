@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class RfqComparisonController extends Controller
@@ -43,7 +44,9 @@ class RfqComparisonController extends Controller
         $items = $rfq->getItemsToQuote();
         $approvalLevels = $this->approvalService->getAllLevels();
         $itemsNobodyQuoted = $rfq->itemsQuotedByNoSupplier();
-        $approvedSuppliers = \App\Models\Supplier::approved()->orderBy('company_name')->get();
+        $approvedSuppliers = $itemsNobodyQuoted->isNotEmpty()
+            ? \App\Models\Supplier::approved()->orderBy('company_name')->get()
+            : collect();
         $supplierDiagnostics = $rfq->suppliers
             ->mapWithKeys(fn ($supplier) => [
                 $supplier->id => $this->buildSupplierDiagnostics($rfq, $supplier->id),
@@ -188,9 +191,16 @@ class RfqComparisonController extends Controller
     {
         $validated = $request->validate([
             'item_ids' => 'required|array|min:1',
-            'item_ids.*' => 'integer|exists:requisition_items,id',
+            'item_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('requisition_items', 'id')->where('requisition_id', $rfq->requisition_id),
+            ],
             'supplier_ids' => 'required|array|min:1',
-            'supplier_ids.*' => 'integer|exists:suppliers,id',
+            'supplier_ids.*' => [
+                'integer',
+                Rule::exists('suppliers', 'id')->where('approval_status', 'approved'),
+            ],
             'response_deadline' => 'required|date|after:today',
             'message' => 'nullable|string',
         ]);

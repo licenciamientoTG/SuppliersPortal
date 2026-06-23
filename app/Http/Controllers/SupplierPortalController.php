@@ -32,6 +32,14 @@ class SupplierPortalController extends Controller
     }
 
     /**
+     * Determina si una partida fue marcada como no disponible por el proveedor
+     */
+    private function isItemNotAvailable(array $itemData): bool
+    {
+        return ! empty($itemData['not_available']) && (string) $itemData['not_available'] === '1';
+    }
+
+    /**
      * Valida los datos del formulario de cotización
      *
      * @return array<string, mixed>
@@ -45,9 +53,9 @@ class SupplierPortalController extends Controller
         if ($request->input('action') === 'save_draft' && is_array($request->input('items'))) {
             $items = array_filter(
                 $request->input('items'),
-                static function ($item) {
+                function ($item) {
                     $hasPrice = isset($item['unit_price']) && trim((string) $item['unit_price']) !== '';
-                    $notAvailable = ! empty($item['not_available']) && (string) $item['not_available'] === '1';
+                    $notAvailable = $this->isItemNotAvailable($item);
 
                     return $hasPrice || $notAvailable;
                 }
@@ -91,7 +99,7 @@ class SupplierPortalController extends Controller
      */
     private function calculateItemTotals(array $itemData): array
     {
-        $notAvailable = ! empty($itemData['not_available']) && (string) $itemData['not_available'] === '1';
+        $notAvailable = $this->isItemNotAvailable($itemData);
 
         if ($notAvailable) {
             return [
@@ -133,7 +141,7 @@ class SupplierPortalController extends Controller
         string $action
     ): RfqResponse {
         $totals = $this->calculateItemTotals($itemData);
-        $notAvailable = ! empty($itemData['not_available']) && (string) $itemData['not_available'] === '1';
+        $notAvailable = $this->isItemNotAvailable($itemData);
 
         return RfqResponse::updateOrCreate(
             [

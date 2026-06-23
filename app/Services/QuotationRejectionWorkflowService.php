@@ -66,6 +66,7 @@ class QuotationRejectionWorkflowService
             $totals = $replacementRfq->rfqResponses()
                 ->where('supplier_id', $supplierId)
                 ->where('status', 'SUBMITTED')
+                ->where('not_available', false)
                 ->selectRaw('SUM(subtotal) as subtotal, SUM(iva_amount) as iva, SUM(total) as total')
                 ->first();
 

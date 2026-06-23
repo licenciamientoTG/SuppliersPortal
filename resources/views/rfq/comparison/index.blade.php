@@ -104,8 +104,8 @@
                                     $selection = $supplierDiagnostics[$supplier->id] ?? ['allowed' => false, 'reasons' => []];
                                     
                                     // Cálculo de montos para nivel dinámico vía ApprovalService
-                                    $subtotal = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('subtotal');
-                                    $iva = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('iva_amount');
+                                    $subtotal = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('subtotal');
+                                    $iva = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('iva_amount');
                                     $totalProyectado = $subtotal + $iva;
 
                                     $nivelAsignado = $approvalLevels->first(function($lvl) use ($totalProyectado) {
@@ -312,8 +312,8 @@
                             @foreach($rfq->suppliers as $supplier)
                                 @php 
                                     $hasResponded = !is_null($supplier->pivot->responded_at);
-                                    $subtotal = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('subtotal');
-                                    $iva = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('iva_amount');
+                                    $subtotal = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('subtotal');
+                                    $iva = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('iva_amount');
                                     $total = $subtotal + $iva;
                                     $isOver = $presupuestoDisponible !== null ? $total > $presupuestoDisponible : false;
                                 @endphp
@@ -339,8 +339,8 @@
                             @foreach($rfq->suppliers as $supplier)
                                 @php 
                                     $hasResponded = !is_null($supplier->pivot->responded_at);
-                                    $sub = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('subtotal');
-                                    $tax = $rfq->rfqResponses->where('supplier_id', $supplier->id)->sum('iva_amount');
+                                    $sub = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('subtotal');
+                                    $tax = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('not_available', false)->sum('iva_amount');
                                     $totalFinal = $sub + $tax;
                                 @endphp
                                 <td class="text-center py-3 border-0">
