@@ -41,6 +41,8 @@ class RfqComparisonController extends Controller
 
         $items = $rfq->getItemsToQuote();
         $approvalLevels = $this->approvalService->getAllLevels();
+        $itemsNobodyQuoted = $rfq->itemsQuotedByNoSupplier();
+        $approvedSuppliers = \App\Models\Supplier::approved()->orderBy('company_name')->get();
         $supplierDiagnostics = $rfq->suppliers
             ->mapWithKeys(fn ($supplier) => [
                 $supplier->id => $this->buildSupplierDiagnostics($rfq, $supplier->id),
@@ -53,6 +55,8 @@ class RfqComparisonController extends Controller
             'presupuestoDisponible' => null,
             'approvalLevels' => $approvalLevels,
             'supplierDiagnostics' => $supplierDiagnostics,
+            'itemsNobodyQuoted' => $itemsNobodyQuoted,
+            'approvedSuppliers' => $approvedSuppliers,
         ]);
     }
 

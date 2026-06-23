@@ -18,6 +18,11 @@
             <div class="page-title-box">
                 <div class="float-end d-flex align-items-center">
                     <span class="badge bg-primary text-white fs-14 shadow-sm">RFQ: {{ $rfq->folio }}</span>
+                    @if($itemsNobodyQuoted->isNotEmpty())
+                        <button type="button" class="btn btn-outline-primary btn-sm ms-2" id="btnGenerateComplementaryRfq">
+                            <i class="ti ti-file-plus me-1"></i>Generar RFQ con partidas faltantes ({{ $itemsNobodyQuoted->count() }})
+                        </button>
+                    @endif
                 </div>
                 <h4 class="page-title">Análisis Comparativo de Cotizaciones</h4>
             </div>
@@ -132,6 +137,10 @@
                                         {{ $supplier->company_name }}
                                     </div>
 
+                                    <div class="small text-muted mt-1">
+                                        {{ $rfq->quotedItemCountForSupplier($supplier->id) }} de {{ $items->count() }} partidas cotizadas
+                                    </div>
+
                                     @if($hasResponded)
                                         <div class="d-flex flex-wrap justify-content-center gap-1 mt-1">
                                             @if($nivelAsignado)
@@ -177,8 +186,12 @@
                                     @php
                                         $resp = $rfq->rfqResponses->where('supplier_id', $supplier->id)->where('requisition_item_id', $item->id)->first();
                                     @endphp
-                                    <td class="{{ $resp ? '' : 'bg-soft-danger text-center' }}">
-                                        @if($resp)
+                                    <td class="{{ $resp ? ($resp->not_available ? 'text-center' : '') : 'bg-soft-danger text-center' }}">
+                                        @if($resp && $resp->not_available)
+                                            <span class="badge bg-soft-warning text-warning border border-warning border-opacity-25 fs-11">
+                                                <i class="ti ti-ban me-1"></i>Producto no disponible
+                                            </span>
+                                        @elseif($resp)
                                             {{-- 💰 PRECIO, MARCA Y MONEDA --}}
                                             <div class="d-flex justify-content-between align-items-center mb-1">
                                                 <span class="fs-15 fw-bold text-dark">
@@ -440,6 +453,67 @@
     @csrf
     <input type="hidden" name="reason" id="cancelRejectedRequisitionReason">
 </form>
+
+@if($itemsNobodyQuoted->isNotEmpty())
+<div class="modal fade" id="complementaryRfqModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('rfq.comparison.generate-complementary', $rfq) }}">
+                @csrf
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="ti ti-file-plus me-2"></i>Generar RFQ con partidas faltantes</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Estas partidas no fueron cotizadas por ningún proveedor. Selecciona cuáles incluir y a qué proveedores enviar la nueva solicitud.</p>
+
+                    <label class="fw-bold small d-block mb-2">Partidas a incluir</label>
+                    @foreach($itemsNobodyQuoted as $item)
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="item_ids[]" value="{{ $item->id }}" id="citem_{{ $item->id }}" checked>
+                            <label class="form-check-label small" for="citem_{{ $item->id }}">
+                                {{ $item->description }} <span class="text-muted">({{ number_format($item->quantity, 2) }} {{ $item->unit }})</span>
+                            </label>
+                        </div>
+                    @endforeach
+
+                    <hr>
+
+                    <label class="fw-bold small d-block mb-2">Proveedores destino</label>
+                    <select name="supplier_ids[]" class="form-select form-select-sm" multiple size="6" required>
+                        @foreach($approvedSuppliers as $sup)
+                            <option value="{{ $sup->id }}">{{ $sup->company_name }}</option>
+                        @endforeach
+                    </select>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Fecha límite de respuesta</label>
+                            <input type="date" name="response_deadline" class="form-control form-control-sm" required min="{{ now()->addDay()->format('Y-m-d') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Mensaje (opcional)</label>
+                            <input type="text" name="message" class="form-control form-control-sm" placeholder="Instrucciones para el proveedor">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="ti ti-send me-1"></i>Generar y enviar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    document.getElementById('btnGenerateComplementaryRfq')?.addEventListener('click', function () {
+        new bootstrap.Modal(document.getElementById('complementaryRfqModal')).show();
+    });
+</script>
+@endpush
+@endif
 @endsection
 
 @push('scripts')
