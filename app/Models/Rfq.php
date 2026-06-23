@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -313,6 +314,37 @@ class Rfq extends Model
         }
 
         return collect([]);
+    }
+
+    /**
+     * Cuenta las partidas distintas que un proveedor sí cotizó
+     * (excluye las marcadas como no disponibles).
+     */
+    public function quotedItemCountForSupplier(int $supplierId): int
+    {
+        return $this->rfqResponses()
+            ->where('supplier_id', $supplierId)
+            ->where('not_available', false)
+            ->whereIn('status', ['SUBMITTED', 'SELECTED'])
+            ->distinct()
+            ->count('requisition_item_id');
+    }
+
+    /**
+     * Partidas de la RFQ que ningún proveedor cotizó
+     * (todos las marcaron no disponible o no respondieron).
+     */
+    public function itemsQuotedByNoSupplier(): Collection
+    {
+        $quotedItemIds = $this->rfqResponses()
+            ->where('not_available', false)
+            ->whereIn('status', ['SUBMITTED', 'SELECTED'])
+            ->pluck('requisition_item_id')
+            ->unique();
+
+        return $this->getItemsToQuote()
+            ->reject(fn ($item) => $quotedItemIds->contains($item->id))
+            ->values();
     }
 
     // =========================================================================
