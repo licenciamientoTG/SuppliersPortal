@@ -62,7 +62,7 @@ class DashboardService
             'hero' => [
                 'eyebrow' => 'Centro de trabajo',
                 'title' => 'Vista operativa',
-                'subtitle' => 'Visibilidad accionable por rol para dar seguimiento al trabajo del portal.',
+                'subtitle' => 'Consulta pendientes, accesos rapidos y actividad clave en un solo lugar.',
                 'user_name' => $user->full_name ?: $user->name,
                 'context_badge' => $this->contextBadgeForRoles($roles),
                 'notification_summary' => $this->notificationSummaryForNotifiable($user),
