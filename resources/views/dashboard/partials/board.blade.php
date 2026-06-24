@@ -3,17 +3,17 @@
         <div class="card-body p-4 p-xl-5">
             <div class="row g-4 align-items-center">
                 <div class="col-xl-8">
-                    <span class="dashboard-eyebrow">{{ $homeLabel ?? 'Dashboard' }}</span>
+                    <span class="dashboard-eyebrow">{{ $dashboard['hero']['eyebrow'] ?? ($homeLabel ?? 'Inicio') }}</span>
                     <h1 class="dashboard-title mt-2 mb-2">{{ $dashboard['hero']['title'] }}</h1>
                     <p class="dashboard-subtitle mb-3">{{ $dashboard['hero']['subtitle'] }}</p>
 
                     <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge text-bg-light-subtle text-dark border border-light-subtle px-3 py-2">
+                        <span class="badge dashboard-user-badge px-3 py-2">
                             <i class="ti ti-user me-1"></i>{{ $dashboard['hero']['user_name'] }}
                         </span>
-                        @foreach (($dashboard['hero']['role_badges'] ?? []) as $badge)
-                            <span class="badge dashboard-role-badge px-3 py-2">{{ $badge }}</span>
-                        @endforeach
+                        @if (!empty($dashboard['hero']['context_badge']))
+                            <span class="badge dashboard-context-badge px-3 py-2">{{ $dashboard['hero']['context_badge'] }}</span>
+                        @endif
                     </div>
                 </div>
 
@@ -177,8 +177,8 @@
 
     .dashboard-hero {
         background:
-            radial-gradient(circle at top right, rgba(255, 255, 255, 0.28), transparent 28%),
-            linear-gradient(135deg, #0f3d75 0%, #145ca8 52%, #1e7cc2 100%);
+            radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 24%),
+            linear-gradient(135deg, #0b2d57 0%, #114b8b 55%, #1a5da5 100%);
         box-shadow: var(--dash-shadow);
         color: #fff;
     }
@@ -187,7 +187,7 @@
         display: inline-block;
         padding: 0.45rem 0.8rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.10);
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -202,18 +202,24 @@
 
     .dashboard-subtitle {
         max-width: 60ch;
-        color: rgba(255, 255, 255, 0.82);
+        color: rgba(255, 255, 255, 0.84);
         font-size: 1rem;
     }
 
-    .dashboard-role-badge {
-        background: rgba(255, 255, 255, 0.18);
+    .dashboard-user-badge {
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f2744;
+        border: 1px solid rgba(255, 255, 255, 0.82);
+    }
+
+    .dashboard-context-badge {
+        background: rgba(255, 255, 255, 0.12);
         color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.22);
     }
 
     .dashboard-notifications {
-        background: rgba(255, 255, 255, 0.96);
+        background: rgba(255, 255, 255, 0.98);
         border-radius: 1.25rem;
     }
 

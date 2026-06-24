@@ -60,10 +60,11 @@ class DashboardService
 
         $board = [
             'hero' => [
-                'title' => 'Dashboard operativo',
+                'eyebrow' => 'Centro de trabajo',
+                'title' => 'Vista operativa',
                 'subtitle' => 'Visibilidad accionable por rol para dar seguimiento al trabajo del portal.',
                 'user_name' => $user->full_name ?: $user->name,
-                'role_badges' => array_map(fn (string $role) => $this->labelForRole($role), $roles),
+                'context_badge' => $this->contextBadgeForRoles($roles),
                 'notification_summary' => $this->notificationSummaryForNotifiable($user),
             ],
             'quickActions' => [],
@@ -160,10 +161,11 @@ class DashboardService
 
         $board = [
             'hero' => [
-                'title' => 'Portal de Proveedores',
+                'eyebrow' => 'Seguimiento diario',
+                'title' => 'Resumen operativo',
                 'subtitle' => 'Seguimiento rapido de RFQs, documentacion, facturacion y entregas.',
                 'user_name' => $supplier->company_name,
-                'role_badges' => ['Proveedor'],
+                'context_badge' => 'Proveedor activo',
                 'notification_summary' => $this->notificationSummaryForNotifiable($supplier),
             ],
             'quickActions' => [
@@ -803,6 +805,31 @@ class DashboardService
     private function labelForRole(string $role): string
     {
         return self::ROLE_LABELS[$role] ?? Str::headline($role);
+    }
+
+    private function contextBadgeForRoles(array $roles): string
+    {
+        if (in_array('superadmin', $roles, true)) {
+            return 'Vista integral del portal';
+        }
+
+        if (count($roles) > 1) {
+            return 'Vista combinada segun tus permisos';
+        }
+
+        $role = $roles[0] ?? null;
+
+        return match ($role) {
+            'staff' => 'Seguimiento de requisiciones',
+            'buyer' => 'Operacion de compras',
+            'authorizer' => 'Bandeja de aprobacion',
+            'receiver' => 'Captura de recepciones',
+            'accounting' => 'Operacion financiera',
+            'department_head' => 'Control financiero',
+            'general_director' => 'Resumen ejecutivo',
+            'catalog_admin' => 'Gestion de catalogo',
+            default => 'Vista personalizada',
+        };
     }
 
     private function criticalBudgetCount(): int
