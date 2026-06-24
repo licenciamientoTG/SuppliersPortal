@@ -12,6 +12,7 @@ use App\Http\Controllers\CatSupplierController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CostCenterController;
 use App\Http\Controllers\CostCenterImportController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DirectPurchaseOrderController;
 use App\Http\Controllers\DocumentReviewController;
@@ -98,7 +99,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     // ------------------------------------------------------------------------
     //  Dashboard
     // ------------------------------------------------------------------------
-    Route::get('/dashboard', fn () => view('dashboard'))
+    Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('module.access:dashboard')
         ->name('dashboard');
 

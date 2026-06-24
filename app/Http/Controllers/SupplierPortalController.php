@@ -6,6 +6,7 @@ use App\Models\Rfq;
 use App\Models\RfqResponse;
 use App\Models\Supplier;
 use App\Models\SupplierRfq;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -336,37 +337,9 @@ class SupplierPortalController extends Controller
         }
 
         // Obtener RFQs donde este proveedor está invitado
-        $rfqs = Rfq::whereHas('suppliers', function ($query) use ($supplier) {
-            $query->where('supplier_id', $supplier->id);
-        })
-            ->with([
-                'requisition:id,folio,description,status',
-                'quotationGroup:id,name,requisition_id',
-                'quotationGroup.items:id,product_service_id',
-                'rfqResponses' => function ($query) use ($supplier) {
-                    $query->where('supplier_id', $supplier->id)
-                          ->select('rfq_id', 'supplier_id', 'status', 'submitted_at');
-                }
-            ])
-            ->select('rfqs.*')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Contar respuestas por estado
-        $stats = [
-            'pending' => $rfqs->where('status', 'SENT')->count(),
-            'draft' => RfqResponse::where('supplier_id', $supplier->id)
-                ->where('status', 'DRAFT')
-                ->count(),
-            'submitted' => RfqResponse::where('supplier_id', $supplier->id)
-                ->where('status', 'SUBMITTED')
-                ->count(),
-            'approved' => RfqResponse::where('supplier_id', $supplier->id)
-                ->where('status', 'APPROVED')
-                ->count(),
-        ];
-
-        return view('supplier.dashboard', compact('rfqs', 'supplier', 'stats'));
+        return view('supplier.dashboard', [
+            'dashboard' => app(DashboardService::class)->buildForSupplier($supplier),
+        ]);
     }
 
     /**
