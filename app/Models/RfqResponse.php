@@ -55,6 +55,8 @@ class RfqResponse extends Model
         'evaluated_by',
         'evaluated_at',
         'not_available',
+        'entry_source',
+        'entered_by',
     ];
 
     protected $casts = [
@@ -140,6 +142,11 @@ class RfqResponse extends Model
     public function evaluator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'evaluated_by');
+    }
+
+    public function enteredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'entered_by');
     }
 
     /**
