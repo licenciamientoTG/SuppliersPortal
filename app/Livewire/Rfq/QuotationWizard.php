@@ -551,7 +551,7 @@ class QuotationWizard extends Component
             $rules['manualQuoteNewSupplier.company_name'] = 'required|string|max:150';
             $rules['manualQuoteNewSupplier.rfc'] = 'required|string|regex:/^[A-ZÑ\&]{3,4}[0-9]{6}[A-Z0-9]{3}$/i';
             $rules['manualQuoteNewSupplier.postal_code'] = 'required|digits:5';
-            $rules['manualQuoteNewSupplier.email'] = 'nullable|email|max:150';
+            $rules['manualQuoteNewSupplier.email'] = 'nullable|email|max:150|unique:suppliers,email';
             $rules['manualQuoteNewSupplier.phone_number'] = 'nullable|string|max:15';
         }
 

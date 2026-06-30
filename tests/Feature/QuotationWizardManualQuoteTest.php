@@ -115,4 +115,41 @@ class QuotationWizardManualQuoteTest extends TestCase
         $this->assertTrue($response->not_available);
         $this->assertEquals(0, (float) $response->unit_price);
     }
+
+    public function test_new_supplier_email_colliding_with_existing_supplier_fails_validation_gracefully(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $existingSupplier = Supplier::factory()->create(['email' => 'duplicado@example.com']);
+
+        $requisition = Requisition::factory()->create(['validated_at' => now()]);
+        $group = $this->makeGroupWithOneItem($requisition);
+        $item = $group->items->first();
+
+        $suppliersBefore = Supplier::where('email', 'duplicado@example.com')->count();
+
+        Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
+            ->call('openManualQuoteModal', $group->id)
+            ->set('manualQuoteSupplierId', null)
+            ->set('manualQuoteNewSupplier', [
+                'company_name' => 'Proveedor Nuevo SA',
+                'rfc' => 'PNS900101AB1',
+                'postal_code' => '64000',
+                'contact_person' => '',
+                'email' => 'duplicado@example.com',
+                'phone_number' => '',
+            ])
+            ->set("manualQuoteItems.{$item->id}.unit_price", 100)
+            ->set("manualQuoteItems.{$item->id}.iva_rate", 16)
+            ->set("manualQuoteItems.{$item->id}.delivery_days", 5)
+            ->call('saveManualQuote')
+            ->assertHasErrors('manualQuoteNewSupplier.email');
+
+        $this->assertSame(
+            $suppliersBefore,
+            Supplier::where('email', 'duplicado@example.com')->count()
+        );
+        $this->assertNull(Supplier::where('rfc', 'PNS900101AB1')->first());
+    }
 }
