@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Rfq;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Supplier;
+use Illuminate\Support\Str;
 
 class QuotationWizard extends Component
 {
@@ -28,6 +30,23 @@ class QuotationWizard extends Component
     // ======= NUEVO: Datos para el paso 2 =======
     public $unassignedItems = [];
     public $groups = [];
+
+    // ======= Cotización manual del comprador (Paso 3) =======
+    public $showManualQuoteModal = false;
+    public $manualQuoteGroupId = null;
+    public $manualQuoteSupplierId = null; // null = crear proveedor externo nuevo
+    public $manualQuoteNewSupplier = [
+        'company_name' => '',
+        'rfc' => '',
+        'postal_code' => '',
+        'contact_person' => '',
+        'email' => '',
+        'phone_number' => '',
+    ];
+    public $manualQuoteItems = [];
+    public $manualQuoteQuotationDate = null;
+    public $manualQuoteValidityDays = 30;
+    public $manualQuoteAttachment = null;
 
     /**
      * Inicializar el wizard con la requisición
@@ -397,6 +416,50 @@ class QuotationWizard extends Component
             ];
         }
         return $pivotData;
+    }
+
+    /**
+     * Resuelve el proveedor para una cotización manual: reusa el seleccionado por id,
+     * o crea uno externo nuevo si no hay id. Si el RFC ya existe, no crea duplicado:
+     * agrega un error sugiriendo seleccionar el proveedor existente y retorna null.
+     */
+    public function resolveManualQuoteSupplier(): ?Supplier
+    {
+        if ($this->manualQuoteSupplierId) {
+            return Supplier::findOrFail($this->manualQuoteSupplierId);
+        }
+
+        $rfc = strtoupper(trim($this->manualQuoteNewSupplier['rfc']));
+        $existing = Supplier::where('rfc', $rfc)->first();
+
+        if ($existing) {
+            $this->addError(
+                'manualQuoteNewSupplier.rfc',
+                "Ya existe un proveedor con este RFC: {$existing->company_name}. Selecciónalo de la lista en vez de crear uno nuevo."
+            );
+
+            return null;
+        }
+
+        $companyName = $this->manualQuoteNewSupplier['company_name'];
+
+        return Supplier::create([
+            'first_name' => $companyName,
+            'last_name' => '',
+            'email' => $this->manualQuoteNewSupplier['email'] ?: Str::uuid().'@externo.invalido',
+            'password' => Str::random(40),
+            'is_active' => false,
+            'company_name' => $companyName,
+            'rfc' => $rfc,
+            'address' => '',
+            'phone_number' => $this->manualQuoteNewSupplier['phone_number'] ?: '0000000000',
+            'contact_person' => $this->manualQuoteNewSupplier['contact_person'] ?: $companyName,
+            'supplier_type' => 'product_service',
+            'postal_code' => $this->manualQuoteNewSupplier['postal_code'],
+            'approval_status' => 'approved',
+            'document_status' => 'approved',
+            'is_external' => true,
+        ]);
     }
 
     /**
