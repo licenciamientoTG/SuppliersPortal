@@ -309,11 +309,19 @@ class DashboardService
 
     private function buildStaffBoard(User $user): array
     {
-        $myRequisitions = Requisition::query()
-            ->where('requested_by', $user->id)
+        $staffRequisitions = Requisition::query()
+            ->where('requested_by', $user->id);
+
+        $myRequisitions = (clone $staffRequisitions)
             ->latest()
             ->limit(5)
             ->get();
+
+        $activeStatuses = [
+            RequisitionStatus::PENDING->value,
+            RequisitionStatus::IN_QUOTATION->value,
+            RequisitionStatus::PENDING_BUDGET_ADJUSTMENT->value,
+        ];
 
         return [
             'quickActions' => [
@@ -322,10 +330,11 @@ class DashboardService
                 $this->quickAction('staff-contract-requisition', 'Req. por contrato', route('contracts.requisition.create'), 'ti-file-invoice', 'info'),
             ],
             'kpis' => [
-                $this->kpi('staff-draft', 'Mis borradores', Requisition::query()->where('requested_by', $user->id)->draft()->count(), 'ti-file-draft', 'secondary', 'Requisiciones aun no enviadas a Compras.'),
-                $this->kpi('staff-pending', 'Pendientes', Requisition::query()->where('requested_by', $user->id)->where('status', RequisitionStatus::PENDING->value)->count(), 'ti-clock-hour-4', 'warning', 'Requisiciones esperando validacion o seguimiento.'),
-                $this->kpi('staff-paused', 'Pausadas', Requisition::query()->where('requested_by', $user->id)->paused()->count(), 'ti-player-pause', 'info', 'Esperan catalogo u otro desbloqueo.'),
-                $this->kpi('staff-rejected', 'Rechazadas', Requisition::query()->where('requested_by', $user->id)->rejected()->count(), 'ti-circle-x', 'danger', 'Requieren correccion antes de reenviar.'),
+                $this->kpi('staff-draft', 'Mis borradores', (clone $staffRequisitions)->draft()->count(), 'ti-file-draft', 'secondary', 'Requisiciones aun no enviadas a Compras.'),
+                $this->kpi('staff-active', 'En proceso', (clone $staffRequisitions)->whereIn('status', $activeStatuses)->count(), 'ti-progress', 'warning', 'Requisiciones en validacion, cotizacion o ajuste presupuestal.'),
+                $this->kpi('staff-quoted', 'Cotizadas', (clone $staffRequisitions)->quoted()->count(), 'ti-receipt-2', 'primary', 'Listas para aprobacion o siguiente decision operativa.'),
+                $this->kpi('staff-paused', 'Pausadas', (clone $staffRequisitions)->paused()->count(), 'ti-player-pause', 'info', 'Esperan catalogo u otro desbloqueo.'),
+                $this->kpi('staff-rejected', 'Rechazadas', (clone $staffRequisitions)->rejected()->count(), 'ti-circle-x', 'danger', 'Requieren correccion antes de reenviar.'),
             ],
             'sections' => [
                 [

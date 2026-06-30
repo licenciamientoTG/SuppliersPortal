@@ -12,6 +12,7 @@ use App\Services\ApprovalService;
 use App\Services\AuthorizerResolutionService;
 use App\Services\BuyerNotificationService;
 use App\Services\BudgetAllocationService;
+use App\Services\QuotationSummaryItemService;
 use App\Services\QuotationRejectionWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,7 @@ class RfqComparisonController extends Controller
         protected BudgetAllocationService $budgetAllocationService,
         protected AuthorizerResolutionService $authorizerResolutionService,
         protected BuyerNotificationService $buyerNotificationService,
+        protected QuotationSummaryItemService $quotationSummaryItemService,
         protected QuotationRejectionWorkflowService $quotationRejectionWorkflowService
     ) {}
 
@@ -129,6 +131,7 @@ class RfqComparisonController extends Controller
                     'resolution_notes' => $resolution['resolution_notes'],
                 ]);
 
+                $this->quotationSummaryItemService->syncFromSelectedSupplier($summary);
                 $this->budgetAllocationService->reserveQuotationSummary($summary);
 
                 $rfq->update(['status' => 'EVALUATED']);

@@ -49,12 +49,34 @@ class DashboardRenderingTest extends TestCase
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertOk()
-            ->assertSeeText('Dashboard operativo')
+            ->assertSeeText('Vista operativa')
             ->assertSeeText('Mis requisiciones recientes')
             ->assertSeeText('Mis borradores')
+            ->assertSeeText('En proceso')
+            ->assertSeeText('Cotizadas')
             ->assertSeeText('Nueva requisicion')
             ->assertSeeText('Aun no has creado requisiciones.')
             ->assertDontSeeText('Bandeja financiera');
+    }
+
+    public function test_staff_dashboard_counts_quoted_requisition_in_quoted_kpi(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('staff');
+
+        Requisition::factory()->create([
+            'requested_by' => $user->id,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+            'status' => 'QUOTED',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertOk()
+            ->assertSeeText('Cotizadas')
+            ->assertSeeText('1')
+            ->assertSeeText('Mis requisiciones recientes');
     }
 
     public function test_buyer_dashboard_shows_operational_purchase_widgets(): void

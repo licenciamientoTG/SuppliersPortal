@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\QuotationApprovalApprovedNotification;
 use App\Notifications\QuotationApprovalRejectedNotification;
 use App\Services\BudgetAllocationService;
+use App\Services\QuotationSummaryItemService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -68,6 +69,101 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         $this->assertSame('rejected', $summary->approval_status);
         $this->assertNotNull($summary->rejected_at);
         Notification::assertSentTo($buyer, QuotationApprovalRejectedNotification::class);
+    }
+
+    public function test_partially_approved_regular_quotation_creates_purchase_order_for_final_quantity(): void
+    {
+        Notification::fake();
+        $this->withoutMiddleware();
+
+        ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture();
+        $summaryItem = app(QuotationSummaryItemService::class)->ensureItems($summary)->first();
+
+        $this->actingAs($approver)
+            ->post(route('approvals.quotations.handle', $summary), [
+                'status' => 'approved',
+                'items' => [
+                    [
+                        'id' => $summaryItem->id,
+                        'approved_quantity' => 1,
+                        'approver_notes' => 'Se autoriza solo una pieza por disponibilidad presupuestal.',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('approvals.quotations.index'));
+
+        $summary->refresh();
+        $purchaseOrder = PurchaseOrder::query()->where('quotation_summary_id', $summary->id)->firstOrFail();
+        $purchaseOrderItem = $purchaseOrder->items()->firstOrFail();
+
+        $this->assertSame('partially_approved', $summary->approval_status);
+        $this->assertSame(1.0, (float) $purchaseOrderItem->quantity);
+        $this->assertSame(100.0, (float) $purchaseOrderItem->subtotal);
+        $this->assertSame(116.0, (float) $purchaseOrderItem->total);
+        $this->assertDatabaseHas('quotation_summary_items', [
+            'id' => $summaryItem->id,
+            'approval_status' => 'partially_approved',
+        ]);
+    }
+
+    public function test_reducing_quantity_requires_line_reason(): void
+    {
+        Notification::fake();
+        $this->withoutMiddleware();
+
+        ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture();
+        $summaryItem = app(QuotationSummaryItemService::class)->ensureItems($summary)->first();
+
+        $this->actingAs($approver)
+            ->from(route('approvals.quotations.index'))
+            ->post(route('approvals.quotations.handle', $summary), [
+                'status' => 'approved',
+                'items' => [
+                    [
+                        'id' => $summaryItem->id,
+                        'approved_quantity' => 1,
+                        'approver_notes' => '',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('approvals.quotations.index'));
+
+        $this->assertDatabaseMissing('purchase_orders', [
+            'quotation_summary_id' => $summary->id,
+        ]);
+    }
+
+    public function test_approved_total_cannot_exceed_current_authorizer_limit(): void
+    {
+        Notification::fake();
+        $this->withoutMiddleware();
+
+        ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture([
+            'summary' => [
+                'effective_authorization_limit' => 150,
+            ],
+        ]);
+        $summaryItem = app(QuotationSummaryItemService::class)->ensureItems($summary)->first();
+
+        $this->actingAs($approver)
+            ->from(route('approvals.quotations.index'))
+            ->post(route('approvals.quotations.handle', $summary), [
+                'status' => 'approved',
+                'items' => [
+                    [
+                        'id' => $summaryItem->id,
+                        'approved_quantity' => 2,
+                        'approver_notes' => '',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('approvals.quotations.index'));
+
+        $summary->refresh();
+        $this->assertSame('pending', $summary->approval_status);
+        $this->assertDatabaseMissing('purchase_orders', [
+            'quotation_summary_id' => $summary->id,
+        ]);
     }
 
     public function test_close_inactive_command_uses_issued_purchase_orders_instead_of_open_ones(): void
@@ -166,7 +262,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         $this->assertSame('OPEN', $notEligible->fresh()->status);
     }
 
-    private function createRegularApprovalFixture(): array
+    private function createRegularApprovalFixture(array $overrides = []): array
     {
         Role::findOrCreate('buyer', 'web');
 
@@ -176,7 +272,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         $buyer = User::factory()->create();
         $buyer->assignRole('buyer');
 
-        $fixture = $this->createRegularPurchaseOrderFixture([
+        $fixture = $this->createRegularPurchaseOrderFixture(array_replace_recursive([
             'create_purchase_order' => false,
             'requester' => $requester,
             'selector' => $selector,
@@ -194,7 +290,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
                 'status' => 'QUOTED',
                 'requested_by' => $requester->id,
             ],
-        ]);
+        ], $overrides));
 
         return [
             'summary' => QuotationSummary::query()->with('rfq')->findOrFail($fixture['summary_id']),

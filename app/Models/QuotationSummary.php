@@ -118,6 +118,11 @@ class QuotationSummary extends Model
         return $this->hasMany(BudgetCommitment::class);
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(QuotationSummaryItem::class);
+    }
+
     public function approve(int $userId, ?string $notes = null): void
     {
         $this->update([
@@ -145,6 +150,11 @@ class QuotationSummary extends Model
         return $this->approval_status === 'approved';
     }
 
+    public function isPartiallyApproved(): bool
+    {
+        return $this->approval_status === 'partially_approved';
+    }
+
     public function isRejected(): bool
     {
         return $this->approval_status === 'rejected';
@@ -157,7 +167,7 @@ class QuotationSummary extends Model
 
     public function scopeApproved($query)
     {
-        return $query->where('approval_status', 'approved');
+        return $query->whereIn('approval_status', ['approved', 'partially_approved']);
     }
 
     public function scopeRejected($query)
@@ -195,8 +205,18 @@ class QuotationSummary extends Model
         return match ($this->approval_status) {
             'pending' => 'Pendiente',
             'approved' => 'Aprobado',
+            'partially_approved' => 'Aprobado parcial',
             'rejected' => 'Rechazado',
             default => 'N/A',
         };
+    }
+
+    public function syncTotalsFromItems(): void
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        $this->subtotal = round((float) $items->sum('subtotal'), 2);
+        $this->iva_amount = round((float) $items->sum('iva_amount'), 2);
+        $this->total = round((float) $items->sum('total'), 2);
     }
 }

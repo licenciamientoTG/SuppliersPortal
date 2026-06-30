@@ -9,6 +9,7 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
+use App\Models\QuotationSummaryItem;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -177,9 +178,7 @@ class BudgetAllocationService
     public function releaseQuotationSummary(QuotationSummary $summary): void
     {
         DB::transaction(function () use ($summary) {
-            foreach ($this->buildQuotationSummaryBudgetLines($summary) as $line) {
-                $this->releaseLine($summary, $line);
-            }
+            $this->releaseCommittedQuotationSummaryCommitments($summary);
 
             $summary->forceFill([
                 'budget_released_at' => now(),
@@ -218,11 +217,58 @@ class BudgetAllocationService
 
     public function buildQuotationSummaryBudgetLines(QuotationSummary $summary): array
     {
-        $summary->loadMissing('rfq.rfqResponses.requisitionItem.costCenter');
+        $summary->loadMissing('items.requisitionItem.costCenter', 'rfq.rfqResponses.requisitionItem.costCenter');
+
+        if ($summary->items->isNotEmpty()) {
+            return $summary->items
+                ->filter(fn (QuotationSummaryItem $item) => (float) $item->approved_quantity > 0)
+                ->map(function (QuotationSummaryItem $item) {
+                    $requisitionItem = $item->requisitionItem;
+                    $response = $item->rfqResponse;
+
+                    if (! $requisitionItem?->expense_category_id || ! $requisitionItem?->budget_cedula_id) {
+                        throw new RuntimeException("La partida {$item->requisition_item_id} no tiene categorÃ­a y subcategorÃ­a presupuestal completas.");
+                    }
+
+                    if (! $response?->quotation_date || $response->delivery_days === null) {
+                        throw new RuntimeException("La partida {$item->requisition_item_id} del proveedor seleccionado no tiene dÃ­as de entrega capturados.");
+                    }
+
+                    $applicationMonth = Carbon::parse($response->quotation_date)
+                        ->addDays((int) $response->delivery_days)
+                        ->format('Y-m');
+
+                    return [
+                        'cost_center_id' => (int) $requisitionItem->cost_center_id,
+                        'expense_category_id' => (int) $requisitionItem->expense_category_id,
+                        'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
+                        'amount' => (float) $item->total,
+                        'year' => (int) substr($applicationMonth, 0, 4),
+                        'month' => (int) substr($applicationMonth, 5, 2),
+                        'application_month' => $applicationMonth,
+                        'budget_type' => $requisitionItem->costCenter?->budget_type ?? 'ANNUAL',
+                    ];
+                })
+                ->groupBy(fn (array $line) => implode('|', [
+                    $line['cost_center_id'],
+                    $line['expense_category_id'],
+                    $line['budget_cedula_id'],
+                    $line['application_month'],
+                ]))
+                ->map(function (Collection $lines) {
+                    $first = $lines->first();
+                    $first['amount'] = (float) $lines->sum('amount');
+
+                    return $first;
+                })
+                ->values()
+                ->all();
+        }
 
         return $summary->rfq->rfqResponses
             ->where('supplier_id', $summary->selected_supplier_id)
             ->where('status', 'SUBMITTED')
+            ->where('not_available', false)
             ->map(function ($response) use ($summary) {
                 $requisitionItem = $response->requisitionItem;
 
@@ -365,6 +411,40 @@ class BudgetAllocationService
                 if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
                     throw new RuntimeException(
                         "No se pudo liberar presupuesto para la cédula {$commitment->budget_cedula_id}."
+                    );
+                }
+            }
+
+            $commitment->update([
+                'status' => 'RELEASED',
+                'released_at' => now(),
+            ]);
+        }
+    }
+
+    private function releaseCommittedQuotationSummaryCommitments(QuotationSummary $summary): void
+    {
+        $commitments = BudgetCommitment::query()
+            ->where('quotation_summary_id', $summary->id)
+            ->where('status', 'COMMITTED')
+            ->with('costCenter')
+            ->get();
+
+        foreach ($commitments as $commitment) {
+            $budgetType = $commitment->costCenter?->budget_type ?? 'ANNUAL';
+
+            if ($budgetType === 'ANNUAL' && $commitment->budget_cedula_id) {
+                $distribution = $this->resolveDistributionByCedula(
+                    (int) $commitment->cost_center_id,
+                    (int) substr((string) $commitment->application_month, 0, 4),
+                    (int) substr((string) $commitment->application_month, 5, 2),
+                    (int) $commitment->budget_cedula_id,
+                    (int) $commitment->expense_category_id
+                );
+
+                if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
+                    throw new RuntimeException(
+                        "No se pudo liberar presupuesto para la cÃ©dula {$commitment->budget_cedula_id}."
                     );
                 }
             }

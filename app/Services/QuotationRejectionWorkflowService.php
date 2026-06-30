@@ -19,6 +19,7 @@ class QuotationRejectionWorkflowService
         private BudgetAllocationService $budgetAllocationService,
         private AuthorizerResolutionService $authorizerResolutionService,
         private BuyerNotificationService $buyerNotificationService,
+        private QuotationSummaryItemService $quotationSummaryItemService,
     ) {}
 
     public function handleApprovalRejection(QuotationSummary $summary, int $userId, string $reason): void
@@ -107,6 +108,7 @@ class QuotationRejectionWorkflowService
                 'resolution_notes' => $resolution['resolution_notes'],
             ]);
 
+            $this->quotationSummaryItemService->syncFromSelectedSupplier($summary);
             $this->budgetAllocationService->reserveQuotationSummary($summary);
 
             $replacementRfq->update([
