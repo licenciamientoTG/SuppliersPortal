@@ -59,6 +59,7 @@ class Supplier extends Authenticatable
         'repse_expiry_date',
         'specialized_services_types',
         'economic_activity',
+        'is_external',
     ];
 
     protected $hidden = [
@@ -81,7 +82,13 @@ class Supplier extends Authenticatable
             'tax_regimes' => 'array',
             'economic_activity' => 'array',
             'accepted_currencies' => 'array',
+            'is_external' => 'boolean',
         ];
+    }
+
+    public function scopeExternal(Builder $query): Builder
+    {
+        return $query->where('is_external', true);
     }
 
     public function getNameAttribute(): string
