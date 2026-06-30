@@ -93,8 +93,11 @@ class QuotationWizard extends Component
      */
     private function determineCurrentStep(): int
     {
-        // 🎯 NUEVO: Si hay RFQs que ya tienen respuestas, ir al paso 5
-        if ($this->requisition->rfqs()->whereIn('status', ['RECEIVED', 'EVALUATED'])->exists()) {
+        // Solo saltar al paso 5 cuando TODOS los RFQs activos de la requisición ya
+        // tienen respuesta (antes bastaba con que UNO solo llegara a RECEIVED, lo que
+        // arrastraba todo el wizard al paso 5 aunque otros grupos siguieran pendientes).
+        $activeRfqs = $this->requisition->rfqs()->active()->get();
+        if ($activeRfqs->isNotEmpty() && $activeRfqs->every(fn ($rfq) => in_array($rfq->status, ['RECEIVED', 'EVALUATED'], true))) {
             return 5;
         }
 
