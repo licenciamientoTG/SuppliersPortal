@@ -11,9 +11,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Supplier;
 use Illuminate\Support\Str;
+use App\Models\QuotationGroup;
+use App\Models\RfqResponse;
+use Livewire\WithFileUploads;
 
 class QuotationWizard extends Component
 {
+    use WithFileUploads;
+
     // La requisición con la que trabajaremos
     public Requisition $requisition;
 
@@ -460,6 +465,185 @@ class QuotationWizard extends Component
             'document_status' => 'approved',
             'is_external' => true,
         ]);
+    }
+
+    public function openManualQuoteModal($quotationGroupId): void
+    {
+        $group = QuotationGroup::with('items')->findOrFail($quotationGroupId);
+
+        $this->manualQuoteGroupId = $group->id;
+        $this->manualQuoteSupplierId = null;
+        $this->manualQuoteNewSupplier = [
+            'company_name' => '',
+            'rfc' => '',
+            'postal_code' => '',
+            'contact_person' => '',
+            'email' => '',
+            'phone_number' => '',
+        ];
+
+        $this->manualQuoteItems = [];
+        foreach ($group->items as $item) {
+            $this->manualQuoteItems[$item->id] = [
+                'not_available' => false,
+                'unit_price' => null,
+                'iva_rate' => 16,
+                'currency' => 'MXN',
+                'delivery_days' => null,
+                'payment_terms' => null,
+                'warranty_terms' => null,
+                'brand' => null,
+                'model' => null,
+                'specifications' => null,
+            ];
+        }
+
+        $this->manualQuoteQuotationDate = now()->format('Y-m-d');
+        $this->manualQuoteValidityDays = 30;
+        $this->manualQuoteAttachment = null;
+        $this->resetErrorBag();
+        $this->showManualQuoteModal = true;
+    }
+
+    public function closeManualQuoteModal(): void
+    {
+        $this->showManualQuoteModal = false;
+    }
+
+    public function getManualQuoteGroupProperty()
+    {
+        return $this->manualQuoteGroupId
+            ? QuotationGroup::with('items.productService')->find($this->manualQuoteGroupId)
+            : null;
+    }
+
+    public function getManualQuoteSelectableSuppliersProperty()
+    {
+        return Supplier::query()
+            ->where(function ($q) {
+                $q->where('approval_status', 'approved')->where('is_active', true);
+            })
+            ->orWhere('is_external', true)
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    public function saveManualQuote(): void
+    {
+        $rules = [
+            'manualQuoteQuotationDate' => 'required|date',
+            'manualQuoteValidityDays' => 'required|integer|min:1|max:365',
+            'manualQuoteItems' => 'required|array|min:1',
+            'manualQuoteItems.*.not_available' => 'boolean',
+            'manualQuoteItems.*.unit_price' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'numeric', 'min:0'],
+            'manualQuoteItems.*.iva_rate' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'numeric', 'in:0,8,16'],
+            'manualQuoteItems.*.currency' => 'nullable|string|in:MXN,USD,EUR',
+            'manualQuoteItems.*.delivery_days' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'integer', 'min:0'],
+            'manualQuoteItems.*.payment_terms' => 'nullable|string|max:255',
+            'manualQuoteItems.*.warranty_terms' => 'nullable|string|max:500',
+            'manualQuoteItems.*.brand' => 'nullable|string|max:100',
+            'manualQuoteItems.*.model' => 'nullable|string|max:100',
+            'manualQuoteItems.*.specifications' => 'nullable|string',
+            'manualQuoteAttachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ];
+
+        if (! $this->manualQuoteSupplierId) {
+            $rules['manualQuoteNewSupplier.company_name'] = 'required|string|max:150';
+            $rules['manualQuoteNewSupplier.rfc'] = 'required|string|regex:/^[A-ZÑ\&]{3,4}[0-9]{6}[A-Z0-9]{3}$/i';
+            $rules['manualQuoteNewSupplier.postal_code'] = 'required|digits:5';
+            $rules['manualQuoteNewSupplier.email'] = 'nullable|email|max:150';
+            $rules['manualQuoteNewSupplier.phone_number'] = 'nullable|string|max:15';
+        }
+
+        $this->validate($rules);
+
+        $supplier = $this->resolveManualQuoteSupplier();
+        if (! $supplier) {
+            return;
+        }
+
+        $group = QuotationGroup::with('items')->findOrFail($this->manualQuoteGroupId);
+
+        DB::beginTransaction();
+        try {
+            $rfq = Rfq::where('requisition_id', $this->requisition->id)
+                ->where('quotation_group_id', $group->id)
+                ->active()
+                ->first();
+
+            if (! $rfq) {
+                $rfq = Rfq::create([
+                    'folio' => $this->generateRFQFolio(),
+                    'requisition_id' => $this->requisition->id,
+                    'quotation_group_id' => $group->id,
+                    'status' => 'DRAFT',
+                    'response_deadline' => now()->addDays(7),
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+            }
+
+            $rfq->suppliers()->syncWithoutDetaching([
+                $supplier->id => ['invited_at' => now(), 'responded_at' => now()],
+            ]);
+
+            $attachmentPath = $this->manualQuoteAttachment
+                ? $this->manualQuoteAttachment->store("rfq_responses/manual/{$this->requisition->id}", 'public')
+                : null;
+
+            foreach ($this->manualQuoteItems as $itemId => $itemData) {
+                $notAvailable = (bool) ($itemData['not_available'] ?? false);
+                $unitPrice = $notAvailable ? 0 : (float) $itemData['unit_price'];
+                $ivaRate = $notAvailable ? 0 : (float) $itemData['iva_rate'];
+                $quantity = (float) ($group->items->firstWhere('id', (int) $itemId)->quantity ?? 1);
+                $subtotal = $unitPrice * $quantity;
+                $ivaAmount = $subtotal * ($ivaRate / 100);
+
+                RfqResponse::updateOrCreate(
+                    [
+                        'rfq_id' => $rfq->id,
+                        'supplier_id' => $supplier->id,
+                        'requisition_item_id' => $itemId,
+                    ],
+                    [
+                        'quotation_date' => $this->manualQuoteQuotationDate,
+                        'validity_days' => $this->manualQuoteValidityDays,
+                        'unit_price' => $unitPrice,
+                        'quantity' => $quantity,
+                        'subtotal' => $subtotal,
+                        'iva_rate' => $ivaRate,
+                        'iva_amount' => $ivaAmount,
+                        'total' => $subtotal + $ivaAmount,
+                        'currency' => $itemData['currency'] ?? 'MXN',
+                        'delivery_days' => $notAvailable ? null : ($itemData['delivery_days'] ?? null),
+                        'payment_terms' => $itemData['payment_terms'] ?? null,
+                        'warranty_terms' => $itemData['warranty_terms'] ?? null,
+                        'brand' => $itemData['brand'] ?? null,
+                        'model' => $itemData['model'] ?? null,
+                        'specifications' => $itemData['specifications'] ?? null,
+                        'not_available' => $notAvailable,
+                        'attachment_path' => $attachmentPath,
+                        'status' => 'SUBMITTED',
+                        'submitted_at' => now(),
+                        'entry_source' => 'buyer_manual',
+                        'entered_by' => Auth::id(),
+                    ]
+                );
+            }
+
+            $rfq->refreshCompletionStatus();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'No se pudo guardar la cotización manual: '.$e->getMessage());
+
+            return;
+        }
+
+        $this->showManualQuoteModal = false;
+        $this->loadSuppliersData();
+        session()->flash('success', "✅ Cotización de {$supplier->company_name} capturada para el grupo {$group->name}.");
     }
 
     /**
