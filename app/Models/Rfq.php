@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -274,6 +275,27 @@ class Rfq extends Model
         $this->update([
             'status' => 'RECEIVED',
         ]);
+    }
+
+    /**
+     * Recalcula el status de la RFQ según cuántos proveedores invitados ya
+     * respondieron (portal o captura manual). Pasa a RECEIVED solo cuando
+     * TODOS los proveedores invitados tienen responded_at.
+     */
+    public function refreshCompletionStatus(): void
+    {
+        $totalInvited = $this->suppliers()->count();
+        $totalResponded = $this->suppliers()->whereNotNull('responded_at')->count();
+
+        if ($totalInvited > 0 && $totalResponded >= $totalInvited) {
+            $this->update([
+                'status' => 'RECEIVED',
+                'updated_at' => now(),
+            ]);
+            Log::info("RFQ Folio {$this->folio}: Todos los proveedores respondieron. Estado actualizado a RECEIVED.");
+        } else {
+            Log::info("RFQ Folio {$this->folio}: Respuesta recibida ({$totalResponded}/{$totalInvited})");
+        }
     }
 
     public function cancel(string $reason, int $userId): void
