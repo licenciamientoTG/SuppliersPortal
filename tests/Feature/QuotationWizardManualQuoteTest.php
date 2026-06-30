@@ -152,4 +152,39 @@ class QuotationWizardManualQuoteTest extends TestCase
         );
         $this->assertNull(Supplier::where('rfc', 'PNS900101AB1')->first());
     }
+
+    public function test_new_supplier_email_unique_validation_uses_spanish_message(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $existingSupplier = Supplier::factory()->create(['email' => 'test@example.com']);
+
+        $requisition = Requisition::factory()->create(['validated_at' => now()]);
+        $group = $this->makeGroupWithOneItem($requisition);
+        $item = $group->items->first();
+
+        $component = Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
+            ->call('openManualQuoteModal', $group->id)
+            ->set('manualQuoteSupplierId', null)
+            ->set('manualQuoteNewSupplier', [
+                'company_name' => 'Nueva Empresa',
+                'rfc' => 'NEM900101CD1',
+                'postal_code' => '28001',
+                'contact_person' => '',
+                'email' => 'test@example.com',
+                'phone_number' => '',
+            ])
+            ->set("manualQuoteItems.{$item->id}.unit_price", 100)
+            ->set("manualQuoteItems.{$item->id}.iva_rate", 16)
+            ->set("manualQuoteItems.{$item->id}.delivery_days", 5)
+            ->call('saveManualQuote');
+
+        $component->assertHasErrors(['manualQuoteNewSupplier.email']);
+
+        $errorBag = $component->instance()->getErrorBag();
+        $errorMessages = $errorBag->get('manualQuoteNewSupplier.email');
+        $this->assertNotEmpty($errorMessages);
+        $this->assertStringContainsString('Ya existe un proveedor registrado con este correo electrónico', $errorMessages[0]);
+    }
 }

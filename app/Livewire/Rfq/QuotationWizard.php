@@ -555,7 +555,11 @@ class QuotationWizard extends Component
             $rules['manualQuoteNewSupplier.phone_number'] = 'nullable|string|max:15';
         }
 
-        $this->validate($rules);
+        $messages = [
+            'manualQuoteNewSupplier.email.unique' => 'Ya existe un proveedor registrado con este correo electrónico.',
+        ];
+
+        $this->validate($rules, $messages);
 
         $supplier = $this->resolveManualQuoteSupplier();
         if (! $supplier) {
