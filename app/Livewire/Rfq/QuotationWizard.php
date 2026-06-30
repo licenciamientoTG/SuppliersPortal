@@ -68,6 +68,7 @@ class QuotationWizard extends Component
             'quotationGroups.items',
             'rfqs',
             'rfqs.suppliers',
+            'rfqs.rfqResponses',
         ]);
 
         // Si la URL trae ?step=X, respetar ese valor (ej: al recargar desde paso 2 tras crear grupos)

@@ -159,6 +159,35 @@
 
                     <div class="row mt-3">
                         <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-success"
+                                    wire:click="openManualQuoteModal({{ $group->id }})">
+                                <i class="ti ti-pencil-plus"></i> Cotización manual / Proveedor externo
+                            </button>
+
+                            @php
+                                $manualSupplierIds = $activeRfq
+                                    ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
+                                    : collect();
+                            @endphp
+
+                            @if($manualSupplierIds->isNotEmpty())
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    @foreach($activeRfq->suppliers->whereIn('id', $manualSupplierIds) as $manualSupplier)
+                                        <span class="badge bg-success-subtle text-success border border-success">
+                                            <i class="ti ti-circle-check"></i> Cotización capturada — {{ $manualSupplier->company_name }}
+                                            @if($manualSupplier->is_external)
+                                                <span class="badge bg-secondary ms-1">Externo</span>
+                                            @endif
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-12">
                             <label class="form-label fw-bold">
                                 <i class="ti ti-notes"></i>
                                 Notas / Instrucciones Especiales
@@ -186,6 +215,171 @@
                 <strong class="text-primary">{{ $requisition->quotationGroups->sum(fn($g) => $g->items->count()) }}</strong> 
                 partidas en total.
             </p>
+        </div>
+    </div>
+</div>
+
+{{--
+    Nota: getManualQuoteGroupProperty()/getManualQuoteSelectableSuppliersProperty() son
+    "computed properties" estilo Livewire 2 (magic getXxxProperty()). Livewire 3 ya NO las
+    expone automáticamente como variables Blade en vistas @include'das (solo expone
+    propiedades públicas reales, ver Utils::getPublicPropertiesDefinedOnSubclass). Se
+    resuelven aquí vía $__livewire (la instancia del componente, compartida globalmente por
+    Livewire en cada request) para no tener que tocar QuotationWizard::render().
+--}}
+@php
+    $manualQuoteGroup = $__livewire->manualQuoteGroup;
+    $manualQuoteSelectableSuppliers = $__livewire->manualQuoteSelectableSuppliers;
+@endphp
+
+<div class="modal {{ $showManualQuoteModal ? 'show d-block' : '' }}"
+     tabindex="-1"
+     style="{{ $showManualQuoteModal ? 'background: rgba(0,0,0,.5);' : '' }}"
+     wire:ignore.self>
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="ti ti-pencil-plus"></i> Cotización manual
+                    @if($manualQuoteGroup)
+                        — {{ $manualQuoteGroup->name }}
+                    @endif
+                </h5>
+                <button type="button" class="btn-close" wire:click="closeManualQuoteModal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Proveedor</label>
+                        <select class="form-select" wire:model="manualQuoteSupplierId">
+                            <option value="">-- Nuevo proveedor externo --</option>
+                            @foreach($manualQuoteSelectableSuppliers as $sel)
+                                <option value="{{ $sel->id }}">{{ $sel->company_name }}{{ $sel->is_external ? ' (externo)' : '' }}</option>
+                            @endforeach
+                        </select>
+                        @error('manualQuoteSupplierId') <small class="text-danger">{{ $message }}</small> @enderror
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha de cotización</label>
+                        <input type="date" class="form-control" wire:model="manualQuoteQuotationDate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Vigencia (días)</label>
+                        <input type="number" class="form-control" wire:model="manualQuoteValidityDays" min="1" max="365">
+                    </div>
+                </div>
+
+                @if(! $manualQuoteSupplierId)
+                    <div class="card border-info mb-3">
+                        <div class="card-body">
+                            <h6 class="text-info"><i class="ti ti-building-store"></i> Nuevo proveedor externo</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small">Razón social *</label>
+                                    <input type="text" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.company_name">
+                                    @error('manualQuoteNewSupplier.company_name') <small class="text-danger">{{ $message }}</small> @enderror
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">RFC *</label>
+                                    <input type="text" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.rfc">
+                                    @error('manualQuoteNewSupplier.rfc') <small class="text-danger">{{ $message }}</small> @enderror
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Código postal *</label>
+                                    <input type="text" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.postal_code">
+                                    @error('manualQuoteNewSupplier.postal_code') <small class="text-danger">{{ $message }}</small> @enderror
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Contacto</label>
+                                    <input type="text" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.contact_person">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Email</label>
+                                    <input type="email" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.email">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Teléfono</label>
+                                    <input type="text" class="form-control form-control-sm" wire:model="manualQuoteNewSupplier.phone_number">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if($manualQuoteGroup)
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Partida</th>
+                                    <th width="10%">No disp.</th>
+                                    <th width="12%">Precio unit.</th>
+                                    <th width="8%">IVA</th>
+                                    <th width="8%">Moneda</th>
+                                    <th width="10%">Entrega (días)</th>
+                                    <th width="15%">Cond. pago</th>
+                                    <th width="15%">Garantía</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($manualQuoteGroup->items as $item)
+                                    <tr>
+                                        <td>{{ $item->productService->short_name ?? $item->description }}</td>
+                                        <td class="text-center">
+                                            <input type="checkbox" wire:model="manualQuoteItems.{{ $item->id }}.not_available">
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" wire:model="manualQuoteItems.{{ $item->id }}.unit_price">
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-select-sm" wire:model="manualQuoteItems.{{ $item->id }}.iva_rate">
+                                                <option value="16">16%</option>
+                                                <option value="8">8%</option>
+                                                <option value="0">0%</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-select-sm" wire:model="manualQuoteItems.{{ $item->id }}.currency">
+                                                <option value="MXN">MXN</option>
+                                                <option value="USD">USD</option>
+                                                <option value="EUR">EUR</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" wire:model="manualQuoteItems.{{ $item->id }}.delivery_days">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" wire:model="manualQuoteItems.{{ $item->id }}.payment_terms">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" wire:model="manualQuoteItems.{{ $item->id }}.warranty_terms">
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Adjunto (opcional)</label>
+                        <input type="file" class="form-control" wire:model="manualQuoteAttachment" accept=".pdf,.jpg,.jpeg,.png">
+                        @error('manualQuoteAttachment') <small class="text-danger">{{ $message }}</small> @enderror
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" wire:click="closeManualQuoteModal">Cancelar</button>
+                <button type="button"
+                        class="btn btn-success"
+                        wire:click="saveManualQuote"
+                        wire:loading.attr="disabled"
+                        wire:target="saveManualQuote">
+                    <span wire:loading.remove wire:target="saveManualQuote"><i class="ti ti-device-floppy"></i> Guardar cotización</span>
+                    <span wire:loading wire:target="saveManualQuote"><i class="ti ti-loader rotating"></i> Guardando...</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
