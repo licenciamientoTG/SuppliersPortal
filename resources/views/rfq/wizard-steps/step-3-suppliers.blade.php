@@ -159,46 +159,47 @@
 
                     <div class="row mt-3">
                         <div class="col-12">
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-success"
-                                    wire:click="openManualQuoteModal({{ $group->id }})">
-                                <i class="ti ti-pencil-plus"></i> Cotización manual / Proveedor externo
-                            </button>
-
-                            @php
-                                $manualSupplierIds = $activeRfq
-                                    ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
-                                    : collect();
-                            @endphp
-
-                            @if($manualSupplierIds->isNotEmpty())
-                                <div class="d-flex flex-wrap gap-2 mt-2">
-                                    @foreach($activeRfq->suppliers->whereIn('id', $manualSupplierIds) as $manualSupplier)
-                                        <span class="badge bg-success-subtle text-success border border-success">
-                                            <i class="ti ti-circle-check"></i> Cotización capturada — {{ $manualSupplier->company_name }}
-                                            @if($manualSupplier->is_external)
-                                                <span class="badge bg-secondary ms-1">Externo</span>
-                                            @endif
-                                        </span>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="row mt-3">
-                        <div class="col-12">
                             <label class="form-label fw-bold">
                                 <i class="ti ti-notes"></i>
                                 Notas / Instrucciones Especiales
                             </label>
-                            <textarea class="form-control group-notes-input" 
+                            <textarea class="form-control group-notes-input"
                                       data-group-index="{{ $index }}"
                                       rows="2"
                                       placeholder="Ej: Solicitar muestras, incluir garantía, plazo de entrega especial, etc.">{{ $group->notes }}</textarea>
                         </div>
                     </div>
                 </fieldset>
+
+                {{-- Cotización manual: fuera del fieldset para que siga disponible aunque el grupo ya tenga RFQ enviada --}}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-success"
+                                wire:click="openManualQuoteModal({{ $group->id }})">
+                            <i class="ti ti-pencil-plus"></i> Cotización manual / Proveedor externo
+                        </button>
+
+                        @php
+                            $manualSupplierIds = $activeRfq
+                                ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
+                                : collect();
+                        @endphp
+
+                        @if($manualSupplierIds->isNotEmpty())
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                @foreach($activeRfq->suppliers->whereIn('id', $manualSupplierIds) as $manualSupplier)
+                                    <span class="badge bg-success-subtle text-success border border-success">
+                                        <i class="ti ti-circle-check"></i> Cotización capturada — {{ $manualSupplier->company_name }}
+                                        @if($manualSupplier->is_external)
+                                            <span class="badge bg-secondary ms-1">Externo</span>
+                                        @endif
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
             </div>
         </div>
     @endforeach
@@ -234,8 +235,7 @@
 
 <div class="modal {{ $showManualQuoteModal ? 'show d-block' : '' }}"
      tabindex="-1"
-     style="{{ $showManualQuoteModal ? 'background: rgba(0,0,0,.5);' : '' }}"
-     wire:ignore.self>
+     style="{{ $showManualQuoteModal ? 'background: rgba(0,0,0,.5);' : '' }}">
     <div class="modal-dialog modal-fullscreen">
         <div class="modal-content">
             <div class="modal-header">

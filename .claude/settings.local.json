@@ -65,7 +65,11 @@
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 1953a66cd5fcdbfc5f0fd4175ecc670ac9ead4d0 *)",
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package f247de7e3f06674b0e656212d805739b2f9dece7 *)",
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package b1022ec5d69ad2b945cfef80f99e3299e7fddd8c *)",
-      "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package ba67fde02b50ac7de87868e8384c9f80b6ab03bb *)"
+      "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package ba67fde02b50ac7de87868e8384c9f80b6ab03bb *)",
+      "Bash(composer show *)",
+      "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 1d3963e2576f5c37d282b552abc05bfe0f06c713 *)",
+      "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 86a042466060b68953f026b82d187fb7a02cced1 *)",
+      "Bash(pkill -f \"artisan serve\")"
     ]
   }
 }
