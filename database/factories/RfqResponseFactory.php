@@ -35,6 +35,7 @@ class RfqResponseFactory extends Factory
             'delivery_days'       => 5,
             'currency'            => 'MXN',
             'status'              => 'DRAFT',
+            'entry_source'        => 'supplier_portal',
         ];
     }
 }

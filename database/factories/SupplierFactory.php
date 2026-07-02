@@ -67,4 +67,13 @@ class SupplierFactory extends Factory
             'specialized_services_types' => ['Limpieza Industrial', 'Mantenimiento de Tanques'],
         ]);
     }
+
+    public function external()
+    {
+        return $this->state(fn () => [
+            'is_external' => true,
+            'is_active' => false,
+            'password' => Str::random(40),
+        ]);
+    }
 }

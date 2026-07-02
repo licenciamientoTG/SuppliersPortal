@@ -143,6 +143,15 @@
 
                                     @if($hasResponded)
                                         <div class="d-flex flex-wrap justify-content-center gap-1 mt-1">
+                                            @php
+                                                $isManualEntry = $supplierResponses->where('entry_source', 'buyer_manual')->isNotEmpty();
+                                            @endphp
+                                            @if($isManualEntry)
+                                                <span class="badge bg-soft-secondary text-secondary border fs-9" title="Capturada por el comprador, no enviada por el proveedor">
+                                                    <i class="ti ti-pencil"></i> CAPTURADA MANUALMENTE
+                                                </span>
+                                            @endif
+
                                             @if($nivelAsignado)
                                                 <span class="badge bg-soft-{{ $nivelAsignado->color_tag }} text-{{ $nivelAsignado->color_tag }} border border-{{ $nivelAsignado->color_tag }} border-opacity-25 fs-10"
                                                       title="{{ $nivelAsignado->description }}">

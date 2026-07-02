@@ -277,18 +277,7 @@ class SupplierPortalController extends Controller
      */
     private function checkRfqCompletion(Rfq $rfq): void
     {
-        $totalInvited = $rfq->suppliers()->count();
-        $totalResponded = $rfq->suppliers()->whereNotNull('responded_at')->count();
-
-        if ($totalInvited > 0 && $totalResponded >= $totalInvited) {
-            $rfq->update([
-                'status' => 'RECEIVED',
-                'updated_at' => now()
-            ]);
-            Log::info("RFQ Folio {$rfq->folio}: Todos los proveedores respondieron. Estado actualizado a RECEIVED.");
-        } else {
-            Log::info("RFQ Folio {$rfq->folio}: Respuesta recibida ({$totalResponded}/{$totalInvited})");
-        }
+        $rfq->refreshCompletionStatus();
     }
 
     /**
