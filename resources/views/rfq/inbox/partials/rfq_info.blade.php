@@ -170,7 +170,7 @@
         <div class="w-100 d-flex justify-content-between align-items-center">
             <div class="d-flex gap-2">
                 @if($rfq->status === 'RECEIVED')
-                    <a href="{{ route('rfq.comparison', $rfq) }}" class="btn btn-success btn-sm px-3">
+                    <a href="{{ route('rfq.comparison.index', $rfq) }}" class="btn btn-success btn-sm px-3">
                         <i class="ti ti-scale me-1"></i>Evaluar Comparativa
                     </a>
                 @endif
