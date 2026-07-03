@@ -598,6 +598,14 @@ window.Step3Suppliers = (function() {
     function validateStep() {
         let emptyGroups = [];
         $('.supplier-select').each(function() {
+            const $card = $(this).closest('.group-supplier-card');
+            const isReadyForAnalysis = $card.data('ready-for-analysis') == 1;
+            const hasManualQuote = $card.data('has-manual-quote') == 1;
+
+            if (isReadyForAnalysis || hasManualQuote) {
+                return;
+            }
+
             if (($(this).val()?.length || 0) === 0) {
                 emptyGroups.push($(this).closest('.card').find('h6').first().text().trim());
             }

@@ -45,7 +45,8 @@ class QuotationWizardManualQuoteTest extends TestCase
             ->set("manualQuoteItems.{$item->id}.iva_rate", 16)
             ->set("manualQuoteItems.{$item->id}.delivery_days", 5)
             ->call('saveManualQuote')
-            ->assertSet('showManualQuoteModal', false);
+            ->assertSet('showManualQuoteModal', false)
+            ->assertSet('currentStep', 5);
 
         $rfq = Rfq::where('quotation_group_id', $group->id)->firstOrFail();
         $this->assertEquals('RECEIVED', $rfq->status);

@@ -391,7 +391,8 @@ class QuotationWizard extends Component
             }
 
             DB::commit();
-            $this->currentStep = 4;
+            $this->currentStep = $this->determineCurrentStep();
+            $this->loadStepData();
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', $e->getMessage());
@@ -659,7 +660,8 @@ class QuotationWizard extends Component
         }
 
         $this->showManualQuoteModal = false;
-        $this->loadSuppliersData();
+        $this->currentStep = $this->determineCurrentStep();
+        $this->loadStepData();
         session()->flash('success', "✅ Cotización de {$supplier->company_name} capturada para el grupo {$group->name}.");
     }
 
@@ -682,6 +684,7 @@ class QuotationWizard extends Component
 
         // Obtener RFQs existentes agrupadas por quotation_group_id
         $rfqs = $this->requisition->rfqs()
+            ->active()
             ->with(['suppliers', 'quotationGroup'])
             ->get();
 

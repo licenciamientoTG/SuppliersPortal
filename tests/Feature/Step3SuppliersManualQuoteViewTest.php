@@ -44,10 +44,13 @@ class Step3SuppliersManualQuoteViewTest extends TestCase
             'entry_source' => 'buyer_manual',
         ]);
 
-        $this->get(route('rfq.wizard.steps', $requisition) . '?step=3')
+        $this->get(route('rfq.wizard.steps', $requisition).'?step=3')
             ->assertOk()
             ->assertSee('Cotización manual')
             ->assertSee('Cotización capturada')
-            ->assertSee('Tornillos del Norte SA');
+            ->assertSee('Tornillos del Norte SA')
+            ->assertSee('RFQ RECIBIDA')
+            ->assertSee('data-ready-for-analysis="1"', false)
+            ->assertSee('data-has-manual-quote="1"', false);
     }
 }
