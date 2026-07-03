@@ -6,18 +6,16 @@ use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\SupplierInvoice;
 use App\Services\InvoiceService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class SupplierInvoiceController extends Controller
 {
-    public function __construct(private InvoiceService $invoiceService)
-    {
-    }
+    public function __construct(private InvoiceService $invoiceService) {}
 
     public function index()
     {
@@ -68,7 +66,11 @@ class SupplierInvoiceController extends Controller
         ]);
 
         $order = $this->invoiceService->resolveOrder($validated['order_type'], (int) $validated['order_id']);
-        abort_unless((int) $order->supplier_id === (int) $supplier->id, 403);
+        if ((int) $order->supplier_id !== (int) $supplier->id) {
+            throw ValidationException::withMessages([
+                'order_id' => 'La orden seleccionada no pertenece a tu cuenta de proveedor.',
+            ]);
+        }
 
         try {
             $invoice = $this->invoiceService->upload(
@@ -110,19 +112,19 @@ class SupplierInvoiceController extends Controller
         $regular = PurchaseOrder::where('supplier_id', $supplierId)
             ->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'])
             ->get()
-            ->map(fn($order) => [
+            ->map(fn ($order) => [
                 'type' => 'standard',
                 'id' => $order->id,
-                'label' => "OC {$order->folio} - " . format_money($order->total, $order->currency),
+                'label' => "OC {$order->folio} - ".format_money($order->total, $order->currency),
             ]);
 
         $direct = DirectPurchaseOrder::where('supplier_id', $supplierId)
             ->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'])
             ->get()
-            ->map(fn($order) => [
+            ->map(fn ($order) => [
                 'type' => 'direct',
                 'id' => $order->id,
-                'label' => "OCD {$order->folio} - " . format_money($order->total, $order->currency),
+                'label' => "OCD {$order->folio} - ".format_money($order->total, $order->currency),
             ]);
 
         return $regular->merge($direct)->values();

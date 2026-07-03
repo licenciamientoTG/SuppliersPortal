@@ -16,9 +16,7 @@ use Throwable;
 
 class FinanceInvoiceController extends Controller
 {
-    public function __construct(private InvoiceService $invoiceService)
-    {
-    }
+    public function __construct(private InvoiceService $invoiceService) {}
 
     public function index()
     {
@@ -45,11 +43,30 @@ class FinanceInvoiceController extends Controller
             'order_id' => 'required|integer',
             'xml_file' => 'required|file|mimes:xml|max:5120',
             'pdf_file' => 'required|file|mimes:pdf|max:10240',
+        ], [
+            'supplier_id.required' => 'Debes seleccionar un proveedor.',
+            'supplier_id.exists' => 'El proveedor seleccionado no existe.',
+            'order_type.required' => 'Debes seleccionar el tipo de orden.',
+            'order_type.in' => 'El tipo de orden seleccionado no es válido.',
+            'order_id.required' => 'Debes seleccionar una orden de compra.',
+            'order_id.integer' => 'La orden de compra seleccionada no es válida.',
+            'xml_file.required' => 'Debes adjuntar el archivo XML del CFDI.',
+            'xml_file.file' => 'El archivo XML no es válido.',
+            'xml_file.mimes' => 'El archivo XML debe tener extensión .xml.',
+            'xml_file.max' => 'El archivo XML no debe exceder 5 MB.',
+            'pdf_file.required' => 'Debes adjuntar el archivo PDF de la factura.',
+            'pdf_file.file' => 'El archivo PDF no es válido.',
+            'pdf_file.mimes' => 'El archivo PDF debe tener extensión .pdf.',
+            'pdf_file.max' => 'El archivo PDF no debe exceder 10 MB.',
         ]);
 
         $supplier = Supplier::findOrFail($validated['supplier_id']);
         $order = $this->invoiceService->resolveOrder($validated['order_type'], (int) $validated['order_id']);
-        abort_unless((int) $order->supplier_id === (int) $supplier->id, 422, 'La orden no pertenece al proveedor seleccionado.');
+        if ((int) $order->supplier_id !== (int) $supplier->id) {
+            throw ValidationException::withMessages([
+                'order_id' => 'La orden no pertenece al proveedor seleccionado.',
+            ]);
+        }
 
         try {
             $invoice = $this->invoiceService->upload(
@@ -109,7 +126,7 @@ class FinanceInvoiceController extends Controller
         $regular = PurchaseOrder::with('supplier')
             ->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'])
             ->get()
-            ->map(fn($order) => [
+            ->map(fn ($order) => [
                 'type' => 'standard',
                 'id' => $order->id,
                 'supplier_id' => $order->supplier_id,
@@ -119,7 +136,7 @@ class FinanceInvoiceController extends Controller
         $direct = DirectPurchaseOrder::with('supplier')
             ->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'])
             ->get()
-            ->map(fn($order) => [
+            ->map(fn ($order) => [
                 'type' => 'direct',
                 'id' => $order->id,
                 'supplier_id' => $order->supplier_id,

@@ -32,14 +32,16 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Orden de compra <span class="text-danger">*</span></label>
-                    <select name="order_key" class="form-select" required onchange="const [t,id]=this.value.split(':'); document.getElementById('order_type').value=t; document.getElementById('order_id').value=id;">
+                    <select name="order_key" id="order_key" class="form-select" required>
                         <option value="">Seleccionar...</option>
                         @foreach($orders as $order)
-                            <option value="{{ $order['type'] }}:{{ $order['id'] }}">{{ $order['label'] }}</option>
+                            <option value="{{ $order['type'] }}:{{ $order['id'] }}" @selected(old('order_type') === $order['type'] && (string) old('order_id') === (string) $order['id'])>
+                                {{ $order['label'] }}
+                            </option>
                         @endforeach
                     </select>
-                    <input type="hidden" name="order_type" id="order_type">
-                    <input type="hidden" name="order_id" id="order_id">
+                    <input type="hidden" name="order_type" id="order_type" value="{{ old('order_type') }}">
+                    <input type="hidden" name="order_id" id="order_id" value="{{ old('order_id') }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">XML CFDI <span class="text-danger">*</span></label>
@@ -58,3 +60,26 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function syncInvoiceOrderFields() {
+        const select = document.getElementById('order_key');
+        const typeInput = document.getElementById('order_type');
+        const idInput = document.getElementById('order_id');
+        const [type = '', id = ''] = (select?.value || '').split(':');
+
+        typeInput.value = type;
+        idInput.value = id;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('order_key');
+        const form = select?.closest('form');
+
+        select?.addEventListener('change', syncInvoiceOrderFields);
+        form?.addEventListener('submit', syncInvoiceOrderFields);
+        syncInvoiceOrderFields();
+    });
+</script>
+@endpush
