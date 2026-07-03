@@ -75,4 +75,32 @@ class QuotationWizardStepDeterminationTest extends TestCase
             ->assertSet('suppliersData.0.group_id', $group->id)
             ->assertSet('suppliersData.0.supplier_ids.0', $supplier->id);
     }
+
+    public function test_supplier_data_ignores_cancelled_rfqs_for_the_same_group(): void
+    {
+        $requisition = Requisition::factory()->create(['validated_at' => now()]);
+        $group = QuotationGroup::factory()->create(['requisition_id' => $requisition->id]);
+        $cancelledSupplier = Supplier::factory()->create();
+        $activeSupplier = Supplier::factory()->create();
+
+        $cancelledRfq = Rfq::factory()->create([
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => $group->id,
+            'status' => 'CANCELLED',
+        ]);
+        $cancelledRfq->suppliers()->attach($cancelledSupplier->id, ['invited_at' => now(), 'responded_at' => now()]);
+
+        $activeRfq = Rfq::factory()->create([
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => $group->id,
+            'status' => 'DRAFT',
+        ]);
+        $activeRfq->suppliers()->attach($activeSupplier->id, ['invited_at' => now()]);
+
+        Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
+            ->set('currentStep', 3)
+            ->call('loadSuppliersData')
+            ->assertSet('suppliersData.0.group_id', $group->id)
+            ->assertSet('suppliersData.0.supplier_ids.0', $activeSupplier->id);
+    }
 }

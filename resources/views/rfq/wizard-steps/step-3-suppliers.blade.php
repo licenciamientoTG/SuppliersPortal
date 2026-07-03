@@ -37,11 +37,25 @@
                 ->where('quotation_group_id', $group->id)
                 ->where('status', '!=', 'CANCELLED')
                 ->first();
-            
+
             $isSent = $activeRfq && $activeRfq->status !== 'DRAFT';
+            $isReadyForAnalysis = $activeRfq && in_array($activeRfq->status, ['RECEIVED', 'EVALUATED'], true);
+            $manualSupplierIds = $activeRfq
+                ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
+                : collect();
+            $statusLabel = match ($activeRfq?->status) {
+                'RECEIVED' => 'RFQ RECIBIDA',
+                'EVALUATED' => 'RFQ EVALUADA',
+                'SENT' => 'RFQ ENVIADA',
+                default => 'RFQ ENVIADA',
+            };
         @endphp
 
-        <div class="card mb-3 group-supplier-card {{ $isSent ? 'border-info shadow-sm' : '' }}" data-group-index="{{ $index }}">
+        <div class="card mb-3 group-supplier-card {{ $isSent ? 'border-info shadow-sm' : '' }}"
+             data-group-index="{{ $index }}"
+             data-rfq-status="{{ $activeRfq?->status }}"
+             data-has-manual-quote="{{ $manualSupplierIds->isNotEmpty() ? '1' : '0' }}"
+             data-ready-for-analysis="{{ $isReadyForAnalysis ? '1' : '0' }}">
             <div class="card-header {{ $isSent ? 'bg-info-subtle border-info' : 'bg-light' }}">
                 <div class="d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
@@ -50,7 +64,7 @@
                         
                         @if($isSent)
                             <span class="badge bg-info ms-2">
-                                <i class="ti ti-send"></i> RFQ ENVIADA ({{ $activeRfq->folio }})
+                                <i class="ti ti-send"></i> {{ $statusLabel }} ({{ $activeRfq->folio }})
                             </span>
                         @endif
                     </h6>
@@ -179,12 +193,6 @@
                                 wire:click="openManualQuoteModal({{ $group->id }})">
                             <i class="ti ti-pencil-plus"></i> Cotización manual / Proveedor externo
                         </button>
-
-                        @php
-                            $manualSupplierIds = $activeRfq
-                                ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
-                                : collect();
-                        @endphp
 
                         @if($manualSupplierIds->isNotEmpty())
                             <div class="d-flex flex-wrap gap-2 mt-2">
