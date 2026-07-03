@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Livewire\Rfq\QuotationWizard;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
+use App\Models\RequisitionItem;
 use App\Models\Rfq;
+use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -48,5 +50,29 @@ class QuotationWizardStepDeterminationTest extends TestCase
 
         Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
             ->assertSet('currentStep', 5);
+    }
+
+    public function test_next_step_from_planning_loads_supplier_data_before_rendering_step_3(): void
+    {
+        $requisition = Requisition::factory()->create(['validated_at' => now()]);
+        $item = RequisitionItem::factory()->create(['requisition_id' => $requisition->id]);
+        $group = QuotationGroup::factory()->create(['requisition_id' => $requisition->id]);
+        $group->items()->attach($item->id, ['sort_order' => 1]);
+
+        $supplier = Supplier::factory()->create();
+        $rfq = Rfq::factory()->create([
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => $group->id,
+            'status' => 'DRAFT',
+            'response_deadline' => now()->addDays(7),
+        ]);
+        $rfq->suppliers()->attach($supplier->id, ['invited_at' => now()]);
+
+        Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
+            ->set('currentStep', 2)
+            ->call('nextStep')
+            ->assertSet('currentStep', 3)
+            ->assertSet('suppliersData.0.group_id', $group->id)
+            ->assertSet('suppliersData.0.supplier_ids.0', $supplier->id);
     }
 }

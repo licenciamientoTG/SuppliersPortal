@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('suppliers', 'is_external')) {
+            return;
+        }
+
         Schema::table('suppliers', function (Blueprint $table) {
             $table->boolean('is_external')->default(false)->after('approval_status');
         });
@@ -15,6 +19,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasColumn('suppliers', 'is_external')) {
+            return;
+        }
+
         Schema::table('suppliers', function (Blueprint $table) {
             $table->dropColumn('is_external');
         });

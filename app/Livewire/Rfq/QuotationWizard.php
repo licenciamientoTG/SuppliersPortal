@@ -3,16 +3,16 @@
 namespace App\Livewire\Rfq;
 
 use App\Enum\RequisitionStatus;
+use App\Models\QuotationGroup;
 use App\Models\Requisition;
-use Livewire\Component;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Rfq;
+use App\Models\RfqResponse;
+use App\Models\Supplier;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\Supplier;
 use Illuminate\Support\Str;
-use App\Models\QuotationGroup;
-use App\Models\RfqResponse;
+use Livewire\Component;
 use Livewire\WithFileUploads;
 
 class QuotationWizard extends Component
@@ -27,19 +27,27 @@ class QuotationWizard extends Component
 
     // Datos que se van recolectando en cada paso
     public $validationData = [];
+
     public $planningData = [];
+
     public $suppliersData = [];
+
     public $rfqData = [];
+
     public $comparisonData = [];
 
     // ======= NUEVO: Datos para el paso 2 =======
     public $unassignedItems = [];
+
     public $groups = [];
 
     // ======= Cotización manual del comprador (Paso 3) =======
     public $showManualQuoteModal = false;
+
     public $manualQuoteGroupId = null;
+
     public $manualQuoteSupplierId = null; // null = crear proveedor externo nuevo
+
     public $manualQuoteNewSupplier = [
         'company_name' => '',
         'rfc' => '',
@@ -48,9 +56,13 @@ class QuotationWizard extends Component
         'email' => '',
         'phone_number' => '',
     ];
+
     public $manualQuoteItems = [];
+
     public $manualQuoteQuotationDate = null;
+
     public $manualQuoteValidityDays = 30;
+
     public $manualQuoteAttachment = null;
 
     /**
@@ -109,8 +121,12 @@ class QuotationWizard extends Component
      */
     public function loadStepData()
     {
-        if ($this->currentStep >= 2) $this->loadPlanningData();
-        if ($this->currentStep >= 3) $this->loadSuppliersData();
+        if ($this->currentStep >= 2) {
+            $this->loadPlanningData();
+        }
+        if ($this->currentStep >= 3) {
+            $this->loadSuppliersData();
+        }
     }
 
     /**
@@ -171,12 +187,13 @@ class QuotationWizard extends Component
     {
         // Validar que todos los checkboxes estén marcados
         if (
-            !($this->validationData['specs_clear'] ?? false) ||
-            !($this->validationData['time_feasible'] ?? false) ||
-            !($this->validationData['alternatives_evaluated'] ?? false)
+            ! ($this->validationData['specs_clear'] ?? false) ||
+            ! ($this->validationData['time_feasible'] ?? false) ||
+            ! ($this->validationData['alternatives_evaluated'] ?? false)
         ) {
 
             session()->flash('error', 'Debes completar todas las validaciones antes de continuar.');
+
             return;
         }
 
@@ -215,7 +232,7 @@ class QuotationWizard extends Component
             // Avanzar al siguiente paso
             $this->currentStep = 2;
         } catch (\Exception $e) {
-            session()->flash('error', 'Error al validar la requisición: ' . $e->getMessage());
+            session()->flash('error', 'Error al validar la requisición: '.$e->getMessage());
         }
     }
 
@@ -228,9 +245,7 @@ class QuotationWizard extends Component
             $this->currentStep++;
 
             // Recargar datos según el paso
-            if ($this->currentStep === 2) {
-                $this->loadPlanningData();
-            }
+            $this->loadStepData();
         }
     }
 
@@ -243,11 +258,7 @@ class QuotationWizard extends Component
             $this->currentStep--;
 
             // Recargar datos según el paso
-            if ($this->currentStep === 2) {
-                $this->loadPlanningData();
-            } elseif ($this->currentStep === 3) {
-                $this->loadSuppliersData();
-            }
+            $this->loadStepData();
         }
     }
 
@@ -260,11 +271,7 @@ class QuotationWizard extends Component
             $this->currentStep = $step;
 
             // Recargar datos según el paso
-            if ($step === 2) {
-                $this->loadPlanningData();
-            } elseif ($step === 3) {
-                $this->loadSuppliersData();
-            }
+            $this->loadStepData();
         }
     }
 
@@ -305,6 +312,7 @@ class QuotationWizard extends Component
         // Validar longitud mínima del motivo
         if (strlen($reason) < 20) {
             session()->flash('error', 'El motivo debe tener al menos 20 caracteres.');
+
             return;
         }
 
@@ -313,13 +321,14 @@ class QuotationWizard extends Component
                 'status' => RequisitionStatus::REJECTED,
                 'rejection_reason' => $reason,
                 'rejected_at' => now(),
-                'rejected_by' => Auth::id()
+                'rejected_by' => Auth::id(),
             ]);
 
             session()->flash('success', "Requisición {$this->requisition->folio} devuelta al usuario correctamente.");
+
             return redirect()->route('quotes.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'Error al rechazar la requisición: ' . $e->getMessage());
+            session()->flash('error', 'Error al rechazar la requisición: '.$e->getMessage());
         }
     }
 
@@ -343,7 +352,7 @@ class QuotationWizard extends Component
                     // Sacamos los IDs actuales de la DB
                     $currentSuppliers = $existingRfq->suppliers->pluck('id')->sort()->values()->toArray();
                     // Sacamos los IDs que vienen del JS
-                    $newSuppliers = collect($groupData['supplier_ids'])->map(fn($id) => (int)$id)->sort()->values()->toArray();
+                    $newSuppliers = collect($groupData['supplier_ids'])->map(fn ($id) => (int) $id)->sort()->values()->toArray();
 
                     $hasChanges = (
                         $currentSuppliers !== $newSuppliers ||
@@ -352,8 +361,9 @@ class QuotationWizard extends Component
                     );
 
                     // Si NO hay cambios, saltamos este grupo (No lo tocamos)
-                    if (!$hasChanges) {
+                    if (! $hasChanges) {
                         Log::info("⏭️ Sin cambios en RFQ {$existingRfq->folio}, ignorando.");
+
                         continue;
                     }
 
@@ -405,6 +415,7 @@ class QuotationWizard extends Component
         ]);
 
         $rfq->suppliers()->attach($this->prepareSupplierPivotData($groupData['supplier_ids']));
+
         return $rfq;
     }
 
@@ -421,6 +432,7 @@ class QuotationWizard extends Component
                 'updated_at' => now(),
             ];
         }
+
         return $pivotData;
     }
 
@@ -653,14 +665,12 @@ class QuotationWizard extends Component
 
     /**
      * Generar folio único de RFQ
-     *
-     * @return string
      */
     private function generateRFQFolio(): string
     {
         $count = Rfq::whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])->count() + 1;
 
-        return 'RFQ-' . now()->format('Ymd') . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        return 'RFQ-'.now()->format('Ymd').'-'.str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -693,7 +703,7 @@ class QuotationWizard extends Component
 
         Log::info('✅ Datos de proveedores cargados', [
             'count' => count($this->suppliersData),
-            'data' => $this->suppliersData
+            'data' => $this->suppliersData,
         ]);
     }
 
@@ -705,4 +715,3 @@ class QuotationWizard extends Component
         return view('livewire.rfq.quotation-wizard');
     }
 }
-
