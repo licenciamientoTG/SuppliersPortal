@@ -7,38 +7,36 @@ return new class extends Migration
 {
     public function up(): void
     {
-        match (DB::getDriverName()) {
-            'mysql', 'mariadb' => DB::statement("ALTER TABLE quotation_summaries MODIFY approval_status ENUM('pending', 'approved', 'partially_approved', 'rejected') NOT NULL DEFAULT 'pending'"),
-            'pgsql' => DB::statement('ALTER TABLE quotation_summaries ALTER COLUMN approval_status TYPE VARCHAR(30)'),
-            'sqlsrv' => $this->rebuildSqlServerApprovalStatusConstraint([
-                'pending',
-                'approved',
-                'partially_approved',
-                'rejected',
-            ], 30),
-            default => null,
-        };
+        if (DB::getDriverName() !== 'sqlsrv') {
+            return;
+        }
+
+        $this->rebuildApprovalStatusConstraint([
+            'pending',
+            'approved',
+            'partially_approved',
+            'rejected',
+        ], 30);
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'sqlsrv') {
+            return;
+        }
+
         DB::table('quotation_summaries')
             ->where('approval_status', 'partially_approved')
             ->update(['approval_status' => 'approved']);
 
-        match (DB::getDriverName()) {
-            'mysql', 'mariadb' => DB::statement("ALTER TABLE quotation_summaries MODIFY approval_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending'"),
-            'pgsql' => DB::statement('ALTER TABLE quotation_summaries ALTER COLUMN approval_status TYPE VARCHAR(20)'),
-            'sqlsrv' => $this->rebuildSqlServerApprovalStatusConstraint([
-                'pending',
-                'approved',
-                'rejected',
-            ], 20),
-            default => null,
-        };
+        $this->rebuildApprovalStatusConstraint([
+            'pending',
+            'approved',
+            'rejected',
+        ], 20);
     }
 
-    private function rebuildSqlServerApprovalStatusConstraint(array $allowedStatuses, int $length): void
+    private function rebuildApprovalStatusConstraint(array $allowedStatuses, int $length): void
     {
         $constraints = DB::select(<<<'SQL'
             SELECT cc.name
