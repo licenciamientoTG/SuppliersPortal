@@ -69,7 +69,9 @@
       "Bash(composer show *)",
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 1d3963e2576f5c37d282b552abc05bfe0f06c713 *)",
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 86a042466060b68953f026b82d187fb7a02cced1 *)",
-      "Bash(pkill -f \"artisan serve\")"
+      "Bash(pkill -f \"artisan serve\")",
+      "Skill(artifact-design)",
+      "Artifact"
     ]
   }
 }

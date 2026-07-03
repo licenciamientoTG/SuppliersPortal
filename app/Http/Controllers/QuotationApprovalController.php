@@ -30,7 +30,7 @@ class QuotationApprovalController extends Controller
 
     public function index()
     {
-        $pendingApprovals = QuotationSummary::with([
+        $query = QuotationSummary::with([
             'requisition',
             'rfq.rfqResponses.requisitionItem.costCenter',
             'rfq.rfqResponses.requisitionItem.expenseCategory',
@@ -43,8 +43,14 @@ class QuotationApprovalController extends Controller
             'authorizerRole',
             'requester',
         ])
-            ->pending()
-            ->assignedTo(Auth::id())
+            ->pending();
+
+        // superadmin visualiza todas las selecciones pendientes, sin importar a quien esten asignadas.
+        if (! Auth::user()->hasRole('superadmin')) {
+            $query->assignedTo(Auth::id());
+        }
+
+        $pendingApprovals = $query
             ->orderByDesc('created_at')
             ->get()
             ->each(function (QuotationSummary $summary) {
@@ -153,7 +159,11 @@ class QuotationApprovalController extends Controller
                 ->with('warning', 'La seleccion ya habia sido rechazada previamente.');
         }
 
-        abort_unless((int) $summary->current_approver_user_id === (int) Auth::id(), 403);
+        // superadmin puede autorizar/rechazar cualquier seleccion pendiente, no solo las asignadas a el.
+        abort_unless(
+            Auth::user()->hasRole('superadmin') || (int) $summary->current_approver_user_id === (int) Auth::id(),
+            403
+        );
 
         if ($request->input('status') === 'approved' && ! $request->has('items')) {
             $items = $this->quotationSummaryItemService->ensureItems($summary)
