@@ -46,10 +46,10 @@
                     </div>
                     <div class="mt-3 d-flex flex-wrap gap-2">
                         <button type="button" class="btn btn-outline-warning btn-sm" id="btnCancelRejectedRfq">
-                            <i class="ti ti-ban me-1"></i>Cancelar CotizaciÃ³n
+                            <i class="ti ti-ban me-1"></i>Cancelar Cotización
                         </button>
                         <button type="button" class="btn btn-outline-dark btn-sm" id="btnCancelRejectedRequisition">
-                            <i class="ti ti-archive me-1"></i>Cancelar RequisiciÃ³n
+                            <i class="ti ti-archive me-1"></i>Cancelar Requisición
                         </button>
                     </div>
                 </div>
@@ -552,7 +552,7 @@
 
             Swal.fire({
                 icon: 'warning',
-                title: 'AdjudicaciÃ³n bloqueada',
+                title: 'Adjudicación bloqueada',
                 html: `<p class="mb-3"><strong>${name}</strong> no puede adjudicarse en este momento.</p>${html}`,
                 confirmButtonText: 'Entendido'
             });

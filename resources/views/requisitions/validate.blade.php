@@ -324,7 +324,7 @@
                         <i class="ti ti-arrow-back-up me-1"></i> Devolver al Usuario
                     </button>
                     <button type="button" class="btn btn-outline-warning" onclick="confirmCancelRequisition()">
-                        <i class="ti ti-ban me-1"></i> Cancelar RequisiciÃ³n
+                        <i class="ti ti-ban me-1"></i> Cancelar Requisición
                     </button>
                 </div>
 
@@ -492,23 +492,23 @@ $(function() {
  */
 function confirmCancelRequisition() {
     Swal.fire({
-        title: 'Â¿Cancelar requisiciÃ³n {{ $requisition->folio }}?',
+        title: '¿Cancelar requisición {{ $requisition->folio }}?',
         html: `
             <div class="text-start">
-                <p class="mb-3"><strong>La requisiciÃ³n se conservarÃ¡ como expediente.</strong></p>
+                <p class="mb-3"><strong>La requisición se conservará como expediente.</strong></p>
                 <ul class="text-muted small">
-                    <li class="mb-2"><i class="ti ti-ban text-warning"></i> CambiarÃ¡ a estado <span class="badge bg-dark">CANCELADA</span></li>
-                    <li class="mb-2"><i class="ti ti-archive text-info"></i> No se borrarÃ¡n registros, grupos ni RFQs ligadas</li>
+                    <li class="mb-2"><i class="ti ti-ban text-warning"></i> Cambiará a estado <span class="badge bg-dark">CANCELADA</span></li>
+                    <li class="mb-2"><i class="ti ti-archive text-info"></i> No se borrarán registros, grupos ni RFQs ligadas</li>
                 </ul>
                 <div class="mt-3">
-                    <label for="cancel_reason" class="form-label fw-bold">Motivo de cancelaciÃ³n <span class="text-danger">*</span></label>
-                    <textarea id="cancel_reason" class="form-control" rows="4" placeholder="Explica por quÃ© Compras cancela la requisiciÃ³n completa..." maxlength="1000" required></textarea>
+                    <label for="cancel_reason" class="form-label fw-bold">Motivo de cancelación <span class="text-danger">*</span></label>
+                    <textarea id="cancel_reason" class="form-control" rows="4" placeholder="Explica por qué Compras cancela la requisición completa..." maxlength="1000" required></textarea>
                 </div>
             </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: '<i class="ti ti-ban me-1"></i> SÃ­, cancelar',
+        confirmButtonText: '<i class="ti ti-ban me-1"></i> Sí, cancelar',
         cancelButtonText: '<i class="ti ti-x me-1"></i> Volver',
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#6c757d',
@@ -522,7 +522,7 @@ function confirmCancelRequisition() {
             const reason = document.getElementById('cancel_reason').value.trim();
 
             if (!reason) {
-                Swal.showValidationMessage('Debes proporcionar un motivo de cancelaciÃ³n');
+                Swal.showValidationMessage('Debes proporcionar un motivo de cancelación');
                 return false;
             }
 

@@ -215,7 +215,7 @@
                 {
                     data: 'purchase_type_label',
                     name: 'purchase_type',
-                    defaultContent: 'â€”'
+                    defaultContent: '—'
                 },
                 {
                     data: 'responsible_name',

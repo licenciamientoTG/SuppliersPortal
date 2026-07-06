@@ -723,7 +723,7 @@
             }
 
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
-        initSearchableSelect($expenseCategory, 'Buscar categorÃ­a de gasto...', {
+        initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
             dropdownParent: $('#itemModal')
         });
         initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {

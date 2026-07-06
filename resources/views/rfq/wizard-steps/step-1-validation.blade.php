@@ -1,4 +1,4 @@
-{{-- InformaciÃ³n General --}}
+{{-- Información General --}}
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <label class="form-label text-muted text-uppercase fs-11 fw-bold">Solicitante</label>
@@ -54,7 +54,7 @@
                 <th>Producto / Servicio</th>
                 <th class="text-center" width="100">Cant.</th>
                 <th class="text-center" width="100">Unidad</th>
-                <th width="200">CategorÃ­a de Gasto</th>
+                <th width="200">Categoría de Gasto</th>
             </tr>
         </thead>
         <tbody>
@@ -85,7 +85,7 @@
             @empty
                 <tr>
                     <td colspan="5" class="text-center text-muted py-4">
-                        No hay partidas en esta requisiciÃ³n
+                        No hay partidas en esta requisición
                     </td>
                 </tr>
             @endforelse
@@ -95,7 +95,7 @@
 
 <hr class="my-4 border-dashed">
 
-{{-- Formulario de ValidaciÃ³n --}}
+{{-- Formulario de Validación --}}
 <div class="card bg-light border-start border-4">
     <div class="card-body">
         <h5 class="card-title mb-3">
@@ -104,11 +104,11 @@
 
         <p class="text-muted mb-4">
             <i class="ti ti-info-circle me-1"></i>
-            Antes de proceder con la cotizaciÃ³n, verifica los siguientes aspectos:
+            Antes de proceder con la cotización, verifica los siguientes aspectos:
         </p>
 
         <div class="row g-3">
-            {{-- ValidaciÃ³n 1: Claridad de Especificaciones --}}
+            {{-- Validación 1: Claridad de Especificaciones --}}
             <div class="col">
                 <div class="card validation-card {{ ($validationData['specs_clear'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
                     <div class="card-body">
@@ -120,7 +120,7 @@
                             <label class="form-check-label fw-bold {{ ($validationData['specs_clear'] ?? false) ? 'text-success' : 'text-dark' }}"
                                 for="check_specs_clear">
                                 <i class="ti ti-file-check me-1 text-primary"></i>
-                                Claridad de Especificaciones TÃ©cnicas
+                                Claridad de Especificaciones Técnicas
                             </label>
                         </div>
                         <div class="form-text mt-2 ms-4">
@@ -131,7 +131,7 @@
                 </div>
             </div>
 
-            {{-- ValidaciÃ³n 2: Factibilidad de Tiempos --}}
+            {{-- Validación 2: Factibilidad de Tiempos --}}
             <div class="col">
                 <div class="card validation-card {{ ($validationData['time_feasible'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
                     <div class="card-body">
@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            {{-- ValidaciÃ³n 3: EvaluaciÃ³n de Alternativas --}}
+            {{-- Validación 3: Evaluación de Alternativas --}}
             <div class="col">
                 <div class="card validation-card {{ ($validationData['alternatives_evaluated'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
                     <div class="card-body">
@@ -166,18 +166,18 @@
                             <label class="form-check-label fw-bold {{ ($validationData['alternatives_evaluated'] ?? false) ? 'text-success' : 'text-dark' }}"
                                 for="check_alternatives">
                                 <i class="ti ti-arrows-exchange me-1 text-success"></i>
-                                EvaluaciÃ³n de Alternativas de CatÃ¡logo
+                                Evaluación de Alternativas de Catálogo
                             </label>
                         </div>
                         <div class="form-text mt-2 ms-4">
-                            Los productos seleccionados son la opciÃ³n mÃ¡s eficiente en cuanto a costo-beneficio.
+                            Los productos seleccionados son la opción más eficiente en cuanto a costo-beneficio.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Notas adicionales de validaciÃ³n --}}
+        {{-- Notas adicionales de validación --}}
         <div class="mt-4 pt-3 border-top">
             <label class="form-label fw-bold text-dark">
                 Observaciones de Compras (opcional)
@@ -206,7 +206,7 @@
         font-size: 0.875rem;
     }
 
-    /* Estilos para animaciÃ³n de validaciÃ³n */
+    /* Estilos para animación de validación */
     .validation-card {
         transition: all 0.3s ease;
     }
@@ -246,47 +246,47 @@ $(function() {
 });
 
 /**
- * Confirmar rechazo/devoluciÃ³n de requisiciÃ³n
+ * Confirmar rechazo/devolución de requisición
  */
 function confirmReject() {
     Swal.fire({
-        title: 'Â¿Devolver requisiciÃ³n {{ $requisition->folio }}?',
+        title: '¿Devolver requisición {{ $requisition->folio }}?',
         html: `
             <div class="text-start">
-                <p class="mb-3"><strong>Al devolver esta requisiciÃ³n al usuario:</strong></p>
+                <p class="mb-3"><strong>Al devolver esta requisición al usuario:</strong></p>
                 <ul class="text-muted small">
                     <li class="mb-2">
                         <i class="ti ti-ban text-danger"></i>
-                        CambiarÃ¡ a estado <span class="badge bg-danger">RECHAZADA</span>
+                        Cambiará a estado <span class="badge bg-danger">RECHAZADA</span>
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-bell text-primary"></i>
-                        El solicitante recibirÃ¡ notificaciÃ³n del rechazo
+                        El solicitante recibirá notificación del rechazo
                     </li>
                     <li class="mb-2">
                         <i class="ti ti-message-2 text-info"></i>
-                        PodrÃ¡ corregir y volver a enviar
+                        Podrá corregir y volver a enviar
                     </li>
                 </ul>
 
                 <div class="mt-3">
                     <label for="rejection_reason" class="form-label fw-bold">
-                        Motivo de devoluciÃ³n <span class="text-danger">*</span>
+                        Motivo de devolución <span class="text-danger">*</span>
                     </label>
                     <textarea
                         id="rejection_reason"
                         class="form-control"
                         rows="4"
-                        placeholder="Explica claramente quÃ© debe corregir el usuario (especificaciones incompletas, tiempo no factible, etc.)..."
+                        placeholder="Explica claramente qué debe corregir el usuario (especificaciones incompletas, tiempo no factible, etc.)..."
                         maxlength="1000"
                         required></textarea>
-                    <small class="form-text text-muted">MÃ­nimo 20 caracteres - MÃ¡ximo 1000 caracteres</small>
+                    <small class="form-text text-muted">Mínimo 20 caracteres - Máximo 1000 caracteres</small>
                 </div>
             </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: '<i class="ti ti-arrow-back-up me-1"></i> SÃ­, Devolver',
+        confirmButtonText: '<i class="ti ti-arrow-back-up me-1"></i> Sí, Devolver',
         cancelButtonText: '<i class="ti ti-x me-1"></i> Cancelar',
         confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
@@ -301,7 +301,7 @@ function confirmReject() {
             const reason = document.getElementById('rejection_reason').value.trim();
 
             if (!reason) {
-                Swal.showValidationMessage('Debes proporcionar un motivo de devoluciÃ³n');
+                Swal.showValidationMessage('Debes proporcionar un motivo de devolución');
                 return false;
             }
 
@@ -314,7 +314,7 @@ function confirmReject() {
         }
     }).then((result) => {
         if (result.isConfirmed && result.value) {
-            // Llamar al mÃ©todo Livewire para rechazar
+            // Llamar al método Livewire para rechazar
             @this.rejectRequisition(result.value);
         }
     });
