@@ -1,4 +1,18 @@
 <div class="row g-3">
+    <div class="col-md-4">
+        <label class="form-label">Empresa <span class="text-danger">*</span></label>
+        <select name="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+            <option value="">Seleccionar...</option>
+            @foreach($companies as $company)
+                <option value="{{ $company->id }}" {{ (int) old('company_id', $location->company_id ?? 0) === (int) $company->id ? 'selected' : '' }}>
+                    {{ $company->code }} - {{ $company->name }}
+                </option>
+            @endforeach
+        </select>
+        @error('company_id')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+    </div>
     <div class="col-md-3">
         <label class="form-label">Código <span class="text-danger">*</span></label>
         <input type="text" name="code" class="form-control @error('code') is-invalid @enderror"

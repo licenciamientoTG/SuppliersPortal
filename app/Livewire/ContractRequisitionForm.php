@@ -60,7 +60,7 @@ class ContractRequisitionForm extends Component
         $this->fiscalYear = (int) now()->year;
         $this->required_date = now()->addDay()->toDateString();
         $this->companies = Company::where('is_active', true)->orderBy('name')->get();
-        $this->locations = ReceivingLocation::active()->orderBy('name')->get();
+        $this->locations = collect();
         $this->expenseCategories = ExpenseCategory::orderBy('name')->get();
     }
 
@@ -89,6 +89,7 @@ class ContractRequisitionForm extends Component
                 ])
             : collect();
 
+        $this->refreshLocations();
         $this->resetNewItemState();
     }
 
@@ -228,6 +229,12 @@ class ContractRequisitionForm extends Component
             'receiving_location_id' => ['required', 'integer', 'exists:receiving_locations,id'],
             'items' => ['required', 'array', 'min:1'],
         ]);
+
+        if (! $this->receivingLocationBelongsToCompany()) {
+            throw ValidationException::withMessages([
+                'receiving_location_id' => 'La ubicación de recepción no pertenece a la empresa seleccionada.',
+            ]);
+        }
 
         try {
             DB::transaction(function () {
@@ -471,6 +478,33 @@ class ContractRequisitionForm extends Component
             'notes' => '',
         ];
         $this->newItemCurrency = 'MXN';
+    }
+
+    protected function refreshLocations(): void
+    {
+        $this->locations = $this->company_id
+            ? ReceivingLocation::active()
+                ->portalUnblocked()
+                ->forCompany($this->company_id)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        if ($this->receiving_location_id && ! $this->receivingLocationBelongsToCompany()) {
+            $this->receiving_location_id = null;
+        }
+    }
+
+    protected function receivingLocationBelongsToCompany(): bool
+    {
+        if (! $this->company_id || ! $this->receiving_location_id) {
+            return false;
+        }
+
+        return ReceivingLocation::query()
+            ->whereKey((int) $this->receiving_location_id)
+            ->where('company_id', (int) $this->company_id)
+            ->exists();
     }
 
     protected function resolveProductDisplayName(?ProductService $product, ContractProduct $contractProduct): string

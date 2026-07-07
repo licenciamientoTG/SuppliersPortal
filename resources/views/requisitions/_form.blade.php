@@ -125,6 +125,7 @@
                         <select id="company_id" name="company_id"
                             class="form-select-sm @error('company_id') is-invalid @enderror form-select" required
                             data-url-costcenters="{{ route('api.cost-centers.by-company', ['company' => '__CID__']) }}"
+                            data-url-receiving-locations="{{ route('requisitions.receiving-locations.by-company', ['company' => '__CID__']) }}"
                             data-selected-cc="{{ old('cost_center_id', $requisition->primaryCostCenter()?->id ?? '') }}">
                             <option value="">-- Selecciona --</option>
                             @foreach ($companies as $c)
@@ -289,6 +290,7 @@
         $(function() {
             const $company = $('#company_id');
             const $cc = $('#cost_center_id');
+            const $receivingLocation = $('#receiving_location_id');
 
             function fillCostCenters(list) {
                 const placeholder = '<option value="">-- Selecciona --</option>';
@@ -353,16 +355,67 @@
             }
 
             // change compañía → recarga CC
+            function fillReceivingLocations(list, selectedValue = '') {
+                $receivingLocation.empty().append('<option value="">-- Selecciona --</option>');
+
+                list.forEach(function(row) {
+                    $receivingLocation.append($('<option>', {
+                        value: row.id,
+                        text: row.label
+                    }));
+                });
+
+                if (selectedValue && list.some(row => String(row.id) === String(selectedValue))) {
+                    $receivingLocation.val(String(selectedValue));
+                }
+
+                $receivingLocation.trigger('change');
+            }
+
+            function loadReceivingLocations(companyId, selectedValue = '') {
+                if (!companyId) {
+                    fillReceivingLocations([]);
+                    return;
+                }
+
+                $receivingLocation.prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Cargando...</option>');
+
+                const tmpl = $company.data('urlReceivingLocations') || $company.attr('data-url-receiving-locations');
+                const url = String(tmpl).replace('__CID__', companyId);
+
+                $.getJSON(url)
+                    .done(function(data) {
+                        fillReceivingLocations(Array.isArray(data) ? data : [], selectedValue);
+                    })
+                    .fail(function() {
+                        fillReceivingLocations([]);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudieron cargar las ubicaciones de recepción.',
+                            confirmButtonText: 'Cerrar',
+                            confirmButtonColor: '#1a4b96'
+                        });
+                    })
+                    .always(function() {
+                        $receivingLocation.prop('disabled', false);
+                    });
+            }
+
             $company.on('change', function() {
                 const companyId = $(this).val();
                 // limpiar selección guardada
                 $company.removeData('selectedCc').attr('data-selected-cc', '');
                 loadCostCenters(companyId);
+                loadReceivingLocations(companyId);
             });
 
             // on load: si hay compañía, sincroniza CC
             const initialCompany = $company.val();
             if (initialCompany) loadCostCenters(initialCompany);
+            if (initialCompany) loadReceivingLocations(initialCompany, '{{ old('receiving_location_id', $requisition->receiving_location_id ?? '') }}');
         });
 
         // ======= Tu IIFE de partidas tal cual =======

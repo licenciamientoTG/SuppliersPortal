@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enum\PurchaseType;
+use App\Models\ReceivingLocation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Enum;
@@ -201,6 +202,20 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
                             'El centro de costo seleccionado no está disponible.'
                         );
                     }
+                }
+            }
+
+            if ($this->company_id && $this->receiving_location_id) {
+                $locationBelongsToCompany = ReceivingLocation::query()
+                    ->whereKey((int) $this->receiving_location_id)
+                    ->where('company_id', (int) $this->company_id)
+                    ->exists();
+
+                if (! $locationBelongsToCompany) {
+                    $validator->errors()->add(
+                        'receiving_location_id',
+                        'La ubicación de recepción no pertenece a la empresa seleccionada.'
+                    );
                 }
             }
         });

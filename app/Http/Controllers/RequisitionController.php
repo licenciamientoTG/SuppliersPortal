@@ -39,6 +39,25 @@ class RequisitionController extends Controller
         return view('requisitions.index');
     }
 
+    public function receivingLocationsByCompany(Company $company): JsonResponse
+    {
+        $this->authorizeCompanyAccess($company);
+
+        $locations = ReceivingLocation::active()
+            ->portalUnblocked()
+            ->forCompany($company->id)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'city']);
+
+        return response()->json($locations->map(fn (ReceivingLocation $location) => [
+            'id' => $location->id,
+            'code' => $location->code,
+            'name' => $location->name,
+            'city' => $location->city,
+            'label' => trim(($location->code ? '['.$location->code.'] ' : '').$location->name.($location->city ? ' - '.$location->city : '')),
+        ]));
+    }
+
     /**
      * Get requisitions for DataTables.
      */
@@ -396,7 +415,13 @@ class RequisitionController extends Controller
             'departments' => Department::active()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => RequisitionStatus::options(),
             'expenseCategories' => ExpenseCategory::active()->orderBy('name')->get(['id', 'name']),
-            'receivingLocations' => ReceivingLocation::active()->where('portal_blocked', false)->orderBy('name')->get(['id', 'code', 'name', 'city']),
+            'receivingLocations' => $selectedCompanyId
+                ? ReceivingLocation::active()
+                    ->portalUnblocked()
+                    ->forCompany($selectedCompanyId)
+                    ->orderBy('name')
+                    ->get(['id', 'code', 'name', 'city'])
+                : collect(),
             'selectedCompanyId' => $selectedCompanyId,
             'purchaseTypes' => PurchaseType::values(),
             'selectedPurchaseType' => old('purchase_type', $requisition->primaryPurchaseType()),
@@ -621,6 +646,16 @@ class RequisitionController extends Controller
             ->when($purchaseType, fn ($query) => $query->where('cost_centers.purchase_type', $purchaseType))
             ->orderBy('cost_centers.name')
             ->get(['cost_centers.id', 'cost_centers.name', 'cost_centers.code', 'cost_centers.company_id', 'cost_centers.purchase_type']);
+    }
+
+    protected function authorizeCompanyAccess(Company $company): void
+    {
+        $hasAccess = Auth::user()
+            ->companies()
+            ->where('companies.id', $company->id)
+            ->exists();
+
+        abort_unless($hasAccess, 403, 'No tienes acceso a esta empresa.');
     }
 
     /**

@@ -491,6 +491,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
         ]);
 
         $receivingLocationId = DB::table('receiving_locations')->insertGetId([
+            'company_id' => $companyId,
             'code' => uniqid('LOC-'),
             'name' => 'Ubicacion QA',
             'type' => 'corporate',

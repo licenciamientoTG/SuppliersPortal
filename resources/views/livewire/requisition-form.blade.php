@@ -40,7 +40,10 @@
                             <span class="input-group-text">
                                 <i class="ti ti-building"></i>
                             </span>
-                            <select id="company_id" class="form-select @error('company_id') is-invalid @enderror" required>
+                            <select id="company_id"
+                                    class="form-select @error('company_id') is-invalid @enderror"
+                                    data-url-receiving-locations="{{ route('requisitions.receiving-locations.by-company', ['company' => '__CID__']) }}"
+                                    required>
                                 <option value="">Seleccionar...</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
@@ -930,14 +933,62 @@ $(function() {
             renderModalCostCenters('reset');
         });
 
+    function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
+        const $company = $('#company_id');
+        const $location = $('#receiving_location_id');
+
+        if (!companyId) {
+            $location.empty().append('<option value="">Seleccionar...</option>').val('');
+            initializeSearchableSelect($location, 'Seleccionar ubicación de recepción...');
+            return;
+        }
+
+        $location.prop('disabled', true).empty().append('<option value="">Cargando...</option>');
+        initializeSearchableSelect($location, 'Seleccionar ubicación de recepción...');
+
+        const url = String($company.attr('data-url-receiving-locations')).replace('__CID__', companyId);
+
+        $.getJSON(url)
+            .done(function(data) {
+                const list = Array.isArray(data) ? data : [];
+                $location.empty().append('<option value="">Seleccionar...</option>');
+
+                list.forEach(function(row) {
+                    $location.append($('<option>', {
+                        value: row.id,
+                        text: row.label
+                    }));
+                });
+
+                if (selectedValue && list.some(row => String(row.id) === String(selectedValue))) {
+                    $location.val(String(selectedValue));
+                } else {
+                    $location.val('');
+                }
+
+                const wire = getRequisitionWire();
+                if (wire) {
+                    wire.$set('receiving_location_id', $location.val() || '', false);
+                }
+            })
+            .always(function() {
+                $location.prop('disabled', false);
+                initializeSearchableSelect($location, 'Seleccionar ubicación de recepción...');
+                $location.trigger('change');
+            });
+    }
+
     $(document)
         .off('change.requisitionCompany', '#company_id')
         .on('change.requisitionCompany', '#company_id', function () {
             const wire = getRequisitionWire();
+            const companyId = $(this).val() || '';
 
             if (wire) {
-                wire.$set('company_id', $(this).val() || '', false);
+                wire.$set('company_id', companyId, false);
             }
+
+            loadReceivingLocationsForCompany(companyId);
         });
 
     $(document)

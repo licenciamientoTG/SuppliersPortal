@@ -28,6 +28,10 @@
                 <label class="form-label text-muted">Código</label>
                 <p class="fw-semibold">{{ $location->code }}</p>
             </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Empresa</label>
+                <p class="fw-semibold">{{ $location->company ? $location->company->code.' - '.$location->company->name : '-' }}</p>
+            </div>
             <div class="col-md-6">
                 <label class="form-label text-muted">Nombre</label>
                 <p class="fw-semibold">{{ $location->name }}</p>

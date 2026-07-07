@@ -27,6 +27,7 @@
                     <tr>
                         <th style="width: 60px;">ID</th>
                         <th>Código</th>
+                        <th>Empresa</th>
                         <th>Nombre</th>
                         <th>Tipo</th>
                         <th>Ciudad</th>
@@ -92,6 +93,7 @@ $(document).ready(function() {
         columns: [
             { data: 'id',           name: 'id',           width: '60px' },
             { data: 'code',         name: 'code' },
+            { data: 'company',      name: 'company.name' },
             { data: 'name',         name: 'name' },
             { data: 'type',         name: 'type' },
             { data: 'city',         name: 'city' },

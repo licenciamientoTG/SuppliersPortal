@@ -163,6 +163,7 @@ class RequisitionFeedbackFlowTest extends TestCase
         ]);
 
         $receivingLocationId = DB::table('receiving_locations')->insertGetId([
+            'company_id' => $companyId,
             'code' => 'REC-001',
             'name' => 'Recepcion QA',
             'type' => 'corporate',

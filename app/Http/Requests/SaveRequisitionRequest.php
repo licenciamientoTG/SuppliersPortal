@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\BudgetCedula;
 use App\Models\CostCenter;
 use App\Models\ProductService;
+use App\Models\ReceivingLocation;
 use App\Models\RequisitionItem;
 use App\Services\BudgetCedulaCatalogService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -239,6 +240,25 @@ class SaveRequisitionRequest extends FormRequest
                     $validator->errors()->add(
                         'cost_center_id',
                         'El centro de costos no tiene presupuesto asignado para el año fiscal (RN-004).'
+                    );
+                }
+            }
+
+            $companyId = $isUpdate
+                ? (int) $requisition->company_id
+                : (int) $this->company_id;
+            $receivingLocationId = (int) $this->receiving_location_id;
+
+            if ($companyId && $receivingLocationId) {
+                $locationBelongsToCompany = ReceivingLocation::query()
+                    ->whereKey($receivingLocationId)
+                    ->where('company_id', $companyId)
+                    ->exists();
+
+                if (! $locationBelongsToCompany) {
+                    $validator->errors()->add(
+                        'receiving_location_id',
+                        'La ubicación de recepción no pertenece a la empresa seleccionada.'
                     );
                 }
             }

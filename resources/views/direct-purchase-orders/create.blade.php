@@ -118,7 +118,7 @@
                             <label class="form-label small fw-bold">Empresa <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-building-store"></i></span>
-                                <select name="company_id" id="company_id" class="form-select form-select-sm @error('company_id') is-invalid @enderror" required>
+                                <select name="company_id" id="company_id" class="form-select form-select-sm @error('company_id') is-invalid @enderror" data-url-receiving-locations="{{ route('requisitions.receiving-locations.by-company', ['company' => '__CID__']) }}" required>
                                     <option value="">Seleccione...</option>
                                     @foreach($companies as $company)
                                         <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
@@ -598,6 +598,44 @@ $(document).ready(function() {
         });
     }
 
+    function refreshReceivingLocations(selectedValue = '') {
+        const $company = $('#company_id');
+        const $location = $('#receiving_location_id');
+        const companyId = $company.val();
+
+        if (!companyId) {
+            $location.empty().append('<option value="">Seleccione empresa primero</option>').val('');
+            $location.trigger('change.select2');
+            return;
+        }
+
+        $location.prop('disabled', true).empty().append('<option value="">Cargando...</option>');
+
+        const url = String($company.attr('data-url-receiving-locations')).replace('__CID__', companyId);
+
+        $.getJSON(url)
+            .done(function(data) {
+                const list = Array.isArray(data) ? data : [];
+                $location.empty().append('<option value="">Seleccione...</option>');
+
+                list.forEach(function(row) {
+                    $location.append($('<option>', {
+                        value: row.id,
+                        text: row.label
+                    }));
+                });
+
+                if (selectedValue && list.some(row => String(row.id) === String(selectedValue))) {
+                    $location.val(String(selectedValue));
+                } else {
+                    $location.val('');
+                }
+            })
+            .always(function() {
+                $location.prop('disabled', false).trigger('change.select2');
+            });
+    }
+
     function getFilteredCostCenters() {
         const companyId = $('#company_id').val();
         const purchaseType = $('#purchase_type').val();
@@ -743,7 +781,14 @@ $(document).ready(function() {
         });
     }
 
-    $('#company_id, #purchase_type').on('change', refreshItemCostCenters);
+    $('#company_id, #purchase_type').on('change', function() {
+        refreshItemCostCenters();
+
+        if (this.id === 'company_id') {
+            refreshReceivingLocations();
+        }
+    });
+    refreshReceivingLocations('{{ old('receiving_location_id') }}');
 
     $(document).on('change', '.item-cost-center', function() {
         const row = $(this).closest('tr');

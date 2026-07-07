@@ -32,6 +32,11 @@ class SaveReceivingLocationRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
+            'company_id' => [
+                'required',
+                'integer',
+                'exists:companies,id',
+            ],
             // Reglas comunes para creación y actualización
             'name' => [
                 'required',

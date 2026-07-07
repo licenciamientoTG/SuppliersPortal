@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\Company;
 use App\Models\ReceivingLocation;
 
 class ReceivingLocationSeeder extends Seeder
@@ -587,9 +588,56 @@ class ReceivingLocationSeeder extends Seeder
         ];
 
         // 1. Agregamos los timestamps a cada elemento (insert() no los agrega automáticamente como create())
+        $companyByLocationCode = [
+            'CORP-001' => 'DGA',
+            'E01149' => 'DGA',
+            'E01163' => 'DGA',
+            'E02172' => 'DGA',
+            'E02526' => 'DGA',
+            'E04179' => 'DGA',
+            'E04188' => 'DGA',
+            'E05317' => 'DGA',
+            'E05465' => 'DGA',
+            'E06410' => 'DGA',
+            'E06947' => 'DGA',
+            'E07167' => 'DGA',
+            'E08244' => 'DGA',
+            'E09191' => 'DGA',
+            'E09235' => 'DGA',
+            'E09885' => 'DGA',
+            'E09893' => 'DGA',
+            'E23214' => 'DGA',
+            'P10702' => 'DGA',
+            'P24938' => 'DGA',
+            'E01242' => 'GVA',
+            'E01376' => 'SSY',
+            'E05170' => 'ECU',
+            'E11007' => 'ECU',
+            'P12840' => 'DGM',
+            'P12841' => 'DGM',
+            'P12842' => 'DGM',
+            'P12843' => 'DGM',
+            'P13074' => 'DGM',
+            'P13620' => 'DCL',
+            'P13624' => 'SJA',
+            'E15091' => 'GOG',
+            'P14946' => 'GOG',
+            'P15071' => 'GOG',
+            'P03340' => 'FGA',
+            'P19190' => 'SGC',
+            'P24499' => 'SPI',
+            'P24500' => 'SVE',
+        ];
+
+        $companyIds = Company::whereIn('code', array_values(array_unique($companyByLocationCode)))
+            ->pluck('id', 'code');
+
         $now = now();
-        $insertData = array_map(function ($location) use ($now) {
+        $insertData = array_map(function ($location) use ($now, $companyByLocationCode, $companyIds) {
+            $companyCode = $companyByLocationCode[$location['code']] ?? null;
+
             return array_merge($location, [
+                'company_id' => $companyCode ? $companyIds[$companyCode] ?? null : null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

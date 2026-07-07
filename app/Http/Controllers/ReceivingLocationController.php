@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ReceivingLocation;
-use App\Http\Requests\ReceivingLocationRequest;
+use App\Models\Company;
 use App\Http\Requests\SaveReceivingLocationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +63,7 @@ class ReceivingLocationController extends Controller
         return view('receiving-locations.create', [
             'title' => 'Nueva Ubicación de Recepción',
             'types' => ReceivingLocation::TYPES,
+            'companies' => Company::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'location' => new ReceivingLocation(), // Modelo vacío para el form
         ]);
     }
@@ -73,7 +74,7 @@ class ReceivingLocationController extends Controller
      * @param  \App\Http\Requests\ReceivingLocationRequest  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(ReceivingLocationRequest $request): RedirectResponse
+    public function store(SaveReceivingLocationRequest $request): RedirectResponse
     {
         // Autorizar creación
         $this->authorize('create', ReceivingLocation::class);
@@ -127,6 +128,7 @@ class ReceivingLocationController extends Controller
         return view('receiving-locations.show', [
             'title' => "Ubicación: {$receivingLocation->name}",
             'location' => $receivingLocation,
+            'companies' => Company::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 
@@ -145,6 +147,7 @@ class ReceivingLocationController extends Controller
             'title' => "Editar Ubicación: {$receivingLocation->name}",
             'types' => ReceivingLocation::TYPES,
             'location' => $receivingLocation,
+            'companies' => Company::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 
@@ -155,7 +158,7 @@ class ReceivingLocationController extends Controller
      * @param  \App\Models\ReceivingLocation  $receivingLocation
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(ReceivingLocationRequest $request, ReceivingLocation $receivingLocation): RedirectResponse
+    public function update(SaveReceivingLocationRequest $request, ReceivingLocation $receivingLocation): RedirectResponse
     {
         // Autorizar actualización
         $this->authorize('update', $receivingLocation);
@@ -266,7 +269,7 @@ class ReceivingLocationController extends Controller
         $this->authorize('viewAny', ReceivingLocation::class);
         
         try {
-            $query = ReceivingLocation::query();
+            $query = ReceivingLocation::query()->with('company');
             
             return DataTables::of($query)
                 ->addColumn('action', function($location) {
@@ -274,6 +277,11 @@ class ReceivingLocationController extends Controller
                 })
                 ->editColumn('type', function($location) {
                     return $this->getTypeBadge($location);
+                })
+                ->addColumn('company', function($location) {
+                    return $location->company
+                        ? $location->company->code.' - '.$location->company->name
+                        : '-';
                 })
                 ->editColumn('is_active', function($location) {
                     return $location->status_badge;

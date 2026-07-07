@@ -43,7 +43,7 @@ class DirectPurchaseOrderOptionalQuotationTest extends TestCase
         ]);
         $expenseCategory = ExpenseCategory::factory()->create();
         $supplier = Supplier::factory()->create();
-        $receivingLocation = ReceivingLocation::factory()->create();
+        $receivingLocation = ReceivingLocation::factory()->create(['company_id' => $company->id]);
         $authorizerRole = AuthorizerRole::query()->create([
             'name' => 'Gerencia',
             'approval_limit' => 500000,

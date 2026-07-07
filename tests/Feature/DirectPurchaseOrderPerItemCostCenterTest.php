@@ -39,7 +39,7 @@ class DirectPurchaseOrderPerItemCostCenterTest extends TestCase
         ]);
 
         $supplier          = Supplier::factory()->create();
-        $receivingLocation = ReceivingLocation::factory()->create();
+        $receivingLocation = ReceivingLocation::factory()->create(['company_id' => $company->id]);
         $expenseCategory   = ExpenseCategory::factory()->create();
 
         return compact('user', 'costCenter', 'supplier', 'receivingLocation', 'expenseCategory');

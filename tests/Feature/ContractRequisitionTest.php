@@ -227,7 +227,7 @@ class ContractRequisitionTest extends TestCase
 
         $user = User::factory()->create();
         $company = Company::factory()->create(['is_active' => true]);
-        $location = ReceivingLocation::factory()->create();
+        $location = ReceivingLocation::factory()->create(['company_id' => $company->id]);
         $supplier = Supplier::factory()->create(['status' => 'activo']);
 
         $costCenter = CostCenter::factory()->create([

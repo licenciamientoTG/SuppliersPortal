@@ -56,7 +56,6 @@ class RequisitionForm extends Component
         $this->purchaseTypes = PurchaseType::values();
 
         // Cargar ubicaciones de recepción activas
-        $this->receivingLocations = ReceivingLocation::active()->orderBy('name')->get();
         $this->costCenterCatalog = Auth::user()->costCenters()
             ->select([
                 'cost_centers.id',
@@ -140,6 +139,8 @@ class RequisitionForm extends Component
                 $this->company_id = $this->companies->first()->id;
             }
         }
+
+        $this->refreshReceivingLocations();
     }
 
     // =====================================================
@@ -193,6 +194,13 @@ class RequisitionForm extends Component
                 );
                 return;
             }
+        }
+
+        if (! $this->receivingLocationBelongsToCompany()) {
+            $this->addError('receiving_location_id', 'La ubicación de recepción no pertenece a la compañía seleccionada.');
+            $this->dispatch('validation-error', message: 'La ubicación de recepción no pertenece a la compañía seleccionada.');
+
+            return;
         }
 
         try {
@@ -319,6 +327,8 @@ class RequisitionForm extends Component
             $this->addError('company_id', 'No tienes permiso para usar esta compañía.');
             $this->company_id = null;
         }
+
+        $this->refreshReceivingLocations();
     }
 
     public function updatedDescription($value)
@@ -411,6 +421,33 @@ class RequisitionForm extends Component
     public function render()
     {
         return view('livewire.requisition-form');
+    }
+
+    private function refreshReceivingLocations(): void
+    {
+        $this->receivingLocations = $this->company_id
+            ? ReceivingLocation::active()
+                ->portalUnblocked()
+                ->forCompany($this->company_id)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'city'])
+            : collect();
+
+        if ($this->receiving_location_id && ! $this->receivingLocationBelongsToCompany()) {
+            $this->receiving_location_id = null;
+        }
+    }
+
+    private function receivingLocationBelongsToCompany(): bool
+    {
+        if (! $this->company_id || ! $this->receiving_location_id) {
+            return false;
+        }
+
+        return ReceivingLocation::query()
+            ->whereKey((int) $this->receiving_location_id)
+            ->where('company_id', (int) $this->company_id)
+            ->exists();
     }
 
     private function validateItemPayload(array $itemData): bool

@@ -219,6 +219,7 @@ class ReceptionFlowTest extends TestCase
             'updated_at' => now(),
         ]);
         $location = ReceivingLocation::create([
+            'company_id' => $companyId,
             'code' => uniqid('EST'),
             'name' => 'Estacion prueba',
             'type' => 'service_station',

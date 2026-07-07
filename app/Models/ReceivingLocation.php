@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Modelo ReceivingLocation - Representa una ubicación física donde se reciben bienes y servicios
@@ -59,6 +60,11 @@ class ReceivingLocation extends Model
         self::TYPE_OTHER,
     ];
 
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     /**
      * Los atributos que son asignables masivamente
      *
@@ -66,6 +72,7 @@ class ReceivingLocation extends Model
      */
     protected $fillable = [
         'code',
+        'company_id',
         'name',
         'type',
         'address',
@@ -89,6 +96,7 @@ class ReceivingLocation extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'portal_blocked' => 'boolean',
+        'company_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -183,6 +191,13 @@ class ReceivingLocation extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeForCompany($query, int|string|null $companyId)
+    {
+        return $companyId
+            ? $query->where('company_id', (int) $companyId)
+            : $query;
     }
 
     /**
@@ -489,6 +504,7 @@ class ReceivingLocation extends Model
     {
         return [
             'code' => 'required|string|max:20|unique:receiving_locations,code',
+            'company_id' => 'required|integer|exists:companies,id',
             'name' => 'required|string|max:100',
             'type' => 'required|in:' . implode(',', self::TYPES),
             'address' => 'nullable|string|max:255',

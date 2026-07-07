@@ -482,6 +482,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:requisitions')
         ->get('requisitions/api/companies/{company}/cost-centers', [CostCenterController::class, 'byCompany'])
         ->name('requisitions.cost-centers.by-company');
+
+    Route::get('requisitions/api/companies/{company}/receiving-locations', [RequisitionController::class, 'receivingLocationsByCompany'])
+        ->name('requisitions.receiving-locations.by-company');
 }); // Fin del grupo auth + lock
 
 // ============================================================================

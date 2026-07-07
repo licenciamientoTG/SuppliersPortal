@@ -58,10 +58,14 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        $receivingLocations = ReceivingLocation::active()
-            ->where('portal_blocked', false)
-            ->orderBy('name')
-            ->get(['id', 'code', 'name', 'type', 'city']);
+        $selectedCompanyId = old('company_id');
+        $receivingLocations = $selectedCompanyId
+            ? ReceivingLocation::active()
+                ->portalUnblocked()
+                ->forCompany($selectedCompanyId)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'type', 'city'])
+            : collect();
 
         return view('direct-purchase-orders.create', compact(
             'companies',
@@ -377,10 +381,14 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        $receivingLocations = ReceivingLocation::active()
-            ->where('portal_blocked', false)
-            ->orderBy('name')
-            ->get(['id', 'code', 'name', 'type', 'city']);
+        $selectedCompanyId = old('company_id', $directPurchaseOrder->primaryCompanyId());
+        $receivingLocations = $selectedCompanyId
+            ? ReceivingLocation::active()
+                ->portalUnblocked()
+                ->forCompany($selectedCompanyId)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'type', 'city'])
+            : collect();
 
         return view('direct-purchase-orders.edit', compact(
             'directPurchaseOrder',
