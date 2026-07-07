@@ -27,6 +27,9 @@ class SaveProductServiceRequest extends FormRequest
             
             // Clasificación
             'subcategory' => 'nullable|string|max:100',
+            'expense_category_id' => 'nullable|exists:expense_categories,id',
+            'budget_cedula_id' => 'nullable|exists:budget_cedulas,id',
+            'is_inventoriable' => 'boolean',
             
             // Organización
             'company_id' => 'required|exists:companies,id',
@@ -67,6 +70,9 @@ class SaveProductServiceRequest extends FormRequest
             'short_name' => 'nombre corto',
             'product_type' => 'tipo de producto',
             'subcategory' => 'subcategoría',
+            'expense_category_id' => 'categoría de gasto',
+            'budget_cedula_id' => 'cédula de gasto',
+            'is_inventoriable' => 'inventariable',
             'company_id' => 'compañía',
             'cost_center_id' => 'centro de costo',
             'brand' => 'marca',
@@ -124,6 +130,14 @@ class SaveProductServiceRequest extends FormRequest
                 }
                 if (!$hasSubsub) {
                     $validator->errors()->add('account_subsub', 'Si proporciona estructura contable, la Subsubcuenta es obligatoria.');
+                }
+            }
+
+            // Validar que la cédula pertenezca a la categoría de gasto seleccionada
+            if (!empty($this->budget_cedula_id)) {
+                $cedula = \App\Models\BudgetCedula::find($this->budget_cedula_id);
+                if ($cedula && (int) $cedula->expense_category_id !== (int) $this->expense_category_id) {
+                    $validator->errors()->add('budget_cedula_id', 'La cédula seleccionada no pertenece a la categoría de gasto elegida.');
                 }
             }
         });
