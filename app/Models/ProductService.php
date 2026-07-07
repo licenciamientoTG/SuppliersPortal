@@ -29,6 +29,9 @@ class ProductService extends Model
         // Clasificación
         'category_id',
         'subcategory',
+        'expense_category_id',
+        'budget_cedula_id',
+        'is_inventoriable',
 
         // Organización
         'cost_center_id',
@@ -75,6 +78,7 @@ class ProductService extends Model
         'maximum_quantity' => 'decimal:3',
         'lead_time_days' => 'integer',
         'is_active' => 'boolean',
+        'is_inventoriable' => 'boolean',
         'specifications' => 'array', // JSON a array automático
         'approved_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -130,6 +134,11 @@ class ProductService extends Model
     public function expenseCategory(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class);
+    }
+
+    public function budgetCedula(): BelongsTo
+    {
+        return $this->belongsTo(BudgetCedula::class);
     }
 
     // ==========================================
