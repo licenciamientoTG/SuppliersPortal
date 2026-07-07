@@ -138,6 +138,60 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        {{-- Categoría de Gasto --}}
+                        <div class="col-md-6 mb-3">
+                            <label for="expense_category_id" class="form-label">Categoría de Gasto</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="ti ti-receipt-2"></i>
+                                </span>
+                                <select class="form-select @error('expense_category_id') is-invalid @enderror"
+                                        id="expense_category_id"
+                                        name="expense_category_id">
+                                    <option value="">Sin clasificar</option>
+                                    @foreach ($expenseCategories as $category)
+                                        <option value="{{ $category->id }}"
+                                            {{ old('expense_category_id') == $category->id ? 'selected' : '' }}>
+                                            [{{ $category->code }}] {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('expense_category_id')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        {{-- Cédula de Gasto --}}
+                        <div class="col-md-6 mb-3">
+                            <label for="budget_cedula_id" class="form-label">Cédula de Gasto</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="ti ti-file-text"></i>
+                                </span>
+                                <select class="form-select @error('budget_cedula_id') is-invalid @enderror"
+                                        id="budget_cedula_id"
+                                        name="budget_cedula_id"
+                                        disabled>
+                                    <option value="">Seleccione categoría primero...</option>
+                                </select>
+                            </div>
+                            @error('budget_cedula_id')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    {{-- Inventariable --}}
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="is_inventoriable" name="is_inventoriable" value="1"
+                               {{ old('is_inventoriable', $productService->product_type === 'PRODUCTO') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="is_inventoriable">Inventariable</label>
+                        <div class="form-text">Marca si este producto se controla por inventario. Se sugiere automáticamente según el tipo, pero puedes ajustarlo.</div>
+                    </div>
+
                     {{-- Descripción Técnica --}}
                     <div class="mb-3">
                         <label for="technical_description" class="form-label">Descripción Técnica</label>
@@ -526,6 +580,10 @@
         </div>
     </div>
 </form>
+
+    <script id="expense-cedulas-catalog" type="application/json">
+        {!! $expenseCategories->pluck('cedulas', 'id')->map(fn ($cedulas) => $cedulas->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]))->toJson() !!}
+    </script>
 @endsection
 
 @push('scripts')
@@ -567,6 +625,40 @@
             } else {
                 updateCategoryDisplay();
             }
+
+            // Cascade Categoría de Gasto -> Cédula (sin AJAX, catálogo embebido)
+            const cedulasByCategory = JSON.parse(document.getElementById('expense-cedulas-catalog').textContent);
+
+            function refreshCedulaOptions(selectedCedulaId) {
+                const categoryId = $('#expense_category_id').val();
+                const $cedulaSelect = $('#budget_cedula_id');
+                const cedulas = cedulasByCategory[categoryId] || [];
+
+                $cedulaSelect.empty();
+
+                if (!categoryId || cedulas.length === 0) {
+                    $cedulaSelect.append('<option value="">Sin cédulas disponibles</option>').prop('disabled', true);
+                    return;
+                }
+
+                $cedulaSelect.append('<option value="">Seleccione cédula...</option>');
+                cedulas.forEach(function (cedula) {
+                    const selected = String(cedula.id) === String(selectedCedulaId) ? 'selected' : '';
+                    $cedulaSelect.append(`<option value="${cedula.id}" ${selected}>${cedula.name}</option>`);
+                });
+                $cedulaSelect.prop('disabled', false);
+            }
+
+            $('#expense_category_id').on('change', function () {
+                refreshCedulaOptions(null);
+            });
+
+            refreshCedulaOptions('{{ old('budget_cedula_id') }}');
+
+            // Sugerir Inventariable según el tipo de producto
+            $('#product_type').on('change', function () {
+                $('#is_inventoriable').prop('checked', $(this).val() === 'PRODUCTO');
+            });
 
             // Validar JSON de especificaciones al enviar
             $('form').on('submit', function(e) {
