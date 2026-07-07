@@ -255,6 +255,8 @@ class ProductServiceController extends Controller
             'defaultVendor',
             'creator',
             'approver',
+            'expenseCategory',
+            'budgetCedula',
         ]);
 
         return view('products_services.show', compact('productService'));

@@ -379,6 +379,39 @@
                             Estructura contable incompleta. Debe completarse antes de aprobar.
                         </div>
                     @endif
+
+                    <hr>
+
+                    <div class="row mb-2">
+                        <div class="col-5">
+                            <strong>Categoría de Gasto:</strong>
+                        </div>
+                        <div class="col-7">
+                            {{ $productService->expenseCategory ? "[{$productService->expenseCategory->code}] {$productService->expenseCategory->name}" : 'Sin clasificar' }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-5">
+                            <strong>Cédula de Gasto:</strong>
+                        </div>
+                        <div class="col-7">
+                            {{ $productService->budgetCedula->name ?? 'Sin clasificar' }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-5">
+                            <strong>Inventariable:</strong>
+                        </div>
+                        <div class="col-7">
+                            @if ($productService->is_inventoriable)
+                                <span class="badge bg-success">Sí</span>
+                            @else
+                                <span class="badge bg-secondary">No</span>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </div>
 
