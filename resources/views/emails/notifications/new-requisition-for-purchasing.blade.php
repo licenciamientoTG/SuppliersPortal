@@ -21,7 +21,6 @@
             'Centro de costo'  => $costCenter,
             'Compañía'         => $company,
             'Partidas'         => $itemsCount.' producto(s)/servicio(s)',
-            'Fecha requerida'  => $requiredDate,
             'Descripción'      => $description,
         ],
     ])

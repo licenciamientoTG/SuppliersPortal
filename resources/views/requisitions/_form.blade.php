@@ -1,7 +1,6 @@
 @php
     $currency = old('currency_code', $requisition->currency_code ?? 'MXN');
     $items = old('items', isset($requisition) && $requisition->exists ? $requisition->items->toArray() : []);
-    $requiredRaw = old('required_date', optional($requisition->required_date)->format('Y-m-d'));
 @endphp
 
 @push('styles')
@@ -62,23 +61,6 @@
                             class="form-control form-control-sm @error('fiscal_year') is-invalid @enderror"
                             id="fiscal_year" name="fiscal_year" value="{{ $year }}">
                         @error('fiscal_year')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="required_date" class="form-label form-label-sm">
-                        Fecha requerida <span class="text-danger">*</span>
-                    </label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">
-                            <i class="ti ti-clock"></i>
-                        </span>
-                        <input type="date" id="required_date" name="required_date"
-                            class="form-control form-control-sm @error('required_date') is-invalid @enderror"
-                            value="{{ $requiredRaw }}">
-                        @error('required_date')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>

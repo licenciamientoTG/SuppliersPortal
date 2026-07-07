@@ -187,16 +187,6 @@
                         </div>
                         @endif
 
-                        @if($rfq->requisition->required_date)
-                        <div class="mb-2">
-                            <small class="text-muted d-block">Fecha Requerida</small>
-                            <span class="d-block small fw-semibold">
-                                <i class="ti ti-calendar me-1 text-primary"></i>
-                                {{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}
-                            </span>
-                        </div>
-                        @endif
-
                         @if($itemPurchasingNotes->isNotEmpty())
                         <div class="mb-2">
                             <small class="text-muted d-block">Nota de Compras</small>
@@ -1648,4 +1638,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
-

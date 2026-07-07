@@ -344,15 +344,6 @@
                         </p>
                     </div>
                     @endif
-                    @if($rfq->requisition->required_date)
-                    <div class="col-sm-6">
-                        <label class="form-label text-muted mb-1">Fecha Requerida</label>
-                        <p class="mb-0 fw-semibold">
-                            <i class="ti ti-calendar-due text-warning me-1"></i>
-                            {{ $rfq->requisition->required_date->format('d/m/Y') }}
-                        </p>
-                    </div>
-                    @endif
                     @if($rfq->requisition->description)
                     <div class="col-12">
                         <label class="form-label text-muted mb-1">Descripción / Justificación</label>

@@ -112,7 +112,6 @@
                         <th>Folio</th>
                         <th>Centro de costo</th>
                         <th>Solicitante</th>
-                        <th>Fecha requerida</th>
                         <th class="text-center">Partidas</th>
                         <th>Estatus</th>
                         <th>Fecha creación</th>
@@ -387,25 +386,6 @@
                 {
                     data: 'requester',
                     name: 'requester.name'
-                },
-                {
-                    data: 'required_date',
-                    name: 'required_date',
-                    // ✅ Ya viene formateada del backend, solo mostrarla
-                    render: function(data, type, row) {
-                        if (!data || data === '—') return '—';
-                        
-                        // Para filtrado: convertir DD/MM/YYYY a YYYY-MM-DD
-                        if (type === 'filter' || type === 'sort') {
-                            const parts = data.split('/');
-                            if (parts.length === 3) {
-                                return `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
-                            }
-                        }
-                        
-                        // Para display: mostrar tal cual viene del backend
-                        return data;
-                    }
                 },
                 {
                     data: 'items_count',

@@ -79,23 +79,6 @@
                         @enderror
                     </div>
 
-                    {{-- Fecha requerida --}}
-                    <div class="col-md-2">
-                        <label for="required_date" class="form-label">Fecha requerida</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-calendar"></i>
-                            </span>
-                            <input type="date"
-                                   id="required_date"
-                                   value="{{ $required_date }}"
-                                   class="form-control @error('required_date') is-invalid @enderror">
-                        </div>
-                        @error('required_date')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
                     {{-- Descripción con contador de caracteres --}}
                     <div class="col-md-3">
                         <label for="description" class="form-label">
@@ -733,7 +716,6 @@ $(function() {
         // Deferimos los valores para enviarlos junto con saveDraft/submit.
         wire.$set('company_id', $('#company_id').val() || '', false);
         wire.$set('receiving_location_id', $('#receiving_location_id').val() || '', false);
-        wire.$set('required_date', $('#required_date').val() || '', false);
         wire.$set('description', $('#description').val() || '', false);
 
         return wire;

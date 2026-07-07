@@ -193,7 +193,6 @@
                     // Llenar datos de cabecera
                     $('#modal_req_folio').text(data.folio);
                     $('#modal_req_user').text(data.solicitante);
-                    $('#modal_req_date').text(data.fecha_requerida);
                     $('#modal_req_obs').text(data.observaciones);
                     $('#modal_req_id_hidden').val(id);
 

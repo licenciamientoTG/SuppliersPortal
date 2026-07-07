@@ -86,8 +86,6 @@ class RequisitionController extends Controller
                     $requisition->status->label() .
                     '</span>';
             })
-
-            // ✅ Fecha requerida - Manejo seguro
             ->editColumn('required_date', function ($r) {
                 if (!$r->required_date) return '—';
 
@@ -496,7 +494,7 @@ class RequisitionController extends Controller
             'department_id' => $data['department_id'] ?? null,
             'folio' => Requisition::nextFolio(),
             'requested_by' => Auth::id(),
-            'required_date' => $data['required_date'] ?? null,
+            'required_date' => now()->toDateString(),
             'description' => $data['description'] ?? null,
             'status' => $action === 'draft' ? RequisitionStatus::DRAFT->value : RequisitionStatus::PENDING->value,
             'created_by' => Auth::id(),
@@ -509,7 +507,7 @@ class RequisitionController extends Controller
     protected function updateRequisition(Requisition $requisition, array $data): void
     {
         $updateData = [
-            'required_date' => $data['required_date'] ?? null,
+            'required_date' => now()->toDateString(),
             'description' => $data['description'] ?? null,
             'updated_by' => Auth::id(),
         ];
@@ -775,11 +773,6 @@ class RequisitionController extends Controller
             // EL FIX: Operador Null Safe (?->) y Coalescing Operator (??)
             // Si requester es null, devuelve null. Si name es null, devuelve null. Al final, imprime 'N/A'.
             'solicitante' => $requisition->requester?->name ?? 'N/A',
-
-            // EL ERROR ESTABA AQUÍ:
-            // Si required_date es null, ?->format devuelve null, y el ?? pone 'N/A'.
-            // Ya no explotará.
-            'fecha_requerida' => $requisition->required_date?->format('Y-m-d') ?? 'N/A',
 
             'observaciones' => $requisition->description ?? 'Sin observaciones',
 

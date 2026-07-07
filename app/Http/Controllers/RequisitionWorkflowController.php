@@ -134,7 +134,6 @@ class RequisitionWorkflowController extends Controller
                     'Requisición' => $requisition->folio,
                     'Solicitante' => $requisition->requester?->name ?? 'N/A',
                     'Empresa' => $requisition->company?->name ?? 'N/A',
-                    'Fecha requerida' => $requisition->required_date?->format('d/m/Y') ?? 'No especificada',
                 ],
                 url: route('requisitions.show', $requisition),
                 buttonLabel: 'Ver requisición',

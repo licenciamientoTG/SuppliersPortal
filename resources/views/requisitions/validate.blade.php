@@ -34,49 +34,6 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label text-muted text-uppercase fs-11 fw-bold">Fecha Requerida - @if ($requisition->required_date)
-                        @php
-                            $today = \Carbon\Carbon::today();
-                            $requiredDate = $requisition->required_date->startOfDay();
-                            $daysRemaining = $today->diffInDays($requiredDate, false);
-                            
-                            // Determinar clase y texto según los días
-                            if ($daysRemaining < 0) {
-                                $badgeClass = 'text-danger';
-                                $daysText = 'Vencida hace ' . abs($daysRemaining) . ' día(s)';
-                                $icon = 'ti-alert-circle';
-                            } elseif ($daysRemaining == 0) {
-                                $badgeClass = 'text-warning';
-                                $daysText = 'Vence hoy';
-                                $icon = 'ti-clock-hour-4';
-                            } elseif ($daysRemaining <= 3) {
-                                $badgeClass = 'text-warning';
-                                $daysText = 'Faltan ' . $daysRemaining . ' día(s)';
-                                $icon = 'ti-clock-hour-4';
-                            } elseif ($daysRemaining <= 7) {
-                                $badgeClass = 'text-info';
-                                $daysText = 'Faltan ' . $daysRemaining . ' días';
-                                $icon = 'ti-calendar-check';
-                            } else {
-                                $badgeClass = 'text-success';
-                                $daysText = 'Faltan ' . $daysRemaining . ' días';
-                                $icon = 'ti-calendar-check';
-                            }
-                        @endphp
-                        <b class="{{ $badgeClass }} mt-1">
-                            <i class="ti {{ $icon }}"></i> {{ $daysText }}
-                        </b>
-                    @endif</label>
-                <div class="d-flex align-items-center bg-light p-2 rounded border">
-                    <i class="ti ti-calendar-event me-2 text-warning"></i>
-                    <div class="flex-grow-1">
-                        <span class="fw-medium text-dark d-block">
-                            {{ $requisition->required_date ? $requisition->required_date->format('d/m/Y') : 'No especificada' }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
                 <label class="form-label text-muted text-uppercase fs-11 fw-bold">Centro de Costos</label>
                 <div class="bg-light p-2 rounded border text-truncate">
                     <span>{{ $requisition->primaryCostCenterLabel() }}</span>
@@ -271,9 +228,8 @@
                                         </label>
                                     </div>
                                     <div class="form-text mt-2 ms-4">
-                                        De acuerdo con las condiciones actuales del mercado, es posible cumplir con la 
-                                        fecha requerida ({{ $requisition->required_date ? $requisition->required_date->format('d/m/Y') : 'no especificada' }}). 
-                                        Si el plazo es muy corto, se ha coordinado con el requisitor.
+                                        De acuerdo con las condiciones actuales del mercado, es posible cumplir con los
+                                        tiempos de entrega esperados para esta requisición.
                                     </div>
                                 </div>
                             </div>

@@ -45,13 +45,6 @@
                 <i class="ti ti-calendar-event me-1"></i>Tiempos y Estatus
             </h6>
             <p class="mb-2 small">
-                <i class="ti ti-calendar text-primary me-1"></i>
-                <strong>Fecha Requerida:</strong> 
-                <span class="text-dark fw-medium">
-                    {{ $requisition->required_date ? $requisition->required_date->format('d/m/Y') : 'No definida' }} {{-- --}}
-                </span>
-            </p>
-            <p class="mb-2 small">
                 <i class="ti ti-flag text-info me-1"></i>
                 <strong>Estado:</strong> 
                 <span class="badge bg-soft-info text-info border border-info border-opacity-25 px-2">

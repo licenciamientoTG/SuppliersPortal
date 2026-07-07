@@ -154,24 +154,6 @@
                         @enderror
                     </div>
 
-                    {{-- Fecha requerida --}}
-                    <div class="col-md-2">
-                        <label for="required_date" class="form-label">Fecha requerida</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-calendar"></i>
-                            </span>
-                            <input type="date" 
-                                id="required_date" 
-                                name="required_date"
-                                class="form-control @error('required_date') is-invalid @enderror"
-                                value="{{ old('required_date', optional($requisition->required_date)->format('Y-m-d') ?: now()->addWeeks(2)->format('Y-m-d')) }}">
-                        </div>
-                        @error('required_date')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
                     {{-- Descripción --}}
                     <div class="col-md-10">
                         <label for="description" class="form-label">Descripción</label>

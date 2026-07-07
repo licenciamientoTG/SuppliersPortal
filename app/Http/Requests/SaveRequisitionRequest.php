@@ -13,6 +13,13 @@ use Illuminate\Validation\Rule;
 
 class SaveRequisitionRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'required_date' => now()->toDateString(),
+        ]);
+    }
+
     public function authorize(): bool
     {
         $requisition = $this->route('requisition');

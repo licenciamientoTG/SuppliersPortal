@@ -144,15 +144,6 @@
                         <span class="fw-semibold">{{ $requisition->created_at?->year ?? now()->year }}</span>
                     </dd>
 
-                    @if ($requisition->required_date)
-                    <dt class="col-sm-5 text-muted">
-                        <i class="ti ti-calendar-due me-1"></i> Fecha requerida
-                    </dt>
-                    <dd class="col-sm-7">
-                        <span class="fw-semibold">{{ $requisition->required_date->format('d/m/Y') }}</span>
-                    </dd>
-                    @endif
-
                     @if ($requisition->description)
                     <dt class="col-sm-5 text-muted">
                         <i class="ti ti-file-description me-1"></i> Descripcion

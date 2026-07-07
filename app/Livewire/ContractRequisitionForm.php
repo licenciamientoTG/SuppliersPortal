@@ -58,7 +58,7 @@ class ContractRequisitionForm extends Component
     public function mount(): void
     {
         $this->fiscalYear = (int) now()->year;
-        $this->required_date = now()->addDay()->toDateString();
+        $this->required_date = now()->toDateString();
         $this->companies = Company::where('is_active', true)->orderBy('name')->get();
         $this->locations = collect();
         $this->expenseCategories = ExpenseCategory::orderBy('name')->get();
@@ -225,7 +225,6 @@ class ContractRequisitionForm extends Component
     {
         $this->validate([
             'company_id' => ['required', 'integer', 'exists:companies,id'],
-            'required_date' => ['required', 'date', 'after_or_equal:today'],
             'receiving_location_id' => ['required', 'integer', 'exists:receiving_locations,id'],
             'items' => ['required', 'array', 'min:1'],
         ]);
@@ -243,7 +242,7 @@ class ContractRequisitionForm extends Component
                 $requisition = Requisition::create([
                     'folio' => Requisition::nextFolio(),
                     'company_id' => $this->company_id,
-                    'required_date' => $this->required_date,
+                    'required_date' => now()->toDateString(),
                     'receiving_location_id' => $this->receiving_location_id,
                     'description' => $this->notes,
                     'source_type' => 'contract',

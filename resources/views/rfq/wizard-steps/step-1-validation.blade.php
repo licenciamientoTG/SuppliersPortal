@@ -10,17 +10,6 @@
         </div>
     </div>
     <div class="col-md-4">
-        <label class="form-label text-muted text-uppercase fs-11 fw-bold">Fecha Requerida</label>
-        <div class="d-flex align-items-center bg-light p-2 rounded border">
-            <i class="ti ti-calendar-event me-2 text-warning"></i>
-            <div class="flex-grow-1">
-                <span class="fw-medium text-dark d-block">
-                    {{ $requisition->required_date ? $requisition->required_date->format('d/m/Y') : 'No especificada' }}
-                </span>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
         <label class="form-label text-muted text-uppercase fs-11 fw-bold">Centro de Costos</label>
         <div class="bg-light p-2 rounded border text-truncate">
             @php
@@ -147,8 +136,8 @@
                             </label>
                         </div>
                         <div class="form-text mt-2 ms-4">
-                            De acuerdo con las condiciones actuales del mercado, es posible cumplir con la
-                            fecha requerida ({{ $requisition->required_date ? $requisition->required_date->format('d/m/Y') : 'no especificada' }}).
+                            De acuerdo con las condiciones actuales del mercado, es posible cumplir con los
+                            tiempos de entrega esperados para esta requisición.
                         </div>
                     </div>
                 </div>

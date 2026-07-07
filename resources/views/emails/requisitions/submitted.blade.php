@@ -19,7 +19,6 @@
             'Centro de costo' => $costCenter,
             'Departamento'    => $department,
             'Partidas'        => $itemsCount.' producto(s)/servicio(s)',
-            'Fecha requerida' => $requiredDate ?: 'No especificada',
             'Fecha de envío'  => $submittedAt,
         ],
     ])

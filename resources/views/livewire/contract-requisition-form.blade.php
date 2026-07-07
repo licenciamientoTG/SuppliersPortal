@@ -28,12 +28,6 @@
             </div>
 
             <div class="col-md-4">
-                <label class="form-label" for="required-date">Fecha requerida <span class="text-danger">*</span></label>
-                <input id="required-date" type="date" wire:model="required_date" class="form-control">
-                @error('required_date')<div class="text-danger small">{{ $message }}</div>@enderror
-            </div>
-
-            <div class="col-md-4">
                 <label class="form-label" for="location-select">Ubicacion de recepcion <span class="text-danger">*</span></label>
                 <select id="location-select" wire:model="receiving_location_id" class="form-select">
                     <option value="">Seleccionar...</option>

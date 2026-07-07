@@ -46,7 +46,6 @@
                                 <th>Folio</th>
                                 <th>Solicitante</th>
                                 <th>Centro de Costos</th>
-                                <th>Fecha Requerida</th>
                                 <th>Estado</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
@@ -71,32 +70,6 @@
                                         @endphp
                                         <small class="text-muted">{{ $primaryCostCenter?->code ?? 'N/A' }}</small><br>
                                         {{ \Illuminate\Support\Str::limit($primaryCostCenter?->name ?? 'Sin centro de costo', 30) }}
-                                    </td>
-                                    <td>
-                                        @if($requisition->required_date)
-                                            @php
-                                                $today = \Carbon\Carbon::today();
-                                                $requiredDate = $requisition->required_date->startOfDay();
-                                                $daysRemaining = $today->diffInDays($requiredDate, false);
-                                                
-                                                if ($daysRemaining < 0) {
-                                                    $badgeClass = 'danger';
-                                                    $icon = 'ti-alert-circle';
-                                                } elseif ($daysRemaining <= 3) {
-                                                    $badgeClass = 'warning';
-                                                    $icon = 'ti-clock-hour-4';
-                                                } else {
-                                                    $badgeClass = 'success';
-                                                    $icon = 'ti-calendar-check';
-                                                }
-                                            @endphp
-                                            <span class="badge bg-{{ $badgeClass }}">
-                                                <i class="ti {{ $icon }}"></i>
-                                                {{ $requisition->required_date->format('d/m/Y') }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
                                     </td>
                                     <td>
                                         <span class="badge bg-{{ $requisition->status->badgeClass() }}">

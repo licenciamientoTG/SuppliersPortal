@@ -73,9 +73,6 @@
                             <p class="text-muted mb-0 small">
                                 Centro de Costos: <strong>{{ $rfq->requisition->primaryCostCenter()?->name ?? 'N/A' }}</strong> |
                                 Periodo: <strong>{{ now()->translatedFormat('F Y') }}</strong>
-                                @if($rfq->requisition->required_date)
-                                    | Fecha requerida: <strong class="text-danger">{{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}</strong>
-                                @endif
                             </p>
                         </div>
                         <div class="ms-auto text-end">
@@ -216,19 +213,9 @@
 
                                             {{-- 🚚 DÍAS DE ENTREGA --}}
                                             @if($resp->delivery_days)
-                                                @php
-                                                    $reqDate = $rfq->requisition->required_date
-                                                        ? \Carbon\Carbon::parse($rfq->requisition->required_date)
-                                                        : null;
-                                                    $deliveryDate = now()->addDays($resp->delivery_days);
-                                                    $meetsDeadline = !$reqDate || $deliveryDate->lte($reqDate);
-                                                @endphp
                                                 <div class="mb-1">
-                                                    <span class="badge {{ $meetsDeadline ? 'bg-soft-success text-success border border-success border-opacity-25' : 'bg-danger text-white' }} fs-9">
-                                                        <i class="ti ti-truck me-1"></i>{{ $resp->delivery_days }} días
-                                                        @if(!$meetsDeadline)
-                                                            <i class="ti ti-alert-triangle ms-1" title="No llega para la fecha requerida"></i>
-                                                        @endif
+                                                    <span class="badge bg-soft-success text-success border border-success border-opacity-25 fs-9">
+                                                        <i class="ti ti-truck me-1"></i>{{ $resp->delivery_days }} dias
                                                     </span>
                                                 </div>
                                             @endif
@@ -287,16 +274,10 @@
                         <tr class="table-secondary text-dark fw-bold small">
                             <td class="ps-3">
                                 <i class="ti ti-truck me-1 text-warning"></i>Entrega Máx. (días)
-                                @if($rfq->requisition->required_date)
-                                    <br><small class="text-muted fw-normal">Requerido: {{ \Carbon\Carbon::parse($rfq->requisition->required_date)->format('d/m/Y') }}</small>
-                                @endif
                             </td>
                             @foreach($rfq->suppliers as $supplier)
                                 @php
                                     $maxDays = $rfq->rfqResponses->where('supplier_id', $supplier->id)->whereNotNull('delivery_days')->max('delivery_days');
-                                    $reqDate2 = $rfq->requisition->required_date ? \Carbon\Carbon::parse($rfq->requisition->required_date) : null;
-                                    $arrivalDate = $maxDays ? now()->addDays($maxDays) : null;
-                                    $onTime = !$reqDate2 || !$arrivalDate || $arrivalDate->lte($reqDate2);
                                 @endphp
                                 <td class="text-center">
                                     @if($maxDays)

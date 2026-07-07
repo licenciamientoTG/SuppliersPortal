@@ -99,9 +99,7 @@ class RequisitionForm extends Component
             // Cargar datos del formulario
             $this->company_id = $requisition->company_id;
             $this->description = $requisition->description;
-            $this->required_date = $requisition->required_date
-                ? $requisition->required_date->format('Y-m-d')
-                : null;
+            $this->required_date = now()->toDateString();
 
             // Cargar ubicación de recepción de la cabecera
             $this->receiving_location_id = $requisition->receiving_location_id;
@@ -132,7 +130,7 @@ class RequisitionForm extends Component
         } else {
             // ===== MODO CREACIÓN =====
             $this->isEditMode = false;
-            $this->required_date = now()->addDays(7)->format('Y-m-d');
+            $this->required_date = now()->toDateString();
             $this->items = [];
 
             if ($this->companies->count() === 1) {
@@ -172,12 +170,10 @@ class RequisitionForm extends Component
         $this->validate([
             'company_id'            => 'required|exists:companies,id',
             'receiving_location_id' => 'required|exists:receiving_locations,id',
-            'required_date'         => 'nullable|date|after_or_equal:today',
             'description'           => 'nullable|string|max:500',
         ], [
             'company_id.required'            => 'La compañía es obligatoria.',
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
-            'required_date.after_or_equal'   => 'La fecha requerida no puede ser anterior a hoy.',
         ]);
 
         // Validar que tenga al menos una partida (RN-003)
@@ -214,7 +210,7 @@ class RequisitionForm extends Component
                 $requisition->update([
                     'company_id'            => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
-                    'required_date' => $this->required_date,
+                    'required_date' => now()->toDateString(),
                     'description' => $this->description,
                     'status' => $status === 'pending' ? 'draft' : $status, // Se cambiará después si es pending
                     'updated_by' => Auth::id(),
@@ -251,7 +247,7 @@ class RequisitionForm extends Component
                     'receiving_location_id' => $this->receiving_location_id,
                     'folio'                => Requisition::nextFolio(),
                     'requested_by'         => Auth::id(),
-                    'required_date'        => $this->required_date,
+                    'required_date'        => now()->toDateString(),
                     'description'          => $this->description,
                     'status'               => 'draft',
                     'created_by'           => Auth::id(),

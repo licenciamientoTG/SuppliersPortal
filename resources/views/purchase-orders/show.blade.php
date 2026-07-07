@@ -79,8 +79,6 @@
                             ?? $purchaseOrder->requisition->creator->name
                             ?? '-' }}
                     </div>
-                    <div class="small text-muted mt-2">Fecha requerida</div>
-                    <div>{{ $purchaseOrder->requisition->required_date?->format('d/m/Y') ?? '-' }}</div>
                 </div>
             </div>
 
