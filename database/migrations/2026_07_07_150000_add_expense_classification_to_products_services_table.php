@@ -23,8 +23,6 @@ return new class extends Migration {
                 ->after('product_type')
                 ->comment('TRUE si el producto se controla por inventario');
 
-            $table->index('expense_category_id');
-            $table->index('budget_cedula_id');
             $table->index('is_inventoriable');
         });
 
@@ -36,8 +34,6 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('products_services', function (Blueprint $table) {
-            $table->dropIndex('products_services_expense_category_id_index');
-            $table->dropIndex('products_services_budget_cedula_id_index');
             $table->dropIndex('products_services_is_inventoriable_index');
             $table->dropForeign(['expense_category_id']);
             $table->dropForeign(['budget_cedula_id']);

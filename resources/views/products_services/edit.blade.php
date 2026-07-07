@@ -173,7 +173,8 @@
                                 </span>
                                 <select class="form-select @error('budget_cedula_id') is-invalid @enderror"
                                         id="budget_cedula_id"
-                                        name="budget_cedula_id">
+                                        name="budget_cedula_id"
+                                        disabled>
                                     <option value="">Seleccione categoría primero...</option>
                                 </select>
                             </div>

@@ -34,6 +34,7 @@ class ProductServiceShowClassificationFieldsTest extends TestCase
         $response->assertSee('Mantenimiento');
         $response->assertSee('Cedula Visible');
         $response->assertSee('Inventariable');
+        $response->assertSee('Sí');
     }
 
     public function test_show_page_handles_product_without_classification(): void
@@ -50,5 +51,6 @@ class ProductServiceShowClassificationFieldsTest extends TestCase
         $response = $this->actingAs($user)->get(route('products-services.show', $product));
 
         $response->assertOk();
+        $response->assertSee('Sin clasificar');
     }
 }
