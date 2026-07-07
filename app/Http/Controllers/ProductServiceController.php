@@ -286,6 +286,11 @@ class ProductServiceController extends Controller
             'MES' => 'Mes',
         ];
 
+        $expenseCategories = \App\Models\ExpenseCategory::active()
+            ->with(['cedulas' => fn ($q) => $q->active()->notDeleted()->orderBy('name')])
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+
         return view('products_services.edit', compact(
             'productService',
             'companies',
@@ -293,7 +298,8 @@ class ProductServiceController extends Controller
             'suppliers',
             'statusOpts',
             'selectedCompanyId',
-            'unitsOfMeasure'
+            'unitsOfMeasure',
+            'expenseCategories'
         ));
     }
 
