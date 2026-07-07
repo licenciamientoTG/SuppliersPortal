@@ -71,7 +71,11 @@
       "Bash(/home/a8a/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package 86a042466060b68953f026b82d187fb7a02cced1 *)",
       "Bash(pkill -f \"artisan serve\")",
       "Skill(artifact-design)",
-      "Artifact"
+      "Artifact",
+      "Bash(curl -s -o /dev/null -w \"still up? %{http_code}\\\\n\" http://127.0.0.1:8777/login)",
+      "Bash(curl -s -b cookies.txt __TRACKED_VAR__/products-services/create -o create.html -w 'create_http=%{http_code}\\\\n')",
+      "Bash(pkill -f \"artisan serve --port=8777\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8777/login)"
     ]
   }
 }
