@@ -27,8 +27,10 @@ class SaveProductServiceRequest extends FormRequest
             
             // Clasificación
             'subcategory' => 'nullable|string|max:100',
-            'expense_category_id' => 'nullable|exists:expense_categories,id',
-            'budget_cedula_id' => 'nullable|exists:budget_cedulas,id',
+            'expense_category_ids' => 'nullable|array',
+            'expense_category_ids.*' => 'integer|exists:expense_categories,id',
+            'budget_cedula_ids' => 'nullable|array',
+            'budget_cedula_ids.*' => 'integer|exists:budget_cedulas,id',
             'is_inventoriable' => 'boolean',
             
             // Organización
@@ -70,8 +72,10 @@ class SaveProductServiceRequest extends FormRequest
             'short_name' => 'nombre corto',
             'product_type' => 'tipo de producto',
             'subcategory' => 'subcategoría',
-            'expense_category_id' => 'categoría de gasto',
-            'budget_cedula_id' => 'cédula de gasto',
+            'expense_category_ids' => 'categorías de gasto',
+            'expense_category_ids.*' => 'categoría de gasto',
+            'budget_cedula_ids' => 'cédulas de gasto',
+            'budget_cedula_ids.*' => 'cédula de gasto',
             'is_inventoriable' => 'inventariable',
             'company_id' => 'compañía',
             'cost_center_id' => 'centro de costo',
@@ -133,11 +137,22 @@ class SaveProductServiceRequest extends FormRequest
                 }
             }
 
-            // Validar que la cédula pertenezca a la categoría de gasto seleccionada
-            if (!empty($this->budget_cedula_id)) {
-                $cedula = \App\Models\BudgetCedula::find($this->budget_cedula_id);
-                if ($cedula && (int) $cedula->expense_category_id !== (int) $this->expense_category_id) {
-                    $validator->errors()->add('budget_cedula_id', 'La cédula seleccionada no pertenece a la categoría de gasto elegida.');
+            // Validar que cada cédula pertenezca a alguna de las categorías de gasto seleccionadas
+            $selectedCategoryIds = collect($this->input('expense_category_ids', []))
+                ->map(fn ($id) => (int) $id);
+            $selectedCedulaIds = collect($this->input('budget_cedula_ids', []));
+
+            if ($selectedCedulaIds->isNotEmpty()) {
+                $invalidCedulaNames = \App\Models\BudgetCedula::whereIn('id', $selectedCedulaIds)
+                    ->whereNotIn('expense_category_id', $selectedCategoryIds)
+                    ->pluck('name');
+
+                if ($invalidCedulaNames->isNotEmpty()) {
+                    $validator->errors()->add(
+                        'budget_cedula_ids',
+                        'Las siguientes cédulas no pertenecen a ninguna categoría de gasto seleccionada: '
+                            . $invalidCedulaNames->implode(', ') . '.'
+                    );
                 }
             }
         });

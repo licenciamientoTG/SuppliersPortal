@@ -19,11 +19,10 @@ class ProductServiceExpenseClassificationValidationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->seed(RolePermissionSeeder::class);
     }
 
-    public function test_store_rejects_cedula_that_does_not_belong_to_selected_category(): void
+    public function test_store_rejects_cedula_that_does_not_belong_to_any_selected_category(): void
     {
         [$user, $company, $costCenter] = $this->createContext();
 
@@ -32,23 +31,25 @@ class ProductServiceExpenseClassificationValidationTest extends TestCase
         $cedulaOfB = BudgetCedula::factory()->create(['expense_category_id' => $categoryB->id]);
 
         $response = $this->actingAs($user)->post(route('products-services.store'), $this->basePayload($company, $costCenter, [
-            'expense_category_id' => $categoryA->id,
-            'budget_cedula_id' => $cedulaOfB->id,
+            'expense_category_ids' => [$categoryA->id],
+            'budget_cedula_ids' => [$cedulaOfB->id],
         ]));
 
-        $response->assertSessionHasErrors('budget_cedula_id');
+        $response->assertSessionHasErrors('budget_cedula_ids');
     }
 
-    public function test_store_accepts_cedula_that_belongs_to_selected_category(): void
+    public function test_store_accepts_cedulas_that_belong_to_selected_categories(): void
     {
         [$user, $company, $costCenter] = $this->createContext();
 
-        $category = ExpenseCategory::factory()->create();
-        $cedula = BudgetCedula::factory()->create(['expense_category_id' => $category->id]);
+        $categoryA = ExpenseCategory::factory()->create();
+        $categoryB = ExpenseCategory::factory()->create();
+        $cedulaOfA = BudgetCedula::factory()->create(['expense_category_id' => $categoryA->id]);
+        $cedulaOfB = BudgetCedula::factory()->create(['expense_category_id' => $categoryB->id]);
 
         $response = $this->actingAs($user)->post(route('products-services.store'), $this->basePayload($company, $costCenter, [
-            'expense_category_id' => $category->id,
-            'budget_cedula_id' => $cedula->id,
+            'expense_category_ids' => [$categoryA->id, $categoryB->id],
+            'budget_cedula_ids' => [$cedulaOfA->id, $cedulaOfB->id],
         ]));
 
         $response->assertSessionHasNoErrors();
