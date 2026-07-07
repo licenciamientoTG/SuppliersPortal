@@ -582,7 +582,7 @@
 </form>
 
     <script id="expense-cedulas-catalog" type="application/json">
-        {!! $expenseCategories->pluck('cedulas', 'id')->map(fn ($cedulas) => $cedulas->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]))->toJson() !!}
+        {!! json_encode($expenseCategories->pluck('cedulas', 'id')->map(fn ($cedulas) => $cedulas->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}
     </script>
 @endsection
 
@@ -643,8 +643,11 @@
 
                 $cedulaSelect.append('<option value="">Seleccione cédula...</option>');
                 cedulas.forEach(function (cedula) {
-                    const selected = String(cedula.id) === String(selectedCedulaId) ? 'selected' : '';
-                    $cedulaSelect.append(`<option value="${cedula.id}" ${selected}>${cedula.name}</option>`);
+                    const $option = $('<option>')
+                        .val(cedula.id)
+                        .text(cedula.name)
+                        .prop('selected', String(cedula.id) === String(selectedCedulaId));
+                    $cedulaSelect.append($option);
                 });
                 $cedulaSelect.prop('disabled', false);
             }
