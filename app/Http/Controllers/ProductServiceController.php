@@ -191,6 +191,9 @@ class ProductServiceController extends Controller
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
+                'expense_category_id' => $data['expense_category_id'] ?? null,
+                'budget_cedula_id' => $data['budget_cedula_id'] ?? null,
+                'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
                 'cost_center_id' => $data['cost_center_id'],
@@ -307,6 +310,9 @@ class ProductServiceController extends Controller
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
+                'expense_category_id' => $data['expense_category_id'] ?? null,
+                'budget_cedula_id' => $data['budget_cedula_id'] ?? null,
+                'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
                 'cost_center_id' => $data['cost_center_id'],
