@@ -197,8 +197,6 @@ class ProductServiceController extends Controller
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
-                'expense_category_id' => $data['expense_category_id'] ?? null,
-                'budget_cedula_id' => $data['budget_cedula_id'] ?? null,
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
@@ -237,6 +235,9 @@ class ProductServiceController extends Controller
             ]);
             $productService->save();
 
+            $productService->expenseCategories()->sync($data['expense_category_ids'] ?? []);
+            $productService->budgetCedulas()->sync($data['budget_cedula_ids'] ?? []);
+
             return redirect()
                 ->route('products-services.show', $productService)
                 ->with('success', 'Producto/Servicio registrado correctamente. Estado: Pendiente de Validación.');
@@ -255,8 +256,8 @@ class ProductServiceController extends Controller
             'defaultVendor',
             'creator',
             'approver',
-            'expenseCategory',
-            'budgetCedula',
+            'expenseCategories',
+            'budgetCedulas',
         ]);
 
         return view('products_services.show', compact('productService'));
@@ -293,6 +294,9 @@ class ProductServiceController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
+        $selectedExpenseCategoryIds = $productService->expenseCategories->pluck('id')->all();
+        $selectedBudgetCedulaIds = $productService->budgetCedulas->pluck('id')->all();
+
         return view('products_services.edit', compact(
             'productService',
             'companies',
@@ -301,7 +305,9 @@ class ProductServiceController extends Controller
             'statusOpts',
             'selectedCompanyId',
             'unitsOfMeasure',
-            'expenseCategories'
+            'expenseCategories',
+            'selectedExpenseCategoryIds',
+            'selectedBudgetCedulaIds'
         ));
     }
 
@@ -324,8 +330,6 @@ class ProductServiceController extends Controller
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
                 'subcategory' => $data['subcategory'] ?? null,
-                'expense_category_id' => $data['expense_category_id'] ?? null,
-                'budget_cedula_id' => $data['budget_cedula_id'] ?? null,
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
@@ -366,6 +370,9 @@ class ProductServiceController extends Controller
             }
 
             $productService->save();
+
+            $productService->expenseCategories()->sync($data['expense_category_ids'] ?? []);
+            $productService->budgetCedulas()->sync($data['budget_cedula_ids'] ?? []);
 
             return redirect()
                 ->route('products-services.show', $productService)

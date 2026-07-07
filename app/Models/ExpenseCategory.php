@@ -90,6 +90,14 @@ class ExpenseCategory extends Model
     }
 
     /**
+     * Productos/servicios del catálogo clasificados con esta categoría
+     */
+    public function productServices()
+    {
+        return $this->belongsToMany(ProductService::class);
+    }
+
+    /**
      * Distribuciones mensuales presupuestales que usan esta categoría
      * 
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
@@ -234,7 +242,8 @@ class ExpenseCategory extends Model
             || $this->requisitionItems()->exists()
             || $this->budgetMovementDetails()->exists()
             || $this->directPurchaseOrderItems()->exists()
-            || $this->budgetCommitments()->exists();
+            || $this->budgetCommitments()->exists()
+            || $this->productServices()->exists();
     }
 
     /**

@@ -51,6 +51,14 @@ class BudgetCedula extends Model
         return $this->hasMany(BudgetCommitment::class, 'budget_cedula_id');
     }
 
+    /**
+     * Productos/servicios del catálogo clasificados con esta cédula
+     */
+    public function productServices()
+    {
+        return $this->belongsToMany(ProductService::class);
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -93,7 +101,8 @@ class BudgetCedula extends Model
     {
         return $this->monthlyDistributions()->exists()
             || $this->requisitionItems()->exists()
-            || $this->budgetCommitments()->exists();
+            || $this->budgetCommitments()->exists()
+            || $this->productServices()->exists();
     }
 
     public function getDeactivationErrorMessage(): ?string

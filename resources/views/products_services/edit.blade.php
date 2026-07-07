@@ -140,45 +140,37 @@
                     </div>
 
                     <div class="row">
-                        {{-- Categoría de Gasto --}}
+                        {{-- Categorías de Gasto --}}
                         <div class="col-md-6 mb-3">
-                            <label for="expense_category_id" class="form-label">Categoría de Gasto</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-receipt-2"></i>
-                                </span>
-                                <select class="form-select @error('expense_category_id') is-invalid @enderror"
-                                        id="expense_category_id"
-                                        name="expense_category_id">
-                                    <option value="">Sin clasificar</option>
-                                    @foreach ($expenseCategories as $category)
-                                        <option value="{{ $category->id }}"
-                                            {{ old('expense_category_id', $productService->expense_category_id) == $category->id ? 'selected' : '' }}>
-                                            [{{ $category->code }}] {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @error('expense_category_id')
+                            <label for="expense_category_ids" class="form-label">Categorías de Gasto</label>
+                            <select class="form-select @error('expense_category_ids') is-invalid @enderror"
+                                    id="expense_category_ids"
+                                    name="expense_category_ids[]"
+                                    multiple
+                                    style="width: 100%;">
+                                @foreach ($expenseCategories as $category)
+                                    <option value="{{ $category->id }}"
+                                        {{ collect(old('expense_category_ids', $selectedExpenseCategoryIds))->contains($category->id) ? 'selected' : '' }}>
+                                        [{{ $category->code }}] {{ $category->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('expense_category_ids')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
 
-                        {{-- Cédula de Gasto --}}
+                        {{-- Cédulas de Gasto --}}
                         <div class="col-md-6 mb-3">
-                            <label for="budget_cedula_id" class="form-label">Cédula de Gasto</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-file-text"></i>
-                                </span>
-                                <select class="form-select @error('budget_cedula_id') is-invalid @enderror"
-                                        id="budget_cedula_id"
-                                        name="budget_cedula_id"
-                                        disabled>
-                                    <option value="">Seleccione categoría primero...</option>
-                                </select>
-                            </div>
-                            @error('budget_cedula_id')
+                            <label for="budget_cedula_ids" class="form-label">Cédulas de Gasto</label>
+                            <select class="form-select @error('budget_cedula_ids') is-invalid @enderror"
+                                    id="budget_cedula_ids"
+                                    name="budget_cedula_ids[]"
+                                    multiple
+                                    style="width: 100%;">
+                            </select>
+                            <div class="form-text">Selecciona primero una o más categorías de gasto.</div>
+                            @error('budget_cedula_ids')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
@@ -633,37 +625,62 @@
                 updateCategoryDisplay();
             }
 
-            // Cascade Categoría de Gasto -> Cédula (sin AJAX, catálogo embebido)
+            // Multi-select Categorías de Gasto -> Cédulas de Gasto (sin AJAX, catálogo embebido)
             const cedulasByCategory = JSON.parse(document.getElementById('expense-cedulas-catalog').textContent);
 
-            function refreshCedulaOptions(selectedCedulaId) {
-                const categoryId = $('#expense_category_id').val();
-                const $cedulaSelect = $('#budget_cedula_id');
-                const cedulas = cedulasByCategory[categoryId] || [];
+            const $categorySelect = $('#expense_category_ids');
+            const $cedulaSelect = $('#budget_cedula_ids');
+
+            $categorySelect.select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Seleccione categorías...',
+                allowClear: true,
+                closeOnSelect: false,
+            });
+
+            $cedulaSelect.select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Seleccione cédulas...',
+                allowClear: true,
+                closeOnSelect: false,
+            });
+
+            function refreshCedulaOptions(preselectedCedulaIds) {
+                const selectedCategoryIds = ($categorySelect.val() || []).map(String);
+                const previouslySelected = preselectedCedulaIds !== undefined
+                    ? preselectedCedulaIds.map(String)
+                    : ($cedulaSelect.val() || []).map(String);
 
                 $cedulaSelect.empty();
 
-                if (!categoryId || cedulas.length === 0) {
-                    $cedulaSelect.append('<option value="">Sin cédulas disponibles</option>').prop('disabled', true);
-                    return;
-                }
+                selectedCategoryIds.forEach(function (categoryId) {
+                    const cedulas = cedulasByCategory[categoryId] || [];
+                    if (cedulas.length === 0) {
+                        return;
+                    }
 
-                $cedulaSelect.append('<option value="">Seleccione cédula...</option>');
-                cedulas.forEach(function (cedula) {
-                    const $option = $('<option>')
-                        .val(cedula.id)
-                        .text(cedula.name)
-                        .prop('selected', String(cedula.id) === String(selectedCedulaId));
-                    $cedulaSelect.append($option);
+                    const categoryLabel = $categorySelect.find(`option[value="${categoryId}"]`).text().trim();
+                    const $optgroup = $('<optgroup>').attr('label', categoryLabel);
+
+                    cedulas.forEach(function (cedula) {
+                        const $option = $('<option>')
+                            .val(cedula.id)
+                            .text(cedula.name)
+                            .prop('selected', previouslySelected.includes(String(cedula.id)));
+                        $optgroup.append($option);
+                    });
+
+                    $cedulaSelect.append($optgroup);
                 });
-                $cedulaSelect.prop('disabled', false);
+
+                $cedulaSelect.trigger('change');
             }
 
-            $('#expense_category_id').on('change', function () {
-                refreshCedulaOptions(null);
+            $categorySelect.on('change', function () {
+                refreshCedulaOptions();
             });
 
-            refreshCedulaOptions('{{ old('budget_cedula_id', $productService->budget_cedula_id) }}');
+            refreshCedulaOptions(@json(old('budget_cedula_ids', $selectedBudgetCedulaIds)));
 
             // Sugerir Inventariable según el tipo de producto
             $('#product_type').on('change', function () {

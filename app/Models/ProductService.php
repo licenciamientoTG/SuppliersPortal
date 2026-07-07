@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Catálogo de Productos y Servicios
@@ -29,8 +30,6 @@ class ProductService extends Model
         // Clasificación
         'category_id',
         'subcategory',
-        'expense_category_id',
-        'budget_cedula_id',
         'is_inventoriable',
 
         // Organización
@@ -131,14 +130,14 @@ class ProductService extends Model
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
-    public function expenseCategory(): BelongsTo
+    public function expenseCategories(): BelongsToMany
     {
-        return $this->belongsTo(ExpenseCategory::class);
+        return $this->belongsToMany(ExpenseCategory::class);
     }
 
-    public function budgetCedula(): BelongsTo
+    public function budgetCedulas(): BelongsToMany
     {
-        return $this->belongsTo(BudgetCedula::class);
+        return $this->belongsToMany(BudgetCedula::class);
     }
 
     // ==========================================

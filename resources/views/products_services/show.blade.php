@@ -384,19 +384,27 @@
 
                     <div class="row mb-2">
                         <div class="col-5">
-                            <strong>Categoría de Gasto:</strong>
+                            <strong>Categorías de Gasto:</strong>
                         </div>
                         <div class="col-7">
-                            {{ $productService->expenseCategory ? "[{$productService->expenseCategory->code}] {$productService->expenseCategory->name}" : 'Sin clasificar' }}
+                            @forelse ($productService->expenseCategories as $category)
+                                <span class="badge bg-light text-dark border me-1 mb-1">[{{ $category->code }}] {{ $category->name }}</span>
+                            @empty
+                                Sin clasificar
+                            @endforelse
                         </div>
                     </div>
 
                     <div class="row mb-2">
                         <div class="col-5">
-                            <strong>Cédula de Gasto:</strong>
+                            <strong>Cédulas de Gasto:</strong>
                         </div>
                         <div class="col-7">
-                            {{ $productService->budgetCedula->name ?? 'Sin clasificar' }}
+                            @forelse ($productService->budgetCedulas as $cedula)
+                                <span class="badge bg-light text-dark border me-1 mb-1">{{ $cedula->name }}</span>
+                            @empty
+                                Sin clasificar
+                            @endforelse
                         </div>
                     </div>
 
