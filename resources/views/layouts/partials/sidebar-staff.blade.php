@@ -259,6 +259,12 @@
                 </a>
             </li>
             <li class="side-nav-item">
+                <a href="{{ route('expense-cedulas.index') }}"
+                    class="side-nav-link {{ request()->routeIs('expense-cedulas.*') ? 'active' : '' }}">
+                    <span class="menu-text">Cédulas de Gasto</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a href="{{ route('annual_budgets.index') }}"
                     class="side-nav-link {{ request()->routeIs('annual_budgets.*') ? 'active' : '' }}">
                     <span class="menu-text">Presupuestos Anuales</span>

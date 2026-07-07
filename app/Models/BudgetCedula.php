@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class BudgetCedula extends Model
 {
@@ -40,6 +41,16 @@ class BudgetCedula extends Model
         return $this->hasMany(BudgetMonthlyDistribution::class, 'budget_cedula_id');
     }
 
+    public function requisitionItems()
+    {
+        return $this->hasMany(RequisitionItem::class, 'budget_cedula_id');
+    }
+
+    public function budgetCommitments()
+    {
+        return $this->hasMany(BudgetCommitment::class, 'budget_cedula_id');
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -65,5 +76,62 @@ class BudgetCedula extends Model
     public function scopeNotDeleted($query)
     {
         return $query->whereNull('deleted_at');
+    }
+
+    // ===== MÉTODOS: VALIDACIONES =====
+
+    public function isInactive(): bool
+    {
+        return $this->status === 'INACTIVO';
+    }
+
+    /**
+     * Verificar si la cédula está en uso real: distribuciones, partidas de
+     * requisición o compromisos presupuestales que la referencien.
+     */
+    public function isInUse(): bool
+    {
+        return $this->monthlyDistributions()->exists()
+            || $this->requisitionItems()->exists()
+            || $this->budgetCommitments()->exists();
+    }
+
+    public function getDeactivationErrorMessage(): ?string
+    {
+        return 'No se puede desactivar/eliminar una cédula que tiene movimientos presupuestales activos (distribuciones, requisiciones o compromisos).';
+    }
+
+    // ===== VALIDACIONES =====
+
+    public static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (!in_array($model->status, ['ACTIVO', 'INACTIVO'])) {
+                $model->status = 'ACTIVO';
+            }
+
+            if (!$model->created_by) {
+                $model->created_by = Auth::id();
+            }
+        });
+
+        static::updating(function ($model) {
+            if ($model->isDirty('status') && $model->status === 'INACTIVO') {
+                if ($model->isInUse()) {
+                    throw new \Exception($model->getDeactivationErrorMessage());
+                }
+            }
+
+            if (!$model->updated_by) {
+                $model->updated_by = Auth::id();
+            }
+        });
+
+        static::deleting(function ($model) {
+            $model->deleted_by = Auth::id();
+            $model->save();
+        });
     }
 }

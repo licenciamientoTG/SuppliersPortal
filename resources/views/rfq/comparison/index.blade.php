@@ -24,7 +24,6 @@
                         </button>
                     @endif
                 </div>
-                <h4 class="page-title">Análisis Comparativo de Cotizaciones</h4>
             </div>
         </div>
     </div>

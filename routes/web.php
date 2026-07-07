@@ -18,6 +18,7 @@ use App\Http\Controllers\DirectPurchaseOrderController;
 use App\Http\Controllers\DocumentReviewController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\ExpenseCedulaCatalogController;
 use App\Http\Controllers\FinanceInvoiceController;
 use App\Http\Controllers\FinancialProvisionController;
 use App\Http\Controllers\IncidentController;
@@ -267,6 +268,18 @@ Route::middleware(['auth', 'lock'])->group(function () {
             Route::post('/confirm', [CostCenterImportController::class, 'confirm'])->name('confirm');
         });
         Route::resource('cost-centers', CostCenterController::class)->except(['show'])->parameters(['cost-centers' => 'cost_center']);
+
+        Route::prefix('expense-cedulas')->name('expense-cedulas.')->group(function () {
+            Route::get('/', [ExpenseCedulaCatalogController::class, 'index'])->name('index');
+            Route::get('/categories', [ExpenseCedulaCatalogController::class, 'categoriesData'])->name('categories.data');
+            Route::post('/categories', [ExpenseCedulaCatalogController::class, 'storeCategory'])->name('categories.store');
+            Route::put('/categories/{expenseCategory}', [ExpenseCedulaCatalogController::class, 'updateCategory'])->name('categories.update');
+            Route::delete('/categories/{expenseCategory}', [ExpenseCedulaCatalogController::class, 'destroyCategory'])->name('categories.destroy');
+            Route::get('/categories/{expenseCategory}/cedulas', [ExpenseCedulaCatalogController::class, 'cedulasData'])->name('cedulas.data');
+            Route::post('/cedulas', [ExpenseCedulaCatalogController::class, 'storeCedula'])->name('cedulas.store');
+            Route::put('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'updateCedula'])->name('cedulas.update');
+            Route::delete('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'destroyCedula'])->name('cedulas.destroy');
+        });
     });
 
     Route::middleware('module.access:employees')->group(function () {

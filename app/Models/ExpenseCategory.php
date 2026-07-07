@@ -58,6 +58,38 @@ class ExpenseCategory extends Model
     }
 
     /**
+     * Partidas de requisición que usan esta categoría
+     */
+    public function requisitionItems()
+    {
+        return $this->hasMany(RequisitionItem::class, 'expense_category_id');
+    }
+
+    /**
+     * Detalles de movimiento presupuestal que usan esta categoría
+     */
+    public function budgetMovementDetails()
+    {
+        return $this->hasMany(BudgetMovementDetail::class, 'expense_category_id');
+    }
+
+    /**
+     * Partidas de orden de compra directa que usan esta categoría
+     */
+    public function directPurchaseOrderItems()
+    {
+        return $this->hasMany(DirectPurchaseOrderItem::class, 'expense_category_id');
+    }
+
+    /**
+     * Compromisos presupuestales que usan esta categoría
+     */
+    public function budgetCommitments()
+    {
+        return $this->hasMany(BudgetCommitment::class, 'expense_category_id');
+    }
+
+    /**
      * Distribuciones mensuales presupuestales que usan esta categoría
      * 
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
@@ -183,19 +215,42 @@ class ExpenseCategory extends Model
     // ===== MÉTODOS: VALIDACIONES =====
 
     /**
+     * Verificar si tiene cédulas asociadas (no eliminadas)
+     */
+    public function hasCedulas(): bool
+    {
+        return $this->cedulas()->exists();
+    }
+
+    /**
+     * Verificar si la categoría está en uso real: distribuciones con monto
+     * asignado, o cualquier movimiento transaccional que la referencie
+     * (requisiciones, movimientos presupuestales, órdenes de compra directa,
+     * compromisos presupuestales).
+     */
+    public function isInUse(): bool
+    {
+        return $this->monthlyDistributions()->where('assigned_amount', '>', 0)->exists()
+            || $this->requisitionItems()->exists()
+            || $this->budgetMovementDetails()->exists()
+            || $this->directPurchaseOrderItems()->exists()
+            || $this->budgetCommitments()->exists();
+    }
+
+    /**
      * Verificar si puede ser desactivada
-     * (No debe tener distribuciones activas con presupuesto)
+     * (No debe tener distribuciones activas con presupuesto ni movimientos asociados)
      */
     public function canBeDeactivated(): bool
     {
-        if ($this->isInactive()) {
-            return true; // Ya está inactiva
+        // Usa el valor original (previo a la mutación en memoria) porque este
+        // método se invoca desde el hook `updating` cuando `status` ya fue
+        // asignado a INACTIVO en el modelo, antes de persistirse.
+        if (($this->getOriginal('status') ?? $this->status) === 'INACTIVO') {
+            return true; // Ya estaba inactiva
         }
 
-        // Verificar si tiene distribuciones mensuales con monto asignado
-        return !$this->monthlyDistributions()
-            ->where('assigned_amount', '>', 0)
-            ->exists();
+        return !$this->isInUse();
     }
 
     /**
