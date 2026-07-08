@@ -196,7 +196,6 @@ class ProductServiceController extends Controller
 
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
-                'subcategory' => $data['subcategory'] ?? null,
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
@@ -329,7 +328,6 @@ class ProductServiceController extends Controller
 
                 // Clasificación derivada del centro de costo
                 'category_id' => $costCenter->category_id,
-                'subcategory' => $data['subcategory'] ?? null,
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
 
                 // Organización
@@ -651,7 +649,6 @@ class ProductServiceController extends Controller
     {
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
-            'subcategory' => 'nullable|string|max:100',
             'cost_center_id' => 'required|exists:cost_centers,id',
             'technical_description' => 'required|string|min:20|max:5000',
             'short_name' => 'nullable|string|max:100',
@@ -674,7 +671,6 @@ class ProductServiceController extends Controller
                 'short_name' => $validated['short_name'] ?? null,
                 'product_type' => $validated['product_type'] ?? 'PRODUCTO',
                 'category_id' => $costCenter->category_id,
-                'subcategory' => $validated['subcategory'] ?? null,
                 'cost_center_id' => $validated['cost_center_id'],
                 'company_id' => $validated['company_id'],
                 'brand' => $validated['brand'] ?? null,

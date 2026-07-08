@@ -121,7 +121,6 @@ class ProductServiceSycSeeder extends Seeder
                     'short_name' => $shortName,
                     'product_type' => 'PRODUCTO',
                     'category_id' => $costCenter->category_id,
-                    'subcategory' => null,
                     'cost_center_id' => $costCenter->id,
                     'company_id' => $company->id,
                     'unit_of_measure' => $unitOfMeasure,

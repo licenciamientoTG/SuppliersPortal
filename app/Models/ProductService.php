@@ -29,7 +29,6 @@ class ProductService extends Model
 
         // Clasificación
         'category_id',
-        'subcategory',
         'is_inventoriable',
 
         // Organización

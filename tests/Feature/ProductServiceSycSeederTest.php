@@ -85,7 +85,6 @@ class ProductServiceSycSeederTest extends TestCase
             'short_name' => 'MAGNA',
             'technical_description' => null,
             'product_type' => 'PRODUCTO',
-            'subcategory' => null,
             'unit_of_measure' => 'LITRO',
             'estimated_price' => 0,
             'status' => 'ACTIVE',

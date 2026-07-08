@@ -26,7 +26,6 @@ class SaveProductServiceRequest extends FormRequest
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
             
             // Clasificación
-            'subcategory' => 'nullable|string|max:100',
             'expense_category_ids' => 'nullable|array',
             'expense_category_ids.*' => 'integer|exists:expense_categories,id',
             'budget_cedula_ids' => 'nullable|array',
@@ -71,7 +70,6 @@ class SaveProductServiceRequest extends FormRequest
             'technical_description' => 'descripción técnica',
             'short_name' => 'nombre corto',
             'product_type' => 'tipo de producto',
-            'subcategory' => 'subcategoría',
             'expense_category_ids' => 'categorías de gasto',
             'expense_category_ids.*' => 'categoría de gasto',
             'budget_cedula_ids' => 'cédulas de gasto',
