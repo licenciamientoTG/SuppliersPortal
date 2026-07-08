@@ -7,8 +7,10 @@ use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Company;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
+use App\Models\Account;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
+use App\Models\Subaccount;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,7 @@ use Yajra\DataTables\Facades\DataTables;
 use App\Notifications\NewProductRequestedNotification;
 use App\Models\User;
 use App\Events\ProductServiceApproved;
+use App\Services\BudgetAccessService;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -44,7 +47,12 @@ class ProductServiceController extends Controller
     public function datatable(Request $request)
     {
         $query = ProductService::query()
-            ->with(['category', 'costCenter', 'company', 'creator']);
+            ->with(['category', 'costCenter', 'company', 'creator', 'subaccounts.account']);
+
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($request->user());
+        if ($allowedSubaccounts->isNotEmpty() && ! $request->user()?->can('productos.administrar')) {
+            $query->withAllowedSubaccounts($allowedSubaccounts);
+        }
 
         return DataTables::of($query)
             ->addColumn('category_name', fn($p) => e($p->category?->name ?? '—'))
@@ -243,6 +251,16 @@ class ProductServiceController extends Controller
                 ->unique();
             $productService->expenseCategories()->sync($expenseCategoryIds);
 
+            $subaccountIds = Subaccount::query()
+                ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
+                ->pluck('id');
+            $productService->subaccounts()->sync($subaccountIds);
+
+            $accountIds = Account::query()
+                ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
+                ->pluck('id');
+            $productService->accounts()->sync($accountIds);
+
             return redirect()
                 ->route('products-services.show', $productService)
                 ->with('success', 'Producto/Servicio registrado correctamente. Estado: Pendiente de Validación.');
@@ -381,6 +399,16 @@ class ProductServiceController extends Controller
                 ->pluck('expense_category_id')
                 ->unique();
             $productService->expenseCategories()->sync($expenseCategoryIds);
+
+            $subaccountIds = Subaccount::query()
+                ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
+                ->pluck('id');
+            $productService->subaccounts()->sync($subaccountIds);
+
+            $accountIds = Account::query()
+                ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
+                ->pluck('id');
+            $productService->accounts()->sync($accountIds);
 
             return redirect()
                 ->route('products-services.show', $productService)
@@ -600,11 +628,16 @@ class ProductServiceController extends Controller
         }
 
         $query = ProductService::active()
-            ->with(['category', 'costCenter', 'defaultVendor']);
+            ->with(['category', 'costCenter', 'defaultVendor', 'subaccounts.account']);
 
         // Filtrar por compañía (OBLIGATORIO)
         $query->where('company_id', $companyId)
             ->where('cost_center_id', $costCenterId);
+
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
+        if ($allowedSubaccounts->isNotEmpty()) {
+            $query->withAllowedSubaccounts($allowedSubaccounts);
+        }
 
         // Búsqueda por término (para Select2)
         if ($request->has('search') && $request->search) {
@@ -648,6 +681,13 @@ class ProductServiceController extends Controller
                 'account_major' => $p->account_major,
                 'account_sub' => $p->account_sub,
                 'account_subsub' => $p->account_subsub,
+                'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
+                    'id' => $subaccount->id,
+                    'name' => $subaccount->name,
+                    'account_id' => $subaccount->account_id,
+                    'account_name' => $subaccount->account?->name,
+                    'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $subaccount->account?->is_fixed_asset),
+                ])->values(),
             ])
         ]);
     }

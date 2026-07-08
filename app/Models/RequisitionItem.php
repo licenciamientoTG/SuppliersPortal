@@ -27,6 +27,7 @@ class RequisitionItem extends Model
         'unit',
         'suggested_vendor_id',
         'notes',
+        'es_inventariable',
 
         // Contratos comerciales
         'contract_id',
@@ -41,6 +42,7 @@ class RequisitionItem extends Model
         'budget_cedula_id' => 'integer',
         'cost_center_id' => 'integer',
         'quantity' => 'decimal:3',
+        'es_inventariable' => 'boolean',
     ];
 
     // =========================================================================
@@ -83,6 +85,11 @@ class RequisitionItem extends Model
     public function budgetCedula(): BelongsTo
     {
         return $this->belongsTo(BudgetCedula::class, 'budget_cedula_id');
+    }
+
+    public function subaccount(): BelongsTo
+    {
+        return $this->belongsTo(Subaccount::class, 'budget_cedula_id');
     }
 
     /**

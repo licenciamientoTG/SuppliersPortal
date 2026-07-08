@@ -81,6 +81,30 @@ class RolePermissionSeeder extends Seeder
             // Revisión documental
             'view_documents',
             'review_documents',
+
+            // Permisos del sistema (nuevo esquema granular)
+            'usuarios.ver',
+            'usuarios.crear',
+            'usuarios.editar',
+            'usuarios.eliminar',
+            'roles.ver',
+            'roles.crear',
+            'roles.editar',
+            'roles.eliminar',
+            'productos.ver',
+            'productos.crear',
+            'productos.editar',
+            'productos.eliminar',
+            'productos.administrar',
+            'requisiciones.ver',
+            'requisiciones.crear',
+            'requisiciones.autorizar',
+            'catalogo_cuentas.ver',
+            'catalogo_cuentas.crear',
+            'catalogo_cuentas.editar',
+            'catalogo_cuentas.eliminar',
+            'departamentos.administrar',
+            'puestos.administrar',
         ];
 
         DB::transaction(function () use ($permissions) {
@@ -266,6 +290,15 @@ class RolePermissionSeeder extends Seeder
                 'manage_categories',
                 'manage_services',
                 'approve_products',
+                'productos.ver',
+                'productos.crear',
+                'productos.editar',
+                'productos.eliminar',
+                'productos.administrar',
+                'catalogo_cuentas.ver',
+                'catalogo_cuentas.crear',
+                'catalogo_cuentas.editar',
+                'catalogo_cuentas.eliminar',
                 'edit_own_profile',
             ]);
 
@@ -284,6 +317,25 @@ class RolePermissionSeeder extends Seeder
                 'view_accounting_reports',
                 // Perfil
                 'edit_own_profile',
+            ]);
+
+            $staffRole->givePermissionTo([
+                'productos.ver',
+                'requisiciones.ver',
+                'requisiciones.crear',
+            ]);
+
+            $buyerRole->givePermissionTo([
+                'productos.ver',
+                'productos.crear',
+                'productos.editar',
+                'requisiciones.ver',
+                'requisiciones.autorizar',
+            ]);
+
+            $accountingRole->givePermissionTo([
+                'catalogo_cuentas.ver',
+                'catalogo_cuentas.editar',
             ]);
         });
 

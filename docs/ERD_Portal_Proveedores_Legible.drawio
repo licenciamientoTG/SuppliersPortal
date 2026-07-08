@@ -1,0 +1,189 @@
+<mxfile host="app.diagrams.net" modified="2026-07-07T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="overview" name="01 Vista general">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Portal de Proveedores - ERD legible por modulos&#xa;Vista general funcional. Las paginas siguientes detallan relaciones por dominio." style="rounded=0;whiteSpace=wrap;html=0;fillColor=#17202a;fontColor=#ffffff;strokeColor=#17202a;fontStyle=1;fontSize=18;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1520" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_users" value="Identidad y permisos&#xa;users&#xa;authorizer_roles&#xa;user_authorizer_roles&#xa;authorizer_exceptions" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d6eaf8;strokeColor=#2e86c1;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="70" y="170" width="240" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_org" value="Organizacion&#xa;companies&#xa;receiving_locations&#xa;departments&#xa;cost_centers" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="400" y="170" width="240" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_suppliers" value="Proveedores y catalogo&#xa;suppliers&#xa;supplier_documents&#xa;products_services&#xa;contracts" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d5f5e3;strokeColor=#239b56;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="730" y="170" width="260" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_budget" value="Presupuesto&#xa;annual_budgets&#xa;budget_cedulas&#xa;budget_monthly_distributions&#xa;budget_commitments" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#ebf5fb;strokeColor=#2874a6;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="170" width="280" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_req" value="Requisicion&#xa;requisitions&#xa;requisition_items&#xa;requisition_feedback" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fadbd8;strokeColor=#c0392b;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="230" y="430" width="250" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_rfq" value="RFQ y cotizacion&#xa;quotation_groups&#xa;rfqs&#xa;rfq_suppliers&#xa;rfq_responses&#xa;quotation_summaries" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="610" y="410" width="280" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_po" value="Ordenes de compra&#xa;purchase_orders&#xa;purchase_order_items&#xa;odc_direct_purchase_orders&#xa;odc_direct_purchase_order_items" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="410" width="310" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_rec" value="Recepcion y facturacion&#xa;receptions&#xa;reception_items&#xa;financial_provisions&#xa;supplier_invoices&#xa;supplier_delivery_evidences" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f5cba7;strokeColor=#af601a;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="610" y="680" width="340" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_org_req" value="contexto" style="endArrow=block;html=0;rounded=0;strokeWidth=2;strokeColor=#515a5a;" edge="1" parent="1" source="m_org" target="m_req"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_supplier_rfq" value="participa" style="endArrow=block;html=0;rounded=0;strokeWidth=2;strokeColor=#515a5a;" edge="1" parent="1" source="m_suppliers" target="m_rfq"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_budget_req" value="valida" style="endArrow=block;html=0;rounded=0;strokeWidth=2;strokeColor=#515a5a;" edge="1" parent="1" source="m_budget" target="m_req"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_req_rfq" value="solicita cotizacion" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#c0392b;" edge="1" parent="1" source="m_req" target="m_rfq"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_rfq_po" value="aprueba y compra" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#b7950b;" edge="1" parent="1" source="m_rfq" target="m_po"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_po_rec" value="entrega / recepcion / factura" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#148f77;" edge="1" parent="1" source="m_po" target="m_rec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_budget_po" value="compromete presupuesto" style="endArrow=block;html=0;rounded=0;strokeWidth=2;strokeColor=#2874a6;" edge="1" parent="1" source="m_budget" target="m_po"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_users_all" value="auditoria / aprobacion" style="endArrow=block;html=0;rounded=0;dashed=1;strokeWidth=2;strokeColor=#2e86c1;" edge="1" parent="1" source="m_users" target="m_rfq"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="purchasing" name="02 Requisicion RFQ OC">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Flujo principal de compra: requisicion, RFQ, cotizacion y OC" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#17202a;fontColor=#ffffff;strokeColor=#17202a;fontStyle=1;fontSize=18;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1720" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="companies" value="companies&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="60" y="150" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="locations" value="receiving_locations&#xa;PK id&#xa;FK company_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="60" y="260" width="190" height="90" as="geometry"/></mxCell>
+        <mxCell id="departments" value="departments&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;" vertex="1" parent="1"><mxGeometry x="60" y="390" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="suppliers" value="suppliers&#xa;PK id&#xa;rfc, company_name" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d5f5e3;strokeColor=#239b56;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="60" y="560" width="210" height="90" as="geometry"/></mxCell>
+        <mxCell id="products" value="products_services&#xa;PK id&#xa;FK company_id&#xa;FK cost_center_id&#xa;FK default_vendor_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="350" y="560" width="240" height="120" as="geometry"/></mxCell>
+        <mxCell id="requisitions" value="requisitions&#xa;PK id&#xa;FK company_id&#xa;FK receiving_location_id&#xa;FK department_id&#xa;requested_by / created_by&#xa;folio, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fadbd8;strokeColor=#c0392b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="350" y="230" width="260" height="150" as="geometry"/></mxCell>
+        <mxCell id="req_items" value="requisition_items&#xa;PK id&#xa;FK requisition_id&#xa;FK product_service_id&#xa;FK expense_category_id&#xa;FK cost_center_id&#xa;FK suggested_vendor_id&#xa;FK contract_id nullable" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fadbd8;strokeColor=#c0392b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="690" y="220" width="290" height="170" as="geometry"/></mxCell>
+        <mxCell id="qgroups" value="quotation_groups&#xa;PK id&#xa;FK requisition_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;" vertex="1" parent="1"><mxGeometry x="1040" y="120" width="230" height="85" as="geometry"/></mxCell>
+        <mxCell id="qgitems" value="quotation_group_items&#xa;PK quotation_group_id + requisition_item_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;" vertex="1" parent="1"><mxGeometry x="1040" y="240" width="250" height="85" as="geometry"/></mxCell>
+        <mxCell id="rfqs" value="rfqs&#xa;PK id&#xa;FK requisition_id&#xa;FK quotation_group_id nullable&#xa;FK requisition_item_id nullable&#xa;FK supplier_id nullable&#xa;folio, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1040" y="390" width="270" height="145" as="geometry"/></mxCell>
+        <mxCell id="rfq_suppliers" value="rfq_suppliers&#xa;PK id&#xa;FK rfq_id&#xa;FK supplier_id&#xa;invited_at, responded_at" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;" vertex="1" parent="1"><mxGeometry x="1040" y="590" width="250" height="115" as="geometry"/></mxCell>
+        <mxCell id="responses" value="rfq_responses&#xa;PK id&#xa;FK rfq_id&#xa;FK supplier_id&#xa;FK requisition_item_id&#xa;unit_price, total, currency&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fcf3cf;strokeColor=#b7950b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1390" y="390" width="280" height="145" as="geometry"/></mxCell>
+        <mxCell id="summary" value="quotation_summaries&#xa;PK id&#xa;FK requisition_id&#xa;FK rfq_id unique nullable&#xa;FK selected_supplier_id&#xa;approval_status, total" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d6dbdf;strokeColor=#566573;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1390" y="610" width="280" height="135" as="geometry"/></mxCell>
+        <mxCell id="summary_items" value="quotation_summary_items&#xa;PK id&#xa;FK quotation_summary_id&#xa;FK rfq_response_id&#xa;FK requisition_item_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d6dbdf;strokeColor=#566573;" vertex="1" parent="1"><mxGeometry x="1390" y="790" width="280" height="110" as="geometry"/></mxCell>
+        <mxCell id="pos" value="purchase_orders&#xa;PK id&#xa;FK requisition_id&#xa;FK supplier_id&#xa;FK quotation_summary_id nullable&#xa;FK receiving_location_id&#xa;folio, total, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="690" y="720" width="300" height="145" as="geometry"/></mxCell>
+        <mxCell id="po_items" value="purchase_order_items&#xa;PK id&#xa;FK purchase_order_id&#xa;FK requisition_item_id&#xa;quantity, received, total" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;" vertex="1" parent="1"><mxGeometry x="350" y="745" width="260" height="110" as="geometry"/></mxCell>
+        <mxCell id="e1" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#ca6f1e;" edge="1" parent="1" source="companies" target="locations"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#c0392b;" edge="1" parent="1" source="companies" target="requisitions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#c0392b;" edge="1" parent="1" source="locations" target="requisitions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#c0392b;" edge="1" parent="1" source="departments" target="requisitions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#c0392b;strokeWidth=3;" edge="1" parent="1" source="requisitions" target="req_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#884ea0;" edge="1" parent="1" source="products" target="req_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="sugerido" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="req_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;" edge="1" parent="1" source="requisitions" target="qgroups"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;" edge="1" parent="1" source="qgroups" target="qgitems"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="N:1" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;" edge="1" parent="1" source="qgitems" target="req_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;strokeWidth=3;" edge="1" parent="1" source="requisitions" target="rfqs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;" edge="1" parent="1" source="rfqs" target="rfq_suppliers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="rfq_suppliers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;strokeWidth=3;" edge="1" parent="1" source="rfqs" target="responses"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="responses"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#b7950b;" edge="1" parent="1" source="req_items" target="responses"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" value="1:0..1" style="endArrow=block;html=0;rounded=0;strokeColor=#566573;strokeWidth=3;" edge="1" parent="1" source="rfqs" target="summary"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" value="seleccionado" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="summary"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#566573;" edge="1" parent="1" source="summary" target="summary_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#566573;" edge="1" parent="1" source="responses" target="summary_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e21" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#148f77;strokeWidth=3;" edge="1" parent="1" source="summary" target="pos"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e22" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#148f77;" edge="1" parent="1" source="pos" target="po_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" value="N:1" style="endArrow=block;html=0;rounded=0;strokeColor=#148f77;" edge="1" parent="1" source="po_items" target="req_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="budget" name="03 Presupuesto">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Modelo presupuestal y compromisos" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#17202a;fontColor=#ffffff;strokeColor=#17202a;fontStyle=1;fontSize=18;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="40" y="30" width="1320" height="55" as="geometry"/></mxCell>
+        <mxCell id="companies" value="companies&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="70" y="150" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="categories" value="categories&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;" vertex="1" parent="1"><mxGeometry x="70" y="290" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="cost_centers" value="cost_centers&#xa;PK id&#xa;FK company_id&#xa;FK category_id&#xa;budget_type&#xa;global_amount" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="350" y="190" width="250" height="130" as="geometry"/></mxCell>
+        <mxCell id="annual" value="annual_budgets&#xa;PK id&#xa;FK cost_center_id&#xa;fiscal_year&#xa;total_annual_amount&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#ebf5fb;strokeColor=#2874a6;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="690" y="120" width="250" height="130" as="geometry"/></mxCell>
+        <mxCell id="expense" value="expense_categories&#xa;PK id&#xa;code, name&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#ebf5fb;strokeColor=#2874a6;" vertex="1" parent="1"><mxGeometry x="350" y="420" width="230" height="95" as="geometry"/></mxCell>
+        <mxCell id="cedulas" value="budget_cedulas&#xa;PK id&#xa;FK expense_category_id&#xa;name, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#ebf5fb;strokeColor=#2874a6;" vertex="1" parent="1"><mxGeometry x="690" y="420" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="monthly" value="budget_monthly_distributions&#xa;PK id&#xa;FK annual_budget_id&#xa;FK expense_category_id&#xa;FK budget_cedula_id nullable&#xa;month&#xa;assigned / consumed / committed" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#ebf5fb;strokeColor=#2874a6;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1040" y="220" width="290" height="160" as="geometry"/></mxCell>
+        <mxCell id="commitments" value="budget_commitments&#xa;PK id&#xa;FK purchase_order_id nullable&#xa;FK direct_purchase_order_id nullable&#xa;FK quotation_summary_id nullable&#xa;FK cost_center_id&#xa;FK expense_category_id&#xa;FK budget_cedula_id nullable&#xa;committed_amount, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d6eaf8;strokeColor=#2874a6;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1010" y="500" width="330" height="180" as="geometry"/></mxCell>
+        <mxCell id="po" value="purchase_orders / odc_direct_purchase_orders&#xa;origen del compromiso" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="650" y="610" width="300" height="80" as="geometry"/></mxCell>
+        <mxCell id="e1" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#884ea0;" edge="1" parent="1" source="companies" target="cost_centers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#884ea0;" edge="1" parent="1" source="categories" target="cost_centers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;strokeWidth=3;" edge="1" parent="1" source="cost_centers" target="annual"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="annual" target="monthly"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="expense" target="cedulas"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="expense" target="monthly"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="1:N nullable" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="cedulas" target="monthly"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;strokeWidth=3;" edge="1" parent="1" source="cost_centers" target="commitments"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="expense" target="commitments"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="1:N nullable" style="endArrow=block;html=0;rounded=0;strokeColor=#2874a6;" edge="1" parent="1" source="cedulas" target="commitments"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" value="crea" style="endArrow=block;html=0;rounded=0;strokeColor=#148f77;strokeWidth=3;" edge="1" parent="1" source="po" target="commitments"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="reception" name="04 Recepcion facturas">
+    <mxGraphModel dx="1500" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Recepcion, evidencias, provision financiera y facturas" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#17202a;fontColor=#ffffff;strokeColor=#17202a;fontStyle=1;fontSize=18;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="40" y="30" width="1420" height="55" as="geometry"/></mxCell>
+        <mxCell id="po" value="purchase_orders&#xa;PK id&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="80" y="160" width="230" height="90" as="geometry"/></mxCell>
+        <mxCell id="po_items" value="purchase_order_items&#xa;PK id&#xa;FK purchase_order_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;" vertex="1" parent="1"><mxGeometry x="80" y="300" width="230" height="90" as="geometry"/></mxCell>
+        <mxCell id="dpo" value="odc_direct_purchase_orders&#xa;PK id&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="80" y="480" width="250" height="90" as="geometry"/></mxCell>
+        <mxCell id="dpo_items" value="odc_direct_purchase_order_items&#xa;PK id&#xa;FK direct_purchase_order_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d1f2eb;strokeColor=#148f77;" vertex="1" parent="1"><mxGeometry x="80" y="620" width="270" height="90" as="geometry"/></mxCell>
+        <mxCell id="locations" value="receiving_locations&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;" vertex="1" parent="1"><mxGeometry x="430" y="120" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="receptions" value="receptions&#xa;PK id&#xa;POLY receivable_type/id&#xa;FK receiving_location_id&#xa;FK received_by&#xa;folio, status, received_at" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9e79f;strokeColor=#b7950b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="430" y="290" width="290" height="145" as="geometry"/></mxCell>
+        <mxCell id="rec_items" value="reception_items&#xa;PK id&#xa;FK reception_id&#xa;POLY receivable_item_type/id&#xa;quantity_received&#xa;conformity" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9e79f;strokeColor=#b7950b;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="430" y="520" width="290" height="130" as="geometry"/></mxCell>
+        <mxCell id="evidence" value="supplier_delivery_evidences&#xa;PK id&#xa;POLY evidenceable_type/id&#xa;FK uploaded_by_supplier_id&#xa;file_path, uploaded_at" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d5f5e3;strokeColor=#239b56;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="800" y="145" width="310" height="130" as="geometry"/></mxCell>
+        <mxCell id="provisions" value="financial_provisions&#xa;PK id&#xa;FK reception_id unique&#xa;POLY receivable_type/id&#xa;FK supplier_id&#xa;FK cost_center_id nullable&#xa;provision_amount, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f5cba7;strokeColor=#af601a;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="820" y="360" width="310" height="155" as="geometry"/></mxCell>
+        <mxCell id="invoices" value="supplier_invoices&#xa;PK id&#xa;FK supplier_id&#xa;FK financial_provision_id nullable&#xa;POLY receivable_type/id&#xa;uuid, total, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f5cba7;strokeColor=#af601a;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1190" y="360" width="280" height="135" as="geometry"/></mxCell>
+        <mxCell id="adjustments" value="financial_provision_adjustments&#xa;PK id&#xa;FK financial_provision_id&#xa;FK supplier_invoice_id nullable&#xa;amount, reason" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f5cba7;strokeColor=#af601a;" vertex="1" parent="1"><mxGeometry x="1190" y="570" width="290" height="120" as="geometry"/></mxCell>
+        <mxCell id="suppliers" value="suppliers&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d5f5e3;strokeColor=#239b56;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="820" y="620" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="e1" value="POLY receivable" style="endArrow=block;html=0;rounded=0;dashed=1;strokeWidth=3;strokeColor=#b7950b;" edge="1" parent="1" source="po" target="receptions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="POLY receivable" style="endArrow=block;html=0;rounded=0;dashed=1;strokeWidth=3;strokeColor=#b7950b;" edge="1" parent="1" source="dpo" target="receptions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#ca6f1e;" edge="1" parent="1" source="locations" target="receptions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="1:N" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#b7950b;" edge="1" parent="1" source="receptions" target="rec_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="POLY item" style="endArrow=block;html=0;rounded=0;dashed=1;strokeColor=#b7950b;" edge="1" parent="1" source="po_items" target="rec_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="POLY item" style="endArrow=block;html=0;rounded=0;dashed=1;strokeColor=#b7950b;" edge="1" parent="1" source="dpo_items" target="rec_items"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="POLY evidenceable" style="endArrow=block;html=0;rounded=0;dashed=1;strokeColor=#239b56;" edge="1" parent="1" source="po" target="evidence"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="POLY evidenceable" style="endArrow=block;html=0;rounded=0;dashed=1;strokeColor=#239b56;" edge="1" parent="1" source="dpo" target="evidence"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="1:1" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#af601a;" edge="1" parent="1" source="receptions" target="provisions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="1:N nullable" style="endArrow=block;html=0;rounded=0;strokeWidth=3;strokeColor=#af601a;" edge="1" parent="1" source="provisions" target="invoices"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="provisions"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="invoices"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#af601a;" edge="1" parent="1" source="provisions" target="adjustments"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" value="1:N nullable" style="endArrow=block;html=0;rounded=0;strokeColor=#af601a;" edge="1" parent="1" source="invoices" target="adjustments"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="suppliers_catalog" name="05 Proveedores catalogos">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Proveedores, documentos, catalogo y contratos" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#17202a;fontColor=#ffffff;strokeColor=#17202a;fontStyle=1;fontSize=18;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="40" y="30" width="1320" height="55" as="geometry"/></mxCell>
+        <mxCell id="suppliers" value="suppliers&#xa;PK id&#xa;email, rfc unique&#xa;company_name&#xa;approval_status&#xa;document_status&#xa;payment terms" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#d5f5e3;strokeColor=#239b56;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="80" y="260" width="260" height="150" as="geometry"/></mxCell>
+        <mxCell id="docs" value="supplier_documents&#xa;PK id&#xa;FK supplier_id&#xa;FK uploaded_by&#xa;FK reviewed_by&#xa;doc_type, status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eafaf1;strokeColor=#239b56;" vertex="1" parent="1"><mxGeometry x="430" y="120" width="250" height="125" as="geometry"/></mxCell>
+        <mxCell id="sirocs" value="supplier_sirocs&#xa;PK id&#xa;FK supplier_id&#xa;siroc_number&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eafaf1;strokeColor=#239b56;" vertex="1" parent="1"><mxGeometry x="430" y="300" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="contracts" value="contracts&#xa;PK id&#xa;FK supplier_id&#xa;FK company_id&#xa;folio&#xa;contract_amount&#xa;status" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8daef;strokeColor=#7d3c98;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="430" y="480" width="250" height="130" as="geometry"/></mxCell>
+        <mxCell id="companies" value="companies&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fdebd0;strokeColor=#ca6f1e;" vertex="1" parent="1"><mxGeometry x="80" y="500" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="contract_products" value="contract_products&#xa;PK id&#xa;FK contract_id&#xa;FK product_service_id&#xa;unit_price&#xa;currency_code" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8daef;strokeColor=#7d3c98;" vertex="1" parent="1"><mxGeometry x="790" y="490" width="260" height="125" as="geometry"/></mxCell>
+        <mxCell id="products" value="products_services&#xa;PK id&#xa;FK company_id&#xa;FK category_id&#xa;FK cost_center_id&#xa;FK default_vendor_id nullable&#xa;status, is_active" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="790" y="250" width="280" height="150" as="geometry"/></mxCell>
+        <mxCell id="categories" value="categories&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;" vertex="1" parent="1"><mxGeometry x="1160" y="190" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="cost_centers" value="cost_centers&#xa;PK id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f4ecf7;strokeColor=#884ea0;" vertex="1" parent="1"><mxGeometry x="1160" y="310" width="190" height="70" as="geometry"/></mxCell>
+        <mxCell id="sat_efos" value="sat_efos_69b&#xa;catalogo SAT/EFOS&#xa;rfc, situacion" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eeeeee;strokeColor=#7f8c8d;" vertex="1" parent="1"><mxGeometry x="80" y="120" width="220" height="90" as="geometry"/></mxCell>
+        <mxCell id="sat_ret" value="sat_retenciones&#xa;catalogo SAT&#xa;clave, impuesto, porcentaje" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eeeeee;strokeColor=#7f8c8d;" vertex="1" parent="1"><mxGeometry x="1120" y="500" width="230" height="90" as="geometry"/></mxCell>
+        <mxCell id="e1" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;strokeWidth=3;" edge="1" parent="1" source="suppliers" target="docs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="sirocs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#7d3c98;strokeWidth=3;" edge="1" parent="1" source="suppliers" target="contracts"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#ca6f1e;" edge="1" parent="1" source="companies" target="contracts"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#7d3c98;strokeWidth=3;" edge="1" parent="1" source="contracts" target="contract_products"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#7d3c98;" edge="1" parent="1" source="products" target="contract_products"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="default vendor" style="endArrow=block;html=0;rounded=0;strokeColor=#239b56;" edge="1" parent="1" source="suppliers" target="products"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#ca6f1e;" edge="1" parent="1" source="companies" target="products"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#884ea0;" edge="1" parent="1" source="categories" target="products"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="1:N" style="endArrow=block;html=0;rounded=0;strokeColor=#884ea0;" edge="1" parent="1" source="cost_centers" target="products"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

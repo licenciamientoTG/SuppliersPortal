@@ -33,6 +33,11 @@ class Department extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function subaccounts()
+    {
+        return $this->belongsToMany(Subaccount::class, 'department_subaccount');
+    }
+
     
     /**
      * Devuelve los departamentos activos

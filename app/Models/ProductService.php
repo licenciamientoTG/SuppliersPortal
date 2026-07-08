@@ -139,6 +139,16 @@ class ProductService extends Model
         return $this->belongsToMany(BudgetCedula::class);
     }
 
+    public function accounts(): BelongsToMany
+    {
+        return $this->belongsToMany(Account::class, 'account_product_service');
+    }
+
+    public function subaccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(Subaccount::class, 'product_service_subaccount');
+    }
+
     // ==========================================
     // LÓGICA DE NEGOCIO
     // ==========================================
@@ -360,5 +370,16 @@ class ProductService extends Model
             ->whereNotNull('account_major')
             ->whereNotNull('account_sub')
             ->whereNotNull('account_subsub');
+    }
+
+    public function scopeWithAllowedSubaccounts($query, iterable $subaccountIds)
+    {
+        $ids = collect($subaccountIds)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('subaccounts', fn ($subquery) => $subquery->whereIn('subaccounts.id', $ids));
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\BudgetProfileHomologationService;
 
 class SyncTressUsers extends Command
 {
@@ -176,6 +177,7 @@ class SyncTressUsers extends Command
                             if ($employeeId && !$employee->user_id) {
                                 $employee->update(['user_id' => $user->id]);
                             }
+                            app(BudgetProfileHomologationService::class)->assignBudgetProfileFromEmployee($user, $employee);
                         }
                         $updatedUsers++;
                     }
@@ -192,6 +194,7 @@ class SyncTressUsers extends Command
                         if ($employeeId && !$employee->user_id) {
                             $employee->update(['user_id' => $user->id]);
                         }
+                        app(BudgetProfileHomologationService::class)->assignBudgetProfileFromEmployee($user, $employee);
                     }
                     $createdUsers++;
                 }

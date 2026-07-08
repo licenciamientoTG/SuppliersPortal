@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BudgetCedula;
 use App\Models\ExpenseCategory;
+use App\Services\AccountSubaccountSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,7 @@ class ExpenseCedulaCatalogController extends Controller
         $data['created_by'] = Auth::id();
 
         $category = ExpenseCategory::create($data);
+        app(AccountSubaccountSyncService::class)->syncFromLegacy();
 
         return response()->json([
             'success' => true,
@@ -74,6 +76,7 @@ class ExpenseCedulaCatalogController extends Controller
 
         try {
             $expenseCategory->update($data);
+            app(AccountSubaccountSyncService::class)->syncFromLegacy();
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 409);
         }
@@ -100,6 +103,7 @@ class ExpenseCedulaCatalogController extends Controller
         }
 
         $expenseCategory->delete();
+        app(AccountSubaccountSyncService::class)->syncFromLegacy();
 
         return response()->json(['success' => true, 'message' => 'Categoría eliminada correctamente.']);
     }
@@ -126,6 +130,7 @@ class ExpenseCedulaCatalogController extends Controller
         $data['created_by'] = Auth::id();
 
         $cedula = BudgetCedula::create($data);
+        app(AccountSubaccountSyncService::class)->syncFromLegacy();
 
         return response()->json([
             'success' => true,
@@ -149,6 +154,7 @@ class ExpenseCedulaCatalogController extends Controller
 
         try {
             $budgetCedula->update($data);
+            app(AccountSubaccountSyncService::class)->syncFromLegacy();
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 409);
         }
@@ -169,6 +175,7 @@ class ExpenseCedulaCatalogController extends Controller
         }
 
         $budgetCedula->delete();
+        app(AccountSubaccountSyncService::class)->syncFromLegacy();
 
         return response()->json(['success' => true, 'message' => 'Cédula eliminada correctamente.']);
     }

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -26,6 +28,8 @@ class User extends Authenticatable
         'avatar',
         'phone',
         'job_title',
+        'department_id',
+        'budget_profile_id',
         'last_login',
     ];
 
@@ -53,6 +57,21 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function budgetProfile(): BelongsTo
+    {
+        return $this->belongsTo(BudgetProfile::class);
+    }
+
+    public function subaccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(Subaccount::class, 'subaccount_user');
     }
 
     public function authorizerAssignment(): HasOne

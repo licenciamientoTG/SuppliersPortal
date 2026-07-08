@@ -6,6 +6,16 @@ use App\Models\User;
 
 class ModuleAccessService
 {
+    private const MODULE_PERMISSIONS = [
+        'dashboard' => null,
+        'requisitions' => 'requisiciones.ver',
+        'products_services' => 'productos.ver',
+        'budget_control' => 'catalogo_cuentas.ver',
+        'catalogs_config' => 'departamentos.administrar',
+        'staff_users' => 'usuarios.ver',
+        'employees' => 'usuarios.ver',
+    ];
+
     public function rolesForModule(string $module): array
     {
         return config("module_access.modules.{$module}.roles", []);
@@ -42,6 +52,11 @@ class ModuleAccessService
 
         if (! $this->moduleExists($module)) {
             return false;
+        }
+
+        $permission = self::MODULE_PERMISSIONS[$module] ?? null;
+        if ($permission && $user->can($permission)) {
+            return true;
         }
 
         $allowedRoles = $this->normalizeRoles($this->rolesForModule($module));

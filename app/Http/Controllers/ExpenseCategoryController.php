@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AnnualBudget;
 use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
+use App\Services\AccountSubaccountSyncService;
 use App\Services\BudgetCedulaCatalogService;
 use App\Services\BudgetCategorySummaryService;
 use Illuminate\Http\JsonResponse;
@@ -53,6 +54,7 @@ class ExpenseCategoryController extends Controller
                 'status' => 'ACTIVO',
                 'created_by' => Auth::id(),
             ]);
+            app(AccountSubaccountSyncService::class)->syncFromLegacy();
 
             return response()->json([
                 'success' => true,

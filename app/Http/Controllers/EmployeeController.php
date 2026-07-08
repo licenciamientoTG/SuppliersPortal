@@ -7,6 +7,7 @@ use App\Models\EmployeeEvent;
 use App\Models\User;
 use App\Notifications\StaffWelcomeNotification;
 use App\Rules\AllowedEmailDomain;
+use App\Services\BudgetProfileHomologationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -134,6 +135,7 @@ class EmployeeController extends Controller
             }
 
             $employee->update(['user_id' => $user->id]);
+            app(BudgetProfileHomologationService::class)->assignBudgetProfileFromEmployee($user, $employee);
 
             $user->notify(new StaffWelcomeNotification($plainPassword));
         });
