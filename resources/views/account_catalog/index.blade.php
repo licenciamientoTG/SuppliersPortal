@@ -40,17 +40,11 @@
     @endif
 
     <div class="card">
-        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="card-header">
             <div>
                 <h5 class="mb-0"><i class="ti ti-abacus me-1"></i>Catálogo de cuentas y subcuentas</h5>
                 <small class="text-muted">Los números de cuenta y subcuenta son la clasificación presupuestal ligada a productos y partidas.</small>
             </div>
-            <form method="POST" action="{{ route('accounts.sync') }}">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-outline-primary">
-                    <i class="ti ti-refresh me-1"></i>Sincronizar legacy
-                </button>
-            </form>
         </div>
         <div class="card-body">
             <div class="accordion" id="accountsAccordion">
@@ -241,7 +235,7 @@
                             <td><code>${product.code || ''}</code></td>
                             <td>${product.name || ''}</td>
                             <td>${product.type || ''}</td>
-                            <td>${badge} <span class="text-muted small">${product.status || ''}</span></td>
+                            <td>${badge}</td>
                         </tr>
                     `);
                 });
