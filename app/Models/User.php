@@ -4,11 +4,11 @@ namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -74,6 +74,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Subaccount::class, 'subaccount_user');
     }
 
+    public function budgetProfiles(): BelongsToMany
+    {
+        return $this->belongsToMany(BudgetProfile::class, 'budget_profile_user');
+    }
+
     public function authorizerAssignment(): HasOne
     {
         return $this->hasOne(UserAuthorizerRole::class);
@@ -103,7 +108,7 @@ class User extends Authenticatable
 
     public function getFullNameAttribute(): string
     {
-        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')) ?: ($this->name ?? '');
+        return trim(($this->first_name ?? '').' '.($this->last_name ?? '')) ?: ($this->name ?? '');
     }
 
     public function isSupplier(): bool

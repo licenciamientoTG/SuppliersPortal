@@ -307,7 +307,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'storeProfile')->name('store');
                 Route::put('/{budgetProfile}', 'updateProfile')->name('update');
-                Route::patch('/departments/{department}', 'updateDepartment')->name('departments.update');
             });
     });
 

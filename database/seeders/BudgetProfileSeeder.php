@@ -20,13 +20,16 @@ class BudgetProfileSeeder extends Seeder
                     $profile = BudgetProfile::query()->firstOrCreate(
                         ['key' => $definition['key']],
                         [
+                            'department_id' => $department->id,
                             'name' => $definition['name'],
                             'description' => $definition['description'],
                             'is_active' => true,
                         ]
                     );
 
-                    $department->budgetProfiles()->syncWithoutDetaching([$profile->id]);
+                    if (! $profile->department_id) {
+                        $profile->forceFill(['department_id' => $department->id])->save();
+                    }
                 }
             });
     }

@@ -4,20 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\AuthorizerException;
 use App\Models\AuthorizerRole;
+use App\Models\BudgetProfile;
 use App\Models\Company;
 use App\Models\CostCenter;
+use App\Models\Department;
 use App\Models\User;
-use App\Support\SupplierFiscalCatalog;
 use App\Models\UserAuthorizerRole;
+use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
@@ -231,12 +233,17 @@ class UserController extends Controller
         $user = new User;
         $roles = Role::orderBy('name')->get(['id', 'name']);
         $authorizerRoles = AuthorizerRole::where('is_active', true)->orderBy('display_order')->orderBy('name')->get(['id', 'name']);
+        $departments = Department::active()->orderBy('name')->get(['id', 'name']);
+        $budgetProfiles = BudgetProfile::active()->with('department:id,name')->orderBy('department_id')->orderBy('name')->get(['id', 'department_id', 'name']);
 
         if (request()->ajax()) {
             return view('users.staff.partials.form', [
                 'user' => $user,
                 'roles' => $roles,
                 'authorizerRoles' => $authorizerRoles,
+                'departments' => $departments,
+                'budgetProfiles' => $budgetProfiles,
+                'userBudgetProfiles' => collect(),
                 'userRoles' => collect(),
                 'mode' => 'create',
                 'action' => route('users.store'),
@@ -245,7 +252,10 @@ class UserController extends Controller
             ]);
         }
 
-        return view('users.staff.partials.form', compact('user', 'roles', 'authorizerRoles') + ['userRoles' => collect()]);
+        return view('users.staff.partials.form', compact('user', 'roles', 'authorizerRoles', 'departments', 'budgetProfiles') + [
+            'userRoles' => collect(),
+            'userBudgetProfiles' => collect(),
+        ]);
     }
 
     public function store(Request $request)
@@ -258,6 +268,9 @@ class UserController extends Controller
             'password' => ['required', Password::defaults()],
             'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:120'],
+            'department_id' => ['nullable', 'exists:departments,id'],
+            'budget_profile_ids' => ['nullable', 'array'],
+            'budget_profile_ids.*' => ['integer', 'exists:budget_profiles,id'],
             'is_active' => ['nullable', 'boolean'],
             'avatar' => ['nullable', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp'],
             'roles' => ['nullable', 'array'],
@@ -275,7 +288,7 @@ class UserController extends Controller
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
 
         DB::transaction(function () use ($request, $validated) {
-            $user = User::create(Arr::except($validated, ['avatar', 'roles']));
+            $user = User::create(Arr::except($validated, ['avatar', 'roles', 'budget_profile_ids']));
 
             if ($request->hasFile('avatar')) {
                 $path = $request->file('avatar')->store("users/{$user->id}/avatar", 'public');
@@ -286,6 +299,7 @@ class UserController extends Controller
                 $user->syncRoles($validated['roles']);
             }
 
+            $this->syncBudgetProfiles($user, $validated);
             $this->syncAuthorizerData($user, $validated);
         });
 
@@ -303,14 +317,20 @@ class UserController extends Controller
     {
         $roles = Role::orderBy('name')->get(['id', 'name']);
         $authorizerRoles = AuthorizerRole::where('is_active', true)->orderBy('display_order')->orderBy('name')->get(['id', 'name']);
+        $departments = Department::active()->orderBy('name')->get(['id', 'name']);
+        $budgetProfiles = BudgetProfile::active()->with('department:id,name')->orderBy('department_id')->orderBy('name')->get(['id', 'department_id', 'name']);
         $userRoles = $user->roles->pluck('name');
-        $user->loadMissing('authorizerAssignment.authorizerRole', 'activeAuthorizerException');
+        $user->loadMissing('authorizerAssignment.authorizerRole', 'activeAuthorizerException', 'budgetProfiles:id');
+        $userBudgetProfiles = $user->budgetProfiles->pluck('id');
 
         return view('users.staff.partials.form', [
             'user' => $user,
             'roles' => $roles,
             'authorizerRoles' => $authorizerRoles,
+            'departments' => $departments,
+            'budgetProfiles' => $budgetProfiles,
             'userRoles' => $userRoles,
+            'userBudgetProfiles' => $userBudgetProfiles,
             'mode' => 'edit',
             'action' => route('users.update', $user),
             'method' => 'PUT',
@@ -328,6 +348,9 @@ class UserController extends Controller
             'password' => ['nullable', Password::defaults()],
             'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:100'],
+            'department_id' => ['nullable', 'exists:departments,id'],
+            'budget_profile_ids' => ['nullable', 'array'],
+            'budget_profile_ids.*' => ['integer', 'exists:budget_profiles,id'],
             'is_active' => ['nullable', 'boolean'],
             'avatar' => ['nullable', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp'],
             'remove_avatar' => ['nullable', 'boolean'],
@@ -353,6 +376,7 @@ class UserController extends Controller
             $user->email = $validated['email'];
             $user->phone = $validated['phone'] ?? $user->phone;
             $user->job_title = $validated['job_title'] ?? $user->job_title;
+            $user->department_id = $validated['department_id'] ?? null;
             $user->is_active = (bool) ($validated['is_active'] ?? false);
 
             if (! empty($validated['password'])) {
@@ -374,6 +398,7 @@ class UserController extends Controller
             $user->save();
 
             $user->syncRoles($validated['roles'] ?? []);
+            $this->syncBudgetProfiles($user, $validated);
             $this->syncAuthorizerData($user, $validated);
         });
 
@@ -449,6 +474,25 @@ class UserController extends Controller
                 ->where('is_active', true)
                 ->update(['is_active' => false, 'ends_at' => now()]);
         }
+    }
+
+    private function syncBudgetProfiles(User $user, array $validated): void
+    {
+        $departmentId = $validated['department_id'] ?? null;
+
+        if (! $departmentId) {
+            $user->budgetProfiles()->sync([]);
+
+            return;
+        }
+
+        $profileIds = BudgetProfile::query()
+            ->where('department_id', $departmentId)
+            ->whereIn('id', $validated['budget_profile_ids'] ?? [])
+            ->pluck('id')
+            ->all();
+
+        $user->budgetProfiles()->sync($profileIds);
     }
 
     public function toggleActive(User $user)

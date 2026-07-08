@@ -22,15 +22,14 @@ class BudgetProfileController extends Controller
             ->get();
 
         $profiles = BudgetProfile::query()
-            ->with(['subaccounts.account', 'departments:id,name'])
-            ->withCount(['subaccounts', 'departments'])
+            ->with(['department:id,name', 'subaccounts.account', 'users:id'])
+            ->withCount(['subaccounts', 'users'])
+            ->orderBy('department_id')
             ->orderBy('name')
             ->get();
 
         $departments = Department::query()
-            ->with(['budgetProfiles' => function ($query) {
-                $query->with(['subaccounts.account'])->orderBy('name');
-            }])
+            ->with(['budgetProfiles' => fn ($query) => $query->withCount(['subaccounts', 'users'])->orderBy('name')])
             ->orderBy('name')
             ->get();
 
@@ -57,25 +56,21 @@ class BudgetProfileController extends Controller
 
         $budgetProfile->update($data);
         $budgetProfile->subaccounts()->sync($request->input('subaccount_ids', []));
+        $invalidUserIds = $budgetProfile->users()
+            ->where('users.department_id', '!=', $budgetProfile->department_id)
+            ->pluck('users.id');
+
+        if ($invalidUserIds->isNotEmpty()) {
+            $budgetProfile->users()->detach($invalidUserIds);
+        }
 
         return back()->with('success', 'Perfil presupuestal actualizado correctamente.');
-    }
-
-    public function updateDepartment(Request $request, Department $department): RedirectResponse
-    {
-        $data = $request->validate([
-            'budget_profile_ids' => ['array'],
-            'budget_profile_ids.*' => ['integer', 'exists:budget_profiles,id'],
-        ]);
-
-        $department->budgetProfiles()->sync($data['budget_profile_ids'] ?? []);
-
-        return back()->with('success', 'Perfiles del departamento actualizados correctamente.');
     }
 
     private function validateProfile(Request $request, ?BudgetProfile $profile = null): array
     {
         return $request->validate([
+            'department_id' => ['required', 'exists:departments,id'],
             'key' => [
                 'required',
                 'string',

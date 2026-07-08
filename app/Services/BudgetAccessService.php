@@ -14,20 +14,32 @@ class BudgetAccessService
             return collect();
         }
 
-        if (! $user->department_id) {
-            return collect();
+        $ids = collect();
+
+        if ($user->department_id) {
+            $ids = $ids->merge(
+                Subaccount::query()
+                    ->active()
+                    ->whereHas('budgetProfiles', function ($query) use ($user) {
+                        $query
+                            ->active()
+                            ->where(function ($q) use ($user) {
+                                $q->whereHas('department', fn ($dq) => $dq->whereKey($user->department_id)->where('is_active', true))
+                                  ->orWhereHas('departments', fn ($dq) => $dq->whereKey($user->department_id)->where('is_active', true));
+                            })
+                            ->whereHas('users', fn ($userQuery) => $userQuery->whereKey($user->id));
+                    })
+                    ->pluck('subaccounts.id')
+            );
         }
 
-        return Subaccount::query()
-            ->active()
-            ->whereHas('budgetProfiles', function ($query) use ($user) {
-                $query
-                    ->active()
-                    ->whereHas('departments', fn ($departmentQuery) => $departmentQuery
-                        ->whereKey($user->department_id)
-                        ->where('departments.is_active', true));
-            })
-            ->pluck('subaccounts.id')
+        $ids = $ids->merge(
+            $user->subaccounts()
+                ->active()
+                ->pluck('subaccounts.id')
+        );
+
+        return $ids
             ->filter()
             ->unique()
             ->values();

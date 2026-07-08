@@ -11,6 +11,7 @@ class BudgetProfile extends Model
     use HasFactory;
 
     protected $fillable = [
+        'department_id',
         'key',
         'name',
         'description',
@@ -29,6 +30,16 @@ class BudgetProfile extends Model
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'budget_profile_department');
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'budget_profile_user');
     }
 
     public function scopeActive($query)
