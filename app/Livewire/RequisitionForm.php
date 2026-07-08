@@ -31,7 +31,6 @@ class RequisitionForm extends Component
 
     // ===== COLECCIONES =====
     public $companies = [];
-    public $purchaseTypes = [];
     public $receivingLocations = [];
     public $costCenterCatalog = [];
 
@@ -54,7 +53,6 @@ class RequisitionForm extends Component
     {
         // Cargar solo las compañías del usuario autenticado
         $this->companies = Auth::user()->companies()->orderBy('name')->get();
-        $this->purchaseTypes = PurchaseType::values();
 
         // Cargar ubicaciones de recepción activas
         $this->costCenterCatalog = Auth::user()->costCenters()

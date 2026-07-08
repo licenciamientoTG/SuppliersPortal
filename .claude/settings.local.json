@@ -75,7 +75,10 @@
       "Bash(curl -s -o /dev/null -w \"still up? %{http_code}\\\\n\" http://127.0.0.1:8777/login)",
       "Bash(curl -s -b cookies.txt __TRACKED_VAR__/products-services/create -o create.html -w 'create_http=%{http_code}\\\\n')",
       "Bash(pkill -f \"artisan serve --port=8777\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8777/login)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8777/login)",
+      "PowerShell(php -l app/Livewire/RequisitionForm.php)",
+      "PowerShell(if \\(Test-Path storage/debugbar\\) { $f = Get-ChildItem storage/debugbar -File; \"{0} archivos, {1:N1} MB\" -f $f.Count, \\(\\($f | Measure-Object Length -Sum\\).Sum / 1MB\\) } else { \"no existe storage/debugbar\" })",
+      "PowerShell(php artisan tinker \"C:\\\\Users\\\\ALFO~1.OCH\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-alfo-ochoa-Documents-Desarrollo-SuppliersPortal\\\\5b8bbc9b-3d06-49be-b571-6fd290d8c711\\\\scratchpad\\\\dbtiming.php\")"
     ]
   }
 }

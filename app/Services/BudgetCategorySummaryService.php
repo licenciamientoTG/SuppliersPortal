@@ -32,6 +32,12 @@ class BudgetCategorySummaryService
 
     public function groupDistributions(Collection $distributions): Collection
     {
+        // Los llamadores hacen eager load de budgetCedula.expenseCategory, pero aquí
+        // se usa la relación directa expenseCategory: cargarla evita un N+1 por categoría.
+        if ($distributions instanceof \Illuminate\Database\Eloquent\Collection) {
+            $distributions->loadMissing('expenseCategory');
+        }
+
         return $distributions
             ->groupBy(fn (BudgetMonthlyDistribution $distribution) => $distribution->expense_category_id)
             ->map(function (Collection $items) {
