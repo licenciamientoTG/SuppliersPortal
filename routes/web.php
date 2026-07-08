@@ -5,6 +5,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AnnualBudgetController;
 use App\Http\Controllers\ApprovalLevelController;
 use App\Http\Controllers\AuthorizerRoleController;
+use App\Http\Controllers\BudgetProfileController;
 use App\Http\Controllers\BudgetMonthlyDistributionController;
 use App\Http\Controllers\BudgetMovementController;
 use App\Http\Controllers\CategoryController;
@@ -280,6 +281,20 @@ Route::middleware(['auth', 'lock'])->group(function () {
             Route::put('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'updateCedula'])->name('cedulas.update');
             Route::delete('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'destroyCedula'])->name('cedulas.destroy');
         });
+
+        Route::middleware('can:catalogo_cuentas.editar')
+            ->prefix('budget-profiles')
+            ->name('budget-profiles.')
+            ->controller(BudgetProfileController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'storeProfile')->name('store');
+                Route::put('/{budgetProfile}', 'updateProfile')->name('update');
+                Route::post('/sync-positions', 'syncPositions')->name('sync-positions');
+                Route::patch('/positions/{position}', 'updatePosition')->name('positions.update');
+                Route::patch('/departments/{department}', 'updateDepartment')->name('departments.update');
+                Route::patch('/users/{user}', 'updateUser')->name('users.update');
+            });
     });
 
     Route::middleware('module.access:employees')->group(function () {

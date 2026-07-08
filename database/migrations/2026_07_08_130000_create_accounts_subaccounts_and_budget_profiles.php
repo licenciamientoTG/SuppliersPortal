@@ -5,7 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('accounts', function (Blueprint $table) {
@@ -17,9 +18,9 @@ return new class extends Migration {
             $table->string('account_category', 120)->nullable();
             $table->boolean('is_fixed_asset')->default(false);
             $table->boolean('is_active')->default(true);
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->noActionOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->noActionOnDelete();
+            $table->foreignId('deleted_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->softDeletes();
             $table->timestamps();
 
@@ -29,14 +30,14 @@ return new class extends Migration {
         Schema::create('subaccounts', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('legacy_budget_cedula_id')->nullable()->unique();
-            $table->foreignId('account_id')->constrained('accounts')->cascadeOnUpdate()->restrictOnDelete();
+            $table->foreignId('account_id')->constrained('accounts')->cascadeOnUpdate()->noActionOnDelete();
             $table->string('name', 200);
             $table->string('subaccount_category', 120)->nullable();
             $table->boolean('is_fixed_asset')->default(false);
             $table->boolean('is_active')->default(true);
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->noActionOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->noActionOnDelete();
+            $table->foreignId('deleted_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->softDeletes();
             $table->timestamps();
 

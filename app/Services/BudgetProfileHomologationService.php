@@ -86,6 +86,18 @@ class BudgetProfileHomologationService
                     ]
                 );
             });
+
+        Employee::query()
+            ->with('user')
+            ->where('is_active', 'SI')
+            ->whereNotNull('user_id')
+            ->whereNotNull('job_title')
+            ->get()
+            ->each(function (Employee $employee) {
+                if ($employee->user) {
+                    $this->assignBudgetProfileFromEmployee($employee->user, $employee);
+                }
+            });
     }
 
     public function assignBudgetProfileFromEmployee(User $user, ?Employee $employee = null): void

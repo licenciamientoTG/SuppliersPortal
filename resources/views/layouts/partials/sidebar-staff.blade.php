@@ -26,6 +26,7 @@
     $openBudget = request()->routeIs('annual_budgets.*')
         || request()->routeIs('budget_monthly_distributions.*')
         || request()->routeIs('budget_movements.*')
+        || request()->routeIs('budget-profiles.*')
         || request()->routeIs('cost-centers.*')
         || request()->routeIs('categories.*');
     $openPayments = request()->routeIs('invoices.*')
@@ -262,6 +263,12 @@
                 <a href="{{ route('expense-cedulas.index') }}"
                     class="side-nav-link {{ request()->routeIs('expense-cedulas.*') ? 'active' : '' }}">
                     <span class="menu-text">Cédulas de Gasto</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ route('budget-profiles.index') }}"
+                    class="side-nav-link {{ request()->routeIs('budget-profiles.*') ? 'active' : '' }}">
+                    <span class="menu-text">Perfiles presupuestales</span>
                 </a>
             </li>
             <li class="side-nav-item">
