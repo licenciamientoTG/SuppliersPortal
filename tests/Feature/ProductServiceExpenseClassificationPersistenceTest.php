@@ -37,7 +37,6 @@ class ProductServiceExpenseClassificationPersistenceTest extends TestCase
             'cost_center_id' => $costCenter->id,
             'unit_of_measure' => 'PIEZA',
             'estimated_price' => 100,
-            'expense_category_ids' => [$categoryA->id, $categoryB->id],
             'budget_cedula_ids' => [$cedulaA->id, $cedulaB->id],
             'is_inventoriable' => '1',
         ]);
@@ -45,6 +44,10 @@ class ProductServiceExpenseClassificationPersistenceTest extends TestCase
         $response->assertRedirect();
         $product = ProductService::latest('id')->first();
         $this->assertCount(2, $product->expenseCategories);
+        $this->assertEqualsCanonicalizing(
+            [$categoryA->id, $categoryB->id],
+            $product->expenseCategories->pluck('id')->all()
+        );
         $this->assertCount(2, $product->budgetCedulas);
         $this->assertTrue($product->is_inventoriable);
     }
@@ -88,7 +91,6 @@ class ProductServiceExpenseClassificationPersistenceTest extends TestCase
             'cost_center_id' => $costCenter->id,
             'unit_of_measure' => $product->unit_of_measure,
             'estimated_price' => $product->estimated_price,
-            'expense_category_ids' => [$categoryB->id],
             'budget_cedula_ids' => [$cedulaB->id],
             'is_inventoriable' => '1',
         ]);

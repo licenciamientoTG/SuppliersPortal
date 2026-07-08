@@ -13,6 +13,7 @@ Los formularios `products_services/create.blade.php` y `edit.blade.php` tienen d
 - El nuevo select de cédulas sigue siendo **multi-select** (un producto puede tener varias cédulas), igual que hoy.
 - `subcategory` se elimina también de la base de datos (columna en `products_services`), no solo de la vista.
 - `category_display` no es columna de BD; se elimina solo de la vista y su JS asociado.
+- Cualquier valor existente en `subcategory` se pierde de forma permanente al aplicar la migración (el campo estaba sin uso real en el formulario, por lo que no se preserva).
 
 ## Cambios
 
