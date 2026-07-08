@@ -101,36 +101,21 @@
                     </div>
 
                     <div class="row">
-                        {{-- Categorías de Gasto --}}
-                        <div class="col-md-6 mb-3">
-                            <label for="expense_category_ids" class="form-label">Categorías de Gasto</label>
-                            <select class="form-select @error('expense_category_ids') is-invalid @enderror"
-                                    id="expense_category_ids"
-                                    name="expense_category_ids[]"
-                                    multiple
-                                    style="width: 100%;">
-                                @foreach ($expenseCategories as $category)
-                                    <option value="{{ $category->id }}"
-                                        {{ collect(old('expense_category_ids', $selectedExpenseCategoryIds))->contains($category->id) ? 'selected' : '' }}>
-                                        [{{ $category->code }}] {{ $category->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('expense_category_ids')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
                         {{-- Cédulas de Gasto --}}
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
                             <label for="budget_cedula_ids" class="form-label">Cédulas de Gasto</label>
                             <select class="form-select @error('budget_cedula_ids') is-invalid @enderror"
                                     id="budget_cedula_ids"
                                     name="budget_cedula_ids[]"
                                     multiple
                                     style="width: 100%;">
+                                @foreach ($budgetCedulas as $cedula)
+                                    <option value="{{ $cedula->id }}"
+                                        {{ collect(old('budget_cedula_ids', $selectedBudgetCedulaIds))->contains($cedula->id) ? 'selected' : '' }}>
+                                        {{ $cedula->expenseCategory->code }} - {{ $cedula->name }}
+                                    </option>
+                                @endforeach
                             </select>
-                            <div class="form-text">Selecciona primero una o más categorías de gasto.</div>
                             @error('budget_cedula_ids')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
@@ -541,9 +526,6 @@
     </div>
 </form>
 
-    <script id="expense-cedulas-catalog" type="application/json">
-        {!! json_encode($expenseCategories->pluck('cedulas', 'id')->map(fn ($cedulas) => $cedulas->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}
-    </script>
 @endsection
 
 @push('scripts')
@@ -575,62 +557,13 @@
                 $('#company_id').trigger('change');
             }
 
-            // Multi-select Categorías de Gasto -> Cédulas de Gasto (sin AJAX, catálogo embebido)
-            const cedulasByCategory = JSON.parse(document.getElementById('expense-cedulas-catalog').textContent);
-
-            const $categorySelect = $('#expense_category_ids');
-            const $cedulaSelect = $('#budget_cedula_ids');
-
-            $categorySelect.select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Seleccione categorías...',
-                allowClear: true,
-                closeOnSelect: false,
-            });
-
-            $cedulaSelect.select2({
+            // Cédulas de Gasto (select2 simple, sin cascada de categorías)
+            $('#budget_cedula_ids').select2({
                 theme: 'bootstrap-5',
                 placeholder: 'Seleccione cédulas...',
                 allowClear: true,
                 closeOnSelect: false,
             });
-
-            function refreshCedulaOptions(preselectedCedulaIds) {
-                const selectedCategoryIds = ($categorySelect.val() || []).map(String);
-                const previouslySelected = preselectedCedulaIds !== undefined
-                    ? preselectedCedulaIds.map(String)
-                    : ($cedulaSelect.val() || []).map(String);
-
-                $cedulaSelect.empty();
-
-                selectedCategoryIds.forEach(function (categoryId) {
-                    const cedulas = cedulasByCategory[categoryId] || [];
-                    if (cedulas.length === 0) {
-                        return;
-                    }
-
-                    const categoryLabel = $categorySelect.find(`option[value="${categoryId}"]`).text().trim();
-                    const $optgroup = $('<optgroup>').attr('label', categoryLabel);
-
-                    cedulas.forEach(function (cedula) {
-                        const $option = $('<option>')
-                            .val(cedula.id)
-                            .text(cedula.name)
-                            .prop('selected', previouslySelected.includes(String(cedula.id)));
-                        $optgroup.append($option);
-                    });
-
-                    $cedulaSelect.append($optgroup);
-                });
-
-                $cedulaSelect.trigger('change');
-            }
-
-            $categorySelect.on('change', function () {
-                refreshCedulaOptions();
-            });
-
-            refreshCedulaOptions(@json(old('budget_cedula_ids', $selectedBudgetCedulaIds)));
 
             // Sugerir Inventariable según el tipo de producto
             $('#product_type').on('change', function () {

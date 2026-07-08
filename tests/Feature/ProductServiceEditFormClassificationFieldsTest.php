@@ -14,14 +14,14 @@ class ProductServiceEditFormClassificationFieldsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_edit_form_preselects_current_multi_classification(): void
+    public function test_edit_form_preselects_current_cedulas(): void
     {
         $user = User::factory()->create();
         $this->seed(RolePermissionSeeder::class);
         $user->assignRole('catalog_admin');
 
-        $categoryA = ExpenseCategory::factory()->create();
-        $categoryB = ExpenseCategory::factory()->create();
+        $categoryA = ExpenseCategory::factory()->create(['code' => 'MNT']);
+        $categoryB = ExpenseCategory::factory()->create(['code' => 'TEC']);
         $cedulaA = BudgetCedula::factory()->create(['expense_category_id' => $categoryA->id, 'name' => 'Cedula Precargada A']);
         $cedulaB = BudgetCedula::factory()->create(['expense_category_id' => $categoryB->id, 'name' => 'Cedula Precargada B']);
 
@@ -33,15 +33,15 @@ class ProductServiceEditFormClassificationFieldsTest extends TestCase
         $content = $response->getContent();
 
         $response->assertOk();
-        $response->assertSee('name="expense_category_ids[]"', false);
-        $response->assertSee('Cedula Precargada A', false);
-        $response->assertSee('Cedula Precargada B', false);
+        $response->assertDontSee('name="expense_category_ids[]"', false);
+        $response->assertSee('MNT - Cedula Precargada A', false);
+        $response->assertSee('TEC - Cedula Precargada B', false);
         $this->assertMatchesRegularExpression(
-            '/<option value="' . $categoryA->id . '"\s+selected/',
+            '/<option value="' . $cedulaA->id . '"\s+selected/',
             $content
         );
         $this->assertMatchesRegularExpression(
-            '/<option value="' . $categoryB->id . '"\s+selected/',
+            '/<option value="' . $cedulaB->id . '"\s+selected/',
             $content
         );
     }

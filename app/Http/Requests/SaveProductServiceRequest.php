@@ -26,8 +26,6 @@ class SaveProductServiceRequest extends FormRequest
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
             
             // Clasificación
-            'expense_category_ids' => 'nullable|array',
-            'expense_category_ids.*' => 'integer|exists:expense_categories,id',
             'budget_cedula_ids' => 'nullable|array',
             'budget_cedula_ids.*' => 'integer|exists:budget_cedulas,id',
             'is_inventoriable' => 'boolean',
@@ -70,8 +68,6 @@ class SaveProductServiceRequest extends FormRequest
             'technical_description' => 'descripción técnica',
             'short_name' => 'nombre corto',
             'product_type' => 'tipo de producto',
-            'expense_category_ids' => 'categorías de gasto',
-            'expense_category_ids.*' => 'categoría de gasto',
             'budget_cedula_ids' => 'cédulas de gasto',
             'budget_cedula_ids.*' => 'cédula de gasto',
             'is_inventoriable' => 'inventariable',
@@ -132,25 +128,6 @@ class SaveProductServiceRequest extends FormRequest
                 }
                 if (!$hasSubsub) {
                     $validator->errors()->add('account_subsub', 'Si proporciona estructura contable, la Subsubcuenta es obligatoria.');
-                }
-            }
-
-            // Validar que cada cédula pertenezca a alguna de las categorías de gasto seleccionadas
-            $selectedCategoryIds = collect($this->input('expense_category_ids', []))
-                ->map(fn ($id) => (int) $id);
-            $selectedCedulaIds = collect($this->input('budget_cedula_ids', []));
-
-            if ($selectedCedulaIds->isNotEmpty()) {
-                $invalidCedulaNames = \App\Models\BudgetCedula::whereIn('id', $selectedCedulaIds)
-                    ->whereNotIn('expense_category_id', $selectedCategoryIds)
-                    ->pluck('name');
-
-                if ($invalidCedulaNames->isNotEmpty()) {
-                    $validator->errors()->add(
-                        'budget_cedula_ids',
-                        'Las siguientes cédulas no pertenecen a ninguna categoría de gasto seleccionada: '
-                            . $invalidCedulaNames->implode(', ') . '.'
-                    );
                 }
             }
         });

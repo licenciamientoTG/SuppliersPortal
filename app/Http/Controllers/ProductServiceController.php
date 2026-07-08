@@ -159,10 +159,12 @@ class ProductServiceController extends Controller
             'MES' => 'Mes',
         ];
 
-        $expenseCategories = \App\Models\ExpenseCategory::active()
-            ->with(['cedulas' => fn ($q) => $q->active()->notDeleted()->orderBy('name')])
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
+        $budgetCedulas = \App\Models\BudgetCedula::active()->notDeleted()
+            ->whereHas('expenseCategory', fn ($q) => $q->active())
+            ->with('expenseCategory:id,code,name')
+            ->get()
+            ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
+            ->values();
 
         return view('products_services.create', compact(
             'productService',
@@ -172,7 +174,7 @@ class ProductServiceController extends Controller
             'statusOpts',
             'selectedCompanyId',
             'unitsOfMeasure',
-            'expenseCategories'
+            'budgetCedulas'
         ));
     }
 
@@ -233,8 +235,13 @@ class ProductServiceController extends Controller
             ]);
             $productService->save();
 
-            $productService->expenseCategories()->sync($data['expense_category_ids'] ?? []);
-            $productService->budgetCedulas()->sync($data['budget_cedula_ids'] ?? []);
+            $budgetCedulaIds = $data['budget_cedula_ids'] ?? [];
+            $productService->budgetCedulas()->sync($budgetCedulaIds);
+
+            $expenseCategoryIds = \App\Models\BudgetCedula::whereIn('id', $budgetCedulaIds)
+                ->pluck('expense_category_id')
+                ->unique();
+            $productService->expenseCategories()->sync($expenseCategoryIds);
 
             return redirect()
                 ->route('products-services.show', $productService)
@@ -286,12 +293,13 @@ class ProductServiceController extends Controller
             'MES' => 'Mes',
         ];
 
-        $expenseCategories = \App\Models\ExpenseCategory::active()
-            ->with(['cedulas' => fn ($q) => $q->active()->notDeleted()->orderBy('name')])
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
+        $budgetCedulas = \App\Models\BudgetCedula::active()->notDeleted()
+            ->whereHas('expenseCategory', fn ($q) => $q->active())
+            ->with('expenseCategory:id,code,name')
+            ->get()
+            ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
+            ->values();
 
-        $selectedExpenseCategoryIds = $productService->expenseCategories->pluck('id')->all();
         $selectedBudgetCedulaIds = $productService->budgetCedulas->pluck('id')->all();
 
         return view('products_services.edit', compact(
@@ -302,8 +310,7 @@ class ProductServiceController extends Controller
             'statusOpts',
             'selectedCompanyId',
             'unitsOfMeasure',
-            'expenseCategories',
-            'selectedExpenseCategoryIds',
+            'budgetCedulas',
             'selectedBudgetCedulaIds'
         ));
     }
@@ -367,8 +374,13 @@ class ProductServiceController extends Controller
 
             $productService->save();
 
-            $productService->expenseCategories()->sync($data['expense_category_ids'] ?? []);
-            $productService->budgetCedulas()->sync($data['budget_cedula_ids'] ?? []);
+            $budgetCedulaIds = $data['budget_cedula_ids'] ?? [];
+            $productService->budgetCedulas()->sync($budgetCedulaIds);
+
+            $expenseCategoryIds = \App\Models\BudgetCedula::whereIn('id', $budgetCedulaIds)
+                ->pluck('expense_category_id')
+                ->unique();
+            $productService->expenseCategories()->sync($expenseCategoryIds);
 
             return redirect()
                 ->route('products-services.show', $productService)
