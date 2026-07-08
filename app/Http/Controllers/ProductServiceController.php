@@ -170,7 +170,7 @@ class ProductServiceController extends Controller
 
         $budgetCedulas = \App\Models\BudgetCedula::active()->notDeleted()
             ->whereHas('expenseCategory', fn ($q) => $q->active())
-            ->with('expenseCategory:id,code,name')
+            ->with(['expenseCategory:id,code,name', 'subaccount:id,legacy_budget_cedula_id,code'])
             ->get()
             ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
             ->values();
@@ -311,7 +311,7 @@ class ProductServiceController extends Controller
 
         $budgetCedulas = \App\Models\BudgetCedula::active()->notDeleted()
             ->whereHas('expenseCategory', fn ($q) => $q->active())
-            ->with('expenseCategory:id,code,name')
+            ->with(['expenseCategory:id,code,name', 'subaccount:id,legacy_budget_cedula_id,code'])
             ->get()
             ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
             ->values();
@@ -801,3 +801,4 @@ class ProductServiceController extends Controller
         return $costCenter;
     }
 }
+

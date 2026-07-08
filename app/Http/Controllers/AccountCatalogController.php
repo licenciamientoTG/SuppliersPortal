@@ -17,7 +17,9 @@ class AccountCatalogController extends Controller
     {
         $accounts = Account::query()
             ->with([
+                'productServices:id,code,short_name,technical_description,product_type,status,is_active',
                 'subaccounts' => fn ($query) => $query
+                    ->with(['productServices:id,code,short_name,technical_description,product_type,status,is_active'])
                     ->withCount(['productServices', 'budgetProfiles', 'departments', 'users'])
                     ->orderBy('name'),
             ])

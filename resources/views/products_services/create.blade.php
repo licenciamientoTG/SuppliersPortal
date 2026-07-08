@@ -99,29 +99,14 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        {{-- Cédulas de Gasto --}}
-                        <div class="col-md-12 mb-3">
-                            <label for="budget_cedula_ids" class="form-label">Cédulas de Gasto</label>
-                            <select class="form-select @error('budget_cedula_ids') is-invalid @enderror"
-                                    id="budget_cedula_ids"
-                                    name="budget_cedula_ids[]"
-                                    multiple
-                                    style="width: 100%;">
-                                @foreach ($budgetCedulas as $cedula)
-                                    <option value="{{ $cedula->id }}"
-                                        {{ collect(old('budget_cedula_ids', []))->contains($cedula->id) ? 'selected' : '' }}>
-                                        {{ $cedula->expenseCategory->code }} - {{ $cedula->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('budget_cedula_ids')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    {{-- Inventariable --}}
+                        @include('products_services.partials.budget-cedula-selector', [
+                            'selectorId' => 'budget-cedula-selector-create',
+                            'budgetCedulas' => $budgetCedulas,
+                            'selectedIds' => collect(old('budget_cedula_ids', [])),
+                        ])
+                        @error('budget_cedula_ids')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input" type="checkbox" role="switch"
                                id="is_inventoriable" name="is_inventoriable" value="1"
@@ -490,14 +475,7 @@
             if ($('#company_id').val()) {
                 $('#company_id').trigger('change');
             }
-
-            // Cédulas de Gasto (select2 simple, sin cascada de categorías)
-            $('#budget_cedula_ids').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Seleccione cédulas...',
-                allowClear: true,
-                closeOnSelect: false,
-            });
+            initializeBudgetCedulaSelector('#budget-cedula-selector-create');
 
             // Sugerir Inventariable según el tipo de producto
             $('#product_type').on('change', function () {
@@ -525,3 +503,4 @@
         });
     </script>
 @endpush
+

@@ -51,7 +51,18 @@
                                 <span class="fw-semibold me-2">{{ $account->code }}</span>
                                 <span>{{ $account->name }}</span>
                                 <span class="badge bg-light text-dark border ms-3">{{ $account->subaccounts_count }} subcuentas</span>
-                                <span class="badge bg-light text-dark border ms-1">{{ $account->product_services_count }} productos</span>
+                                <span class="badge bg-light text-dark border ms-1 js-products-modal"
+                                      role="button"
+                                      data-title="Productos de {{ $account->code }} - {{ $account->name }}"
+                                      data-products='@json($account->productServices->map(fn ($product) => [
+                                          'code' => $product->code,
+                                          'name' => $product->short_name ?: Str::limit($product->technical_description, 120),
+                                          'type' => $product->product_type,
+                                          'status' => $product->status,
+                                          'active' => (bool) $product->is_active,
+                                      ])->values(), JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+                                    {{ $account->product_services_count }} productos
+                                </span>
                                 @unless ($account->is_active)
                                     <span class="badge bg-secondary ms-1">Inactiva</span>
                                 @endunless
@@ -131,7 +142,20 @@
                                                         <td style="min-width: 180px;">
                                                             <input type="text" name="subaccount_category" class="form-control form-control-sm" value="{{ $subaccount->subaccount_category }}">
                                                         </td>
-                                                        <td class="text-center">{{ $subaccount->product_services_count }}</td>
+                                                        <td class="text-center">
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-link p-0 js-products-modal"
+                                                                    data-title="Productos de {{ $subaccount->code }} - {{ $subaccount->name }}"
+                                                                    data-products='@json($subaccount->productServices->map(fn ($product) => [
+                                                                        'code' => $product->code,
+                                                                        'name' => $product->short_name ?: Str::limit($product->technical_description, 120),
+                                                                        'type' => $product->product_type,
+                                                                        'status' => $product->status,
+                                                                        'active' => (bool) $product->is_active,
+                                                                    ])->values(), JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+                                                                {{ $subaccount->product_services_count }}
+                                                            </button>
+                                                        </td>
                                                         <td class="text-center">{{ $subaccount->budget_profiles_count }}</td>
                                                         <td class="text-center">{{ $subaccount->departments_count }}</td>
                                                         <td class="text-center">{{ $subaccount->users_count }}</td>
@@ -164,4 +188,85 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="accountProductsModal" tabindex="-1" aria-labelledby="accountProductsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="accountProductsModalLabel">Productos asociados</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text"><i class="ti ti-search"></i></span>
+                        <input type="search" class="form-control" id="accountProductsFilter" placeholder="Filtrar productos...">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th>Tipo</th>
+                                    <th>Estatus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountProductsTable"></tbody>
+                        </table>
+                    </div>
+                    <div class="text-center text-muted py-4 d-none" id="accountProductsEmpty">
+                        No hay productos para mostrar.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+    <script>
+        $(function() {
+            let currentProducts = [];
+            const modal = new bootstrap.Modal(document.getElementById('accountProductsModal'));
+
+            function renderProducts() {
+                const term = $('#accountProductsFilter').val().toLowerCase().trim();
+                const rows = currentProducts.filter(function(product) {
+                    const haystack = `${product.code} ${product.name} ${product.type} ${product.status}`.toLowerCase();
+                    return !term || haystack.includes(term);
+                });
+
+                $('#accountProductsTable').empty();
+                $('#accountProductsEmpty').toggleClass('d-none', rows.length > 0);
+
+                rows.forEach(function(product) {
+                    const badge = product.active
+                        ? '<span class="badge bg-success">Activo</span>'
+                        : '<span class="badge bg-secondary">Inactivo</span>';
+
+                    $('#accountProductsTable').append(`
+                        <tr>
+                            <td><code>${product.code || ''}</code></td>
+                            <td>${product.name || ''}</td>
+                            <td>${product.type || ''}</td>
+                            <td>${badge} <span class="text-muted small">${product.status || ''}</span></td>
+                        </tr>
+                    `);
+                });
+            }
+
+            $(document).on('click', '.js-products-modal', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                currentProducts = $(this).data('products') || [];
+                $('#accountProductsModalLabel').text($(this).data('title') || 'Productos asociados');
+                $('#accountProductsFilter').val('');
+                renderProducts();
+                modal.show();
+            });
+
+            $('#accountProductsFilter').on('input', renderProducts);
+        });
+    </script>
+@endpush

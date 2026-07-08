@@ -59,6 +59,11 @@ class BudgetCedula extends Model
         return $this->belongsToMany(ProductService::class);
     }
 
+    public function subaccount()
+    {
+        return $this->hasOne(Subaccount::class, 'legacy_budget_cedula_id');
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
