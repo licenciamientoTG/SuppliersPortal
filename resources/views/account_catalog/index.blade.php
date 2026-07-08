@@ -8,6 +8,18 @@
 @endsection
 
 @section('content')
+    @php
+        $productsPayload = function ($products): string {
+            return $products->map(fn ($product) => [
+                'code' => $product->code,
+                'name' => $product->short_name ?: Str::limit($product->technical_description, 120),
+                'type' => $product->product_type,
+                'status' => $product->status,
+                'active' => (bool) $product->is_active,
+            ])->values()->toJson(JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+        };
+    @endphp
+
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="ti ti-check me-1"></i>{{ session('success') }}
@@ -54,13 +66,7 @@
                                 <span class="badge bg-light text-dark border ms-1 js-products-modal"
                                       role="button"
                                       data-title="Productos de {{ $account->code }} - {{ $account->name }}"
-                                      data-products='@json($account->productServices->map(fn ($product) => [
-                                          'code' => $product->code,
-                                          'name' => $product->short_name ?: Str::limit($product->technical_description, 120),
-                                          'type' => $product->product_type,
-                                          'status' => $product->status,
-                                          'active' => (bool) $product->is_active,
-                                      ])->values(), JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+                                      data-products='{{ $productsPayload($account->productServices) }}'>
                                     {{ $account->product_services_count }} productos
                                 </span>
                                 @unless ($account->is_active)
@@ -146,13 +152,7 @@
                                                             <button type="button"
                                                                     class="btn btn-sm btn-link p-0 js-products-modal"
                                                                     data-title="Productos de {{ $subaccount->code }} - {{ $subaccount->name }}"
-                                                                    data-products='@json($subaccount->productServices->map(fn ($product) => [
-                                                                        'code' => $product->code,
-                                                                        'name' => $product->short_name ?: Str::limit($product->technical_description, 120),
-                                                                        'type' => $product->product_type,
-                                                                        'status' => $product->status,
-                                                                        'active' => (bool) $product->is_active,
-                                                                    ])->values(), JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
+                                                                    data-products='{{ $productsPayload($subaccount->productServices) }}'>
                                                                 {{ $subaccount->product_services_count }}
                                                             </button>
                                                         </td>
