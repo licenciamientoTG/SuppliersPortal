@@ -285,6 +285,7 @@
                                         <span id="product_code_display"></span>
                                         <span id="product_brand_model" style="display:none;"></span>
                                     </div>
+                                    <div id="product_budget_classification" class="small text-muted mt-2"></div>
                                 </div>
                             </div>
                         </div>
@@ -1161,6 +1162,7 @@ $(function() {
 
         setTimeout(() => {
             $('#modal_product_id').val(item.product_id).trigger('change');
+            applySelectedProductClassification();
             $('#modal_description').val(item.description);
             $('#modal_quantity').val(item.quantity);
             $('#modal_unit').val(item.unit);
@@ -1206,6 +1208,7 @@ $(function() {
                             'data-model': product.model || '',
                             'data-type': product.product_type || 'PRODUCTO'
                         });
+                        $option.data('budget-classification', product.budget_classification || null);
                         $('#modal_product_id').append($option);
                     });
 
@@ -1224,7 +1227,48 @@ $(function() {
     // =====================================================
     // 4. INICIALIZAR SELECT2
     // =====================================================
+    function hideManualBudgetSelectors() {
+        $('#modal_expense_category').closest('.mb-3').hide();
+        $('#modal_budget_cedula').closest('.mb-3').hide();
+    }
+
+    function selectedProductClassification() {
+        const classification = $('#modal_product_id option:selected').data('budget-classification');
+
+        return classification || null;
+    }
+
+    function applySelectedProductClassification() {
+        const classification = selectedProductClassification();
+
+        if (!classification) {
+            $('#modal_expense_category').empty().append('<option value=""></option>').val('');
+            $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
+            $('#product_budget_classification').html('<span class="text-danger">El producto no tiene subcuenta presupuestal asignada.</span>');
+
+            return false;
+        }
+
+        $('#modal_expense_category')
+            .empty()
+            .append(`<option value="${classification.expense_category_id}">${classification.expense_category_name}</option>`)
+            .val(String(classification.expense_category_id));
+
+        $('#modal_budget_cedula')
+            .empty()
+            .append(`<option value="${classification.budget_cedula_id}">${classification.budget_cedula_name}</option>`)
+            .val(String(classification.budget_cedula_id));
+
+        $('#product_budget_classification').html(
+            `<span class="fw-semibold">Cuenta/Subcuenta inferida:</span> ${classification.expense_category_name} / ${classification.budget_cedula_name}`
+        );
+
+        return true;
+    }
+
     function initializeProductSelect2() {
+        hideManualBudgetSelectors();
+
         if ($('#modal_product_id').data('select2')) {
             $('#modal_product_id').select2('destroy');
         }
@@ -1276,7 +1320,14 @@ $(function() {
                 $('#product_brand_model').hide();
             }
 
+            applySelectedProductClassification();
             $('#product_info').show();
+        });
+
+        $('#modal_product_id').on('select2:clear', function() {
+            $('#modal_expense_category').empty().append('<option value=""></option>').val('');
+            $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
+            $('#product_budget_classification').empty();
         });
     }
 
@@ -1630,6 +1681,7 @@ $(function() {
 
         setTimeout(() => {
             $('#modal_product_id').val(item.product_id).trigger('change');
+            applySelectedProductClassification();
             $('#modal_description').val(item.description);
             $('#modal_quantity').val(item.quantity);
             $('#modal_unit').val(item.unit);
@@ -1669,8 +1721,9 @@ $(function() {
         const costCenterName = $('#modal_cost_center_id option:selected').data('name') || '';
         const productId      = $('#modal_product_id').val();
         const quantity       = parseFloat($('#modal_quantity').val());
-        const categoryId     = $('#modal_expense_category').val();
-        const budgetCedulaId = $('#modal_budget_cedula').val();
+        const classification = selectedProductClassification();
+        const categoryId     = classification?.expense_category_id || '';
+        const budgetCedulaId = classification?.budget_cedula_id || '';
 
         if (!purchaseType) {
             Swal.fire('Campo requerido', 'Selecciona el tipo de compra de esta partida.', 'error');
@@ -1692,13 +1745,8 @@ $(function() {
             return;
         }
 
-        if (!categoryId) {
-            Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
-            return;
-        }
-
-        if (!budgetCedulaId) {
-            Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+        if (!classification) {
+            Swal.fire('Error', 'El producto no tiene subcuenta presupuestal asignada.', 'error');
             return;
         }
 
@@ -1732,9 +1780,11 @@ $(function() {
             quantity:              quantity,
             unit:                  $('#modal_unit').val(),
             expense_category_id:   categoryId,
-            expense_category_name: $('#modal_expense_category option:selected').text(),
+            expense_category_name: classification.expense_category_name,
             budget_cedula_id:      budgetCedulaId,
-            budget_cedula_name:    $('#modal_budget_cedula option:selected').text(),
+            budget_cedula_name:    classification.budget_cedula_name,
+            account_name:          classification.account_name || '',
+            subaccount_name:       classification.subaccount_name || '',
             cost_center_id:        costCenterId,
             cost_center_name:      costCenterName,
             purchase_type:         purchaseType,

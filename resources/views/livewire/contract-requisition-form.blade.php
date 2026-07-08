@@ -84,27 +84,19 @@
                 @error('newItem.cost_center_id')<div class="text-danger small">{{ $message }}</div>@enderror
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label" for="expense-cat-select">Categoria de gasto <span class="text-danger">*</span></label>
-                <select id="expense-cat-select" wire:model.live="newItem.expense_category_id" class="form-select">
-                    <option value="">Seleccionar...</option>
-                    @foreach ($expenseCategories as $cat)
-                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                    @endforeach
-                </select>
-                @error('newItem.expense_category_id')<div class="text-danger small">{{ $message }}</div>@enderror
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label" for="budget-cedula-select">Cedula presupuestal <span class="text-danger">*</span></label>
-                <select id="budget-cedula-select" wire:model="newItem.budget_cedula_id" class="form-select" @if (! $newItem['cost_center_id'] || ! $newItem['expense_category_id']) disabled @endif>
-                    <option value="">Seleccionar...</option>
-                    @foreach ($availableBudgetCedulas as $cedula)
-                        <option value="{{ $cedula->id }}">{{ $cedula->name }}</option>
-                    @endforeach
-                </select>
-                @error('newItem.budget_cedula_id')<div class="text-danger small">{{ $message }}</div>@enderror
-            </div>
+              <div class="col-md-7">
+                  <label class="form-label">Cuenta/Subcuenta inferida</label>
+                  <div class="border rounded px-3 py-2 bg-light small">
+                      @if ($newItemBudgetClassification)
+                          <div class="fw-semibold">{{ $newItemBudgetClassification['expense_category_name'] }}</div>
+                          <div class="text-muted">{{ $newItemBudgetClassification['budget_cedula_name'] }}</div>
+                      @else
+                          <span class="text-muted">Selecciona un producto para inferir la cuenta y subcuenta.</span>
+                      @endif
+                  </div>
+                  @error('newItem.expense_category_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                  @error('newItem.budget_cedula_id')<div class="text-danger small">{{ $message }}</div>@enderror
+              </div>
 
             @if ($newItemSnapshotPrice)
                 <div class="col-12">

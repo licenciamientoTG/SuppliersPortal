@@ -9,6 +9,7 @@ use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderDocument;
 use App\Models\DirectPurchaseOrderItem;
 use App\Models\ExpenseCategory;
+use App\Models\ProductService;
 use App\Models\ReceivingLocation;
 use App\Models\Supplier;
 use App\Models\User;
@@ -18,6 +19,7 @@ use App\Notifications\DirectPurchaseOrderReturnedNotification;
 use App\Notifications\NewDirectPurchaseOrderNotification;
 use App\Services\AuthorizerResolutionService;
 use App\Services\BudgetAllocationService;
+use App\Services\ProductBudgetClassificationService;
 use App\Services\PricingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -58,6 +60,8 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
+        $products = $this->productCatalogForDirectPurchaseOrders();
+
         $selectedCompanyId = old('company_id');
         $receivingLocations = $selectedCompanyId
             ? ReceivingLocation::active()
@@ -72,6 +76,7 @@ class DirectPurchaseOrderController extends Controller
             'costCenters',
             'suppliers',
             'expenseCategories',
+            'products',
             'receivingLocations'
         ))->with([
             'purchaseTypes' => PurchaseType::values(),
@@ -357,7 +362,7 @@ class DirectPurchaseOrderController extends Controller
                 ->withErrors(['error' => 'Solo puede editar sus propias OCD.']);
         }
 
-        $directPurchaseOrder->load(['items', 'items.costCenter', 'documents']);
+        $directPurchaseOrder->load(['items', 'items.costCenter', 'items.productService', 'items.budgetCedula', 'documents']);
 
         $companies = Auth::user()->companies()
             ->where('is_active', true)
@@ -381,6 +386,8 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
+        $products = $this->productCatalogForDirectPurchaseOrders();
+
         $selectedCompanyId = old('company_id', $directPurchaseOrder->primaryCompanyId());
         $receivingLocations = $selectedCompanyId
             ? ReceivingLocation::active()
@@ -396,6 +403,7 @@ class DirectPurchaseOrderController extends Controller
             'suppliers',
             'costCenters',
             'expenseCategories',
+            'products',
             'receivingLocations'
         ))->with([
             'purchaseTypes' => PurchaseType::values(),
@@ -547,7 +555,8 @@ class DirectPurchaseOrderController extends Controller
                 $item->cost_center_id,
                 $directPurchaseOrder->application_month,
                 (int) $item->expense_category_id,
-                (float) $item->total
+                (float) $item->total,
+                $item->budget_cedula_id ? (int) $item->budget_cedula_id : null
             );
 
             if (! ($budgetCheck['available'] ?? false)) {
@@ -579,8 +588,10 @@ class DirectPurchaseOrderController extends Controller
         foreach ($items as $itemData) {
             DirectPurchaseOrderItem::create([
                 'direct_purchase_order_id' => $directPurchaseOrder->id,
+                'product_service_id'       => $itemData['product_service_id'],
                 'cost_center_id'           => $itemData['cost_center_id'],
                 'expense_category_id'      => $itemData['expense_category_id'],
+                'budget_cedula_id'         => $itemData['budget_cedula_id'],
                 'description'              => $itemData['description'],
                 'quantity'                 => $itemData['quantity'],
                 'unit_price'               => $itemData['unit_price'],
@@ -615,7 +626,7 @@ class DirectPurchaseOrderController extends Controller
         }
     }
 
-    private function validateBudgetAvailability($costCenterId, $monthStr, $categoryId, $requiredAmount): array
+    private function validateBudgetAvailability($costCenterId, $monthStr, $categoryId, $requiredAmount, ?int $budgetCedulaId = null): array
     {
         try {
             $costCenter = CostCenter::find($costCenterId);
@@ -630,7 +641,8 @@ class DirectPurchaseOrderController extends Controller
                 (int) $date->year,
                 (int) $date->month,
                 (int) $categoryId,
-                (float) $requiredAmount
+                (float) $requiredAmount,
+                $budgetCedulaId
             );
         } catch (\Exception $e) {
             return [
@@ -638,6 +650,43 @@ class DirectPurchaseOrderController extends Controller
                 'message' => 'Error al validar presupuesto: '.$e->getMessage(),
             ];
         }
+    }
+
+    private function productCatalogForDirectPurchaseOrders()
+    {
+        $classificationService = app(ProductBudgetClassificationService::class);
+
+        return ProductService::query()
+            ->forRequisitions()
+            ->with(['subaccounts.account', 'budgetCedulas'])
+            ->orderBy('short_name')
+            ->orderBy('technical_description')
+            ->get()
+            ->map(function (ProductService $product) use ($classificationService) {
+                try {
+                    $classification = $classificationService->resolveForProduct($product);
+                } catch (\RuntimeException) {
+                    return null;
+                }
+
+                return [
+                    'id' => $product->id,
+                    'code' => $product->code,
+                    'name' => $product->short_name ?: $product->technical_description,
+                    'description' => $product->getRequisitionDescription(),
+                    'unit_of_measure' => $product->unit_of_measure,
+                    'sku' => $product->code,
+                    'estimated_price' => (float) $product->estimated_price,
+                    'expense_category_id' => $classification['expense_category_id'],
+                    'expense_category_name' => $classification['expense_category_name'],
+                    'budget_cedula_id' => $classification['budget_cedula_id'],
+                    'budget_cedula_name' => $classification['budget_cedula_name'],
+                    'account_name' => $classification['account_name'],
+                    'subaccount_name' => $classification['subaccount_name'],
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     private function uploadDocument(DirectPurchaseOrder $ocd, $file, $type): DirectPurchaseOrderDocument

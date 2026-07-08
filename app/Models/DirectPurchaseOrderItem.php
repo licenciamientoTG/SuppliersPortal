@@ -14,8 +14,10 @@ class DirectPurchaseOrderItem extends Model
 
     protected $fillable = [
         'direct_purchase_order_id',
+        'product_service_id',
         'cost_center_id',
         'expense_category_id',
+        'budget_cedula_id',
         'description',
         'quantity',
         'quantity_received',
@@ -31,6 +33,9 @@ class DirectPurchaseOrderItem extends Model
 
     protected $casts = [
         'cost_center_id'    => 'integer',
+        'product_service_id' => 'integer',
+        'expense_category_id' => 'integer',
+        'budget_cedula_id' => 'integer',
         'quantity'          => 'decimal:3',
         'quantity_received' => 'decimal:3',
         'unit_price'        => 'decimal:2',
@@ -126,6 +131,16 @@ class DirectPurchaseOrderItem extends Model
     public function expenseCategory(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
+    }
+
+    public function budgetCedula(): BelongsTo
+    {
+        return $this->belongsTo(BudgetCedula::class, 'budget_cedula_id');
+    }
+
+    public function productService(): BelongsTo
+    {
+        return $this->belongsTo(ProductService::class, 'product_service_id');
     }
 
     public function costCenter(): BelongsTo

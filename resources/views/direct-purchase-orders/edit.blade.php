@@ -482,6 +482,8 @@
 <script>
 $(document).ready(function() {
     const costCenterCatalog = @json($costCenterCatalog);
+    const productCatalog = @json($products);
+    const oldItemProducts = @json(collect(old('items', $directPurchaseOrder->items->map(fn ($item) => ['product_service_id' => $item->product_service_id])->all()))->pluck('product_service_id')->values());
 
     $('#supplier_id, #company_id, #purchase_type, #receiving_location_id').select2({
         theme: 'bootstrap-5',
@@ -544,6 +546,123 @@ $(document).ready(function() {
                 searching: function() { return "Buscando..."; }
             }
         });
+    }
+
+    function productOptionsHtml(selectedValue = '') {
+        let html = '<option value="">Seleccione producto...</option>';
+        productCatalog.forEach(function(product) {
+            const selected = String(selectedValue) === String(product.id) ? ' selected' : '';
+            const label = `[${product.code}] ${product.name}`;
+            html += `<option value="${product.id}"${selected}>${label}</option>`;
+        });
+
+        return html;
+    }
+
+    function findProduct(productId) {
+        return productCatalog.find(product => String(product.id) === String(productId)) || null;
+    }
+
+    function rowIndex(row) {
+        const name = row.find('.item-description').attr('name') || '';
+        const match = name.match(/items\[(\d+)\]/);
+
+        return match ? Number(match[1]) : 0;
+    }
+
+    function initializeProductSelect(element) {
+        element.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Producto...',
+            dropdownParent: element.closest('td'),
+            language: {
+                noResults: function() { return "Sin productos"; },
+                searching: function() { return "Buscando..."; }
+            }
+        });
+    }
+
+    function prepareProductRow(row) {
+        const index = rowIndex(row);
+        const description = row.find('.item-description');
+        const categoryCell = row.find('.item-expense-category').closest('td');
+        const selectedProduct = row.find('.item-product').data('selected') || oldItemProducts[index] || '';
+
+        $('#items-table thead th').eq(0).text('Producto');
+        $('#items-table thead th').eq(2).text('Cuenta/Subcuenta');
+
+        description.attr('type', 'hidden');
+
+        if (!row.find('.item-product').length) {
+            description.before(`
+                <select name="items[${index}][product_service_id]" class="form-select form-select-sm border-0 item-product" required>
+                    ${productOptionsHtml(selectedProduct)}
+                </select>
+            `);
+        } else {
+            row.find('.item-product').html(productOptionsHtml(selectedProduct));
+        }
+
+        if (!row.find('.item-unit').length) {
+            description.after(`<input type="hidden" name="items[${index}][unit_of_measure]" class="item-unit">`);
+        }
+
+        if (!row.find('.item-sku').length) {
+            description.after(`<input type="hidden" name="items[${index}][sku]" class="item-sku">`);
+        }
+
+        row.find('.item-expense-category')
+            .removeClass('form-select form-select-sm border-0')
+            .addClass('d-none')
+            .prop('disabled', false);
+
+        if (!row.find('.item-budget-cedula').length) {
+            categoryCell.append(`<input type="hidden" name="items[${index}][budget_cedula_id]" class="item-budget-cedula">`);
+        }
+
+        if (!row.find('.item-budget-summary').length) {
+            categoryCell.append('<div class="small text-muted item-budget-summary">Seleccione producto...</div>');
+        }
+
+        initializeProductSelect(row.find('.item-product'));
+        applySelectedProductToRow(row);
+    }
+
+    function applySelectedProductToRow(row) {
+        const product = findProduct(row.find('.item-product').val());
+        const categorySelect = row.find('.item-expense-category');
+
+        if (!product) {
+            categorySelect.html('<option value=""></option>').val('');
+            row.find('.item-budget-cedula').val('');
+            row.find('.item-description').val('');
+            row.find('.item-unit').val('');
+            row.find('.item-sku').val('');
+            row.find('.item-budget-summary').text('Seleccione producto...');
+
+            return false;
+        }
+
+        categorySelect.html(`<option value="${product.expense_category_id}">${product.expense_category_name}</option>`)
+            .val(String(product.expense_category_id));
+        row.find('.item-budget-cedula').val(product.budget_cedula_id);
+        row.find('.item-description').val(product.description || product.name);
+        row.find('.item-unit').val(product.unit_of_measure || '');
+        row.find('.item-sku').val(product.sku || '');
+
+        if (!row.find('.item-unit-price').val() && product.estimated_price > 0) {
+            row.find('.item-unit-price').val(product.estimated_price);
+        }
+
+        row.find('.item-budget-summary').html(
+            `<span class="fw-semibold">${product.expense_category_name}</span><br><span>${product.budget_cedula_name}</span>`
+        );
+
+        calculateItemRow(row);
+        calculateTotals();
+
+        return true;
     }
 
     function refreshReceivingLocations(selectedValue = '') {
@@ -645,6 +764,8 @@ $(document).ready(function() {
     }
 
     function loadCategoriesForRow(row, costCenterId, selectedValue = null, silent = false) {
+        prepareProductRow(row);
+        return;
         const select = row.find('.item-expense-category');
 
         if (!costCenterId) {
@@ -753,6 +874,10 @@ $(document).ready(function() {
         }
 
         loadCategoriesForRow(row, $(this).val(), null, false);
+    });
+
+    $(document).on('change', '.item-product', function() {
+        applySelectedProductToRow($(this).closest('tr'));
     });
 
     // ============================================
@@ -872,6 +997,7 @@ $(document).ready(function() {
         const lastRow = $('#items-tbody tr:last-child');
         initializeCostCenterSelect(lastRow.find('.item-cost-center'));
         initializeIvaSelect(lastRow.find('.item-iva-rate'));
+        prepareProductRow(lastRow);
 
         itemIndex++;
     });

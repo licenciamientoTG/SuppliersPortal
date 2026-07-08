@@ -10,6 +10,7 @@ use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Services\BudgetCedulaCatalogService;
+use App\Services\ProductBudgetClassificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -339,6 +340,8 @@ class RequisitionForm extends Component
     #[Renderless]
     public function addItem($itemData)
     {
+        $itemData = $this->enrichItemWithBudgetClassification($itemData);
+
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
             return;
@@ -370,6 +373,8 @@ class RequisitionForm extends Component
             $this->dispatch('item-error', message: 'Partida no encontrada');
             return;
         }
+
+        $itemData = $this->enrichItemWithBudgetClassification($itemData);
 
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
@@ -448,6 +453,8 @@ class RequisitionForm extends Component
 
     private function validateItemPayload(array $itemData): bool
     {
+        $itemData = $this->enrichItemWithBudgetClassification($itemData);
+
         if (empty($itemData['product_id'])
             || empty($itemData['expense_category_id'])
             || empty($itemData['budget_cedula_id'])
@@ -482,5 +489,28 @@ class RequisitionForm extends Component
             (int) $itemData['budget_cedula_id'],
             now()->year
         );
+    }
+
+    private function enrichItemWithBudgetClassification(array $itemData): array
+    {
+        if (empty($itemData['product_id'])) {
+            return $itemData;
+        }
+
+        try {
+            $classification = app(ProductBudgetClassificationService::class)
+                ->resolveForProduct((int) $itemData['product_id']);
+        } catch (\RuntimeException $exception) {
+            return $itemData;
+        }
+
+        return array_merge($itemData, [
+            'expense_category_id' => $classification['expense_category_id'],
+            'expense_category_name' => $classification['expense_category_name'],
+            'budget_cedula_id' => $classification['budget_cedula_id'],
+            'budget_cedula_name' => $classification['budget_cedula_name'],
+            'account_name' => $classification['account_name'],
+            'subaccount_name' => $classification['subaccount_name'],
+        ]);
     }
 }

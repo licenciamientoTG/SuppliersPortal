@@ -15,6 +15,7 @@ use App\Models\Requisition;
 use App\Services\BudgetAllocationService;
 use App\Services\BudgetCedulaCatalogService;
 use App\Services\ContractPurchaseOrderService;
+use App\Services\ProductBudgetClassificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ class ContractRequisitionForm extends Component
     public $availableCostCenters = [];
     public $expenseCategories = [];
     public $availableBudgetCedulas = [];
+    public ?array $newItemBudgetClassification = null;
     public int $fiscalYear;
 
     public $newItem = [
@@ -121,6 +123,7 @@ class ContractRequisitionForm extends Component
         $cp = ContractProduct::find($value);
         $this->newItemSnapshotPrice = $cp?->unit_price;
         $this->newItemCurrency = $cp?->currency_code ?? 'MXN';
+        $this->applyProductBudgetClassification($cp?->product);
     }
 
     public function updatedNewItemCostCenterId(): void
@@ -140,15 +143,11 @@ class ContractRequisitionForm extends Component
             'newItem.contract_product_id' => ['required', 'integer'],
             'newItem.quantity' => ['required', 'numeric', 'min:0.001'],
             'newItem.cost_center_id' => ['required', 'integer'],
-            'newItem.expense_category_id' => ['required', 'integer'],
-            'newItem.budget_cedula_id' => ['required', 'integer'],
         ], [
             'newItem.contract_id.required' => 'Selecciona un contrato.',
             'newItem.contract_product_id.required' => 'Selecciona un producto.',
             'newItem.quantity.required' => 'Ingresa la cantidad.',
             'newItem.cost_center_id.required' => 'Selecciona un centro de costo.',
-            'newItem.expense_category_id.required' => 'Selecciona una categoria de gasto.',
-            'newItem.budget_cedula_id.required' => 'Selecciona una cedula presupuestal.',
         ]);
 
         $contract = Contract::find($this->newItem['contract_id']);
@@ -170,7 +169,8 @@ class ContractRequisitionForm extends Component
         }
 
         $costCenter = CostCenter::find($this->newItem['cost_center_id']);
-        $budgetCedula = BudgetCedula::find($this->newItem['budget_cedula_id']);
+        $classification = $this->classificationForProduct($product);
+        $budgetCedula = BudgetCedula::find($classification['budget_cedula_id']);
 
         if (! $costCenter) {
             $this->addError('newItem.cost_center_id', 'El centro de costo seleccionado no existe.');
@@ -178,8 +178,8 @@ class ContractRequisitionForm extends Component
             return;
         }
 
-        if (! $budgetCedula || (int) $budgetCedula->expense_category_id !== (int) $this->newItem['expense_category_id']) {
-            $this->addError('newItem.budget_cedula_id', 'La cedula presupuestal no corresponde a la categoria de gasto seleccionada.');
+        if (! $budgetCedula) {
+            $this->addError('newItem.contract_product_id', 'El producto no tiene subcuenta presupuestal asignada.');
 
             return;
         }
@@ -204,10 +204,12 @@ class ContractRequisitionForm extends Component
             'quantity' => (float) $this->newItem['quantity'],
             'cost_center_id' => (int) $this->newItem['cost_center_id'],
             'cost_center_name' => trim(($costCenter->code ? "{$costCenter->code} - " : '').$costCenter->name),
-            'budget_cedula_id' => (int) $this->newItem['budget_cedula_id'],
-            'budget_cedula_name' => $budgetCedula->name,
-            'expense_category_id' => (int) $this->newItem['expense_category_id'],
-            'expense_category_name' => ExpenseCategory::find($this->newItem['expense_category_id'])?->name ?? '-',
+            'budget_cedula_id' => (int) $classification['budget_cedula_id'],
+            'budget_cedula_name' => $classification['budget_cedula_name'],
+            'expense_category_id' => (int) $classification['expense_category_id'],
+            'expense_category_name' => $classification['expense_category_name'],
+            'account_name' => $classification['account_name'],
+            'subaccount_name' => $classification['subaccount_name'],
             'notes' => $this->newItem['notes'],
             'expiry_warning' => $daysLeft <= 30 ? $contract->end_date->format('d/m/Y') : null,
         ];
@@ -353,6 +355,7 @@ class ContractRequisitionForm extends Component
             $costCenter = CostCenter::find($item['cost_center_id']);
             $budgetCedula = BudgetCedula::find($item['budget_cedula_id']);
             $product = ProductService::find($item['product_service_id']);
+            $classification = $this->classificationForProduct($product);
 
             if (! $contract || ! $contract->isEligible()) {
                 throw ValidationException::withMessages([
@@ -397,15 +400,15 @@ class ContractRequisitionForm extends Component
                 ]);
             }
 
-            if (! $budgetCedula || (int) $budgetCedula->expense_category_id !== (int) $item['expense_category_id']) {
+            if (! $budgetCedula || (int) $budgetCedula->id !== (int) $classification['budget_cedula_id']) {
                 throw ValidationException::withMessages([
-                    'items' => 'La partida '.($index + 1).' tiene una cedula presupuestal que no corresponde a la categoria seleccionada.',
+                    'items' => 'La partida '.($index + 1).' tiene una cédula presupuestal distinta a la inferida por producto.',
                 ]);
             }
 
             if (! $budgetCedulaCatalogService->isValidCedulaForContext(
                 (int) $costCenter->id,
-                (int) $item['expense_category_id'],
+                (int) $classification['expense_category_id'],
                 (int) $budgetCedula->id,
                 $this->fiscalYear
             )) {
@@ -421,7 +424,7 @@ class ContractRequisitionForm extends Component
                 (int) $costCenter->id,
                 $this->fiscalYear,
                 $month,
-                (int) $item['expense_category_id'],
+                (int) $classification['expense_category_id'],
                 $lineTotal,
                 (int) $budgetCedula->id
             );
@@ -442,6 +445,7 @@ class ContractRequisitionForm extends Component
                 'product_code' => $product->code,
                 'item_category' => $product->product_type,
                 'budget_cedula_id' => (int) $budgetCedula->id,
+                'expense_category_id' => (int) $classification['expense_category_id'],
                 'suggested_vendor_id' => $product->default_vendor_id,
             ]);
         }
@@ -466,7 +470,7 @@ class ContractRequisitionForm extends Component
 
     protected function resetNewItemState(): void
     {
-        $this->reset(['newItem', 'newItemContractProducts', 'newItemSnapshotPrice', 'newItemCurrency', 'availableBudgetCedulas']);
+        $this->reset(['newItem', 'newItemContractProducts', 'newItemSnapshotPrice', 'newItemCurrency', 'availableBudgetCedulas', 'newItemBudgetClassification']);
         $this->newItem = [
             'contract_id' => '',
             'contract_product_id' => '',
@@ -522,6 +526,45 @@ class ContractRequisitionForm extends Component
         return is_string($description) && trim($description) !== ''
             ? trim($description)
             : $this->resolveProductDisplayName($product, $contractProduct);
+    }
+
+    private function classificationForProduct(?ProductService $product): array
+    {
+        if (! $product) {
+            throw ValidationException::withMessages([
+                'newItem.contract_product_id' => 'El producto seleccionado no existe.',
+            ]);
+        }
+
+        try {
+            return app(ProductBudgetClassificationService::class)->resolveForProduct($product);
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'newItem.contract_product_id' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function applyProductBudgetClassification(?ProductService $product): void
+    {
+        if (! $product) {
+            $this->newItem['expense_category_id'] = '';
+            $this->newItem['budget_cedula_id'] = '';
+            $this->newItemBudgetClassification = null;
+
+            return;
+        }
+
+        try {
+            $classification = app(ProductBudgetClassificationService::class)->resolveForProduct($product);
+            $this->newItem['expense_category_id'] = $classification['expense_category_id'];
+            $this->newItem['budget_cedula_id'] = $classification['budget_cedula_id'];
+            $this->newItemBudgetClassification = $classification;
+        } catch (RuntimeException) {
+            $this->newItem['expense_category_id'] = '';
+            $this->newItem['budget_cedula_id'] = '';
+            $this->newItemBudgetClassification = null;
+        }
     }
 
     public function render()

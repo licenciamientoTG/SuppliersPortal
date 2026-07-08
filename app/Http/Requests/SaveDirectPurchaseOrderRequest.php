@@ -3,13 +3,58 @@
 namespace App\Http\Requests;
 
 use App\Enum\PurchaseType;
+use App\Models\ProductService;
 use App\Models\ReceivingLocation;
+use App\Services\ProductBudgetClassificationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Enum;
 
 class SaveDirectPurchaseOrderRequest extends FormRequest
 {
+    private array $classificationErrors = [];
+
+    protected function prepareForValidation(): void
+    {
+        if (! is_array($this->items)) {
+            return;
+        }
+
+        $service = app(ProductBudgetClassificationService::class);
+
+        $items = collect($this->items)->map(function (array $item, int $index) use ($service) {
+            $productId = (int) ($item['product_service_id'] ?? 0);
+
+            if (! $productId) {
+                return $item;
+            }
+
+            $product = ProductService::query()->find($productId);
+
+            if (! $product) {
+                return $item;
+            }
+
+            try {
+                $classification = $service->resolveForProduct($product);
+            } catch (\RuntimeException $exception) {
+                $this->classificationErrors["items.{$index}.product_service_id"] = $exception->getMessage();
+
+                return $item;
+            }
+
+            $item['description'] = $product->getRequisitionDescription();
+            $item['unit_of_measure'] = $product->unit_of_measure;
+            $item['sku'] = $product->code;
+            $item['expense_category_id'] = $classification['expense_category_id'];
+            $item['budget_cedula_id'] = $classification['budget_cedula_id'];
+
+            return $item;
+        })->all();
+
+        $this->merge(['items' => $items]);
+    }
+
     public function authorize(): bool
     {
         $ocd = $this->route('directPurchaseOrder');
@@ -47,11 +92,13 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
 
             // PARTIDAS CON TASA DE IVA
             'items' => ['required', 'array', 'min:1'],
+            'items.*.product_service_id' => ['required', 'integer', 'exists:products_services,id'],
             'items.*.description' => ['required', 'string', 'max:500'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
             'items.*.cost_center_id' => ['required', 'integer', 'exists:cost_centers,id'],
             'items.*.expense_category_id' => ['required', 'integer', 'exists:expense_categories,id'],
+            'items.*.budget_cedula_id' => ['required', 'integer', 'exists:budget_cedulas,id'],
             'items.*.iva_rate' => ['required', 'numeric', 'in:0,8,16'],
 
             // ✅ AGREGADOS: Campos adicionales de la partida
@@ -143,6 +190,10 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             if ($this->has('items')) {
+                foreach ($this->classificationErrors as $field => $message) {
+                    $validator->errors()->add($field, $message);
+                }
+
                 $total = $this->calculateTotal();
 
                 if ($total > 250000) {

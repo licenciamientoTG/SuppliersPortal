@@ -24,6 +24,7 @@ use App\Notifications\NewProductRequestedNotification;
 use App\Models\User;
 use App\Events\ProductServiceApproved;
 use App\Services\BudgetAccessService;
+use App\Services\ProductBudgetClassificationService;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -261,6 +262,8 @@ class ProductServiceController extends Controller
                 ->pluck('id');
             $productService->accounts()->sync($accountIds);
 
+            app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
+
             return redirect()
                 ->route('products-services.show', $productService)
                 ->with('success', 'Producto/Servicio registrado correctamente. Estado: Pendiente de Validación.');
@@ -409,6 +412,8 @@ class ProductServiceController extends Controller
                 ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
                 ->pluck('id');
             $productService->accounts()->sync($accountIds);
+
+            app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
 
             return redirect()
                 ->route('products-services.show', $productService)
@@ -658,8 +663,17 @@ class ProductServiceController extends Controller
             $products = $query->limit(50)->get();
         }
 
+        $classificationService = app(ProductBudgetClassificationService::class);
+
         return response()->json([
-            'products' => $products->map(fn($p) => [
+            'products' => $products->map(function ($p) use ($classificationService) {
+                try {
+                    $budgetClassification = $classificationService->resolveForProduct($p);
+                } catch (\RuntimeException $exception) {
+                    $budgetClassification = null;
+                }
+
+                return [
                 'id' => $p->id,
                 'code' => $p->code,
                 'description' => $p->technical_description,
@@ -681,14 +695,18 @@ class ProductServiceController extends Controller
                 'account_major' => $p->account_major,
                 'account_sub' => $p->account_sub,
                 'account_subsub' => $p->account_subsub,
+                'budget_classification' => $budgetClassification,
                 'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
                     'id' => $subaccount->id,
                     'name' => $subaccount->name,
                     'account_id' => $subaccount->account_id,
                     'account_name' => $subaccount->account?->name,
+                    'legacy_budget_cedula_id' => $subaccount->legacy_budget_cedula_id,
+                    'legacy_expense_category_id' => $subaccount->account?->legacy_expense_category_id,
                     'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $subaccount->account?->is_fixed_asset),
                 ])->values(),
-            ])
+                ];
+            })
         ]);
     }
 

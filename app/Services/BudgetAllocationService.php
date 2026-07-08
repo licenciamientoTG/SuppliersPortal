@@ -581,14 +581,18 @@ class BudgetAllocationService
             $order->loadMissing('items.costCenter');
 
             return $order->items
-                ->groupBy(fn ($item) => $item->cost_center_id . '|' . $item->expense_category_id)
+                ->groupBy(fn ($item) => implode('|', [
+                    $item->cost_center_id,
+                    $item->expense_category_id,
+                    $item->budget_cedula_id,
+                ]))
                 ->map(function ($items) use ($order) {
                     $first = $items->first();
 
                     return [
                         'cost_center_id' => (int) $first->cost_center_id,
                         'expense_category_id' => (int) $first->expense_category_id,
-                        'budget_cedula_id' => null,
+                        'budget_cedula_id' => $first->budget_cedula_id ? (int) $first->budget_cedula_id : null,
                         'amount' => (float) $items->sum('total'),
                         'year' => (int) substr((string) $order->application_month, 0, 4),
                         'month' => (int) substr((string) $order->application_month, 5, 2),
