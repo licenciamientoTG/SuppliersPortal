@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BudgetProfile extends Model
 {
@@ -27,14 +26,9 @@ class BudgetProfile extends Model
         return $this->belongsToMany(Subaccount::class, 'budget_profile_subaccount');
     }
 
-    public function users(): HasMany
+    public function departments(): BelongsToMany
     {
-        return $this->hasMany(User::class);
-    }
-
-    public function employeePositions(): HasMany
-    {
-        return $this->hasMany(EmployeePositionBudgetProfile::class);
+        return $this->belongsToMany(Department::class, 'budget_profile_department');
     }
 
     public function scopeActive($query)

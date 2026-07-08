@@ -27,15 +27,9 @@
         <div class="card-header bg-white">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
-                    <h5 class="mb-0"><i class="ti ti-wallet me-1"></i>Alcance presupuestal</h5>
-                    <small class="text-muted">Administra perfiles, homologaciones y accesos por subcuenta.</small>
+                    <h5 class="mb-0"><i class="ti ti-wallet me-1"></i>Perfiles presupuestales</h5>
+                    <small class="text-muted">Los departamentos contienen perfiles; cada perfil define las subcuentas disponibles.</small>
                 </div>
-                <form method="POST" action="{{ route('budget-profiles.sync-positions') }}">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-primary btn-sm">
-                        <i class="ti ti-refresh me-1"></i>Sincronizar puestos
-                    </button>
-                </form>
             </div>
         </div>
 
@@ -47,18 +41,8 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#positionsTab" type="button">
-                        Puestos
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#departmentsTab" type="button">
                         Departamentos
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#usersTab" type="button">
-                        Usuarios
                     </button>
                 </li>
             </ul>
@@ -67,23 +51,27 @@
                 <div class="tab-pane fade show active" id="profilesTab" role="tabpanel">
                     <form method="POST" action="{{ route('budget-profiles.store') }}" class="row g-2 align-items-end mb-3">
                         @csrf
+                        <input type="hidden" name="is_active" value="1">
                         <div class="col-md-2">
                             <label class="form-label">Clave</label>
-                            <input type="text" name="key" class="form-control" placeholder="finance_ops" required>
+                            <input type="text" name="key" class="form-control" placeholder="compras_jefe" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Nombre</label>
                             <input type="text" name="name" class="form-control" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label">Descripcion</label>
                             <input type="text" name="description" class="form-control">
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Estatus</label>
-                            <select name="is_active" class="form-select">
-                                <option value="1">Activo</option>
-                                <option value="0">Inactivo</option>
+                        <div class="col-md-3">
+                            <label class="form-label">Subcuentas</label>
+                            <select name="subaccount_ids[]" class="form-select js-budget-select" multiple>
+                                @foreach ($subaccounts as $subaccount)
+                                    <option value="{{ $subaccount->id }}">
+                                        {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->code }} {{ $subaccount->name }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-1 d-grid">
@@ -119,18 +107,18 @@
                                         <td style="min-width: 170px;">
                                             <input form="profileForm{{ $profile->id }}" type="text" name="key" class="form-control form-control-sm" value="{{ $profile->key }}" required>
                                         </td>
-                                        <td style="min-width: 360px;">
+                                        <td style="min-width: 420px;">
                                             <select form="profileForm{{ $profile->id }}" name="subaccount_ids[]" class="form-select form-select-sm js-budget-select" multiple>
                                                 @foreach ($subaccounts as $subaccount)
                                                     <option value="{{ $subaccount->id }}" @selected($profile->subaccounts->contains('id', $subaccount->id))>
-                                                        {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->name }}
+                                                        {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->code }} {{ $subaccount->name }}
                                                     </option>
                                                 @endforeach
                                             </select>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info">{{ $profile->users_count }} usuarios</span>
-                                            <span class="badge bg-secondary">{{ $profile->employee_positions_count }} puestos</span>
+                                            <span class="badge bg-info">{{ $profile->departments_count }} departamentos</span>
+                                            <span class="badge bg-secondary">{{ $profile->subaccounts_count }} subcuentas</span>
                                         </td>
                                         <td>
                                             <select form="profileForm{{ $profile->id }}" name="is_active" class="form-select form-select-sm">
@@ -150,156 +138,61 @@
                     </div>
                 </div>
 
-                <div class="tab-pane fade" id="positionsTab" role="tabpanel">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered align-middle js-data-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Puesto detectado</th>
-                                    <th>Normalizado</th>
-                                    <th>Empleados</th>
-                                    <th>Perfil</th>
-                                    <th>Excluido</th>
-                                    <th class="text-end">Guardar</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($positions as $position)
-                                    <tr>
-                                        <td>{{ $position->raw_job_title }}</td>
-                                        <td><code>{{ $position->normalized_job_title }}</code></td>
-                                        <td>{{ $position->employees_count }}</td>
-                                        <td style="min-width: 260px;">
-                                            <form id="positionForm{{ $position->id }}" method="POST" action="{{ route('budget-profiles.positions.update', $position) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="budget_profile_id" class="form-select form-select-sm">
-                                                    <option value="">Sin perfil</option>
-                                                    @foreach ($profiles as $profile)
-                                                        <option value="{{ $profile->id }}" @selected($position->budget_profile_id === $profile->id)>
-                                                            {{ $profile->name }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </form>
-                                        </td>
-                                        <td class="text-center">
-                                            <input form="positionForm{{ $position->id }}" type="hidden" name="is_excluded" value="0">
-                                            <input form="positionForm{{ $position->id }}" type="checkbox" name="is_excluded" value="1" class="form-check-input" @checked($position->is_excluded)>
-                                        </td>
-                                        <td class="text-end">
-                                            <button form="positionForm{{ $position->id }}" type="submit" class="btn btn-sm btn-primary" title="Guardar homologacion">
-                                                <i class="ti ti-device-floppy"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
                 <div class="tab-pane fade" id="departmentsTab" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered align-middle js-data-table">
                             <thead class="table-light">
                                 <tr>
                                     <th>Departamento</th>
-                                    <th>Activo</th>
-                                    <th>Subcuentas permitidas</th>
+                                    <th>Perfiles</th>
+                                    <th>Subcuentas efectivas</th>
                                     <th class="text-end">Guardar</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($departments as $department)
+                                    @php
+                                        $effectiveSubaccounts = $department->budgetProfiles
+                                            ->where('is_active', true)
+                                            ->flatMap(fn ($profile) => $profile->subaccounts)
+                                            ->unique('id')
+                                            ->sortBy('name');
+                                    @endphp
                                     <tr>
-                                        <td>{{ $department->name }}</td>
-                                        <td>
+                                        <td style="min-width: 220px;">
+                                            <div class="fw-semibold">{{ $department->name }}</div>
                                             <span class="badge {{ $department->is_active ? 'bg-success' : 'bg-secondary' }}">
                                                 {{ $department->is_active ? 'Activo' : 'Inactivo' }}
                                             </span>
                                         </td>
-                                        <td style="min-width: 420px;">
+                                        <td style="min-width: 360px;">
                                             <form id="departmentForm{{ $department->id }}" method="POST" action="{{ route('budget-profiles.departments.update', $department) }}">
                                                 @csrf
                                                 @method('PATCH')
-                                                <select name="subaccount_ids[]" class="form-select form-select-sm js-budget-select" multiple>
-                                                    @foreach ($subaccounts as $subaccount)
-                                                        <option value="{{ $subaccount->id }}" @selected($department->subaccounts->contains('id', $subaccount->id))>
-                                                            {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->name }}
+                                                <select name="budget_profile_ids[]" class="form-select form-select-sm js-profile-select" multiple>
+                                                    @foreach ($profiles as $profile)
+                                                        <option value="{{ $profile->id }}" @selected($department->budgetProfiles->contains('id', $profile->id))>
+                                                            {{ $profile->name }}
                                                         </option>
                                                     @endforeach
                                                 </select>
                                             </form>
+                                        </td>
+                                        <td style="min-width: 420px;">
+                                            @forelse ($effectiveSubaccounts->take(10) as $subaccount)
+                                                <span class="badge bg-light text-dark border mb-1">
+                                                    {{ $subaccount->account?->code }} / {{ $subaccount->code }} {{ $subaccount->name }}
+                                                </span>
+                                            @empty
+                                                <span class="text-muted">Sin subcuentas asignadas</span>
+                                            @endforelse
+
+                                            @if ($effectiveSubaccounts->count() > 10)
+                                                <span class="badge bg-secondary mb-1">+{{ $effectiveSubaccounts->count() - 10 }}</span>
+                                            @endif
                                         </td>
                                         <td class="text-end">
                                             <button form="departmentForm{{ $department->id }}" type="submit" class="btn btn-sm btn-primary" title="Guardar departamento">
-                                                <i class="ti ti-device-floppy"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="usersTab" role="tabpanel">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered align-middle js-data-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Usuario</th>
-                                    <th>Puesto</th>
-                                    <th>Departamento</th>
-                                    <th>Perfil</th>
-                                    <th>Subcuentas directas</th>
-                                    <th class="text-end">Guardar</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($users as $user)
-                                    <tr>
-                                        <td>
-                                            <div class="fw-semibold">{{ $user->name }}</div>
-                                            <small class="text-muted">{{ $user->email }}</small>
-                                        </td>
-                                        <td>{{ $user->employee?->job_title ?? $user->job_title ?? 'Sin puesto' }}</td>
-                                        <td style="min-width: 220px;">
-                                            <form id="userForm{{ $user->id }}" method="POST" action="{{ route('budget-profiles.users.update', $user) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="department_id" class="form-select form-select-sm">
-                                                    <option value="">Sin departamento</option>
-                                                    @foreach ($departments as $department)
-                                                        <option value="{{ $department->id }}" @selected($user->department_id === $department->id)>
-                                                            {{ $department->name }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </form>
-                                        </td>
-                                        <td style="min-width: 240px;">
-                                            <select form="userForm{{ $user->id }}" name="budget_profile_id" class="form-select form-select-sm">
-                                                <option value="">Sin perfil</option>
-                                                @foreach ($profiles as $profile)
-                                                    <option value="{{ $profile->id }}" @selected($user->budget_profile_id === $profile->id)>
-                                                        {{ $profile->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td style="min-width: 380px;">
-                                            <select form="userForm{{ $user->id }}" name="subaccount_ids[]" class="form-select form-select-sm js-budget-select" multiple>
-                                                @foreach ($subaccounts as $subaccount)
-                                                    <option value="{{ $subaccount->id }}" @selected($user->subaccounts->contains('id', $subaccount->id))>
-                                                        {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td class="text-end">
-                                            <button form="userForm{{ $user->id }}" type="submit" class="btn btn-sm btn-primary" title="Guardar usuario">
                                                 <i class="ti ti-device-floppy"></i>
                                             </button>
                                         </td>
@@ -321,6 +214,13 @@
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: 'Selecciona subcuentas',
+                closeOnSelect: false
+            });
+
+            $('.js-profile-select').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Selecciona perfiles',
                 closeOnSelect: false
             });
 

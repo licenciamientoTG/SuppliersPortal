@@ -307,10 +307,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'storeProfile')->name('store');
                 Route::put('/{budgetProfile}', 'updateProfile')->name('update');
-                Route::post('/sync-positions', 'syncPositions')->name('sync-positions');
-                Route::patch('/positions/{position}', 'updatePosition')->name('positions.update');
                 Route::patch('/departments/{department}', 'updateDepartment')->name('departments.update');
-                Route::patch('/users/{user}', 'updateUser')->name('users.update');
             });
     });
 

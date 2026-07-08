@@ -7,7 +7,6 @@ use App\Models\EmployeeEvent;
 use App\Models\User;
 use App\Notifications\StaffWelcomeNotification;
 use App\Rules\AllowedEmailDomain;
-use App\Services\BudgetProfileHomologationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,35 +22,35 @@ class EmployeeController extends Controller
      * clave => etiqueta legible en español
      */
     private const CAMPOS_RASTREADOS = [
-        'archivo_origen'     => 'archivo de origen',
-        'first_name'         => 'nombre',
-        'last_name'          => 'apellidos',
-        'department'         => 'departamento',
-        'job_title'          => 'puesto',
-        'hire_date'          => 'fecha de ingreso',
-        'is_active'          => 'estado activo',
-        'termination_date'   => 'fecha de baja',
-        'rehire_eligible'    => 'recontratable',
+        'archivo_origen' => 'archivo de origen',
+        'first_name' => 'nombre',
+        'last_name' => 'apellidos',
+        'department' => 'departamento',
+        'job_title' => 'puesto',
+        'hire_date' => 'fecha de ingreso',
+        'is_active' => 'estado activo',
+        'termination_date' => 'fecha de baja',
+        'rehire_eligible' => 'recontratable',
         'termination_reason' => 'motivo de baja',
-        'team'               => 'equipo',
-        'seniority'          => 'antigüedad',
-        'rfc'                => 'RFC',
-        'imss'               => 'IMSS',
-        'curp'               => 'CURP',
-        'gender'             => 'género',
-        'phone'              => 'teléfono',
-        'address'            => 'dirección',
-        'email'              => 'correo electrónico',
-        'education'          => 'estudios',
-        'company'            => 'empresa',
-        'responsible'        => 'responsable',
-        'leader'             => 'líder',
-        'vacation_balance'   => 'saldo de vacaciones',
-        'savings_fund'       => 'fondo de ahorro',
-        'daily_salary'       => 'salario diario',
-        'severance_bonus'    => 'gratificación por separación',
-        'indemnization'      => 'indemnización',
-        'seniority_premium'  => 'prima de antigüedad',
+        'team' => 'equipo',
+        'seniority' => 'antigüedad',
+        'rfc' => 'RFC',
+        'imss' => 'IMSS',
+        'curp' => 'CURP',
+        'gender' => 'género',
+        'phone' => 'teléfono',
+        'address' => 'dirección',
+        'email' => 'correo electrónico',
+        'education' => 'estudios',
+        'company' => 'empresa',
+        'responsible' => 'responsable',
+        'leader' => 'líder',
+        'vacation_balance' => 'saldo de vacaciones',
+        'savings_fund' => 'fondo de ahorro',
+        'daily_salary' => 'salario diario',
+        'severance_bonus' => 'gratificación por separación',
+        'indemnization' => 'indemnización',
+        'seniority_premium' => 'prima de antigüedad',
     ];
 
     public function photoForm(Employee $employee): View
@@ -73,7 +72,7 @@ class EmployeeController extends Controller
         $employee->update(['photo' => $path]);
 
         return response()->json([
-            'success'   => true,
+            'success' => true,
             'photo_url' => Storage::url($path),
         ]);
     }
@@ -96,24 +95,24 @@ class EmployeeController extends Controller
         }
 
         $validated = request()->validate([
-            'name'      => ['required', 'string', 'max:180'],
-            'email'     => ['required', 'email', 'max:180', 'unique:users,email', new AllowedEmailDomain],
-            'password'  => ['required', 'string', 'min:8'],
-            'phone'     => ['nullable', 'string', 'max:30'],
+            'name' => ['required', 'string', 'max:180'],
+            'email' => ['required', 'email', 'max:180', 'unique:users,email', new AllowedEmailDomain],
+            'password' => ['required', 'string', 'min:8'],
+            'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:120'],
-            'roles'     => ['nullable', 'array'],
-            'roles.*'   => ['string', 'exists:roles,name'],
-            'avatar'    => ['nullable', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp'],
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['string', 'exists:roles,name'],
+            'avatar' => ['nullable', 'image', 'max:2048', 'mimes:jpg,jpeg,png,webp'],
         ]);
 
         $plainPassword = $validated['password'];
 
         DB::transaction(function () use ($validated, $employee, $plainPassword) {
             $user = User::create([
-                'name'      => $validated['name'],
-                'email'     => $validated['email'],
-                'password'  => $validated['password'],
-                'phone'     => $validated['phone'] ?? null,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'phone' => $validated['phone'] ?? null,
                 'job_title' => $validated['job_title'] ?? null,
                 'is_active' => true,
             ]);
@@ -125,17 +124,16 @@ class EmployeeController extends Controller
                 $user->update(['avatar' => $path]);
             } elseif ($employee->photo) {
                 $filename = basename($employee->photo);
-                $newPath  = "users/{$user->id}/avatar/{$filename}";
+                $newPath = "users/{$user->id}/avatar/{$filename}";
                 Storage::disk('public')->copy($employee->photo, $newPath);
                 $user->update(['avatar' => $newPath]);
             }
 
-            if (!empty($validated['roles'])) {
+            if (! empty($validated['roles'])) {
                 $user->syncRoles($validated['roles']);
             }
 
             $employee->update(['user_id' => $user->id]);
-            app(BudgetProfileHomologationService::class)->assignBudgetProfileFromEmployee($user, $employee);
 
             $user->notify(new StaffWelcomeNotification($plainPassword));
         });
@@ -146,6 +144,7 @@ class EmployeeController extends Controller
     public function index(): View
     {
         $companies = Employee::distinct()->orderBy('company')->pluck('company')->filter()->values();
+
         return view('employees.index', compact('companies'));
     }
 
@@ -166,35 +165,37 @@ class EmployeeController extends Controller
 
                 if (request()->filled('search.value')) {
                     $search = request('search.value');
-                    $query->where(function($q) use ($search) {
+                    $query->where(function ($q) use ($search) {
                         $q->where('employee_number', 'like', "%{$search}%")
-                          ->orWhere('first_name', 'like', "%{$search}%")
-                          ->orWhere('last_name', 'like', "%{$search}%")
-                          ->orWhere('company', 'like', "%{$search}%")
-                          ->orWhere('department', 'like', "%{$search}%")
-                          ->orWhere('job_title', 'like', "%{$search}%")
-                          ->orWhere('leader', 'like', "%{$search}%")
-                          ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('company', 'like', "%{$search}%")
+                            ->orWhere('department', 'like', "%{$search}%")
+                            ->orWhere('job_title', 'like', "%{$search}%")
+                            ->orWhere('leader', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
                     });
                 }
             }, true)
             ->addColumn('photo', function (Employee $row) {
                 if ($row->photo) {
                     $url = Storage::url($row->photo);
-                    return '<img src="' . e($url) . '"
+
+                    return '<img src="'.e($url).'"
                                  class="rounded-circle js-photo-preview"
-                                 data-url="' . e($url) . '"
+                                 data-url="'.e($url).'"
                                  style="width:36px;height:36px;object-fit:cover;cursor:pointer;"
                                  alt="Foto">';
                 }
                 $initial = strtoupper(mb_substr($row->first_name ?? '?', 0, 1));
+
                 return '<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white mx-auto"
-                             style="width:36px;height:36px;font-size:14px;font-weight:600;">' . e($initial) . '</div>';
+                             style="width:36px;height:36px;font-size:14px;font-weight:600;">'.e($initial).'</div>';
             })
             ->addColumn('full_name', function (Employee $row) {
-                return e(trim($row->first_name . ' ' . ($row->last_name ?? '')));
+                return e(trim($row->first_name.' '.($row->last_name ?? '')));
             })
-            ->filterColumn('full_name', function($query, $keyword) {
+            ->filterColumn('full_name', function ($query, $keyword) {
                 $query->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$keyword}%"]);
             })
             ->orderColumn('full_name', function ($query, $order) {
@@ -208,7 +209,7 @@ class EmployeeController extends Controller
             ->orderColumn('employee_number', 'CAST(employee_number AS BIGINT) $1')
             ->addColumn('actions', function (Employee $row) {
                 $photoBtn = '<button class="btn btn-sm btn-outline-info js-photo-btn me-1"
-                                     data-id="' . e($row->id) . '"
+                                     data-id="'.e($row->id).'"
                                      data-bs-toggle="tooltip"
                                      title="Cargar fotografía">
                                  <i class="ti ti-camera"></i>
@@ -222,14 +223,14 @@ class EmployeeController extends Controller
                                   </span>';
                 } else {
                     $promoteBtn = '<button class="btn btn-sm btn-outline-primary js-promote-btn"
-                                          data-id="' . e($row->id) . '"
+                                          data-id="'.e($row->id).'"
                                           data-bs-toggle="tooltip"
                                           title="Crear usuario staff">
                                       <i class="ti ti-user-plus"></i>
                                   </button>';
                 }
 
-                return $photoBtn . $promoteBtn;
+                return $photoBtn.$promoteBtn;
             })
             ->rawColumns(['photo', 'is_active', 'actions'])
             ->make(true);
@@ -247,9 +248,9 @@ class EmployeeController extends Controller
 
         $data = $request->all();
 
-        $numero  = $this->str($data, 'Numero');
+        $numero = $this->str($data, 'Numero');
         $empresa = $this->str($data, 'Empresa');
-        $rfc     = $this->str($data, 'RFC');
+        $rfc = $this->str($data, 'RFC');
 
         // Estrategia de búsqueda:
         // 1. Si tiene número y empresa → buscar por ambos (caso normal)
@@ -270,7 +271,7 @@ class EmployeeController extends Controller
         if ($esNuevo) {
             $employee = new Employee([
                 'employee_number' => $numero,
-                'company'         => $empresa,
+                'company' => $empresa,
             ]);
         }
 
@@ -286,49 +287,49 @@ class EmployeeController extends Controller
         $liderId = $liderNumero ? $this->resolverLiderId($liderNumero) : null;
 
         $employee->fill([
-            'archivo_origen'     => $this->str($data, 'archivo_origen'),
-            'first_name'         => $firstName,
-            'last_name'          => $lastName,
-            'department'         => $this->str($data, 'Departamento'),
-            'job_title'          => $this->str($data, 'Puesto'),
-            'hire_date'          => $this->date($data, 'FechaIngreso'),
-            'is_active'          => $this->str($data, 'Activo'),
-            'termination_date'   => $this->date($data, 'FechaBaja'),
-            'rehire_eligible'    => $this->str($data, 'Recontratar'),
+            'archivo_origen' => $this->str($data, 'archivo_origen'),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'department' => $this->str($data, 'Departamento'),
+            'job_title' => $this->str($data, 'Puesto'),
+            'hire_date' => $this->date($data, 'FechaIngreso'),
+            'is_active' => $this->str($data, 'Activo'),
+            'termination_date' => $this->date($data, 'FechaBaja'),
+            'rehire_eligible' => $this->str($data, 'Recontratar'),
             'termination_reason' => $this->str($data, 'MotivoBaja'),
-            'team'               => $this->str($data, 'Equipo'),
-            'seniority'          => $this->str($data, 'Antiguedad'),
-            'rfc'                => $rfc,
-            'imss'               => $this->str($data, 'IMSS'),
-            'curp'               => $this->str($data, 'CURP'),
-            'gender'             => $this->str($data, 'Genero'),
-            'phone'              => $this->str($data, 'Telefono'),
-            'address'            => $this->str($data, 'Direccion'),
-            'email'              => $this->str($data, 'Correo'),
-            'education'          => $this->str($data, 'Estudios'),
-            'responsible'        => $this->str($data, 'Responsable'),
-            'leader'             => $liderNumero,
-            'leader_id'          => $liderId,
-            'vacation_balance'   => $this->decimal($data, 'SaldoVacaciones'),
-            'savings_fund'       => $this->decimal($data, 'FondoAhorro'),
-            'daily_salary'       => $this->decimal($data, 'SalarioDiario'),
-            'severance_bonus'    => $this->decimal($data, 'Grat.Separacion'),
-            'indemnization'      => $this->decimal($data, 'Indemnizacion'),
-            'seniority_premium'  => $this->decimal($data, 'PrimaDeAntig.'),
+            'team' => $this->str($data, 'Equipo'),
+            'seniority' => $this->str($data, 'Antiguedad'),
+            'rfc' => $rfc,
+            'imss' => $this->str($data, 'IMSS'),
+            'curp' => $this->str($data, 'CURP'),
+            'gender' => $this->str($data, 'Genero'),
+            'phone' => $this->str($data, 'Telefono'),
+            'address' => $this->str($data, 'Direccion'),
+            'email' => $this->str($data, 'Correo'),
+            'education' => $this->str($data, 'Estudios'),
+            'responsible' => $this->str($data, 'Responsable'),
+            'leader' => $liderNumero,
+            'leader_id' => $liderId,
+            'vacation_balance' => $this->decimal($data, 'SaldoVacaciones'),
+            'savings_fund' => $this->decimal($data, 'FondoAhorro'),
+            'daily_salary' => $this->decimal($data, 'SalarioDiario'),
+            'severance_bonus' => $this->decimal($data, 'Grat.Separacion'),
+            'indemnization' => $this->decimal($data, 'Indemnizacion'),
+            'seniority_premium' => $this->decimal($data, 'PrimaDeAntig.'),
         ]);
 
         $employee->save();
 
         $eventos = 0;
 
-        if (!$esNuevo) {
+        if (! $esNuevo) {
             $eventos = $this->registrarCambios($valoresAnteriores, $employee);
         }
 
         return response()->json([
             'success' => true,
             'message' => $esNuevo ? 'Empleado creado' : 'Empleado actualizado',
-            'id'      => $employee->id,
+            'id' => $employee->id,
             'eventos' => $eventos,
         ], $esNuevo ? 201 : 200);
     }
@@ -352,7 +353,7 @@ class EmployeeController extends Controller
             ->distinct()
             ->pluck('leader');
 
-        $resueltos   = 0;
+        $resueltos = 0;
         $sinResolver = 0;
 
         foreach ($pendientes as $nombre) {
@@ -375,8 +376,8 @@ class EmployeeController extends Controller
         }
 
         return response()->json([
-            'success'      => true,
-            'resueltos'    => $resueltos,
+            'success' => true,
+            'resueltos' => $resueltos,
             'sin_resolver' => $sinResolver,
         ]);
     }
@@ -433,21 +434,21 @@ class EmployeeController extends Controller
                 continue;
             }
 
-            $valorAntes   = $antes[$campo] ?? null;
+            $valorAntes = $antes[$campo] ?? null;
             $valorDespues = $despues->getRawOriginal($campo);
 
             // Normalizar según tipo de campo
             if (in_array($campo, self::CAMPOS_FECHA, true)) {
-                $valorAntes   = $this->normalizarFecha($valorAntes);
+                $valorAntes = $this->normalizarFecha($valorAntes);
                 $valorDespues = $this->normalizarFecha($valorDespues);
             } elseif (in_array($campo, self::CAMPOS_DECIMALES, true)) {
-                $valorAntes   = $this->normalizarDecimal($valorAntes);
+                $valorAntes = $this->normalizarDecimal($valorAntes);
                 $valorDespues = $this->normalizarDecimal($valorDespues);
             } elseif (in_array($campo, self::CAMPOS_ENTEROS, true)) {
-                $valorAntes   = $this->normalizarEntero($valorAntes);
+                $valorAntes = $this->normalizarEntero($valorAntes);
                 $valorDespues = $this->normalizarEntero($valorDespues);
             } else {
-                $valorAntes   = $this->normalizar($valorAntes);
+                $valorAntes = $this->normalizar($valorAntes);
                 $valorDespues = $this->normalizar($valorDespues);
             }
 
@@ -456,17 +457,17 @@ class EmployeeController extends Controller
             }
 
             $eventos[] = [
-                'employee_id'    => $despues->id,
-                'campo'          => $campo,
-                'evento'         => "Se actualizó el campo '{$etiqueta}' del empleado",
+                'employee_id' => $despues->id,
+                'campo' => $campo,
+                'evento' => "Se actualizó el campo '{$etiqueta}' del empleado",
                 'valor_anterior' => $valorAntes,
-                'valor_nuevo'    => $valorDespues,
-                'created_at'     => now(),
-                'updated_at'     => now(),
+                'valor_nuevo' => $valorDespues,
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
         }
 
-        if (!empty($eventos)) {
+        if (! empty($eventos)) {
             EmployeeEvent::insert($eventos);
         }
 
@@ -514,6 +515,7 @@ class EmployeeController extends Controller
             // Intentar parsear y extraer solo la fecha
             try {
                 $dt = new \DateTime($value);
+
                 return $dt->format('Y-m-d');
             } catch (\Exception $e) {
                 return $value;
@@ -534,7 +536,7 @@ class EmployeeController extends Controller
         }
 
         $str = trim((string) $value);
-        if ($str === '' || !is_numeric($str)) {
+        if ($str === '' || ! is_numeric($str)) {
             return $str;
         }
 
@@ -553,7 +555,7 @@ class EmployeeController extends Controller
         }
 
         $str = trim((string) $value);
-        if ($str === '' || !is_numeric($str)) {
+        if ($str === '' || ! is_numeric($str)) {
             return $str;
         }
 
@@ -580,17 +582,19 @@ class EmployeeController extends Controller
 
         if (str_contains($valor, ',')) {
             [$apellidos, $nombres] = explode(',', $valor, 2);
+
             return [
                 'first_name' => trim($nombres) ?: null,
-                'last_name'  => trim($apellidos) ?: null,
+                'last_name' => trim($apellidos) ?: null,
             ];
         }
 
         // Sin coma: primer token = nombre(s), resto = apellidos
         $partes = preg_split('/\s+/', $valor, 2);
+
         return [
             'first_name' => $partes[0] ?? null,
-            'last_name'  => isset($partes[1]) ? $partes[1] : null,
+            'last_name' => isset($partes[1]) ? $partes[1] : null,
         ];
     }
 
@@ -600,12 +604,13 @@ class EmployeeController extends Controller
      */
     private function reordenarNombre(string $nombre): string
     {
-        if (!str_contains($nombre, ',')) {
+        if (! str_contains($nombre, ',')) {
             return $nombre;
         }
 
         [$apellidos, $nombres] = explode(',', $nombre, 2);
-        return trim($nombres) . ' ' . trim($apellidos);
+
+        return trim($nombres).' '.trim($apellidos);
     }
 
     /**
@@ -656,8 +661,8 @@ class EmployeeController extends Controller
      * Solo sustituye si encuentra exactamente un resultado (evita ambigüedad).
      * Si no hay match, devuelve el nombre limpio como fallback.
      *
-     * @param string|null $nombreLimpio  Nombre ya limpio y reordenado (fallback)
-     * @param string|null $rawLider      Valor original del campo Lider
+     * @param  string|null  $nombreLimpio  Nombre ya limpio y reordenado (fallback)
+     * @param  string|null  $rawLider  Valor original del campo Lider
      */
     private function resolverLider(?string $nombreLimpio, ?string $rawLider): ?string
     {
@@ -679,13 +684,13 @@ class EmployeeController extends Controller
             // Formato origen "Apellidos, Nombre" → split exacto, LIKE por separado
             [$apellidos, $nombres] = explode(',', $sinPrefijo, 2);
             $apellidos = trim($apellidos);
-            $nombres   = trim($nombres);
+            $nombres = trim($nombres);
 
             if ($nombres !== '') {
-                $query->where('first_name', 'like', $nombres . '%');
+                $query->where('first_name', 'like', $nombres.'%');
             }
             if ($apellidos !== '') {
-                $query->where('last_name', 'like', $apellidos . '%');
+                $query->where('last_name', 'like', $apellidos.'%');
             }
         } else {
             // Sin coma: el valor ya está en orden natural "Nombre Apellidos".
@@ -694,7 +699,7 @@ class EmployeeController extends Controller
             // que first_name="Vicente Alejandro" / last_name="Carrillo").
             $query->whereRaw(
                 "(first_name + ' ' + ISNULL(last_name, '')) LIKE ?",
-                [$sinPrefijo . '%']
+                [$sinPrefijo.'%']
             );
         }
 
@@ -725,7 +730,7 @@ class EmployeeController extends Controller
      */
     private function resolverLiderId(?string $numeroEmpleado): ?int
     {
-        if ($numeroEmpleado === null || !ctype_digit($numeroEmpleado)) {
+        if ($numeroEmpleado === null || ! ctype_digit($numeroEmpleado)) {
             return null;
         }
 
@@ -738,6 +743,7 @@ class EmployeeController extends Controller
     private function str(array $data, string $key): ?string
     {
         $value = trim($data[$key] ?? '');
+
         return $value !== '' ? $value : null;
     }
 
@@ -748,12 +754,14 @@ class EmployeeController extends Controller
             return null;
         }
         $parsed = \DateTime::createFromFormat('Y-m-d', $value);
+
         return ($parsed && $parsed->format('Y-m-d') === $value) ? $value : null;
     }
 
     private function decimal(array $data, string $key): ?string
     {
         $value = trim($data[$key] ?? '');
+
         return is_numeric($value) ? $value : null;
     }
 }

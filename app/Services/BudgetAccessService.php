@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Subaccount;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -13,19 +14,20 @@ class BudgetAccessService
             return collect();
         }
 
-        $departmentIds = $user->department
-            ? $user->department->subaccounts()->pluck('subaccounts.id')
-            : collect();
+        if (! $user->department_id) {
+            return collect();
+        }
 
-        $profileIds = $user->budgetProfile
-            ? $user->budgetProfile->subaccounts()->pluck('subaccounts.id')
-            : collect();
-
-        $directIds = $user->subaccounts()->pluck('subaccounts.id');
-
-        return $departmentIds
-            ->merge($profileIds)
-            ->merge($directIds)
+        return Subaccount::query()
+            ->active()
+            ->whereHas('budgetProfiles', function ($query) use ($user) {
+                $query
+                    ->active()
+                    ->whereHas('departments', fn ($departmentQuery) => $departmentQuery
+                        ->whereKey($user->department_id)
+                        ->where('departments.is_active', true));
+            })
+            ->pluck('subaccounts.id')
             ->filter()
             ->unique()
             ->values();
