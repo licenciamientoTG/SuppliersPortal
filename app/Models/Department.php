@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Department extends Model
@@ -39,9 +38,9 @@ class Department extends Model
         return $this->belongsToMany(Subaccount::class, 'department_subaccount');
     }
 
-    public function budgetProfiles(): BelongsToMany
+    public function budgetProfiles()
     {
-        return $this->belongsToMany(BudgetProfile::class, 'budget_profile_department');
+        return $this->hasMany(BudgetProfile::class);
     }
 
     /**

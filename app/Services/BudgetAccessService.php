@@ -23,9 +23,9 @@ class BudgetAccessService
             ->whereHas('budgetProfiles', function ($query) use ($user) {
                 $query
                     ->active()
-                    ->whereHas('departments', fn ($departmentQuery) => $departmentQuery
-                        ->whereKey($user->department_id)
-                        ->where('departments.is_active', true));
+                    ->where('budget_profiles.department_id', $user->department_id)
+                    ->whereHas('department', fn ($departmentQuery) => $departmentQuery->where('is_active', true))
+                    ->whereHas('users', fn ($userQuery) => $userQuery->whereKey($user->id));
             })
             ->pluck('subaccounts.id')
             ->filter()

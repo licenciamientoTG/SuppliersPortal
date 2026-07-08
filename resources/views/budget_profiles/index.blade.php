@@ -25,12 +25,8 @@
 
     <div class="card">
         <div class="card-header bg-white">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <h5 class="mb-0"><i class="ti ti-wallet me-1"></i>Perfiles presupuestales</h5>
-                    <small class="text-muted">Los departamentos contienen perfiles; cada perfil define las subcuentas disponibles.</small>
-                </div>
-            </div>
+            <h5 class="mb-0"><i class="ti ti-wallet me-1"></i>Perfiles presupuestales</h5>
+            <small class="text-muted">Cada perfil pertenece a un solo departamento y contiene sus subcuentas permitidas.</small>
         </div>
 
         <div class="card-body">
@@ -53,18 +49,27 @@
                         @csrf
                         <input type="hidden" name="is_active" value="1">
                         <div class="col-md-2">
-                            <label class="form-label">Clave</label>
-                            <input type="text" name="key" class="form-control" placeholder="compras_jefe" required>
+                            <label class="form-label">Departamento</label>
+                            <select name="department_id" class="form-select" required>
+                                <option value="">Selecciona</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Clave</label>
+                            <input type="text" name="key" class="form-control" placeholder="operaciones_gerente" required>
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label">Nombre</label>
-                            <input type="text" name="name" class="form-control" required>
+                            <input type="text" name="name" class="form-control" placeholder="Gerente de estacion" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Descripcion</label>
                             <input type="text" name="description" class="form-control">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Subcuentas</label>
                             <select name="subaccount_ids[]" class="form-select js-budget-select" multiple>
                                 @foreach ($subaccounts as $subaccount)
@@ -85,6 +90,7 @@
                         <table class="table table-hover table-bordered align-middle js-data-table">
                             <thead class="table-light">
                                 <tr>
+                                    <th>Departamento</th>
                                     <th>Perfil</th>
                                     <th>Clave</th>
                                     <th>Subcuentas</th>
@@ -96,13 +102,22 @@
                             <tbody>
                                 @foreach ($profiles as $profile)
                                     <tr>
-                                        <td style="min-width: 260px;">
+                                        <td style="min-width: 220px;">
                                             <form id="profileForm{{ $profile->id }}" method="POST" action="{{ route('budget-profiles.update', $profile) }}">
                                                 @csrf
                                                 @method('PUT')
-                                                <input type="text" name="name" class="form-control form-control-sm mb-1" value="{{ $profile->name }}" required>
-                                                <textarea name="description" class="form-control form-control-sm" rows="2">{{ $profile->description }}</textarea>
+                                                <select name="department_id" class="form-select form-select-sm" required>
+                                                    @foreach ($departments as $department)
+                                                        <option value="{{ $department->id }}" @selected($profile->department_id === $department->id)>
+                                                            {{ $department->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
                                             </form>
+                                        </td>
+                                        <td style="min-width: 260px;">
+                                            <input form="profileForm{{ $profile->id }}" type="text" name="name" class="form-control form-control-sm mb-1" value="{{ $profile->name }}" required>
+                                            <textarea form="profileForm{{ $profile->id }}" name="description" class="form-control form-control-sm" rows="2">{{ $profile->description }}</textarea>
                                         </td>
                                         <td style="min-width: 170px;">
                                             <input form="profileForm{{ $profile->id }}" type="text" name="key" class="form-control form-control-sm" value="{{ $profile->key }}" required>
@@ -117,7 +132,7 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info">{{ $profile->departments_count }} departamentos</span>
+                                            <span class="badge bg-info">{{ $profile->users_count }} usuarios</span>
                                             <span class="badge bg-secondary">{{ $profile->subaccounts_count }} subcuentas</span>
                                         </td>
                                         <td>
@@ -144,57 +159,26 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Departamento</th>
-                                    <th>Perfiles</th>
-                                    <th>Subcuentas efectivas</th>
-                                    <th class="text-end">Guardar</th>
+                                    <th>Perfiles propios</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($departments as $department)
-                                    @php
-                                        $effectiveSubaccounts = $department->budgetProfiles
-                                            ->where('is_active', true)
-                                            ->flatMap(fn ($profile) => $profile->subaccounts)
-                                            ->unique('id')
-                                            ->sortBy('name');
-                                    @endphp
                                     <tr>
-                                        <td style="min-width: 220px;">
+                                        <td style="min-width: 240px;">
                                             <div class="fw-semibold">{{ $department->name }}</div>
                                             <span class="badge {{ $department->is_active ? 'bg-success' : 'bg-secondary' }}">
                                                 {{ $department->is_active ? 'Activo' : 'Inactivo' }}
                                             </span>
                                         </td>
-                                        <td style="min-width: 360px;">
-                                            <form id="departmentForm{{ $department->id }}" method="POST" action="{{ route('budget-profiles.departments.update', $department) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="budget_profile_ids[]" class="form-select form-select-sm js-profile-select" multiple>
-                                                    @foreach ($profiles as $profile)
-                                                        <option value="{{ $profile->id }}" @selected($department->budgetProfiles->contains('id', $profile->id))>
-                                                            {{ $profile->name }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </form>
-                                        </td>
-                                        <td style="min-width: 420px;">
-                                            @forelse ($effectiveSubaccounts->take(10) as $subaccount)
+                                        <td>
+                                            @forelse ($department->budgetProfiles as $profile)
                                                 <span class="badge bg-light text-dark border mb-1">
-                                                    {{ $subaccount->account?->code }} / {{ $subaccount->code }} {{ $subaccount->name }}
+                                                    {{ $profile->name }} · {{ $profile->subaccounts_count }} subcuentas · {{ $profile->users_count }} usuarios
                                                 </span>
                                             @empty
-                                                <span class="text-muted">Sin subcuentas asignadas</span>
+                                                <span class="text-muted">Sin perfiles</span>
                                             @endforelse
-
-                                            @if ($effectiveSubaccounts->count() > 10)
-                                                <span class="badge bg-secondary mb-1">+{{ $effectiveSubaccounts->count() - 10 }}</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-end">
-                                            <button form="departmentForm{{ $department->id }}" type="submit" class="btn btn-sm btn-primary" title="Guardar departamento">
-                                                <i class="ti ti-device-floppy"></i>
-                                            </button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -214,13 +198,6 @@
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: 'Selecciona subcuentas',
-                closeOnSelect: false
-            });
-
-            $('.js-profile-select').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: 'Selecciona perfiles',
                 closeOnSelect: false
             });
 

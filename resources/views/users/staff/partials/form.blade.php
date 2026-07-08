@@ -244,6 +244,49 @@
 
         <hr class="my-3">
 
+        {{-- Alcance presupuestal --}}
+        <p class="text-uppercase text-muted fw-semibold mb-2"
+           style="font-size:10px;letter-spacing:.7px;">
+            <i class="ti ti-wallet me-1"></i>Alcance presupuestal
+        </p>
+
+        @php
+            $selectedDepartmentId = old('department_id', $user->department_id);
+            $selectedBudgetProfileIds = collect(old('budget_profile_ids', ($userBudgetProfiles ?? collect())->toArray()))
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        @endphp
+
+        <div class="row g-2">
+            <div class="col-md-5">
+                <label class="form-label form-label-sm mb-1">Departamento</label>
+                <select name="department_id" id="budgetDepartmentSelect" class="form-select form-select-sm">
+                    <option value="">Sin departamento presupuestal</option>
+                    @foreach (($departments ?? collect()) as $department)
+                        <option value="{{ $department->id }}" @selected((string) $selectedDepartmentId === (string) $department->id)>
+                            {{ $department->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-md-7">
+                <label class="form-label form-label-sm mb-1">Perfiles presupuestales</label>
+                <select name="budget_profile_ids[]" id="budgetProfilesSelect" class="form-select form-select-sm" multiple size="4">
+                    @foreach (($budgetProfiles ?? collect()) as $profile)
+                        <option value="{{ $profile->id }}"
+                                data-department-id="{{ $profile->department_id }}"
+                                @selected(in_array((int) $profile->id, $selectedBudgetProfileIds, true))>
+                            {{ $profile->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <div class="form-text">Solo se pueden asignar perfiles del departamento seleccionado.</div>
+            </div>
+        </div>
+
+        <hr class="my-3">
+
         {{-- Roles --}}
         <p class="text-uppercase text-muted fw-semibold mb-2"
            style="font-size:10px;letter-spacing:.7px;">
@@ -365,6 +408,8 @@
         const exceptionLimit = document.getElementById('authorizationExceptionLimit');
         const exceptionReason = document.getElementById('authorizationExceptionReason');
         const roleInputs = form.querySelectorAll('input[name="roles[]"]');
+        const budgetDepartmentSelect = document.getElementById('budgetDepartmentSelect');
+        const budgetProfilesSelect = document.getElementById('budgetProfilesSelect');
 
         const syncExceptionFields = () => {
             const exceptionEnabled = Boolean(exceptionSwitch && exceptionSwitch.checked);
@@ -411,6 +456,29 @@
             exceptionSwitch.addEventListener('change', syncExceptionFields);
         }
         syncAuthorizerVisibility();
+
+        const syncBudgetProfiles = () => {
+            if (! budgetDepartmentSelect || ! budgetProfilesSelect) {
+                return;
+            }
+
+            const departmentId = budgetDepartmentSelect.value;
+
+            Array.from(budgetProfilesSelect.options).forEach((option) => {
+                const belongsToDepartment = departmentId && option.dataset.departmentId === departmentId;
+                option.hidden = ! belongsToDepartment;
+                option.disabled = ! belongsToDepartment;
+
+                if (! belongsToDepartment) {
+                    option.selected = false;
+                }
+            });
+        };
+
+        if (budgetDepartmentSelect) {
+            budgetDepartmentSelect.addEventListener('change', syncBudgetProfiles);
+        }
+        syncBudgetProfiles();
 
         // ── Preview de avatar ────────────────────────────────────────────────
         const avatarInput = document.getElementById('avatarInput');

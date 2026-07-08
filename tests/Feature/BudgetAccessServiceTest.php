@@ -28,11 +28,10 @@ class BudgetAccessServiceTest extends TestCase
         ]);
         $department->subaccounts()->sync([$departmentDirectSubaccount->id]);
 
-        $departmentProfile = BudgetProfile::factory()->create();
+        $departmentProfile = BudgetProfile::factory()->create(['department_id' => $department->id]);
         $departmentProfile->subaccounts()->sync([$allowedSubaccount->id]);
-        $department->budgetProfiles()->sync([$departmentProfile->id]);
 
-        $legacyUserProfile = BudgetProfile::factory()->create();
+        $legacyUserProfile = BudgetProfile::factory()->create(['department_id' => $department->id]);
         $legacyUserProfile->subaccounts()->sync([$userProfileSubaccount->id]);
 
         $user = User::factory()->create([
@@ -41,23 +40,26 @@ class BudgetAccessServiceTest extends TestCase
             'job_title' => 'Desarrollador De Software',
         ]);
         $user->subaccounts()->sync([$userDirectSubaccount->id]);
+        $user->budgetProfiles()->sync([$departmentProfile->id]);
 
         $ids = app(BudgetAccessService::class)->subaccountIdsFor($user)->all();
 
         $this->assertEquals([$allowedSubaccount->id], $ids);
     }
 
-    public function test_users_in_same_department_have_same_budget_access_even_with_different_job_titles(): void
+    public function test_budget_access_uses_assigned_profiles_not_job_titles(): void
     {
-        $subaccount = Subaccount::factory()->create();
+        $headSubaccount = Subaccount::factory()->create();
+        $assistantSubaccount = Subaccount::factory()->create();
         $department = Department::create([
             'name' => 'Compras Test',
             'abbreviated' => 'COMP',
             'is_active' => true,
         ]);
-        $profile = BudgetProfile::factory()->create();
-        $profile->subaccounts()->sync([$subaccount->id]);
-        $department->budgetProfiles()->sync([$profile->id]);
+        $headProfile = BudgetProfile::factory()->create(['department_id' => $department->id]);
+        $headProfile->subaccounts()->sync([$headSubaccount->id]);
+        $assistantProfile = BudgetProfile::factory()->create(['department_id' => $department->id]);
+        $assistantProfile->subaccounts()->sync([$assistantSubaccount->id]);
 
         $head = User::factory()->create([
             'department_id' => $department->id,
@@ -67,9 +69,12 @@ class BudgetAccessServiceTest extends TestCase
             'department_id' => $department->id,
             'job_title' => 'Auxiliar de Compras',
         ]);
+        $head->budgetProfiles()->sync([$headProfile->id]);
+        $assistant->budgetProfiles()->sync([$assistantProfile->id]);
 
         $service = app(BudgetAccessService::class);
 
-        $this->assertSame($service->subaccountIdsFor($head)->all(), $service->subaccountIdsFor($assistant)->all());
+        $this->assertEquals([$headSubaccount->id], $service->subaccountIdsFor($head)->all());
+        $this->assertEquals([$assistantSubaccount->id], $service->subaccountIdsFor($assistant)->all());
     }
 }
