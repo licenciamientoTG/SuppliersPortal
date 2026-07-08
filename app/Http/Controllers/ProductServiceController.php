@@ -226,11 +226,6 @@ class ProductServiceController extends Controller
                 'maximum_quantity' => $data['maximum_quantity'] ?? null,
                 'lead_time_days' => $data['lead_time_days'] ?? null,
 
-                // Estructura contable
-                'account_major' => $data['account_major'] ?? null,
-                'account_sub' => $data['account_sub'] ?? null,
-                'account_subsub' => $data['account_subsub'] ?? null,
-
                 // Estado
                 'status' => ProductServiceStatus::PENDING->value,
                 'is_active' => false, // Se activa al aprobar
@@ -374,11 +369,6 @@ class ProductServiceController extends Controller
                 'maximum_quantity' => $data['maximum_quantity'] ?? null,
                 'lead_time_days' => $data['lead_time_days'] ?? null,
 
-                // Estructura contable
-                'account_major' => $data['account_major'] ?? null,
-                'account_sub' => $data['account_sub'] ?? null,
-                'account_subsub' => $data['account_subsub'] ?? null,
-
                 // Observaciones
                 'observations' => $data['observations'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
@@ -481,11 +471,19 @@ class ProductServiceController extends Controller
                 ->with('error', 'Solo se pueden aprobar productos en estado Pendiente.');
         }
 
-        // Validar que tenga estructura contable completa
-        if (!$productService->hasCompleteAccountingStructure()) {
+        try {
+            app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
+            $productService->refresh();
+        } catch (\RuntimeException $exception) {
             return redirect()
                 ->route('products-services.show', $productService)
-                ->with('error', 'El producto debe tener estructura contable completa (Cuenta Mayor, Subcuenta, Subsubcuenta) para ser aprobado.');
+                ->with('error', $exception->getMessage());
+        }
+
+        if (! $productService->budgetCedulas()->exists()) {
+            return redirect()
+                ->route('products-services.show', $productService)
+                ->with('error', 'El producto debe tener al menos una cédula de gasto/subcuenta asignada para ser aprobado.');
         }
 
         return DB::transaction(function () use ($productService) {
@@ -558,9 +556,17 @@ class ProductServiceController extends Controller
                 'Solo se pueden reactivar productos en estado Inactivo.');
         }
 
-        if (!$productService->hasCompleteAccountingStructure()) {
+        try {
+            app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
+            $productService->refresh();
+        } catch (\RuntimeException $exception) {
             return $this->statusActionResponse($request, $productService, false,
-                'El producto debe tener estructura contable completa para reactivarse.');
+                $exception->getMessage());
+        }
+
+        if (! $productService->budgetCedulas()->exists()) {
+            return $this->statusActionResponse($request, $productService, false,
+                'El producto debe tener al menos una cédula de gasto/subcuenta asignada para reactivarse.');
         }
 
         $productService->status = ProductServiceStatus::ACTIVE->value;
@@ -692,9 +698,6 @@ class ProductServiceController extends Controller
                 'minimum_quantity' => $p->minimum_quantity ? (float) $p->minimum_quantity : null,
                 'maximum_quantity' => $p->maximum_quantity ? (float) $p->maximum_quantity : null,
                 'lead_time_days' => $p->lead_time_days,
-                'account_major' => $p->account_major,
-                'account_sub' => $p->account_sub,
-                'account_subsub' => $p->account_subsub,
                 'budget_classification' => $budgetClassification,
                 'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
                     'id' => $subaccount->id,
@@ -712,7 +715,7 @@ class ProductServiceController extends Controller
     }
 
     /**
-     * Crea un producto desde una requisición (sin estructura contable)
+     * Crea un producto desde una requisici�n.
      */
     public function storeFromRequisition(Request $request): JsonResponse
     {
@@ -749,10 +752,6 @@ class ProductServiceController extends Controller
                 'currency_code' => $validated['currency_code'] ?? 'MXN',
                 'default_vendor_id' => $validated['default_vendor_id'] ?? null,
 
-                // Estructura contable VACÍA (Admin la completará)
-                'account_major' => null,
-                'account_sub' => null,
-                'account_subsub' => null,
 
                 'status' => ProductServiceStatus::PENDING->value,
                 'is_active' => false,

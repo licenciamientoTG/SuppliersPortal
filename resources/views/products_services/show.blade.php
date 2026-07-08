@@ -337,47 +337,12 @@
                 </div>
             </div>
 
-            {{-- Estructura Contable --}}
+            {{-- Clasificación Presupuestal --}}
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="ti ti-calculator"></i> Estructura Contable</h5>
+                    <h5 class="mb-0"><i class="ti ti-tags"></i> Clasificación Presupuestal</h5>
                 </div>
                 <div class="card-body">
-                    @if ($productService->hasCompleteAccountingStructure())
-                        <div class="row mb-2">
-                            <div class="col-5">
-                                <strong>Cuenta Mayor:</strong>
-                            </div>
-                            <div class="col-7">
-                                <code>{{ $productService->account_major }}</code>
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <div class="col-5">
-                                <strong>Subcuenta:</strong>
-                            </div>
-                            <div class="col-7">
-                                <code>{{ $productService->account_sub }}</code>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-5">
-                                <strong>Subsubcuenta:</strong>
-                            </div>
-                            <div class="col-7">
-                                <code>{{ $productService->account_subsub }}</code>
-                            </div>
-                        </div>
-                    @else
-                        <div class="alert alert-warning alert-sm mb-0">
-                            <i class="ti ti-alert-triangle me-2"></i>
-                            Estructura contable incompleta. Debe completarse antes de aprobar.
-                        </div>
-                    @endif
-
-                    <hr>
 
                     <div class="row mb-2">
                         <div class="col-5">
@@ -443,8 +408,7 @@
                             <form action="{{ route('products-services.approve', $productService) }}" method="POST"
                                 class="mb-2">
                                 @csrf
-                                <button type="submit" class="btn btn-success w-100"
-                                    @if (!$productService->hasCompleteAccountingStructure()) disabled title="Completar estructura contable primero" @endif>
+                                <button type="submit" class="btn btn-success w-100">
                                     <i class="ti ti-check me-2"></i>Aprobar
                                 </button>
                             </form>

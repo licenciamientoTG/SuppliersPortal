@@ -48,11 +48,6 @@ class SaveProductServiceRequest extends FormRequest
             'maximum_quantity' => 'nullable|numeric|min:0.001|max:9999999.999|gte:minimum_quantity',
             'lead_time_days' => 'nullable|integer|min:1|max:365',
             
-            // Estructura contable
-            'account_major' => 'nullable|string|max:50',
-            'account_sub' => 'nullable|string|max:50',
-            'account_subsub' => 'nullable|string|max:50',
-            
             // Observaciones
             'observations' => 'nullable|string|max:2000',
             'internal_notes' => 'nullable|string|max:2000',
@@ -83,9 +78,6 @@ class SaveProductServiceRequest extends FormRequest
             'minimum_quantity' => 'cantidad mínima',
             'maximum_quantity' => 'cantidad máxima',
             'lead_time_days' => 'días de entrega',
-            'account_major' => 'cuenta mayor',
-            'account_sub' => 'subcuenta',
-            'account_subsub' => 'subsubcuenta',
             'observations' => 'observaciones',
             'internal_notes' => 'notas internas',
         ];
@@ -108,28 +100,4 @@ class SaveProductServiceRequest extends FormRequest
         ];
     }
 
-    /**
-     * Configurar validador personalizado.
-     */
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            // Validar que si hay cuenta mayor, también haya sub y subsub
-            $hasMajor = !empty($this->account_major);
-            $hasSub = !empty($this->account_sub);
-            $hasSubsub = !empty($this->account_subsub);
-
-            if ($hasMajor || $hasSub || $hasSubsub) {
-                if (!$hasMajor) {
-                    $validator->errors()->add('account_major', 'Si proporciona estructura contable, la Cuenta Mayor es obligatoria.');
-                }
-                if (!$hasSub) {
-                    $validator->errors()->add('account_sub', 'Si proporciona estructura contable, la Subcuenta es obligatoria.');
-                }
-                if (!$hasSubsub) {
-                    $validator->errors()->add('account_subsub', 'Si proporciona estructura contable, la Subsubcuenta es obligatoria.');
-                }
-            }
-        });
-    }
 }

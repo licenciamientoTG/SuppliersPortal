@@ -440,65 +440,6 @@
                         </div>
                     </div>
 
-                    {{-- Estructura Contable --}}
-                    <div class="mb-3">
-                        <h6 class="border-bottom pb-2 mb-3">
-                            <i class="ti ti-abacus me-1"></i>Cuentas Contables
-                        </h6>
-                        
-                        <div class="alert alert-info py-2 mb-3 small">
-                            <i class="ti ti-info-circle me-1"></i>
-                            Campos obligatorios para aprobación
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="account_major" class="form-label small">Cuenta Mayor <span class="text-danger">*</span></label>
-                            <input type="number" 
-                                    class="form-control form-control-sm @error('account_major') is-invalid @enderror"
-                                    id="account_major" 
-                                    name="account_major" 
-                                    value="{{ old('account_major') }}"
-                                    min="1" 
-                                    max="9999"
-                                    required
-                                    placeholder="Ej: 5101">
-                            @error('account_major')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="account_sub" class="form-label small">Subcuenta <span class="text-danger">*</span></label>
-                            <input type="number" 
-                                    class="form-control form-control-sm @error('account_sub') is-invalid @enderror"
-                                    id="account_sub" 
-                                    name="account_sub" 
-                                    value="{{ old('account_sub') }}" 
-                                    min="1" 
-                                    max="9999"
-                                    required
-                                    placeholder="Ej: 1">
-                            @error('account_sub')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="account_subsub" class="form-label small">Subsubcuenta <span class="text-danger">*</span></label>
-                            <input type="number" 
-                                    class="form-control form-control-sm @error('account_subsub') is-invalid @enderror"
-                                    id="account_subsub" 
-                                    name="account_subsub" 
-                                    value="{{ old('account_subsub') }}"
-                                    min="1" 
-                                    max="9999"
-                                    required
-                                    placeholder="Ej: 1">
-                            @error('account_subsub')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
                 </div>
             </div>
 
