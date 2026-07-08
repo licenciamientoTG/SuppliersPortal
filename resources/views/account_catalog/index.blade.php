@@ -30,8 +30,8 @@
     <div class="card">
         <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
             <div>
-                <h5 class="mb-0"><i class="ti ti-abacus me-1"></i>Catálogo de cuentas</h5>
-                <small class="text-muted">Las subcuentas definen el alcance presupuestal usado por productos y partidas.</small>
+                <h5 class="mb-0"><i class="ti ti-abacus me-1"></i>Catálogo de cuentas y subcuentas</h5>
+                <small class="text-muted">Los números de cuenta y subcuenta son la clasificación presupuestal ligada a productos y partidas.</small>
             </div>
             <form method="POST" action="{{ route('accounts.sync') }}">
                 @csrf
@@ -67,7 +67,7 @@
                                     @csrf
                                     @method('PUT')
                                     <div class="col-md-2">
-                                        <label class="form-label small">Código</label>
+                                        <label class="form-label small">Número de cuenta</label>
                                         <input type="text" name="code" class="form-control form-control-sm" value="{{ old('code', $account->code) }}" required>
                                     </div>
                                     <div class="col-md-4">
@@ -101,6 +101,7 @@
                                     <table class="table table-sm align-middle mb-0">
                                         <thead class="table-light">
                                             <tr>
+                                                <th>Número</th>
                                                 <th>Subcuenta</th>
                                                 <th>Categoría</th>
                                                 <th class="text-center">Productos</th>
@@ -118,6 +119,9 @@
                                                     <form method="POST" action="{{ route('subaccounts.update', $subaccount) }}">
                                                         @csrf
                                                         @method('PUT')
+                                                        <td style="min-width: 130px;">
+                                                            <input type="text" name="code" class="form-control form-control-sm" value="{{ $subaccount->code }}" required>
+                                                        </td>
                                                         <td style="min-width: 260px;">
                                                             <input type="text" name="name" class="form-control form-control-sm" value="{{ $subaccount->name }}" required>
                                                             @if ($subaccount->legacy_budget_cedula_id)

@@ -698,6 +698,7 @@ class ProductServiceController extends Controller
                 'budget_classification' => $budgetClassification,
                 'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
                     'id' => $subaccount->id,
+                    'code' => $subaccount->code,
                     'name' => $subaccount->name,
                     'account_id' => $subaccount->account_id,
                     'account_name' => $subaccount->account?->name,

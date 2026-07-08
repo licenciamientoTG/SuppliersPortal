@@ -46,6 +46,7 @@ class ProductBudgetClassificationService
             'account_code' => $account->code,
             'account_name' => $account->name,
             'subaccount_id' => (int) $subaccount->id,
+            'subaccount_code' => $subaccount->code,
             'subaccount_name' => $subaccount->name,
             'expense_category_id' => (int) $expenseCategory->id,
             'expense_category_name' => $expenseCategory->name,

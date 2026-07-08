@@ -16,6 +16,7 @@ class Subaccount extends Model
     protected $fillable = [
         'legacy_budget_cedula_id',
         'account_id',
+        'code',
         'name',
         'subaccount_category',
         'is_fixed_asset',

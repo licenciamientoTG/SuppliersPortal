@@ -64,6 +64,7 @@ class AccountCatalogController extends Controller
     public function updateSubaccount(Request $request, Subaccount $subaccount): RedirectResponse
     {
         $data = $request->validate([
+            'code' => ['required', 'string', 'max:50'],
             'name' => [
                 'required',
                 'string',
