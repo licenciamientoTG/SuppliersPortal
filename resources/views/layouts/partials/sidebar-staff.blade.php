@@ -26,6 +26,9 @@
     $openBudget = request()->routeIs('annual_budgets.*')
         || request()->routeIs('budget_monthly_distributions.*')
         || request()->routeIs('budget_movements.*')
+        || request()->routeIs('expense-cedulas.*')
+        || request()->routeIs('accounts.*')
+        || request()->routeIs('subaccounts.*')
         || request()->routeIs('budget-profiles.*')
         || request()->routeIs('cost-centers.*')
         || request()->routeIs('categories.*');
@@ -265,6 +268,14 @@
                     <span class="menu-text">Cédulas de Gasto</span>
                 </a>
             </li>
+            @can('catalogo_cuentas.ver')
+            <li class="side-nav-item">
+                <a href="{{ route('accounts.index') }}"
+                    class="side-nav-link {{ request()->routeIs('accounts.*') || request()->routeIs('subaccounts.*') ? 'active' : '' }}">
+                    <span class="menu-text">Cuentas y Subcuentas</span>
+                </a>
+            </li>
+            @endcan
             <li class="side-nav-item">
                 <a href="{{ route('budget-profiles.index') }}"
                     class="side-nav-link {{ request()->routeIs('budget-profiles.*') ? 'active' : '' }}">

@@ -3,6 +3,7 @@
 
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AnnualBudgetController;
+use App\Http\Controllers\AccountCatalogController;
 use App\Http\Controllers\ApprovalLevelController;
 use App\Http\Controllers\AuthorizerRoleController;
 use App\Http\Controllers\BudgetProfileController;
@@ -281,6 +282,22 @@ Route::middleware(['auth', 'lock'])->group(function () {
             Route::put('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'updateCedula'])->name('cedulas.update');
             Route::delete('/cedulas/{budgetCedula}', [ExpenseCedulaCatalogController::class, 'destroyCedula'])->name('cedulas.destroy');
         });
+
+        Route::middleware('can:catalogo_cuentas.ver')
+            ->prefix('accounts')
+            ->group(function () {
+                Route::get('/', [AccountCatalogController::class, 'index'])->name('accounts.index');
+                Route::post('/sync', [AccountCatalogController::class, 'sync'])
+                    ->middleware('can:catalogo_cuentas.editar')
+                    ->name('accounts.sync');
+                Route::put('/{account}', [AccountCatalogController::class, 'updateAccount'])
+                    ->middleware('can:catalogo_cuentas.editar')
+                    ->name('accounts.update');
+            });
+
+        Route::put('/subaccounts/{subaccount}', [AccountCatalogController::class, 'updateSubaccount'])
+            ->middleware('can:catalogo_cuentas.editar')
+            ->name('subaccounts.update');
 
         Route::middleware('can:catalogo_cuentas.editar')
             ->prefix('budget-profiles')
