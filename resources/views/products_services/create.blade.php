@@ -85,9 +85,8 @@
                                         required>
                                     <option value="">Seleccione compañía primero...</option>
                                     @foreach ($costCenters as $cc)
-                                        <option value="{{ $cc->id }}" 
+                                        <option value="{{ $cc->id }}"
                                                 data-company-id="{{ $cc->company_id }}"
-                                                data-category-name="{{ $cc->category?->name ?? '' }}"
                                                 {{ old('cost_center_id', $productService->cost_center_id) == $cc->id ? 'selected' : '' }}>
                                             {{ $cc->code }} - {{ $cc->name }}
                                         </option>
@@ -95,44 +94,6 @@
                                 </select>
                             </div>
                             @error('cost_center_id')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        {{-- Categoría derivada --}}
-                        <div class="col-md-6 mb-3">
-                            <label for="category_display" class="form-label">Categoría asignada</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-tag"></i>
-                                </span>
-                                <input type="text"
-                                        class="form-control"
-                                        id="category_display"
-                                        value="Se asigna automáticamente según el centro de costo"
-                                        readonly>
-                            </div>
-                            <div class="form-text">Este dato ya no se captura manualmente.</div>
-                        </div>
-
-                        {{-- Subcategoría --}}
-                        <div class="col-md-6 mb-3">
-                            <label for="subcategory" class="form-label">Subcategoría</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-tags"></i>
-                                </span>
-                                <input type="text" 
-                                        class="form-control @error('subcategory') is-invalid @enderror"
-                                        id="subcategory" 
-                                        name="subcategory" 
-                                        value="{{ old('subcategory') }}" 
-                                        maxlength="100"
-                                        placeholder="Ej: Material de oficina">
-                            </div>
-                            @error('subcategory')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
@@ -600,22 +561,11 @@
                 if (currentOption.data('company-id') != companyId) {
                     $costCenterSelect.val('');
                 }
-
-                updateCategoryDisplay();
             });
-
-            $('#cost_center_id').on('change', updateCategoryDisplay);
-
-            function updateCategoryDisplay() {
-                const categoryName = $('#cost_center_id option:selected').data('category-name');
-                $('#category_display').val(categoryName || 'Sin categoría configurada en el centro de costo');
-            }
 
             // Ejecutar al cargar si hay compañía pre-seleccionada
             if ($('#company_id').val()) {
                 $('#company_id').trigger('change');
-            } else {
-                updateCategoryDisplay();
             }
 
             // Multi-select Categorías de Gasto -> Cédulas de Gasto (sin AJAX, catálogo embebido)

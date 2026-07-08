@@ -141,9 +141,8 @@ class ProductServiceController extends Controller
         $selectedCompanyId = old('company_id', Auth::user()->company_id ?? null);
 
         $companies = Company::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::with('category:id,name')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'company_id', 'status', 'category_id']);
+        $costCenters = CostCenter::orderBy('name')
+            ->get(['id', 'name', 'code', 'company_id', 'status']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 
@@ -270,9 +269,8 @@ class ProductServiceController extends Controller
         $selectedCompanyId = old('company_id', $productService->company_id);
 
         $companies = Company::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::with('category:id,name')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'company_id', 'status', 'category_id']);
+        $costCenters = CostCenter::orderBy('name')
+            ->get(['id', 'name', 'code', 'company_id', 'status']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 

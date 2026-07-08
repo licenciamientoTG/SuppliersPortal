@@ -60,9 +60,6 @@
                         </div>
                         <div class="col-md-9">
                             {{ $productService->category?->name ?? '—' }}
-                            @if ($productService->subcategory)
-                                / <span class="text-muted">{{ $productService->subcategory }}</span>
-                            @endif
                         </div>
                     </div>
 

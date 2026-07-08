@@ -59,14 +59,6 @@
                     <input type="hidden" name="unit_of_measure" value="PIEZA">
 
                     <div class="mb-3">
-                        <label for="modal_subcategory" class="form-label">
-                            Subcategoría <small class="text-muted">(opcional)</small>
-                        </label>
-                        <input type="text" class="form-control" id="modal_subcategory" name="subcategory"
-                            maxlength="100" placeholder="Ej: Material de oficina, Servicios de limpieza...">
-                    </div>
-
-                    <div class="mb-3">
                         <label for="modal_technical_description" class="form-label">
                             Descripción Técnica <span class="text-danger">*</span>
                         </label>
