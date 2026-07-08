@@ -87,15 +87,11 @@
                                         <label class="form-label small">Número de cuenta</label>
                                         <input type="text" name="code" class="form-control form-control-sm" value="{{ old('code', $account->code) }}" required>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-5">
                                         <label class="form-label small">Cuenta</label>
                                         <input type="text" name="name" class="form-control form-control-sm" value="{{ old('name', $account->name) }}" required>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small">Categoría</label>
-                                        <input type="text" name="account_category" class="form-control form-control-sm" value="{{ old('account_category', $account->account_category) }}">
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end gap-3">
+                                    <div class="col-md-5 d-flex align-items-end gap-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="is_fixed_asset" value="1" id="account-fixed-{{ $account->id }}" @checked(old('is_fixed_asset', $account->is_fixed_asset))>
                                             <label class="form-check-label small" for="account-fixed-{{ $account->id }}">Activo fijo</label>
@@ -120,7 +116,6 @@
                                             <tr>
                                                 <th>Número</th>
                                                 <th>Subcuenta</th>
-                                                <th>Categoría</th>
                                                 <th class="text-center">Productos</th>
                                                 <th class="text-center">Perfiles</th>
                                                 <th class="text-center">Deptos.</th>
@@ -144,9 +139,6 @@
                                                             @if ($subaccount->legacy_budget_cedula_id)
                                                                 <small class="text-muted">Legacy cédula #{{ $subaccount->legacy_budget_cedula_id }}</small>
                                                             @endif
-                                                        </td>
-                                                        <td style="min-width: 180px;">
-                                                            <input type="text" name="subaccount_category" class="form-control form-control-sm" value="{{ $subaccount->subaccount_category }}">
                                                         </td>
                                                         <td class="text-center">
                                                             <button type="button"

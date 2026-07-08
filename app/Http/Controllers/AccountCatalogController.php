@@ -48,7 +48,6 @@ class AccountCatalogController extends Controller
             ],
             'name' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string'],
-            'account_category' => ['nullable', 'string', 'max:120'],
             'is_fixed_asset' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -75,7 +74,6 @@ class AccountCatalogController extends Controller
                     ->where('account_id', $subaccount->account_id)
                     ->ignore($subaccount->id),
             ],
-            'subaccount_category' => ['nullable', 'string', 'max:120'],
             'is_fixed_asset' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
