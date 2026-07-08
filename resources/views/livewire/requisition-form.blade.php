@@ -236,30 +236,16 @@
                     <form id="itemForm" class="needs-validation" novalidate>
                         <input type="hidden" id="item_index">
 
-                        {{-- Tipo de compra y Centro de Costo (filtro para la cascada) --}}
+                        {{-- Centro de Costo (con el tipo de compra como prefijo) --}}
                         <div class="row mb-3">
-                            <div class="col-md-5">
-                                <label for="modal_purchase_type" class="form-label fw-semibold">
-                                    Tipo de compra <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ti ti-filter"></i></span>
-                                    <select id="modal_purchase_type" class="form-select" required>
-                                        <option value="">Seleccionar...</option>
-                                        @foreach ($purchaseTypes as $pt)
-                                            <option value="{{ $pt }}">{{ $pt }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-7">
+                            <div class="col-md-12">
                                 <label for="modal_cost_center_id" class="form-label fw-semibold">
                                     Centro de Costo <span class="text-danger">*</span>
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ti ti-chart-pie"></i></span>
                                     <select id="modal_cost_center_id" class="form-select" required disabled>
-                                        <option value="">Selecciona primero el tipo de compra...</option>
+                                        <option value="">Seleccionar centro de costo...</option>
                                     </select>
                                 </div>
                                 <div class="form-text" id="modal_cost_center_help"></div>
@@ -350,7 +336,7 @@
                                     <i class="ti ti-notes"></i>
                                 </span>
                                 <textarea id="modal_notes" class="form-control" rows="3"
-                                    placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc."></textarea>
+                                    placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc. 1"></textarea>
                             </div>
                         </div>
                     </form>
@@ -725,14 +711,13 @@ $(function() {
 
     function renderModalCostCenters(mode = 'reset') {
         const companyId    = $('#company_id').val() || '';
-        const purchaseType = $('#modal_purchase_type').val() || '';
         const $cc          = $('#modal_cost_center_id');
 
         $cc.empty();
 
-        if (!companyId || !purchaseType) {
+        if (!companyId) {
             $cc.prop('disabled', true)
-               .append('<option value="">Selecciona primero el tipo de compra...</option>');
+               .append('<option value="">Selecciona primero una compañía...</option>');
             $('#modal_cost_center_help').text('');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
                 dropdownParent: $('#itemModal')
@@ -741,14 +726,13 @@ $(function() {
         }
 
         const matches = costCenterCatalog.filter(row =>
-            String(row.company_id) === String(companyId) &&
-            String(row.purchase_type) === String(purchaseType)
+            String(row.company_id) === String(companyId)
         );
 
         if (matches.length === 0) {
             $cc.prop('disabled', true)
-               .append('<option value="">Sin centros de costo para esta combinación</option>');
-            $('#modal_cost_center_help').text('No tienes centros de costo asignados para este tipo de compra.');
+               .append('<option value="">Sin centros de costo para esta compañía</option>');
+            $('#modal_cost_center_help').text('No tienes centros de costo asignados en esta compañía.');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
                 dropdownParent: $('#itemModal')
             });
@@ -759,7 +743,8 @@ $(function() {
            .append('<option value="">Seleccionar centro de costo...</option>');
 
         matches.forEach(row => {
-            const label = row.code ? `[${row.code}] ${row.name}` : row.name;
+            const ccLabel = row.code ? `[${row.code}] ${row.name}` : row.name;
+            const label = row.purchase_type ? `${row.purchase_type} - ${ccLabel}` : ccLabel;
             $cc.append($('<option>', {
                 value: row.id,
                 text: label,
@@ -821,11 +806,6 @@ $(function() {
     }
 
     function initializeModalBaseSelects() {
-        initializeSearchableSelect($('#modal_purchase_type'), 'Seleccionar tipo de compra...', {
-            dropdownParent: $('#itemModal'),
-            minimumResultsForSearch: Infinity
-        });
-
         initializeSearchableSelect($('#modal_cost_center_id'), 'Seleccionar centro de costo...', {
             dropdownParent: $('#itemModal')
         });
@@ -839,7 +819,6 @@ $(function() {
 
     function getItemModalState() {
         return JSON.stringify({
-            purchase_type: $('#modal_purchase_type').val() || '',
             cost_center_id: $('#modal_cost_center_id').val() || '',
             product_id: $('#modal_product_id').val() || '',
             description: $('#modal_description').val() || '',
@@ -905,15 +884,6 @@ $(function() {
         .on('hidden.bs.modal.requisitionGuard', function() {
             allowItemModalClose = false;
             itemModalInitialState = null;
-        });
-
-    // =====================================================
-    // LISTENER: Cambio de Tipo de Compra en modal
-    // =====================================================
-    $(document)
-        .off('change.modalPurchaseType', '#modal_purchase_type')
-        .on('change.modalPurchaseType', '#modal_purchase_type', function () {
-            renderModalCostCenters('reset');
         });
 
     function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
@@ -1652,10 +1622,7 @@ $(function() {
         $('#product_info').hide();
         resetBudgetCedulaSelect();
 
-        $('#modal_purchase_type').val('');
-        $('#modal_cost_center_id').prop('disabled', true)
-            .empty()
-            .append('<option value="">Selecciona primero el tipo de compra...</option>');
+        renderModalCostCenters('reset');
         $('#modal_expense_category').empty()
             .append('<option value="">Seleccione primero un centro de costo...</option>')
             .prop('disabled', true);
@@ -1675,7 +1642,6 @@ $(function() {
         $('#budgetAlert').hide();
         resetBudgetCedulaSelect();
 
-        $('#modal_purchase_type').val(item.purchase_type || '');
         $('#modal_cost_center_id').data('pending-value', item.cost_center_id || null);
         renderModalCostCenters('edit');
 
@@ -1716,19 +1682,15 @@ $(function() {
             return;
         }
 
-        const purchaseType   = $('#modal_purchase_type').val();
         const costCenterId   = $('#modal_cost_center_id').val();
-        const costCenterName = $('#modal_cost_center_id option:selected').data('name') || '';
+        const $selectedCc    = $('#modal_cost_center_id option:selected');
+        const costCenterName = $selectedCc.data('name') || '';
+        const purchaseType   = $selectedCc.data('purchase-type') || '';
         const productId      = $('#modal_product_id').val();
         const quantity       = parseFloat($('#modal_quantity').val());
         const classification = selectedProductClassification();
         const categoryId     = classification?.expense_category_id || '';
         const budgetCedulaId = classification?.budget_cedula_id || '';
-
-        if (!purchaseType) {
-            Swal.fire('Campo requerido', 'Selecciona el tipo de compra de esta partida.', 'error');
-            return;
-        }
 
         if (!costCenterId) {
             Swal.fire('Campo requerido', 'Selecciona el centro de costo de esta partida.', 'error');

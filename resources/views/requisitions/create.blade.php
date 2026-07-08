@@ -343,7 +343,7 @@
                                 <i class="ti ti-notes"></i>
                             </span>
                             <textarea id="modal_notes" class="form-control" rows="3"
-                                placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc."></textarea>
+                                placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc. 2"></textarea>
                         </div>
                     </div>
 
