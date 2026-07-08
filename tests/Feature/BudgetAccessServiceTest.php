@@ -14,7 +14,7 @@ class BudgetAccessServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_inherits_subaccounts_from_department_profiles_only(): void
+    public function test_user_inherits_subaccounts_from_department_profiles_and_direct_assignments(): void
     {
         $allowedSubaccount = Subaccount::factory()->create();
         $departmentDirectSubaccount = Subaccount::factory()->create();
@@ -44,7 +44,7 @@ class BudgetAccessServiceTest extends TestCase
 
         $ids = app(BudgetAccessService::class)->subaccountIdsFor($user)->all();
 
-        $this->assertEquals([$allowedSubaccount->id], $ids);
+        $this->assertEqualsCanonicalizing([$allowedSubaccount->id, $userDirectSubaccount->id], $ids);
     }
 
     public function test_budget_access_uses_assigned_profiles_not_job_titles(): void

@@ -715,7 +715,7 @@ class ProductServiceController extends Controller
     }
 
     /**
-     * Crea un producto desde una requisición.
+     * Crea un producto desde una requisiciï¿½n.
      */
     public function storeFromRequisition(Request $request): JsonResponse
     {
