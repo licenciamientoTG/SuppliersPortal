@@ -48,6 +48,7 @@
 
 <form action="{{ route('direct-purchase-orders.store') }}" method="POST" enctype="multipart/form-data" id="ocd-form">
     @csrf
+    <input type="hidden" id="products-api-url" value="{{ route('products-services.api.active-for-requisitions') }}">
 
     <div class="row">
         <div class="col-lg-9">
@@ -161,27 +162,27 @@
                         <h6 class="m-0 fw-bold text-uppercase small text-primary">Partidas</h6>
                         <button type="button" class="btn btn-xs btn-outline-primary" id="add-item-btn"><i class="ti ti-plus"></i> Agregar</button>
                     </div>
-                    <div class="table-responsive border rounded">
+                    <div class="border rounded overflow-hidden">
                         <table class="table table-sm table-hover mb-0" id="items-table">
                             <thead class="table-light small">
                                 <tr>
-                                    <th width="22%" class="ps-2">Descripción</th>
-                                    <th width="18%">Centro de costo</th>
-                                    <th width="18%">Cuenta</th>
-                                    <th width="6%">Cant.</th>
-                                    <th width="9%">P. Unit.</th>
-                                    <th width="7%">IVA</th>
-                                    <th width="9%">Subtotal</th>
-                                    <th width="9%">IVA $</th>
-                                    <th width="9%">Total</th>
-                                    <th width="3%"></th>
+                                    <th style="width:22%">Producto</th>
+                                    <th style="width:15%">Centro de costo</th>
+                                    <th style="width:15%">Cuenta / Subcuenta</th>
+                                    <th style="width:6%">Cant.</th>
+                                    <th style="width:9%">P. Unit.</th>
+                                    <th style="width:7%">IVA</th>
+                                    <th style="width:9%">Subtotal</th>
+                                    <th style="width:9%">IVA $</th>
+                                    <th style="width:9%">Total</th>
+                                    <th style="width:1%"></th>
                                 </tr>
                             </thead>
                             <tbody id="items-tbody">
                                 @if(old('items'))
                                     @foreach(old('items') as $index => $item)
                                         <tr class="item-row">
-                                            <td class="ps-2">
+                                            <td>
                                                 <input type="text"
                                                        name="items[{{ $index }}][description]"
                                                        class="form-control form-control-sm border-0 item-description"
@@ -198,12 +199,13 @@
                                                     <option value="">Seleccione empresa y tipo...</option>
                                                 </select>
                                             </td>
-                                            <td>
+                                            <td class="text-center">
+                                                <small class="text-muted item-budget-summary">Seleccione CC...</small>
                                                 <select name="items[{{ $index }}][expense_category_id]"
                                                         class="form-select form-select-sm border-0 item-expense-category"
                                                         data-selected="{{ $item['expense_category_id'] ?? '' }}"
-                                                        required disabled>
-                                                    <option value="">Cargando...</option>
+                                                        required disabled style="display:none">
+                                                    <option value="">Seleccione...</option>
                                                 </select>
                                             </td>
                                             <td>
@@ -260,7 +262,7 @@
                                 @else
                                     {{-- Fila por defecto --}}
                                     <tr class="item-row">
-                                        <td class="ps-2">
+                                        <td>
                                             <input type="text"
                                                    name="items[0][description]"
                                                    class="form-control form-control-sm border-0 item-description"
@@ -275,22 +277,21 @@
                                                 <option value="">Seleccione empresa y tipo...</option>
                                             </select>
                                         </td>
-                                        <td>
+                                        <td class="text-center">
+                                            <small class="text-muted item-budget-summary">Seleccione CC...</small>
                                             <select name="items[0][expense_category_id]"
                                                     class="form-select form-select-sm border-0 item-expense-category"
-                                                    required disabled>
-                                                <option value="">Seleccione CC primero...</option>
+                                                    required disabled style="display:none">
+                                                <option value="">Seleccione...</option>
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number"
-                                                   name="items[0][quantity]"
+                                            <input type="number" name="items[0][quantity]"
                                                    class="form-control form-control-sm border-0 item-quantity"
                                                    step="0.01" min="0.01" placeholder="0" required>
                                         </td>
                                         <td>
-                                            <input type="number"
-                                                   name="items[0][unit_price]"
+                                            <input type="number" name="items[0][unit_price]"
                                                    class="form-control form-control-sm border-0 item-unit-price"
                                                    step="0.01" min="0.01" placeholder="0.00" required>
                                         </td>
@@ -497,36 +498,64 @@
     }
 
     #items-table {
-        table-layout: auto;
-        min-width: 1180px;
-    }
-
-    #items-table th:nth-child(4),
-    #items-table td:nth-child(4) {
-        min-width: 90px;
-    }
-
-    #items-table th:nth-child(5),
-    #items-table td:nth-child(5),
-    #items-table th:nth-child(7),
-    #items-table td:nth-child(7),
-    #items-table th:nth-child(8),
-    #items-table td:nth-child(8),
-    #items-table th:nth-child(9),
-    #items-table td:nth-child(9) {
-        min-width: 120px;
-        white-space: nowrap;
-    }
-
-    #items-table .item-quantity,
-    #items-table .item-unit-price,
-    #items-table .item-subtotal,
-    #items-table .item-iva,
-    #items-table .item-total {
+        table-layout: fixed;
         width: 100%;
-        min-width: 100%;
-        white-space: nowrap;
-        overflow: visible;
+    }
+
+    #items-table th {
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #475569;
+        padding: 0.4rem 0.35rem;
+        vertical-align: middle;
+    }
+
+    #items-table td {
+        padding: 0.35rem;
+        vertical-align: middle;
+    }
+
+    #items-table .form-control-sm,
+    #items-table .form-select-sm {
+        padding: 0.2rem 0.35rem;
+        font-size: 0.78rem;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        border-radius: 4px;
+        height: auto;
+    }
+
+    #items-table .form-control-sm:focus,
+    #items-table .form-select-sm:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.12rem rgba(13, 110, 253, 0.12);
+    }
+
+    #items-table .form-control-sm.bg-transparent,
+    #items-table .form-control-sm[readonly] {
+        background: #f8fafc !important;
+        border-color: transparent;
+    }
+
+    #items-table .select2-container .select2-selection--single {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 4px !important;
+        height: auto !important;
+        padding: 0.15rem 0.25rem;
+        font-size: 0.78rem;
+    }
+
+    #items-table .select2-container .select2-selection__rendered {
+        line-height: 1.5 !important;
+        padding-left: 0.3rem !important;
+        padding-right: 1.2rem !important;
+    }
+
+    #items-table .select2-container .select2-selection__arrow {
+        height: 100% !important;
+        top: 0 !important;
     }
 </style>
 @endpush
@@ -535,8 +564,7 @@
 <script>
 $(document).ready(function() {
     const costCenterCatalog = @json($costCenterCatalog);
-    const productCatalog = @json($products);
-    const oldItemProducts = @json(collect(old('items', []))->pluck('product_service_id')->values());
+    const productsApiUrl = $('#products-api-url').val();
 
     $('#supplier_id, #company_id, #purchase_type, #receiving_location_id').select2({
         theme: 'bootstrap-5',
@@ -572,20 +600,6 @@ $(document).ready(function() {
         });
     }
 
-    function initializeCategorySelect(element) {
-        element.select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: 'Cuenta...',
-            minimumResultsForSearch: 5,
-            dropdownParent: element.closest('td'),
-            language: {
-                noResults: function() { return "Sin resultados"; },
-                searching: function() { return "Buscando..."; }
-            }
-        });
-    }
-
     function initializeCostCenterSelect(element) {
         element.select2({
             theme: 'bootstrap-5',
@@ -598,21 +612,6 @@ $(document).ready(function() {
                 searching: function() { return "Buscando..."; }
             }
         });
-    }
-
-    function productOptionsHtml(selectedValue = '') {
-        let html = '<option value="">Seleccione producto...</option>';
-        productCatalog.forEach(function(product) {
-            const selected = String(selectedValue) === String(product.id) ? ' selected' : '';
-            const label = `[${product.code}] ${product.name}`;
-            html += `<option value="${product.id}"${selected}>${label}</option>`;
-        });
-
-        return html;
-    }
-
-    function findProduct(productId) {
-        return productCatalog.find(product => String(product.id) === String(productId)) || null;
     }
 
     function rowIndex(row) {
@@ -635,25 +634,77 @@ $(document).ready(function() {
         });
     }
 
+    function loadProductsForRow(row) {
+        const companyId = $('#company_id').val();
+        const costCenterId = row.find('.item-cost-center').val();
+        const $productSelect = row.find('.item-product');
+
+        if (!$productSelect.length || !companyId || !costCenterId) {
+            return;
+        }
+
+        if ($productSelect.hasClass('select2-hidden-accessible')) {
+            $productSelect.select2('destroy');
+        }
+
+        $productSelect.html('<option value="">Cargando productos...</option>').prop('disabled', true);
+
+        $.ajax({
+            url: productsApiUrl,
+            method: 'GET',
+            data: {
+                company_id: companyId,
+                cost_center_id: costCenterId,
+                all: true
+            },
+            success: function(response) {
+                $productSelect.empty().append('<option value="">Seleccione producto...</option>');
+
+                if (response.products && response.products.length > 0) {
+                    response.products.forEach(function(product) {
+                        const label = `[${product.code}] ${product.short_name || product.description || product.technical_description}`;
+                        const $option = $('<option>', {
+                            value: product.id,
+                            text: label,
+                            'data-code': product.code,
+                            'data-description': product.description || '',
+                            'data-unit': product.unit_of_measure || 'PZA',
+                            'data-estimated-price': product.estimated_price || 0
+                        });
+                        $option.data('budget-classification', product.budget_classification || null);
+                        $productSelect.append($option);
+                    });
+                }
+
+                $productSelect.prop('disabled', false);
+                initializeProductSelect($productSelect);
+
+                const preselected = row.find('.item-product').data('selected');
+                if (preselected) {
+                    $productSelect.val(String(preselected)).trigger('change');
+                    row.find('.item-product').removeData('selected');
+                }
+            },
+            error: function() {
+                $productSelect.html('<option value="">Error al cargar productos</option>').prop('disabled', false);
+                initializeProductSelect($productSelect);
+            }
+        });
+    }
+
     function prepareProductRow(row) {
         const index = rowIndex(row);
         const description = row.find('.item-description');
         const categoryCell = row.find('.item-expense-category').closest('td');
-        const selectedProduct = row.find('.item-product').data('selected') || oldItemProducts[index] || '';
-
-        $('#items-table thead th').eq(0).text('Producto');
-        $('#items-table thead th').eq(2).text('Cuenta/Subcuenta');
 
         description.attr('type', 'hidden');
 
         if (!row.find('.item-product').length) {
             description.before(`
                 <select name="items[${index}][product_service_id]" class="form-select form-select-sm border-0 item-product" required>
-                    ${productOptionsHtml(selectedProduct)}
+                    <option value="">Seleccione centro de costo...</option>
                 </select>
             `);
-        } else {
-            row.find('.item-product').html(productOptionsHtml(selectedProduct));
         }
 
         if (!row.find('.item-unit').length) {
@@ -674,18 +725,25 @@ $(document).ready(function() {
         }
 
         if (!row.find('.item-budget-summary').length) {
-            categoryCell.append('<div class="small text-muted item-budget-summary">Seleccione producto...</div>');
+            categoryCell.append('<div class="small text-muted item-budget-summary">Seleccione centro de costo...</div>');
         }
 
-        initializeProductSelect(row.find('.item-product'));
-        applySelectedProductToRow(row);
+        const costCenterId = row.find('.item-cost-center').val();
+        if (costCenterId) {
+            loadProductsForRow(row);
+        } else {
+            if (!row.find('.item-product').hasClass('select2-hidden-accessible')) {
+                initializeProductSelect(row.find('.item-product'));
+            }
+        }
     }
 
     function applySelectedProductToRow(row) {
-        const product = findProduct(row.find('.item-product').val());
+        const $option = row.find('.item-product option:selected');
+        const classification = $option.data('budget-classification');
         const categorySelect = row.find('.item-expense-category');
 
-        if (!product) {
+        if (!classification) {
             categorySelect.html('<option value=""></option>').val('');
             row.find('.item-budget-cedula').val('');
             row.find('.item-description').val('');
@@ -696,19 +754,20 @@ $(document).ready(function() {
             return false;
         }
 
-        categorySelect.html(`<option value="${product.expense_category_id}">${product.expense_category_name}</option>`)
-            .val(String(product.expense_category_id));
-        row.find('.item-budget-cedula').val(product.budget_cedula_id);
-        row.find('.item-description').val(product.description || product.name);
-        row.find('.item-unit').val(product.unit_of_measure || '');
-        row.find('.item-sku').val(product.sku || '');
+        categorySelect.html(`<option value="${classification.expense_category_id}">${classification.expense_category_name}</option>`)
+            .val(String(classification.expense_category_id));
+        row.find('.item-budget-cedula').val(classification.budget_cedula_id);
+        row.find('.item-description').val($option.data('description') || '');
+        row.find('.item-unit').val($option.data('unit') || 'PZA');
+        row.find('.item-sku').val($option.data('code') || '');
 
-        if (!row.find('.item-unit-price').val() && product.estimated_price > 0) {
-            row.find('.item-unit-price').val(product.estimated_price);
+        const estPrice = parseFloat($option.data('estimated-price'));
+        if (!row.find('.item-unit-price').val() && estPrice > 0) {
+            row.find('.item-unit-price').val(estPrice);
         }
 
         row.find('.item-budget-summary').html(
-            `<span class="fw-semibold">${product.expense_category_name}</span><br><span>${product.budget_cedula_name}</span>`
+            `<span class="fw-semibold">${classification.expense_category_name}</span><br><span>${classification.budget_cedula_name}</span>`
         );
 
         calculateItemRow(row);
@@ -807,68 +866,8 @@ $(document).ready(function() {
         return { html, disabled: false };
     }
 
-    function resetCategorySelect(row, message = 'Seleccione CC primero...') {
-        const select = row.find('.item-expense-category');
-        if (select.hasClass('select2-hidden-accessible')) {
-            select.select2('destroy');
-        }
-        select.html(`<option value="">${message}</option>`).prop('disabled', true);
-    }
-
     function loadCategoriesForRow(row, costCenterId, selectedValue = null, silent = false) {
         prepareProductRow(row);
-        return;
-        const select = row.find('.item-expense-category');
-
-        if (!costCenterId) {
-            resetCategorySelect(row);
-            return;
-        }
-
-        if (select.hasClass('select2-hidden-accessible')) {
-            select.select2('destroy');
-        }
-        select.prop('disabled', true).html('<option value="">Cargando...</option>');
-
-        $.ajax({
-            url: "{{ route('direct-purchase-orders.categories') }}",
-            method: 'GET',
-            data: { cost_center_id: costCenterId },
-            success: function(response) {
-                if (response.success && response.categories.length > 0) {
-                    let options = '<option value="">Seleccione...</option>';
-                    response.categories.forEach(function(cat) {
-                        options += `<option value="${cat.id}">${cat.name}</option>`;
-                    });
-                    select.html(options).prop('disabled', false);
-                    if (selectedValue) {
-                        select.val(String(selectedValue));
-                    }
-                    initializeCategorySelect(select);
-                } else {
-                    resetCategorySelect(row, 'Sin categorías disponibles');
-                    if (!silent) {
-                        Swal.fire({
-                        icon: 'warning',
-                        title: 'Sin cuentas',
-                        text: response.message || 'El centro de costo seleccionado no tiene cuentas configuradas para el año actual.',
-                        confirmButtonText: 'Entendido'
-                        });
-                    }
-                }
-            },
-            error: function() {
-                resetCategorySelect(row, 'Error al cargar');
-                if (!silent) {
-                    Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Ocurrió un error al consultar las cuentas.',
-                    confirmButtonText: 'Cerrar'
-                    });
-                }
-            }
-        });
     }
 
     function refreshItemCostCenters() {
@@ -1012,15 +1011,16 @@ $(document).ready(function() {
         const costCenterOptions = buildCostCenterOptions();
         const newRow = `
             <tr class="item-row">
-                <td class="ps-2"><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
+                <td><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td>
                     <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required>
                         ${costCenterOptions.html}
                     </select>
                 </td>
-                <td>
-                    <select name="items[${itemIndex}][expense_category_id]" class="form-select form-select-sm border-0 item-expense-category" required disabled>
-                        <option value="">Seleccione CC primero...</option>
+                <td class="text-center">
+                    <small class="text-muted item-budget-summary">Seleccione CC...</small>
+                    <select name="items[${itemIndex}][expense_category_id]" class="form-select form-select-sm border-0 item-expense-category" required disabled style="display:none">
+                        <option value="">Seleccione...</option>
                     </select>
                 </td>
                 <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control form-control-sm border-0 item-quantity" step="0.01" min="0.01" required></td>

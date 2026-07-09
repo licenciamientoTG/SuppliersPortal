@@ -61,8 +61,6 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        $products = $this->productCatalogForDirectPurchaseOrders();
-
         $selectedCompanyId = old('company_id');
         $receivingLocations = $selectedCompanyId
             ? ReceivingLocation::active()
@@ -77,7 +75,6 @@ class DirectPurchaseOrderController extends Controller
             'costCenters',
             'suppliers',
             'expenseCategories',
-            'products',
             'receivingLocations'
         ))->with([
             'purchaseTypes' => PurchaseType::values(),
@@ -387,8 +384,6 @@ class DirectPurchaseOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        $products = $this->productCatalogForDirectPurchaseOrders();
-
         $selectedCompanyId = old('company_id', $directPurchaseOrder->primaryCompanyId());
         $receivingLocations = $selectedCompanyId
             ? ReceivingLocation::active()
@@ -404,7 +399,6 @@ class DirectPurchaseOrderController extends Controller
             'suppliers',
             'costCenters',
             'expenseCategories',
-            'products',
             'receivingLocations'
         ))->with([
             'purchaseTypes' => PurchaseType::values(),
@@ -510,7 +504,7 @@ class DirectPurchaseOrderController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener categorías: '.$e->getMessage(),
+                'message' => 'Error al obtener cuentas: '.$e->getMessage(),
                 'categories' => [],
             ], 500);
         }
@@ -651,49 +645,6 @@ class DirectPurchaseOrderController extends Controller
                 'message' => 'Error al validar presupuesto: '.$e->getMessage(),
             ];
         }
-    }
-
-    private function productCatalogForDirectPurchaseOrders()
-    {
-        $classificationService = app(ProductBudgetClassificationService::class);
-        $query = ProductService::query()
-            ->forRequisitions()
-            ->with(['subaccounts.account', 'budgetCedulas']);
-
-        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
-        if (! Auth::user()?->can('productos.administrar')) {
-            $query->withAllowedSubaccounts($allowedSubaccounts);
-        }
-
-        return $query
-            ->orderBy('short_name')
-            ->orderBy('technical_description')
-            ->get()
-            ->map(function (ProductService $product) use ($classificationService) {
-                try {
-                    $classification = $classificationService->resolveForProduct($product);
-                } catch (\RuntimeException) {
-                    return null;
-                }
-
-                return [
-                    'id' => $product->id,
-                    'code' => $product->code,
-                    'name' => $product->short_name ?: $product->technical_description,
-                    'description' => $product->getRequisitionDescription(),
-                    'unit_of_measure' => $product->unit_of_measure,
-                    'sku' => $product->code,
-                    'estimated_price' => (float) $product->estimated_price,
-                    'expense_category_id' => $classification['expense_category_id'],
-                    'expense_category_name' => $classification['expense_category_name'],
-                    'budget_cedula_id' => $classification['budget_cedula_id'],
-                    'budget_cedula_name' => $classification['budget_cedula_name'],
-                    'account_name' => $classification['account_name'],
-                    'subaccount_name' => $classification['subaccount_name'],
-                ];
-            })
-            ->filter()
-            ->values();
     }
 
     private function uploadDocument(DirectPurchaseOrder $ocd, $file, $type): DirectPurchaseOrderDocument
