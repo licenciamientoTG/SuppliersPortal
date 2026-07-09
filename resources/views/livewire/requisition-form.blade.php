@@ -186,8 +186,10 @@
                                 </select>
                                 <div id="modal_budget_cedula_help"></div>
                             </div>
+                        </div>
 
-                            <div class="col-md-6">
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
                                 <label for="modal_notes" class="form-label fw-semibold">Observaciones</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ti ti-notes"></i></span>
