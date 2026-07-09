@@ -157,7 +157,7 @@
 
                             <textarea id="modal_description" class="d-none"></textarea>
 
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <label for="modal_quantity" class="form-label fw-semibold">
                                     Cantidad <span class="text-danger">*</span>
                                 </label>
@@ -169,7 +169,7 @@
                                 <div class="form-text">Mínimo: 0.001</div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <label for="modal_unit" class="form-label fw-semibold">Unidad de Medida</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="ti ti-ruler-measure"></i></span>
