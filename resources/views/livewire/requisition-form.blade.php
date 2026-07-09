@@ -116,16 +116,13 @@
                         {{ count($items) }} partida(s)
                     </span>
                 </h5>
-                <button type="button" class="btn btn-sm btn-primary" id="btnAddItem">
-                    <i class="ti ti-plus me-1"></i> Nueva Partida
-                </button>
             </div>
             <div class="card-body">
-                <div id="itemFormPanel" class="border rounded p-3 mb-3 d-none" wire:ignore>
+                <div id="itemFormPanel" class="border rounded p-3 mb-3" wire:ignore>
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0" id="itemModalTitle">Agregar Partida</h6>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCancelItem">
-                            <i class="ti ti-x me-1"></i>Cancelar
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddItem">
+                            <i class="ti ti-refresh me-1"></i>Limpiar
                         </button>
                     </div>
 
@@ -209,9 +206,6 @@
                         </div>
 
                         <div class="d-flex justify-content-end gap-2 mt-3">
-                            <button type="button" class="btn btn-outline-secondary" id="btnCancelItemBottom">
-                                <i class="ti ti-x me-1"></i>Cancelar
-                            </button>
                             <button type="button" class="btn btn-primary" id="btnSaveItem">
                                 <i class="ti ti-check me-1"></i>Guardar Partida
                             </button>
@@ -789,13 +783,37 @@ $(function() {
         }
 
         $('#item_index').val('');
+        $('#itemModalTitle').text('Agregar Partida');
         $('#product_info').hide();
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
-        $('#modal_cost_center_id').empty().append('<option value="">Seleccionar centro de costo...</option>').prop('disabled', true);
         $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
         resetBudgetCedulaSelect();
-        initializeModalBaseSelects();
+        renderModalCostCenters('reset');
         initializeExpenseCategorySelect();
+    }
+
+    function resetItemFormForNextItem(keepCostCenter = true) {
+        const currentCostCenterId = keepCostCenter ? $('#modal_cost_center_id').val() : '';
+
+        $('#item_index').val('');
+        $('#itemModalTitle').text('Agregar Partida');
+        $('#modal_product_id').val(null).trigger('change');
+        $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
+        $('#modal_description').val('');
+        $('#modal_quantity').val('1');
+        $('#modal_unit').val('');
+        $('#modal_notes').val('');
+        $('#product_info').hide();
+        $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
+        resetBudgetCedulaSelect();
+
+        if (currentCostCenterId) {
+            $('#modal_cost_center_id').val(String(currentCostCenterId)).trigger('change');
+        } else {
+            renderModalCostCenters('reset');
+        }
+
+        setTimeout(setItemModalInitialState, 100);
     }
 
     function getItemModalState() {
@@ -841,21 +859,7 @@ $(function() {
     }
 
     initializeRequisitionSelects();
-
-    function showItemFormPanel() {
-        $('#itemFormPanel').removeClass('d-none');
-        document.getElementById('itemFormPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function hideItemFormPanel(force = false) {
-        if (!force && itemModalHasUnsavedChanges()) {
-            confirmItemModalClose(() => hideItemFormPanel(true));
-            return;
-        }
-
-        $('#itemFormPanel').addClass('d-none');
-        itemModalInitialState = null;
-    }
+    resetItemFormControls();
 
     function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
         const $company = $('#company_id');
@@ -913,7 +917,6 @@ $(function() {
                 renderRequisitionItems();
             }
 
-            hideItemFormPanel(true);
             resetItemFormControls();
             loadReceivingLocationsForCompany(companyId);
         });
@@ -951,7 +954,7 @@ $(function() {
         });
 
     // =====================================================
-    // 1. ABRIR MODAL PARA AGREGAR
+    // 1. LIMPIAR FORMULARIO PARA AGREGAR
     // =====================================================
     $(document).off('click.requisitionAddItem', '#btnAddItem').on('click.requisitionAddItem', '#btnAddItem', function() {
         const companyId = $('#company_id').val();
@@ -961,7 +964,7 @@ $(function() {
             return;
         }
 
-        openItemModal();
+        resetItemFormForNextItem(false);
     });
 
     /**
@@ -1071,7 +1074,6 @@ $(function() {
         loadProductsForCostCenter();
         loadExpenseCategories();
 
-        showItemFormPanel();
         setTimeout(setItemModalInitialState, 100);
     }
 
@@ -1115,7 +1117,6 @@ $(function() {
             $('#modal_notes').val(item.notes || '');
         }, 500);
 
-        showItemFormPanel();
         setTimeout(setItemModalInitialState, 200);
     }
 
@@ -1602,7 +1603,6 @@ $(function() {
         initializeExpenseCategorySelect();
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
 
-        showItemFormPanel();
         setTimeout(setItemModalInitialState, 100);
     }
 
@@ -1629,20 +1629,7 @@ $(function() {
             setTimeout(setItemModalInitialState, 200);
         }, 600);
 
-        showItemFormPanel();
     }
-
-    function hideItemFormPanelBeforeMorph() {
-        hideItemFormPanel(true);
-
-        return Promise.resolve();
-    }
-
-    $(document)
-        .off('click.requisitionCancelItem', '#btnCancelItem, #btnCancelItemBottom')
-        .on('click.requisitionCancelItem', '#btnCancelItem, #btnCancelItemBottom', function() {
-            hideItemFormPanel(false);
-        });
 
     $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', async function() {
         const $saveButton = $(this);
@@ -1733,8 +1720,6 @@ $(function() {
         $saveButton.prop('disabled', true);
 
         try {
-            await hideItemFormPanelBeforeMorph();
-
             if (editIndex !== '' && editIndex !== null) {
                 await wire.$call('updateItem', parseInt(editIndex), itemData);
             } else {
@@ -1742,6 +1727,7 @@ $(function() {
             }
 
             renderRequisitionItems();
+            resetItemFormForNextItem(true);
         } catch (error) {
             console.error('Error al guardar partida:', error);
             Swal.fire('Error', 'No se pudo guardar la partida.', 'error');
