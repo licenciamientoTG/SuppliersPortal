@@ -5,14 +5,15 @@ namespace App\Livewire;
 use App\Enum\PurchaseType;
 use App\Enum\RequisitionStatus;
 use App\Models\BudgetCedula;
-use App\Models\Company;
+use App\Models\ProductService;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
+use App\Services\BudgetAccessService;
 use App\Services\BudgetCedulaCatalogService;
 use App\Services\ProductBudgetClassificationService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
@@ -21,17 +22,23 @@ class RequisitionForm extends Component
 {
     // ===== PROPIEDADES DE MODO =====
     public $isEditMode = false;
+
     public $requisitionId;
+
     public $folio;
 
     // ===== PROPIEDADES DEL FORMULARIO =====
     public $company_id;
+
     public $required_date;
+
     public $description = '';
 
     // ===== COLECCIONES =====
     public $companies = [];
+
     public $receivingLocations = [];
+
     public $costCenterCatalog = [];
 
     // ===== UBICACIÓN DE RECEPCIÓN =====
@@ -39,10 +46,12 @@ class RequisitionForm extends Component
 
     // ===== CONTADOR DE CARACTERES =====
     public $descriptionMaxLength = 500;
+
     public $descriptionRemainingChars = 500;
 
     // ===== PARTIDAS =====
     public $items = [];
+
     public $editingItemIndex = null;
 
     /**
@@ -92,6 +101,7 @@ class RequisitionForm extends Component
             // Validar que sea editable (solo DRAFT)
             if ($requisition->status->value !== RequisitionStatus::DRAFT->value && $requisition->status->value !== RequisitionStatus::REJECTED->value) {
                 session()->flash('error', 'Solo se pueden editar requisiciones en estado Borrador o Rechazada.');
+
                 return redirect()->route('requisitions.index');
             }
 
@@ -106,21 +116,21 @@ class RequisitionForm extends Component
             // Cargar partidas existentes
             $this->items = $requisition->items->map(function ($item) {
                 return [
-                    'product_id'            => $item->product_service_id,
-                    'product_name'          => "[{$item->product_code}] " . ($item->productService->short_name ?? $item->description),
-                    'description'           => $item->description,
-                    'quantity'              => $item->quantity,
-                    'unit'                  => $item->unit,
-                    'expense_category_id'   => $item->expense_category_id,
+                    'product_id' => $item->product_service_id,
+                    'product_name' => "[{$item->product_code}] ".($item->productService->short_name ?? $item->description),
+                    'description' => $item->description,
+                    'quantity' => $item->quantity,
+                    'unit' => $item->unit,
+                    'expense_category_id' => $item->expense_category_id,
                     'expense_category_name' => $item->expenseCategory->name ?? 'N/A',
-                    'budget_cedula_id'      => $item->budget_cedula_id,
-                    'budget_cedula_name'    => $item->budgetCedula->name ?? 'N/A',
-                    'cost_center_id'        => $item->cost_center_id,
-                    'cost_center_name'      => $item->costCenter?->name ?? 'N/A',
-                    'purchase_type'         => $item->costCenter?->purchase_type instanceof \App\Enum\PurchaseType
+                    'budget_cedula_id' => $item->budget_cedula_id,
+                    'budget_cedula_name' => $item->budgetCedula->name ?? 'N/A',
+                    'cost_center_id' => $item->cost_center_id,
+                    'cost_center_name' => $item->costCenter?->name ?? 'N/A',
+                    'purchase_type' => $item->costCenter?->purchase_type instanceof \App\Enum\PurchaseType
                         ? $item->costCenter->purchase_type->value
                         : (string) ($item->costCenter?->purchase_type ?? ''),
-                    'notes'                 => $item->notes ?? '',
+                    'notes' => $item->notes ?? '',
                 ];
             })->toArray();
 
@@ -167,17 +177,18 @@ class RequisitionForm extends Component
     {
         // Validar campos obligatorios
         $this->validate([
-            'company_id'            => 'required|exists:companies,id',
+            'company_id' => 'required|exists:companies,id',
             'receiving_location_id' => 'required|exists:receiving_locations,id',
-            'description'           => 'nullable|string|max:500',
+            'description' => 'nullable|string|max:500',
         ], [
-            'company_id.required'            => 'La compañía es obligatoria.',
+            'company_id.required' => 'La compañía es obligatoria.',
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
         ]);
 
         // Validar que tenga al menos una partida (RN-003)
         if (empty($this->items)) {
             $this->dispatch('validation-error', message: 'Debe agregar al menos una partida a la requisición (RN-003).');
+
             return;
         }
 
@@ -187,6 +198,7 @@ class RequisitionForm extends Component
                     'validation-error',
                     message: 'Revisa las partidas: cada una debe tener un centro de costo y datos presupuestales válidos para la compañía seleccionada.'
                 );
+
                 return;
             }
         }
@@ -207,7 +219,7 @@ class RequisitionForm extends Component
 
                 // Actualizar datos principales
                 $requisition->update([
-                    'company_id'            => $this->company_id,
+                    'company_id' => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
                     'required_date' => now()->toDateString(),
                     'description' => $this->description,
@@ -222,19 +234,19 @@ class RequisitionForm extends Component
                 foreach ($this->items as $index => $item) {
                     $product = \App\Models\ProductService::find($item['product_id']);
                     RequisitionItem::create([
-                        'requisition_id'      => $requisition->id,
-                        'product_service_id'  => $item['product_id'],
-                        'line_number'         => $index + 1,
-                        'product_code'        => $product->code,
-                        'description'         => $item['description'],
+                        'requisition_id' => $requisition->id,
+                        'product_service_id' => $item['product_id'],
+                        'line_number' => $index + 1,
+                        'product_code' => $product->code,
+                        'description' => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
-                        'budget_cedula_id'    => $item['budget_cedula_id'],
-                        'cost_center_id'      => $item['cost_center_id'],
-                        'item_category'       => $product->product_type,
-                        'quantity'            => $item['quantity'],
-                        'unit'                => $item['unit'],
+                        'budget_cedula_id' => $item['budget_cedula_id'],
+                        'cost_center_id' => $item['cost_center_id'],
+                        'item_category' => $product->product_type,
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'],
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
-                        'notes'               => $item['notes'] ?? null,
+                        'notes' => $item['notes'] ?? null,
                     ]);
                 }
 
@@ -242,33 +254,33 @@ class RequisitionForm extends Component
             } else {
                 // ===== MODO CREACIÓN =====
                 $requisition = Requisition::create([
-                    'company_id'            => $this->company_id,
+                    'company_id' => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
-                    'folio'                => Requisition::nextFolio(),
-                    'requested_by'         => Auth::id(),
-                    'required_date'        => now()->toDateString(),
-                    'description'          => $this->description,
-                    'status'               => 'draft',
-                    'created_by'           => Auth::id(),
+                    'folio' => Requisition::nextFolio(),
+                    'requested_by' => Auth::id(),
+                    'required_date' => now()->toDateString(),
+                    'description' => $this->description,
+                    'status' => 'draft',
+                    'created_by' => Auth::id(),
                 ]);
 
                 // Crear partidas
                 foreach ($this->items as $index => $item) {
                     $product = \App\Models\ProductService::find($item['product_id']);
                     RequisitionItem::create([
-                        'requisition_id'      => $requisition->id,
-                        'product_service_id'  => $item['product_id'],
-                        'line_number'         => $index + 1,
-                        'product_code'        => $product->code,
-                        'description'         => $item['description'],
+                        'requisition_id' => $requisition->id,
+                        'product_service_id' => $item['product_id'],
+                        'line_number' => $index + 1,
+                        'product_code' => $product->code,
+                        'description' => $item['description'],
                         'expense_category_id' => $item['expense_category_id'],
-                        'budget_cedula_id'    => $item['budget_cedula_id'],
-                        'cost_center_id'      => $item['cost_center_id'],
-                        'item_category'       => $product->product_type,
-                        'quantity'            => $item['quantity'],
-                        'unit'                => $item['unit'],
+                        'budget_cedula_id' => $item['budget_cedula_id'],
+                        'cost_center_id' => $item['cost_center_id'],
+                        'item_category' => $product->product_type,
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'],
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
-                        'notes'               => $item['notes'] ?? null,
+                        'notes' => $item['notes'] ?? null,
                     ]);
                 }
 
@@ -287,7 +299,7 @@ class RequisitionForm extends Component
 
                 $sent = $requisition->submitToCompras();
 
-                if (!$sent) {
+                if (! $sent) {
                     throw new \Exception('No se pudo enviar la requisición a Compras.');
                 }
 
@@ -297,16 +309,17 @@ class RequisitionForm extends Component
             DB::commit();
 
             session()->flash('success', $message);
+
             return redirect()->route('requisitions.index');
         } catch (\Exception $e) {
             DB::rollBack();
 
             Log::error('❌ Error al guardar requisición en Livewire', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->dispatch('save-error', message: 'Error al guardar la requisición: ' . $e->getMessage());
+            $this->dispatch('save-error', message: 'Error al guardar la requisición: '.$e->getMessage());
         }
     }
 
@@ -323,7 +336,36 @@ class RequisitionForm extends Component
             $this->company_id = null;
         }
 
+        $this->receiving_location_id = null;
+        $this->items = [];
+        $this->editingItemIndex = null;
         $this->refreshReceivingLocations();
+    }
+
+    #[Renderless]
+    public function selectCompany($value): void
+    {
+        $previousCompanyId = $this->company_id ? (int) $this->company_id : null;
+        $newCompanyId = $value ? (int) $value : null;
+
+        $this->company_id = $newCompanyId;
+
+        $userCompanyIds = Auth::user()->companies()->pluck('companies.id')->map(fn ($id) => (int) $id)->all();
+
+        if ($newCompanyId && ! in_array($newCompanyId, $userCompanyIds, true)) {
+            $this->addError('company_id', 'No tienes permiso para usar esta compañía.');
+            $this->company_id = null;
+            $newCompanyId = null;
+        }
+
+        if ($previousCompanyId !== $newCompanyId) {
+            $this->items = [];
+            $this->editingItemIndex = null;
+        }
+
+        $this->receiving_location_id = null;
+        $this->refreshReceivingLocations();
+        $this->dispatch('company-context-changed', itemsCleared: $previousCompanyId !== $newCompanyId);
     }
 
     public function updatedDescription($value)
@@ -342,23 +384,24 @@ class RequisitionForm extends Component
 
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
+
             return;
         }
 
         $this->items[] = [
-            'product_id'            => $itemData['product_id'],
-            'product_name'          => $itemData['product_name'],
-            'description'           => $itemData['description'],
-            'quantity'              => $itemData['quantity'],
-            'unit'                  => $itemData['unit'],
-            'expense_category_id'   => $itemData['expense_category_id'],
+            'product_id' => $itemData['product_id'],
+            'product_name' => $itemData['product_name'],
+            'description' => $itemData['description'],
+            'quantity' => $itemData['quantity'],
+            'unit' => $itemData['unit'],
+            'expense_category_id' => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
-            'budget_cedula_id'      => $itemData['budget_cedula_id'],
-            'budget_cedula_name'    => $itemData['budget_cedula_name'],
-            'cost_center_id'        => $itemData['cost_center_id'],
-            'cost_center_name'      => $itemData['cost_center_name'],
-            'purchase_type'         => $itemData['purchase_type'],
-            'notes'                 => $itemData['notes'] ?? '',
+            'budget_cedula_id' => $itemData['budget_cedula_id'],
+            'budget_cedula_name' => $itemData['budget_cedula_name'],
+            'cost_center_id' => $itemData['cost_center_id'],
+            'cost_center_name' => $itemData['cost_center_name'],
+            'purchase_type' => $itemData['purchase_type'],
+            'notes' => $itemData['notes'] ?? '',
         ];
 
         $this->dispatch('item-added', message: 'Partida agregada correctamente');
@@ -367,8 +410,9 @@ class RequisitionForm extends Component
     #[Renderless]
     public function updateItem($index, $itemData)
     {
-        if (!isset($this->items[$index])) {
+        if (! isset($this->items[$index])) {
             $this->dispatch('item-error', message: 'Partida no encontrada');
+
             return;
         }
 
@@ -376,23 +420,24 @@ class RequisitionForm extends Component
 
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
+
             return;
         }
 
         $this->items[$index] = [
-            'product_id'            => $itemData['product_id'],
-            'product_name'          => $itemData['product_name'],
-            'description'           => $itemData['description'],
-            'quantity'              => $itemData['quantity'],
-            'unit'                  => $itemData['unit'],
-            'expense_category_id'   => $itemData['expense_category_id'],
+            'product_id' => $itemData['product_id'],
+            'product_name' => $itemData['product_name'],
+            'description' => $itemData['description'],
+            'quantity' => $itemData['quantity'],
+            'unit' => $itemData['unit'],
+            'expense_category_id' => $itemData['expense_category_id'],
             'expense_category_name' => $itemData['expense_category_name'],
-            'budget_cedula_id'      => $itemData['budget_cedula_id'],
-            'budget_cedula_name'    => $itemData['budget_cedula_name'],
-            'cost_center_id'        => $itemData['cost_center_id'],
-            'cost_center_name'      => $itemData['cost_center_name'],
-            'purchase_type'         => $itemData['purchase_type'],
-            'notes'                 => $itemData['notes'] ?? '',
+            'budget_cedula_id' => $itemData['budget_cedula_id'],
+            'budget_cedula_name' => $itemData['budget_cedula_name'],
+            'cost_center_id' => $itemData['cost_center_id'],
+            'cost_center_name' => $itemData['cost_center_name'],
+            'purchase_type' => $itemData['purchase_type'],
+            'notes' => $itemData['notes'] ?? '',
         ];
 
         $this->dispatch('item-updated', message: 'Partida actualizada correctamente');
@@ -412,8 +457,10 @@ class RequisitionForm extends Component
     {
         if (isset($this->items[$index])) {
             $this->editingItemIndex = $index;
+
             return $this->items[$index];
         }
+
         return null;
     }
 
@@ -457,6 +504,23 @@ class RequisitionForm extends Component
             || empty($itemData['expense_category_id'])
             || empty($itemData['budget_cedula_id'])
             || empty($itemData['cost_center_id'])) {
+            return false;
+        }
+
+        $product = ProductService::query()
+            ->active()
+            ->whereKey((int) $itemData['product_id'])
+            ->where('company_id', (int) $this->company_id)
+            ->first();
+
+        if (! $product) {
+            return false;
+        }
+
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
+
+        if ($allowedSubaccounts->isNotEmpty()
+            && ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
             return false;
         }
 

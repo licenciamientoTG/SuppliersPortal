@@ -663,7 +663,11 @@ $(function() {
         }
 
         // Deferimos los valores para enviarlos junto con saveDraft/submit.
-        wire.$set('company_id', $('#company_id').val() || '', false);
+        const selectedCompanyId = $('#company_id').val() || '';
+        if (String(wire.$get('company_id') || '') !== String(selectedCompanyId)) {
+            wire.$set('company_id', selectedCompanyId, false);
+        }
+
         wire.$set('receiving_location_id', $('#receiving_location_id').val() || '', false);
         wire.$set('description', $('#description').val() || '', false);
 
@@ -779,6 +783,21 @@ $(function() {
         initializeExpenseCategorySelect();
     }
 
+    function resetItemFormControls() {
+        if (document.getElementById('itemForm')) {
+            document.getElementById('itemForm').reset();
+        }
+
+        $('#item_index').val('');
+        $('#product_info').hide();
+        $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
+        $('#modal_cost_center_id').empty().append('<option value="">Seleccionar centro de costo...</option>').prop('disabled', true);
+        $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
+        resetBudgetCedulaSelect();
+        initializeModalBaseSelects();
+        initializeExpenseCategorySelect();
+    }
+
     function getItemModalState() {
         return JSON.stringify({
             cost_center_id: $('#modal_cost_center_id').val() || '',
@@ -885,14 +904,17 @@ $(function() {
 
     $(document)
         .off('change.requisitionCompany', '#company_id')
-        .on('change.requisitionCompany', '#company_id', function () {
+        .on('change.requisitionCompany', '#company_id', async function () {
             const wire = getRequisitionWire();
             const companyId = $(this).val() || '';
 
             if (wire) {
-                wire.$set('company_id', companyId, false);
+                await wire.$call('selectCompany', companyId);
+                renderRequisitionItems();
             }
 
+            hideItemFormPanel(true);
+            resetItemFormControls();
             loadReceivingLocationsForCompany(companyId);
         });
 
@@ -1804,6 +1826,25 @@ $(function() {
         Toast.fire({
             icon: 'error',
             title: event.message || 'Ocurrió un error al procesar la partida'
+        });
+    });
+
+    Livewire.on('company-context-changed', (event) => {
+        if (!event.itemsCleared) {
+            return;
+        }
+
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+        });
+
+        Toast.fire({
+            icon: 'info',
+            title: 'Se reiniciaron las partidas por cambio de compañía'
         });
     });
 
