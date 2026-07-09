@@ -99,22 +99,7 @@
 
                     {{-- FILA 2: EMPRESA Y UBICACIÓN DE RECEPCIÓN --}}
                     <div class="row g-2 mb-3">
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Tipo de Compra <span class="text-danger">*</span></label>
-                            <div class="input-group input-group-sm input-group-select2">
-                                <span class="input-group-text"><i class="ti ti-filter"></i></span>
-                                <select name="purchase_type" id="purchase_type" class="form-select form-select-sm @error('purchase_type') is-invalid @enderror" required>
-                                    <option value="">Seleccione...</option>
-                                    @foreach($purchaseTypes as $purchaseType)
-                                        <option value="{{ $purchaseType }}" {{ old('purchase_type', $directPurchaseOrder->primaryPurchaseType()) === $purchaseType ? 'selected' : '' }}>
-                                            {{ $purchaseType }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @error('purchase_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-5">
                             <label class="form-label small fw-bold">Empresa <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-building-store"></i></span>
@@ -130,7 +115,7 @@
                             </div>
                             @error('company_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-7">
                             <label class="form-label small fw-bold">Ubicación de Recepción <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-map-pin"></i></span>
@@ -166,15 +151,13 @@
                         <table class="table table-sm table-hover mb-0" id="items-table">
                             <thead class="table-light small">
                                 <tr>
-                                    <th style="width:22%">Producto</th>
-                                    <th style="width:15%">Centro de costo</th>
-                                    <th style="width:15%">Cuenta / Subcuenta</th>
+                                    <th style="width:30%">Producto</th>
+                                    <th style="width:23%">Centro de costo</th>
                                     <th style="width:6%">Cant.</th>
                                     <th style="width:9%">P. Unit.</th>
-                                    <th style="width:7%">IVA</th>
+                                    <th style="width:11%">IVA</th>
                                     <th style="width:9%">Subtotal</th>
-                                    <th style="width:9%">IVA $</th>
-                                    <th style="width:9%">Total</th>
+                                    <th style="width:11%">Total</th>
                                     <th style="width:1%"></th>
                                 </tr>
                             </thead>
@@ -195,11 +178,8 @@
                                                     class="form-select form-select-sm border-0 item-cost-center"
                                                     data-selected="{{ old("items.$index.cost_center_id", $item->cost_center_id) }}"
                                                     required>
-                                                <option value="">Seleccione empresa y tipo...</option>
+                                                <option value="">Seleccione empresa...</option>
                                             </select>
-                                        </td>
-                                        <td class="text-center">
-                                            <small class="text-muted item-budget-summary">Seleccione CC...</small>
                                             <select name="items[{{ $index }}][expense_category_id]"
                                                     class="form-select form-select-sm border-0 item-expense-category"
                                                     data-selected="{{ old("items.$index.expense_category_id", $item->expense_category_id) }}"
@@ -235,17 +215,15 @@
                                                 <option value="8"  {{ old("items.$index.iva_rate", $item->iva_rate) == 8  ? 'selected' : '' }}>8%</option>
                                                 <option value="0"  {{ old("items.$index.iva_rate", $item->iva_rate) == 0  ? 'selected' : '' }}>0%</option>
                                             </select>
+                                            <input type="text"
+                                                   class="form-control form-control-sm border-0 bg-transparent item-iva text-end small mt-1"
+                                                   value="(${{ number_format($item->iva_amount, 2) }})"
+                                                   readonly tabindex="-1">
                                         </td>
                                         <td>
                                             <input type="text"
                                                    class="form-control form-control-sm border-0 bg-transparent item-subtotal text-end"
                                                    value="${{ number_format($item->subtotal, 2) }}"
-                                                   readonly tabindex="-1">
-                                        </td>
-                                        <td>
-                                            <input type="text"
-                                                   class="form-control form-control-sm border-0 bg-transparent item-iva text-end"
-                                                   value="${{ number_format($item->iva_amount, 2) }}"
                                                    readonly tabindex="-1">
                                         </td>
                                         <td>
@@ -514,7 +492,7 @@ $(document).ready(function() {
     const costCenterCatalog = @json($costCenterCatalog);
     const productsApiUrl = $('#products-api-url').val();
 
-    $('#supplier_id, #company_id, #purchase_type, #receiving_location_id').select2({
+    $('#supplier_id, #company_id, #receiving_location_id').select2({
         theme: 'bootstrap-5',
         width: '100%',
         placeholder: 'Seleccione...',
@@ -673,10 +651,6 @@ $(document).ready(function() {
             categoryCell.append(`<input type="hidden" name="items[${index}][budget_cedula_id]" class="item-budget-cedula">`);
         }
 
-        if (!row.find('.item-budget-summary').length) {
-            categoryCell.append('<div class="small text-muted item-budget-summary">Seleccione centro de costo...</div>');
-        }
-
         const costCenterId = row.find('.item-cost-center').val();
         if (costCenterId) {
             loadProductsForRow(row);
@@ -698,8 +672,6 @@ $(document).ready(function() {
             row.find('.item-description').val('');
             row.find('.item-unit').val('');
             row.find('.item-sku').val('');
-            row.find('.item-budget-summary').text('Seleccione producto...');
-
             return false;
         }
 
@@ -714,10 +686,6 @@ $(document).ready(function() {
         if (!row.find('.item-unit-price').val() && estPrice > 0) {
             row.find('.item-unit-price').val(estPrice);
         }
-
-        row.find('.item-budget-summary').html(
-            `<span class="fw-semibold">${classification.expense_category_name}</span><br><span>${classification.budget_cedula_name}</span>`
-        );
 
         calculateItemRow(row);
         calculateTotals();
@@ -765,19 +733,9 @@ $(document).ready(function() {
 
     function getFilteredCostCenters() {
         const companyId = $('#company_id').val();
-        const purchaseType = $('#purchase_type').val();
 
-        if (!companyId || !purchaseType) {
+        if (!companyId) {
             return costCenterCatalog;
-        }
-
-        const exactMatches = costCenterCatalog.filter(cc =>
-            String(cc.company_id) === String(companyId)
-            && String(cc.purchase_type) === String(purchaseType)
-        );
-
-        if (exactMatches.length) {
-            return exactMatches;
         }
 
         return costCenterCatalog.filter(cc => String(cc.company_id) === String(companyId));
@@ -789,10 +747,9 @@ $(document).ready(function() {
 
     function buildCostCenterOptions(selectedValue = '') {
         const companyId = $('#company_id').val();
-        const purchaseType = $('#purchase_type').val();
         const options = getFilteredCostCenters();
 
-        if (!companyId || !purchaseType) {
+        if (!companyId) {
             return {
                 html: '<option value="">Seleccione...</option>',
                 disabled: false
@@ -809,7 +766,8 @@ $(document).ready(function() {
         let html = '<option value="">Seleccione...</option>';
         options.forEach(function(option) {
             const selected = String(selectedValue) === String(option.id) ? ' selected' : '';
-            html += `<option value="${option.id}" data-company-id="${option.company_id}" data-purchase-type="${option.purchase_type}"${selected}>${option.label}</option>`;
+            const purchaseType = option.purchase_type ? ` (${option.purchase_type})` : '';
+            html += `<option value="${option.id}" data-company-id="${option.company_id}" data-purchase-type="${option.purchase_type}"${selected}>${option.label}${purchaseType}</option>`;
         });
 
         return { html, disabled: false };
@@ -850,12 +808,9 @@ $(document).ready(function() {
         });
     }
 
-    $('#company_id, #purchase_type').on('change', function() {
+    $('#company_id').on('change', function() {
         refreshItemCostCenters();
-
-        if (this.id === 'company_id') {
-            refreshReceivingLocations();
-        }
+        refreshReceivingLocations();
     });
     refreshReceivingLocations('{{ old('receiving_location_id', $directPurchaseOrder->receiving_location_id) }}');
 
@@ -868,9 +823,6 @@ $(document).ready(function() {
                 $('#company_id').val(String(selectedCostCenter.company_id)).trigger('change');
             }
 
-            if (!$('#purchase_type').val() || $('#purchase_type').val() !== String(selectedCostCenter.purchase_type)) {
-                $('#purchase_type').val(String(selectedCostCenter.purchase_type)).trigger('change');
-            }
         }
 
         loadCategoriesForRow(row, $(this).val(), null, false);
@@ -927,7 +879,7 @@ $(document).ready(function() {
         const total    = subtotal + iva;
 
         row.find('.item-subtotal').val('$' + subtotal.toFixed(2));
-        row.find('.item-iva').val('$' + iva.toFixed(2));
+        row.find('.item-iva').val('($' + iva.toFixed(2) + ')');
         row.find('.item-total').val('$' + total.toFixed(2));
     }
 
@@ -971,9 +923,6 @@ $(document).ready(function() {
                     <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required>
                         ${costCenterOptions.html}
                     </select>
-                </td>
-                <td class="text-center">
-                    <small class="text-muted item-budget-summary">Seleccione CC...</small>
                     <select name="items[${itemIndex}][expense_category_id]" class="form-select form-select-sm border-0 item-expense-category" required disabled style="display:none">
                         <option value="">Seleccione...</option>
                     </select>
@@ -986,9 +935,9 @@ $(document).ready(function() {
                         <option value="8">8%</option>
                         <option value="0">0%</option>
                     </select>
+                    <input type="text" class="form-control form-control-sm border-0 bg-transparent item-iva text-end small mt-1" value="($0.00)" readonly tabindex="-1">
                 </td>
                 <td><input type="text" class="form-control form-control-sm border-0 bg-transparent item-subtotal text-end" value="$0.00" readonly tabindex="-1"></td>
-                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent item-iva text-end" value="$0.00" readonly tabindex="-1"></td>
                 <td><input type="text" class="form-control form-control-sm border-0 bg-transparent item-total text-end fw-bold" value="$0.00" readonly tabindex="-1"></td>
                 <td class="text-center"><button type="button" class="btn btn-link text-danger p-0 remove-item-btn"><i class="ti ti-trash"></i></button></td>
             </tr>

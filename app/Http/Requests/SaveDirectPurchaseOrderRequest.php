@@ -2,13 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Enum\PurchaseType;
 use App\Models\ProductService;
 use App\Models\ReceivingLocation;
 use App\Services\ProductBudgetClassificationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rules\Enum;
 
 class SaveDirectPurchaseOrderRequest extends FormRequest
 {
@@ -60,7 +58,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
         $ocd = $this->route('directPurchaseOrder');
 
         if ($ocd) {
-            if (!in_array($ocd->status, ['DRAFT', 'RETURNED'])) {
+            if (! in_array($ocd->status, ['DRAFT', 'RETURNED'])) {
                 return false;
             }
 
@@ -78,7 +76,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             // ✅ AGREGADOS: Proveedor y Mes de aplicación
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'company_id' => ['required', 'integer', 'exists:companies,id'],
-            'purchase_type' => ['required', new Enum(PurchaseType::class)],
 
             // Ubicación de recepción (obligatoria)
             'receiving_location_id' => ['required', 'integer', 'exists:receiving_locations,id'],
@@ -123,7 +120,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             // Datos Presupuestales
             'company_id.required' => 'Debe seleccionar una empresa.',
             'company_id.exists' => 'La empresa seleccionada no existe.',
-            'purchase_type.required' => 'Debe seleccionar un tipo de compra.',
 
             // Centro de costo por partida
             'items.*.cost_center_id.required' => 'Debe seleccionar un centro de costo para cada partida.',
@@ -170,7 +166,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
         return [
             'supplier_id' => 'proveedor',
             'company_id' => 'empresa',
-            'purchase_type' => 'tipo de compra',
             'justification' => 'justificación',
             'items.*.cost_center_id' => 'centro de costo',
             'quotation_file' => 'cotización',
@@ -199,7 +194,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
                 if ($total > 250000) {
                     $validator->errors()->add(
                         'total',
-                        'El total de la OCD ($' . number_format($total, 2) . ') excede el límite máximo de $250,000.00 MXN. Para compras mayores debe usar el proceso de requisición regular.'
+                        'El total de la OCD ($'.number_format($total, 2).') excede el límite máximo de $250,000.00 MXN. Para compras mayores debe usar el proceso de requisición regular.'
                     );
                 }
 
@@ -237,13 +232,6 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
                         $validator->errors()->add(
                             "items.{$index}.cost_center_id",
                             'El centro de costo no pertenece a la empresa seleccionada.'
-                        );
-                    }
-
-                    if (($costCenter->purchase_type?->value ?? $costCenter->purchase_type) !== $this->purchase_type) {
-                        $validator->errors()->add(
-                            "items.{$index}.cost_center_id",
-                            'El centro de costo no coincide con el tipo de compra seleccionado.'
                         );
                     }
 
@@ -299,7 +287,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
         $ocd = $this->route('directPurchaseOrder');
 
         if ($ocd) {
-            if (!in_array($ocd->status, ['DRAFT', 'RETURNED'])) {
+            if (! in_array($ocd->status, ['DRAFT', 'RETURNED'])) {
                 abort(403, 'Solo se pueden editar OCD en estado Borrador o Devueltas.');
             }
 

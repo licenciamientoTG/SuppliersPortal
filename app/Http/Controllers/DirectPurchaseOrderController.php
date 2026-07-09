@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Enum\PurchaseType;
 use App\Http\Requests\SaveDirectPurchaseOrderRequest;
 use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderDocument;
 use App\Models\DirectPurchaseOrderItem;
 use App\Models\ExpenseCategory;
-use App\Models\ProductService;
 use App\Models\ReceivingLocation;
 use App\Models\Supplier;
 use App\Models\User;
@@ -18,9 +16,7 @@ use App\Notifications\DirectPurchaseOrderRejectedNotification;
 use App\Notifications\DirectPurchaseOrderReturnedNotification;
 use App\Notifications\NewDirectPurchaseOrderNotification;
 use App\Services\AuthorizerResolutionService;
-use App\Services\BudgetAccessService;
 use App\Services\BudgetAllocationService;
-use App\Services\ProductBudgetClassificationService;
 use App\Services\PricingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -34,8 +30,7 @@ class DirectPurchaseOrderController extends Controller
         private PricingService $pricingService,
         private BudgetAllocationService $budgetAllocationService,
         private AuthorizerResolutionService $authorizerResolutionService
-    ) {
-    }
+    ) {}
 
     public function create()
     {
@@ -76,9 +71,7 @@ class DirectPurchaseOrderController extends Controller
             'suppliers',
             'expenseCategories',
             'receivingLocations'
-        ))->with([
-            'purchaseTypes' => PurchaseType::values(),
-        ]);
+        ));
     }
 
     public function store(SaveDirectPurchaseOrderRequest $request)
@@ -400,9 +393,7 @@ class DirectPurchaseOrderController extends Controller
             'costCenters',
             'expenseCategories',
             'receivingLocations'
-        ))->with([
-            'purchaseTypes' => PurchaseType::values(),
-        ]);
+        ));
     }
 
     public function update(SaveDirectPurchaseOrderRequest $request, DirectPurchaseOrder $directPurchaseOrder)
@@ -583,17 +574,17 @@ class DirectPurchaseOrderController extends Controller
         foreach ($items as $itemData) {
             DirectPurchaseOrderItem::create([
                 'direct_purchase_order_id' => $directPurchaseOrder->id,
-                'product_service_id'       => $itemData['product_service_id'],
-                'cost_center_id'           => $itemData['cost_center_id'],
-                'expense_category_id'      => $itemData['expense_category_id'],
-                'budget_cedula_id'         => $itemData['budget_cedula_id'],
-                'description'              => $itemData['description'],
-                'quantity'                 => $itemData['quantity'],
-                'unit_price'               => $itemData['unit_price'],
-                'iva_rate'                 => $itemData['iva_rate'],
-                'unit_of_measure'          => $itemData['unit_of_measure'] ?? null,
-                'sku'                      => $itemData['sku'] ?? null,
-                'notes'                    => $itemData['notes'] ?? null,
+                'product_service_id' => $itemData['product_service_id'],
+                'cost_center_id' => $itemData['cost_center_id'],
+                'expense_category_id' => $itemData['expense_category_id'],
+                'budget_cedula_id' => $itemData['budget_cedula_id'],
+                'description' => $itemData['description'],
+                'quantity' => $itemData['quantity'],
+                'unit_price' => $itemData['unit_price'],
+                'iva_rate' => $itemData['iva_rate'],
+                'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
+                'sku' => $itemData['sku'] ?? null,
+                'notes' => $itemData['notes'] ?? null,
             ]);
         }
     }
