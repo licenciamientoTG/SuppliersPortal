@@ -84,7 +84,7 @@
                                 Cuenta <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="modal_expense_category" required>
-                                <option value="">Seleccionar categoría...</option>
+                                <option value="">Seleccionar cuenta...</option>
                             </select>
                             <small class="text-muted">Del presupuesto del centro de costo</small>
                         </div>

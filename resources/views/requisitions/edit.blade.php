@@ -335,7 +335,7 @@
                                 Cuenta <span class="text-danger">*</span>
                             </label>
                             <select id="modal_expense_category" class="form-select" required>
-                                <option value="">Seleccionar categoría...</option>
+                                <option value="">Seleccionar cuenta...</option>
                             </select>
                             <div class="form-text text-danger">
                                 <i class="ti ti-alert-circle me-1"></i>RN-010A: Campo obligatorio
@@ -803,14 +803,14 @@
                 // Mostrar estado de carga
                 $select.prop('disabled', true)
                     .empty()
-                    .append('<option value="">⏳ Cargando categorías...</option>');
+                    .append('<option value="">⏳ Cargando cuentas...</option>');
 
                 $.ajax({
                     url: '{{ route("expense-categories.by-cost-center") }}',
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {
-                        $select.empty().append('<option value="">Seleccionar categoría...</option>');
+                        $select.empty().append('<option value="">Seleccionar cuenta...</option>');
 
                         if (data.categories && data.categories.length > 0) {
                             data.categories.forEach(cat => {
@@ -825,7 +825,7 @@
 
                             $select.prop('disabled', false);
                         } else {
-                            $select.append('<option value="">⚠️ Sin categorías disponibles</option>');
+                            $select.append('<option value="">⚠️ Sin cuentas disponibles</option>');
                         }
                     },
                     error: function(xhr) {
@@ -836,7 +836,7 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: 'No se pudieron cargar las categorías de gasto.'
+                            text: 'No se pudieron cargar las cuentas.'
                         });
                     }
                 });
@@ -865,12 +865,12 @@
                 }
 
                 if (!categoryId) {
-                    Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
+                    Swal.fire('Error', 'Selecciona una cuenta (RN-010A).', 'error');
                     return;
                 }
 
                 if (!budgetCedulaId) {
-                    Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+                    Swal.fire('Error', 'Selecciona una subcuenta.', 'error');
                     return;
                 }
 

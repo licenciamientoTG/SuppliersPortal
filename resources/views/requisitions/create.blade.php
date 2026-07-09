@@ -253,7 +253,7 @@
                             Cuenta <span class="text-danger">*</span>
                         </label>
                         <select id="modal_expense_category" class="form-select" required>
-                            <option value="">Seleccionar categoría...</option>
+                            <option value="">Seleccionar cuenta...</option>
                         </select>
                         <div class="form-text text-danger">
                             <i class="ti ti-alert-circle me-1"></i>RN-010A: Campo obligatorio
@@ -266,7 +266,7 @@
                             Subcuenta <span class="text-danger">*</span>
                         </label>
                         <select id="modal_budget_cedula" class="form-select" required disabled>
-                            <option value="">Selecciona primero una categoría de gasto...</option>
+                            <option value="">Selecciona primero una cuenta...</option>
                         </select>
                         <div class="form-text">
                             La subcuenta disponible depende del centro de costo, la cuenta y el ejercicio fiscal.
@@ -761,7 +761,7 @@
                     fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
-                    $('#modal_expense_category').empty().append('<option value="">Seleccionar categoría...</option>');
+                    $('#modal_expense_category').empty().append('<option value="">Seleccionar cuenta...</option>');
 
                     if (data.categories && data.categories.length > 0) {
                         data.categories.forEach(cat => {
@@ -798,7 +798,7 @@
                     fiscal_year: {{ now()->year }}
                 })
                 .done(function(data) {
-                    $expenseCategory.empty().append('<option value="">Seleccionar categoría...</option>');
+                    $expenseCategory.empty().append('<option value="">Seleccionar cuenta...</option>');
 
                     if (data.categories && data.categories.length > 0) {
                         data.categories.forEach(cat => {
@@ -822,7 +822,7 @@
                 });
         }
 
-        function resetBudgetCedulaSelect(message = 'Selecciona primero una categoría de gasto...') {
+        function resetBudgetCedulaSelect(message = 'Selecciona primero una cuenta...') {
             $budgetCedula
                 .val(null)
                 .data('pending-value', null)
@@ -847,7 +847,7 @@
             $budgetCedula
                 .prop('disabled', true)
                 .empty()
-                .append('<option value="">Cargando subcategorías...</option>');
+                .append('<option value="">Cargando subcuentas...</option>');
 
             initSearchableSelect($budgetCedula, 'Buscar subcuenta...', {
                 dropdownParent: $('#itemModal')
@@ -858,7 +858,7 @@
                 expense_category_id: categoryId,
                 fiscal_year: {{ now()->year }}
             }).done(function(response) {
-                $budgetCedula.empty().append('<option value="">Seleccionar subcategoría...</option>');
+                $budgetCedula.empty().append('<option value="">Seleccionar subcuenta...</option>');
 
                 if (response.success && response.cedulas && response.cedulas.length > 0) {
                     response.cedulas.forEach(cedula => {

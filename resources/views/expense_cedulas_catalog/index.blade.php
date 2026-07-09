@@ -42,9 +42,9 @@
                 </div>
                 <div id="cedulaPanelBody" class="d-none">
                     <input type="text" id="cedulaFilter" class="form-control form-control-sm mb-3"
-                        placeholder="Buscar cédula...">
+                        placeholder="Buscar subcuenta...">
                     <div id="cedulaList" class="list-group"></div>
-                    <div id="cedulaEmpty" class="text-muted text-center py-4 d-none">Esta categoría no tiene cédulas.</div>
+                    <div id="cedulaEmpty" class="text-muted text-center py-4 d-none">Esta cuenta no tiene subcuentas.</div>
                 </div>
             </div>
         </div>
@@ -57,7 +57,7 @@
         <div class="modal-content">
             <form id="categoryForm">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="categoryModalTitle">Nueva categoría</h5>
+                    <h5 class="modal-title" id="categoryModalTitle">Nueva cuenta</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
@@ -101,14 +101,14 @@
         <div class="modal-content">
             <form id="cedulaForm">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="cedulaModalTitle">Nueva cédula</h5>
+                    <h5 class="modal-title" id="cedulaModalTitle">Nueva subcuenta</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="cedula_id">
                     <input type="hidden" id="cedula_category_id">
                     <div class="mb-3">
-                        <label class="form-label">Categoría</label>
+                        <label class="form-label">Cuenta</label>
                         <input type="text" id="cedula_category_label" class="form-control" readonly>
                     </div>
                     <div class="mb-3">
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="js-select-category flex-grow-1" style="cursor:pointer">
                     <strong>${escapeHtml(c.code)}</strong> — ${escapeHtml(c.name)}
                     ${statusBadge(c.status)}
-                    <span class="badge bg-light text-dark ms-1">${c.cedulas_count} cédula(s)</span>
+                    <span class="badge bg-light text-dark ms-1">${c.cedulas_count} subcuenta(s)</span>
                 </span>
                 <span class="text-nowrap">
                     <button type="button" class="btn btn-sm btn-link p-1 js-edit-category" data-id="${c.id}" title="Editar"><i class="ti ti-pencil"></i></button>
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedCategory = category;
         renderCategories();
         document.getElementById('cedulaPanelTitle').innerHTML =
-            `<i class="ti ti-list-details me-1"></i> Cédulas de: ${escapeHtml(category.code)} ${escapeHtml(category.name)}`;
+            `<i class="ti ti-list-details me-1"></i> Subcuentas de: ${escapeHtml(category.code)} ${escapeHtml(category.name)}`;
         document.getElementById('btnNewCedula').disabled = false;
         document.getElementById('cedulaEmptyState').classList.add('d-none');
         document.getElementById('cedulaPanelBody').classList.remove('d-none');
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function clearCedulaPanel() {
         selectedCategory = null;
         allCedulas = [];
-        document.getElementById('cedulaPanelTitle').innerHTML = '<i class="ti ti-list-details me-1"></i> Cédulas';
+        document.getElementById('cedulaPanelTitle').innerHTML = '<i class="ti ti-list-details me-1"></i> Subcuentas';
         document.getElementById('btnNewCedula').disabled = true;
         document.getElementById('cedulaEmptyState').classList.remove('d-none');
         document.getElementById('cedulaPanelBody').classList.add('d-none');
@@ -301,14 +301,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (id) {
             const cat = allCategories.find(c => c.id === id);
-            document.getElementById('categoryModalTitle').textContent = 'Editar categoría';
+            document.getElementById('categoryModalTitle').textContent = 'Editar cuenta';
             document.getElementById('category_id').value = cat.id;
             document.getElementById('category_code').value = cat.code;
             document.getElementById('category_name').value = cat.name;
             document.getElementById('category_description').value = cat.description ?? '';
             document.getElementById('category_status').value = cat.status;
         } else {
-            document.getElementById('categoryModalTitle').textContent = 'Nueva categoría';
+            document.getElementById('categoryModalTitle').textContent = 'Nueva cuenta';
         }
         categoryModal.show();
     }
@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const cat = allCategories.find(c => c.id === id);
         Swal.fire({
             icon: 'warning',
-            title: '¿Eliminar la categoría?',
+            title: '¿Eliminar la cuenta?',
             text: `¿Eliminar "${cat.code} - ${cat.name}"? Esta acción no se puede deshacer.`,
             showCancelButton: true,
             confirmButtonText: 'Eliminar',
@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (id) {
             const cedula = allCedulas.find(c => c.id === id);
-            document.getElementById('cedulaModalTitle').textContent = 'Editar cédula';
+            document.getElementById('cedulaModalTitle').textContent = 'Editar subcuenta';
             document.getElementById('cedula_id').value = cedula.id;
             document.getElementById('cedula_name').value = cedula.name;
             document.getElementById('cedula_status').value = cedula.status;
