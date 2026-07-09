@@ -133,7 +133,7 @@
                         <input type="hidden" id="item_index">
 
                         <div class="row g-3">
-                            <div class="col-md-5">
+                            <div class="col-md-6">
                                 <label for="modal_cost_center_id" class="form-label fw-semibold">
                                     Centro de Costo <span class="text-danger">*</span>
                                 </label>
@@ -146,21 +146,13 @@
                                 <div class="form-text" id="modal_cost_center_help"></div>
                             </div>
 
-                            <div class="col-md-7">
+                            <div class="col-md-6">
                                 <label for="modal_product_id" class="form-label fw-semibold">
                                     Producto del catálogo <span class="text-danger">*</span>
                                 </label>
                                 <select id="modal_product_id" class="form-select" required>
                                     <option value="">Buscar producto del catálogo...</option>
                                 </select>
-                                <div id="product_info" class="selected-product-info" style="display:none;">
-                                    <div class="d-flex align-items-center gap-2 flex-wrap py-1">
-                                        <span id="product_type_badge"></span>
-                                        <span id="product_code_display" class="fw-medium text-dark"></span>
-                                        <span id="product_brand_model" style="display:none;" class="text-muted small"></span>
-                                    </div>
-                                    <div id="product_budget_classification" class="d-none"></div>
-                                </div>
                             </div>
 
                             <textarea id="modal_description" class="d-none"></textarea>
@@ -369,34 +361,6 @@
 
     #itemFormPanel.requisition-item-form-panel:hover {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-
-    .selected-product-info {
-        background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
-        border: 1px solid #cfe2ff;
-        border-left: 3px solid #0d6efd;
-        border-radius: 8px;
-        padding: 10px 14px;
-        margin-top: 10px;
-        animation: fadeSlideIn 0.2s ease-out;
-    }
-
-    .selected-product-info code {
-        background: #e9ecef;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.85em;
-    }
-
-    @keyframes fadeSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-4px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
 
     #modal_description {
@@ -869,7 +833,6 @@ $(function() {
 
         $('#item_index').val('');
         $('#itemModalTitle').text('Agregar Partida');
-        $('#product_info').hide();
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
         $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
         resetBudgetCedulaSelect();
@@ -888,7 +851,6 @@ $(function() {
         $('#modal_quantity').val('1');
         $('#modal_unit').val('');
         $('#modal_notes').val('');
-        $('#product_info').hide();
         $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
         resetBudgetCedulaSelect();
 
@@ -1156,7 +1118,6 @@ $(function() {
         document.getElementById('itemForm').reset();
         $('#item_index').val('');
         $('#budgetAlert').hide();
-        $('#product_info').hide();
 
         loadProductsForCostCenter();
         loadExpenseCategories();
@@ -1278,7 +1239,6 @@ $(function() {
         if (!classification) {
             $('#modal_expense_category').empty().append('<option value=""></option>').val('');
             $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
-            $('#product_budget_classification').html('<span class="text-danger">El producto no tiene subcuenta presupuestal asignada.</span>');
 
             return false;
         }
@@ -1292,8 +1252,6 @@ $(function() {
             .empty()
             .append(`<option value="${classification.budget_cedula_id}">${classification.budget_cedula_name}</option>`)
             .val(String(classification.budget_cedula_id));
-
-        $('#product_budget_classification').empty();
 
         return true;
     }
@@ -1333,33 +1291,12 @@ $(function() {
 
             $('#modal_quantity').siblings('.form-text').html(`<i class="ti ti-info-circle me-1"></i>${helpText}`);
 
-            const type = $option.data('type');
-            const code = $option.data('code');
-            const brand = $option.data('brand');
-            const model = $option.data('model');
-
-            const typeBadge = type === 'SERVICIO' ?
-                '<span class="badge bg-info"><i class="ti ti-briefcase me-1"></i>Servicio</span>' :
-                '<span class="badge bg-primary"><i class="ti ti-box me-1"></i>Producto</span>';
-            $('#product_type_badge').html(typeBadge);
-
-            $('#product_code_display').html(`<strong>Código:</strong> <code>${code}</code>`);
-
-            if (brand || model) {
-                const brandModel = [brand, model].filter(Boolean).join(' / ');
-                $('#product_brand_model').html(`<strong>Marca/Modelo:</strong> ${brandModel}`).show();
-            } else {
-                $('#product_brand_model').hide();
-            }
-
             applySelectedProductClassification();
-            $('#product_info').show();
         });
 
         $('#modal_product_id').on('select2:clear', function() {
             $('#modal_expense_category').empty().append('<option value=""></option>').val('');
             $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
-            $('#product_budget_classification').empty();
         });
     }
 
@@ -1680,7 +1617,6 @@ $(function() {
         document.getElementById('itemForm').reset();
         $('#item_index').val('');
         $('#budgetAlert').hide();
-        $('#product_info').hide();
         resetBudgetCedulaSelect();
 
         renderModalCostCenters('reset');
