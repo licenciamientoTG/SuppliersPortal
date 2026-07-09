@@ -153,14 +153,11 @@
                                 <select id="modal_product_id" class="form-select" required>
                                     <option value="">Buscar producto del catálogo...</option>
                                 </select>
-                                <div class="form-text">
-                                    <i class="ti ti-info-circle me-1"></i>RN-001: Solo productos del catálogo
-                                </div>
-                                <div id="product_info" class="alert alert-light border mt-2" style="display:none;">
-                                    <div class="d-flex gap-3 align-items-center flex-wrap">
+                                <div id="product_info" class="selected-product-info" style="display:none;">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap py-1">
                                         <span id="product_type_badge"></span>
-                                        <span id="product_code_display"></span>
-                                        <span id="product_brand_model" style="display:none;"></span>
+                                        <span id="product_code_display" class="fw-medium text-dark"></span>
+                                        <span id="product_brand_model" style="display:none;" class="text-muted small"></span>
                                     </div>
                                     <div id="product_budget_classification" class="d-none"></div>
                                 </div>
@@ -364,11 +361,70 @@
         visibility: visible !important;
         opacity: 1 !important;
         height: auto !important;
+        background: #fafcff;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        transition: box-shadow 0.2s ease;
+    }
+
+    #itemFormPanel.requisition-item-form-panel:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .selected-product-info {
+        background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+        border: 1px solid #cfe2ff;
+        border-left: 3px solid #0d6efd;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 10px;
+        animation: fadeSlideIn 0.2s ease-out;
+    }
+
+    .selected-product-info code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+
+    @keyframes fadeSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     #modal_description {
         font-size: 0.95rem;
         line-height: 1.4;
+    }
+
+    .table thead th {
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #475569;
+        border-bottom-width: 1px;
+    }
+
+    .table tbody td {
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8faff;
+    }
+
+    #itemsTable input.form-control-sm,
+    #itemsTable select.form-select-sm {
+        font-size: 0.85rem;
     }
 
     .rotating {
