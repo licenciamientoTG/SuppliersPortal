@@ -5,9 +5,9 @@ namespace App\Models;
 use App\Enum\ProductServiceStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Catálogo de Productos y Servicios
@@ -28,12 +28,9 @@ class ProductService extends Model
         'product_type',
 
         // Clasificación
-        'category_id',
         'is_inventoriable',
 
         // Organización
-        'cost_center_id',
-        'company_id',
 
         // Especificaciones técnicas
         'brand',
@@ -85,21 +82,6 @@ class ProductService extends Model
     // ==========================================
     // RELACIONES
     // ==========================================
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
-    }
-
-    public function costCenter(): BelongsTo
-    {
-        return $this->belongsTo(CostCenter::class);
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     /**
      * Proveedor sugerido del catálogo.
@@ -161,7 +143,7 @@ class ProductService extends Model
     {
         $prefix = 'PROD-';
         $last = static::withTrashed()
-            ->where('code', 'like', $prefix . '%')
+            ->where('code', 'like', $prefix.'%')
             ->orderBy('code', 'desc')
             ->value('code');
 
@@ -180,6 +162,7 @@ class ProductService extends Model
     public function statusLabel(): string
     {
         $opts = ProductServiceStatus::options();
+
         return $opts[$this->status] ?? $this->status;
     }
 
@@ -189,6 +172,7 @@ class ProductService extends Model
     public function statusColor(): string
     {
         $status = ProductServiceStatus::tryFrom($this->status);
+
         return $status ? ProductServiceStatus::badgeClass($status) : 'secondary';
     }
 
@@ -197,9 +181,9 @@ class ProductService extends Model
      */
     public function hasCompleteAccountingStructure(): bool
     {
-        return !empty($this->account_major)
-            && !empty($this->account_sub)
-            && !empty($this->account_subsub);
+        return ! empty($this->account_major)
+            && ! empty($this->account_sub)
+            && ! empty($this->account_subsub);
     }
 
     /**
@@ -268,7 +252,7 @@ class ProductService extends Model
      */
     public function getEstimatedDeliveryDate(): ?\Carbon\Carbon
     {
-        if (!$this->lead_time_days) {
+        if (! $this->lead_time_days) {
             return null;
         }
 
@@ -315,19 +299,9 @@ class ProductService extends Model
     /**
      * Por compañía.
      */
-    public function scopeByCompany($query, int $companyId)
-    {
-        return $query->where('company_id', $companyId);
-    }
-
     /**
      * Por centro de costo.
      */
-    public function scopeByCostCenter($query, int $costCenterId)
-    {
-        return $query->where('cost_center_id', $costCenterId);
-    }
-
     /**
      * Por tipo de producto (PRODUCTO o SERVICIO).
      */

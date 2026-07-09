@@ -41,6 +41,9 @@ class ProductServiceExpenseClassificationTest extends TestCase
 
     public function test_single_column_classification_no_longer_exists(): void
     {
+        $this->assertFalse(Schema::hasColumn('products_services', 'company_id'));
+        $this->assertFalse(Schema::hasColumn('products_services', 'cost_center_id'));
+        $this->assertFalse(Schema::hasColumn('products_services', 'category_id'));
         $this->assertFalse(Schema::hasColumn('products_services', 'expense_category_id'));
         $this->assertFalse(Schema::hasColumn('products_services', 'budget_cedula_id'));
         $this->assertTrue(Schema::hasTable('expense_category_product_service'));

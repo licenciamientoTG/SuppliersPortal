@@ -270,8 +270,6 @@ class ContractRequisitionTest extends TestCase
         ]);
 
         $product = ProductService::factory()->create([
-            'company_id' => $company->id,
-            'cost_center_id' => $costCenter->id,
             'product_type' => 'PRODUCTO',
             'code' => 'PROD-001',
             'short_name' => 'Bomba industrial',

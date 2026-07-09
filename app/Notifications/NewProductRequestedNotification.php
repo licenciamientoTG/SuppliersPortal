@@ -29,14 +29,14 @@ class NewProductRequestedNotification extends Notification
         return (new MailMessage)
             ->subject('Nuevo producto o servicio solicitado - '.$this->productService->code)
             ->view('emails.notifications.new-product-requested', [
-                'name'        => $notifiable->first_name ?? $notifiable->name,
-                'code'        => $this->productService->code,
+                'name' => $notifiable->first_name ?? $notifiable->name,
+                'code' => $this->productService->code,
                 'description' => $this->productService->getDisplayName(),
-                'type'        => $this->productService->product_type,
+                'type' => $this->productService->product_type,
                 'requestedBy' => $this->requestedBy->name,
-                'costCenter'  => $this->productService->costCenter?->name ?? 'N/A',
-                'company'     => $this->productService->company?->name ?? 'N/A',
-                'url'         => $url,
+                'costCenter' => 'Catálogo global',
+                'company' => 'Todas',
+                'url' => $url,
             ]);
     }
 

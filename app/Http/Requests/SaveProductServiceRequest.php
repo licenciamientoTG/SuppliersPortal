@@ -24,22 +24,20 @@ class SaveProductServiceRequest extends FormRequest
             'technical_description' => 'nullable|string|max:5000',
             'short_name' => 'nullable|string|max:100',
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
-            
+
             // Clasificación
             'budget_cedula_ids' => 'nullable|array',
             'budget_cedula_ids.*' => 'integer|exists:budget_cedulas,id',
             'is_inventoriable' => 'boolean',
-            
+
             // Organización
-            'company_id' => 'required|exists:companies,id',
-            'cost_center_id' => 'required|exists:cost_centers,id',
-            
+
             // Especificaciones técnicas
             'brand' => 'nullable|string|max:100',
             'model' => 'nullable|string|max:100',
             'unit_of_measure' => 'required|string|max:30',
             'specifications' => 'nullable|json',
-            
+
             // Información comercial
             'estimated_price' => 'required|numeric|min:0|max:9999999999.99',
             'currency_code' => 'nullable|string|size:3|in:MXN,USD,EUR',
@@ -47,7 +45,7 @@ class SaveProductServiceRequest extends FormRequest
             'minimum_quantity' => 'nullable|numeric|min:0.001|max:9999999.999',
             'maximum_quantity' => 'nullable|numeric|min:0.001|max:9999999.999|gte:minimum_quantity',
             'lead_time_days' => 'nullable|integer|min:1|max:365',
-            
+
             // Observaciones
             'observations' => 'nullable|string|max:2000',
             'internal_notes' => 'nullable|string|max:2000',
@@ -66,8 +64,6 @@ class SaveProductServiceRequest extends FormRequest
             'budget_cedula_ids' => 'cédulas de gasto',
             'budget_cedula_ids.*' => 'cédula de gasto',
             'is_inventoriable' => 'inventariable',
-            'company_id' => 'compañía',
-            'cost_center_id' => 'centro de costo',
             'brand' => 'marca',
             'model' => 'modelo',
             'unit_of_measure' => 'unidad de medida',
@@ -99,5 +95,4 @@ class SaveProductServiceRequest extends FormRequest
             'specifications.json' => 'Las especificaciones técnicas deben ser un JSON válido.',
         ];
     }
-
 }

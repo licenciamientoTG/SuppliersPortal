@@ -36,10 +36,7 @@
                             <th>Código</th>
                             <th>Tipo</th>
                             <th>Descripción</th>
-                            <th>Categoría</th>
                             <th>Unidad</th>
-                            <th>Centro de Costo</th>
-                            <th>Compañía</th>
                             <th>Precio Est.</th>
                             <th>Estatus</th>
                             <th class="text-end" style="width:140px;">Acciones</th>
@@ -149,20 +146,8 @@
                         name: 'technical_description'
                     },
                     {
-                        data: 'category_name',
-                        name: 'category.name'
-                    },
-                    {
                         data: 'unit_of_measure',
                         name: 'unit_of_measure'
-                    },
-                    {
-                        data: 'cost_center_name',
-                        name: 'costCenter.name'
-                    },
-                    {
-                        data: 'company_name',
-                        name: 'company.name'
                     },
                     {
                         data: 'estimated_price',

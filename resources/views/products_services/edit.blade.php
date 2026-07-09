@@ -25,7 +25,7 @@
                 <div class="card-body">
                     <div class="row">
                         {{-- Tipo de Producto --}}
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label for="product_type" class="form-label">Tipo <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">
@@ -44,57 +44,6 @@
                                 </select>
                             </div>
                             @error('product_type')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Compañía --}}
-                        <div class="col-md-4 mb-3">
-                            <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-building"></i>
-                                </span>
-                                <select class="form-select @error('company_id') is-invalid @enderror" 
-                                        id="company_id"
-                                        name="company_id" 
-                                        required>
-                                    <option value="">Seleccione...</option>
-                                    @foreach ($companies as $company)
-                                        <option value="{{ $company->id }}"
-                                            {{ old('company_id', $productService->company_id) == $company->id ? 'selected' : '' }}>
-                                            {{ $company->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @error('company_id')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Centro de Costo --}}
-                        <div class="col-md-4 mb-3">
-                            <label for="cost_center_id" class="form-label">Centro de Costo <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-chart-pie"></i>
-                                </span>
-                                <select class="form-select @error('cost_center_id') is-invalid @enderror" 
-                                        id="cost_center_id"
-                                        name="cost_center_id" 
-                                        required>
-                                    <option value="">Seleccione compañía primero...</option>
-                                    @foreach ($costCenters as $cc)
-                                        <option value="{{ $cc->id }}"
-                                                data-company-id="{{ $cc->company_id }}"
-                                                {{ old('cost_center_id', $productService->cost_center_id) == $cc->id ? 'selected' : '' }}>
-                                            {{ $cc->code }} - {{ $cc->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @error('cost_center_id')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
@@ -454,31 +403,6 @@
 @push('scripts')
     <script>
         $(function() {
-            // Filtrar centros de costo por compañía seleccionada
-            $('#company_id').on('change', function() {
-                const companyId = $(this).val();
-                const $costCenterSelect = $('#cost_center_id');
-
-                $costCenterSelect.find('option').each(function() {
-                    const optionCompanyId = $(this).data('company-id');
-                    if (!optionCompanyId || optionCompanyId == companyId) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-
-                const currentCostCenter = $costCenterSelect.val();
-                const currentOption = $costCenterSelect.find(`option[value="${currentCostCenter}"]`);
-                if (currentOption.data('company-id') != companyId) {
-                    $costCenterSelect.val('');
-                }
-            });
-
-            // Ejecutar al cargar si hay compañía pre-seleccionada
-            if ($('#company_id').val()) {
-                $('#company_id').trigger('change');
-            }
             initializeBudgetCedulaSelector('#budget-cedula-selector-edit');
 
             // Sugerir Inventariable según el tipo de producto

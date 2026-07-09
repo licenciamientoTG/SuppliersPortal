@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use App\Enum\ProductServiceStatus;
-use App\Models\Company;
-use App\Models\CostCenter;
 use App\Models\ProductService;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -32,25 +30,8 @@ class ProductServiceSycSeeder extends Seeder
         $path = base_path(self::SOURCE_PATH);
         if (! is_file($path)) {
             $this->command?->warn('No se encontro el archivo Productos_syc.csv. Seeder omitido.');
+
             return;
-        }
-
-        $company = Company::query()->where('name', 'Servicio SYC')->first();
-        if (! $company) {
-            throw new \RuntimeException('No se encontro la compania "Servicio SYC".');
-        }
-
-        $costCenter = CostCenter::query()
-            ->where('company_id', $company->id)
-            ->where('name', 'Delicias')
-            ->first();
-
-        if (! $costCenter) {
-            throw new \RuntimeException('No se encontro el centro de costo "Delicias" para "Servicio SYC".');
-        }
-
-        if (! $costCenter->category_id) {
-            throw new \RuntimeException('El centro de costo "Delicias" no tiene categoria asignada.');
         }
 
         $user = User::query()->where('name', 'Super Administrador')->first()
@@ -64,14 +45,14 @@ class ProductServiceSycSeeder extends Seeder
         $expectedHeaders = ['empresa', 'des', 'udm_inv', 'clas1_nombre'];
         if ($headers !== $expectedHeaders) {
             throw new \RuntimeException(
-                'Encabezados invalidos en Productos_syc.csv. Se esperaba: ' . implode(', ', $expectedHeaders)
+                'Encabezados invalidos en Productos_syc.csv. Se esperaba: '.implode(', ', $expectedHeaders)
             );
         }
 
         $created = 0;
         $updated = 0;
 
-        DB::transaction(function () use ($rows, $company, $costCenter, $user, &$created, &$updated): void {
+        DB::transaction(function () use ($rows, $user, &$created, &$updated): void {
             foreach ($rows as $index => $row) {
                 $lineNumber = $index + 2;
 
@@ -92,8 +73,6 @@ class ProductServiceSycSeeder extends Seeder
                 }
 
                 $product = ProductService::withTrashed()
-                    ->where('company_id', $company->id)
-                    ->where('cost_center_id', $costCenter->id)
                     ->where('short_name', $shortName)
                     ->first();
 
@@ -103,7 +82,6 @@ class ProductServiceSycSeeder extends Seeder
                     }
 
                     $product->fill([
-                        'category_id' => $costCenter->category_id,
                         'unit_of_measure' => $unitOfMeasure,
                         'status' => ProductServiceStatus::ACTIVE->value,
                         'is_active' => true,
@@ -112,6 +90,7 @@ class ProductServiceSycSeeder extends Seeder
                     ]);
                     $product->save();
                     $updated++;
+
                     continue;
                 }
 
@@ -120,9 +99,6 @@ class ProductServiceSycSeeder extends Seeder
                     'technical_description' => null,
                     'short_name' => $shortName,
                     'product_type' => 'PRODUCTO',
-                    'category_id' => $costCenter->category_id,
-                    'cost_center_id' => $costCenter->id,
-                    'company_id' => $company->id,
                     'unit_of_measure' => $unitOfMeasure,
                     'estimated_price' => 0,
                     'currency_code' => 'MXN',

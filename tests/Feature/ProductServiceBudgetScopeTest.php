@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enum\ProductServiceStatus;
-use App\Models\Category;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\ProductService;
@@ -25,10 +24,8 @@ class ProductServiceBudgetScopeTest extends TestCase
         $user->assignRole('staff');
 
         $company = Company::factory()->create();
-        $category = Category::factory()->create();
         $costCenter = CostCenter::factory()->create([
             'company_id' => $company->id,
-            'category_id' => $category->id,
             'status' => 'ACTIVO',
         ]);
 
@@ -36,9 +33,6 @@ class ProductServiceBudgetScopeTest extends TestCase
         $blockedSubaccount = Subaccount::factory()->create();
 
         $allowedProduct = ProductService::factory()->create([
-            'company_id' => $company->id,
-            'cost_center_id' => $costCenter->id,
-            'category_id' => $category->id,
             'status' => ProductServiceStatus::ACTIVE->value,
             'is_active' => true,
             'account_major' => '6000',
@@ -48,9 +42,6 @@ class ProductServiceBudgetScopeTest extends TestCase
         $allowedProduct->subaccounts()->sync([$allowedSubaccount->id]);
 
         $blockedProduct = ProductService::factory()->create([
-            'company_id' => $company->id,
-            'cost_center_id' => $costCenter->id,
-            'category_id' => $category->id,
             'status' => ProductServiceStatus::ACTIVE->value,
             'is_active' => true,
             'account_major' => '6000',

@@ -571,7 +571,7 @@ class RequisitionController extends Controller
         $itemId = $itemData['id'] ?? null;
 
         // RN-001: Validar que el producto exista en el catálogo
-        $product = ProductService::with('category')->find($itemData['product_service_id']);
+        $product = ProductService::find($itemData['product_service_id']);
 
         if (!$product) {
             throw new \RuntimeException('El producto seleccionado no existe en el catálogo (RN-001).');

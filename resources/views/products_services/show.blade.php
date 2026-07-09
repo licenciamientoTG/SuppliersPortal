@@ -47,33 +47,6 @@
 
                     <div class="row mb-3">
                         <div class="col-md-3">
-                            <strong>Compañía:</strong>
-                        </div>
-                        <div class="col-md-9">
-                            {{ $productService->company?->name ?? '—' }}
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <strong>Categoría:</strong>
-                        </div>
-                        <div class="col-md-9">
-                            {{ $productService->category?->name ?? '—' }}
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <strong>Centro de Costo:</strong>
-                        </div>
-                        <div class="col-md-9">
-                            {{ $productService->costCenter?->code }} - {{ $productService->costCenter?->name }}
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3">
                             <strong>Descripción Técnica:</strong>
                         </div>
                         <div class="col-md-9">
@@ -337,10 +310,10 @@
                 </div>
             </div>
 
-            {{-- Clasificaci�n Presupuestal --}}
+            {{-- Clasificaci�n Presupuestal --}}
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="ti ti-tags"></i> Clasificaci�n Presupuestal</h5>
+                    <h5 class="mb-0"><i class="ti ti-tags"></i> Clasificaci�n Presupuestal</h5>
                 </div>
                 <div class="card-body">
 

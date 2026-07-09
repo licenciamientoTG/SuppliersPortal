@@ -510,7 +510,6 @@ class RequisitionForm extends Component
         $product = ProductService::query()
             ->active()
             ->whereKey((int) $itemData['product_id'])
-            ->where('company_id', (int) $this->company_id)
             ->first();
 
         if (! $product) {
@@ -519,8 +518,8 @@ class RequisitionForm extends Component
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
 
-        if ($allowedSubaccounts->isNotEmpty()
-            && ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
+        if ($allowedSubaccounts->isEmpty()
+            || ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
             return false;
         }
 

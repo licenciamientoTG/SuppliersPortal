@@ -280,7 +280,7 @@ class QuotationPlannerController extends Controller
             $group->items()->syncWithoutDetaching($validated['item_ids']);
 
             // Cargar relaciones con eager loading para evitar N+1
-            $group->loadMissing('items.productService.category');
+            $group->loadMissing('items.productService');
 
             return response()->json([
                 'success' => true,

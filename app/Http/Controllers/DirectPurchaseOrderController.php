@@ -18,6 +18,7 @@ use App\Notifications\DirectPurchaseOrderRejectedNotification;
 use App\Notifications\DirectPurchaseOrderReturnedNotification;
 use App\Notifications\NewDirectPurchaseOrderNotification;
 use App\Services\AuthorizerResolutionService;
+use App\Services\BudgetAccessService;
 use App\Services\BudgetAllocationService;
 use App\Services\ProductBudgetClassificationService;
 use App\Services\PricingService;
@@ -655,10 +656,16 @@ class DirectPurchaseOrderController extends Controller
     private function productCatalogForDirectPurchaseOrders()
     {
         $classificationService = app(ProductBudgetClassificationService::class);
-
-        return ProductService::query()
+        $query = ProductService::query()
             ->forRequisitions()
-            ->with(['subaccounts.account', 'budgetCedulas'])
+            ->with(['subaccounts.account', 'budgetCedulas']);
+
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
+        if (! Auth::user()?->can('productos.administrar')) {
+            $query->withAllowedSubaccounts($allowedSubaccounts);
+        }
+
+        return $query
             ->orderBy('short_name')
             ->orderBy('technical_description')
             ->get()

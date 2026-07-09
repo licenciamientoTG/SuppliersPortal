@@ -51,8 +51,7 @@ class DashboardService
 
     public function __construct(
         private readonly ModuleAccessService $moduleAccessService
-    ) {
-    }
+    ) {}
 
     public function buildForUser(User $user): array
     {
@@ -719,7 +718,7 @@ class DashboardService
                                 'id' => 'catalog-product-'.$product->id,
                                 'title' => $product->getDisplayName(),
                                 'subtitle' => $product->code,
-                                'meta' => $product->category?->name ?: 'Sin categoria',
+                                'meta' => 'Catalogo global',
                                 'badge' => $product->statusLabel(),
                                 'badge_tone' => $product->statusColor(),
                                 'route' => route('products-services.index'),

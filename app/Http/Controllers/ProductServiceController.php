@@ -6,7 +6,6 @@ use App\Enum\ProductServiceStatus;
 use App\Events\ProductServiceApproved;
 use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Account;
-use App\Models\Company;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
 use App\Models\ProductService;
@@ -48,17 +47,14 @@ class ProductServiceController extends Controller
     public function datatable(Request $request)
     {
         $query = ProductService::query()
-            ->with(['category', 'costCenter', 'company', 'creator', 'subaccounts.account']);
+            ->with(['creator', 'subaccounts.account']);
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($request->user());
-        if ($allowedSubaccounts->isNotEmpty() && ! $request->user()?->can('productos.administrar')) {
+        if (! $request->user()?->can('productos.administrar')) {
             $query->withAllowedSubaccounts($allowedSubaccounts);
         }
 
         return DataTables::of($query)
-            ->addColumn('category_name', fn ($p) => e($p->category?->name ?? '—'))
-            ->addColumn('cost_center_name', fn ($p) => e($p->costCenter?->name ?? '—'))
-            ->addColumn('company_name', fn ($p) => e($p->company?->name ?? '—'))
             ->addColumn('creator_name', fn ($p) => e($p->creator?->name ?? '—'))
             ->addColumn('product_type_badge', function ($p) {
                 $color = $p->product_type === 'SERVICIO' ? 'info' : 'primary';
@@ -150,11 +146,6 @@ class ProductServiceController extends Controller
             'unit_of_measure' => 'PIEZA',
         ]);
 
-        $selectedCompanyId = old('company_id', Auth::user()->company_id ?? null);
-
-        $companies = Company::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::orderBy('name')
-            ->get(['id', 'name', 'code', 'company_id', 'status']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 
@@ -180,11 +171,8 @@ class ProductServiceController extends Controller
 
         return view('products_services.create', compact(
             'productService',
-            'companies',
-            'costCenters',
             'suppliers',
             'statusOpts',
-            'selectedCompanyId',
             'unitsOfMeasure',
             'budgetCedulas'
         ));
@@ -197,7 +185,6 @@ class ProductServiceController extends Controller
     {
         return DB::transaction(function () use ($request) {
             $data = $request->validated();
-            $costCenter = $this->resolveCatalogCostCenter((int) $data['cost_center_id'], (int) $data['company_id']);
 
             $productService = new ProductService;
             $productService->fill([
@@ -207,13 +194,8 @@ class ProductServiceController extends Controller
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 
-                // Clasificación derivada del centro de costo
-                'category_id' => $costCenter->category_id,
+                // Clasificación presupuestal
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
-
-                // Organización
-                'cost_center_id' => $data['cost_center_id'],
-                'company_id' => $data['company_id'],
 
                 // Especificaciones técnicas
                 'brand' => $data['brand'] ?? null,
@@ -274,9 +256,6 @@ class ProductServiceController extends Controller
     public function show(ProductService $productService): View
     {
         $productService->load([
-            'category',
-            'costCenter',
-            'company',
             'defaultVendor',
             'creator',
             'approver',
@@ -292,11 +271,6 @@ class ProductServiceController extends Controller
      */
     public function edit(ProductService $productService): View
     {
-        $selectedCompanyId = old('company_id', $productService->company_id);
-
-        $companies = Company::orderBy('name')->get(['id', 'name']);
-        $costCenters = CostCenter::orderBy('name')
-            ->get(['id', 'name', 'code', 'company_id', 'status']);
         $suppliers = Supplier::active()->orderBy('company_name')->get(['id', 'company_name']);
         $statusOpts = ProductServiceStatus::options();
 
@@ -323,11 +297,8 @@ class ProductServiceController extends Controller
 
         return view('products_services.edit', compact(
             'productService',
-            'companies',
-            'costCenters',
             'suppliers',
             'statusOpts',
-            'selectedCompanyId',
             'unitsOfMeasure',
             'budgetCedulas',
             'selectedBudgetCedulaIds'
@@ -342,7 +313,6 @@ class ProductServiceController extends Controller
 
         return DB::transaction(function () use ($request, $productService) {
             $data = $request->validated();
-            $costCenter = $this->resolveCatalogCostCenter((int) $data['cost_center_id'], (int) $data['company_id']);
 
             $productService->fill([
                 // Identificación
@@ -350,13 +320,8 @@ class ProductServiceController extends Controller
                 'short_name' => $data['short_name'] ?? null,
                 'product_type' => $data['product_type'],
 
-                // Clasificación derivada del centro de costo
-                'category_id' => $costCenter->category_id,
+                // Clasificación presupuestal
                 'is_inventoriable' => $request->boolean('is_inventoriable'),
-
-                // Organización
-                'cost_center_id' => $data['cost_center_id'],
-                'company_id' => $data['company_id'],
 
                 // Especificaciones técnicas
                 'brand' => $data['brand'] ?? null,
@@ -644,16 +609,10 @@ class ProductServiceController extends Controller
         }
 
         $query = ProductService::active()
-            ->with(['category', 'costCenter', 'defaultVendor', 'subaccounts.account']);
-
-        // Filtrar por compañía. El centro de costo ya fue validado contra el usuario;
-        // la disponibilidad de productos se determina por subcuentas permitidas.
-        $query->where('company_id', $companyId);
+            ->with(['defaultVendor', 'subaccounts.account']);
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
-        if ($allowedSubaccounts->isNotEmpty()) {
-            $query->withAllowedSubaccounts($allowedSubaccounts);
-        }
+        $query->withAllowedSubaccounts($allowedSubaccounts);
 
         // Búsqueda por término (para Select2)
         if ($request->has('search') && $request->search) {
@@ -695,9 +654,6 @@ class ProductServiceController extends Controller
                     'unit_of_measure' => $p->unit_of_measure,
                     'estimated_price' => (float) $p->estimated_price,
                     'currency_code' => $p->currency_code,
-                    'category' => $p->category?->name,
-                    'cost_center' => $p->costCenter?->name,
-                    'cost_center_id' => $p->cost_center_id,
                     'default_vendor_id' => $p->default_vendor_id,
                     'default_vendor_name' => $p->defaultVendor?->name,
                     'minimum_quantity' => $p->minimum_quantity ? (float) $p->minimum_quantity : null,
@@ -739,7 +695,7 @@ class ProductServiceController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated) {
-            $costCenter = $this->resolveCatalogCostCenter((int) $validated['cost_center_id'], (int) $validated['company_id']);
+            $this->ensureCostCenterBelongsToCompany((int) $validated['cost_center_id'], (int) $validated['company_id']);
 
             $productService = new ProductService;
             $productService->fill([
@@ -747,9 +703,6 @@ class ProductServiceController extends Controller
                 'technical_description' => $validated['technical_description'],
                 'short_name' => $validated['short_name'] ?? null,
                 'product_type' => $validated['product_type'] ?? 'PRODUCTO',
-                'category_id' => $costCenter->category_id,
-                'cost_center_id' => $validated['cost_center_id'],
-                'company_id' => $validated['company_id'],
                 'brand' => $validated['brand'] ?? null,
                 'model' => $validated['model'] ?? null,
                 'unit_of_measure' => $validated['unit_of_measure'] ?? 'PIEZA',
@@ -778,27 +731,19 @@ class ProductServiceController extends Controller
                     'description' => $productService->technical_description,
                     'unit_of_measure' => $productService->unit_of_measure,
                     'status' => $productService->status,
-                    'category' => $costCenter->category?->name,
                 ],
             ], 201);
         });
     }
 
-    protected function resolveCatalogCostCenter(int $costCenterId, int $companyId): CostCenter
+    protected function ensureCostCenterBelongsToCompany(int $costCenterId, int $companyId): CostCenter
     {
         $costCenter = CostCenter::query()
-            ->with('category:id,name')
             ->findOrFail($costCenterId);
 
         if ((int) $costCenter->company_id !== $companyId) {
             throw ValidationException::withMessages([
                 'cost_center_id' => 'El centro de costo no pertenece a la compañía seleccionada.',
-            ]);
-        }
-
-        if (! $costCenter->category_id) {
-            throw ValidationException::withMessages([
-                'cost_center_id' => 'El centro de costo no tiene una categoría asignada para registrar productos o servicios.',
             ]);
         }
 

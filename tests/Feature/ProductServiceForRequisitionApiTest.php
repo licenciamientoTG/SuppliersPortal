@@ -66,21 +66,9 @@ class ProductServiceForRequisitionApiTest extends TestCase
         ]);
     }
 
-    public function test_staff_can_load_company_products_by_allowed_subaccount_even_when_catalog_cost_center_differs(): void
+    public function test_staff_can_load_global_products_by_allowed_subaccount_from_any_assigned_company(): void
     {
         $context = $this->createContext();
-
-        $catalogCostCenter = CostCenter::create([
-            'code' => '00181',
-            'name' => 'SISTEMAS',
-            'purchase_type' => 'Gasto Staff',
-            'category_id' => $context['category']->id,
-            'company_id' => $context['company']->id,
-            'responsible_user_id' => $context['user']->id,
-            'budget_type' => 'ANNUAL',
-            'status' => 'ACTIVO',
-            'created_by' => $context['user']->id,
-        ]);
 
         $expenseCategory = ExpenseCategory::factory()->create([
             'code' => 'TEC',
@@ -107,9 +95,6 @@ class ProductServiceForRequisitionApiTest extends TestCase
             'technical_description' => 'Servicio de suscripcion para aplicaciones y software.',
             'short_name' => 'App y Software',
             'product_type' => 'SERVICIO',
-            'category_id' => $context['category']->id,
-            'cost_center_id' => $catalogCostCenter->id,
-            'company_id' => $context['company']->id,
             'unit_of_measure' => 'SERVICIO',
             'estimated_price' => 1500,
             'currency_code' => 'MXN',
@@ -177,9 +162,6 @@ class ProductServiceForRequisitionApiTest extends TestCase
             'technical_description' => 'Licencia Microsoft 365 Business Standard anual.',
             'short_name' => 'Licencia M365',
             'product_type' => 'SERVICIO',
-            'category_id' => $category->id,
-            'cost_center_id' => $costCenter->id,
-            'company_id' => $company->id,
             'unit_of_measure' => 'SERVICIO',
             'estimated_price' => 1000,
             'currency_code' => 'MXN',
@@ -190,6 +172,10 @@ class ProductServiceForRequisitionApiTest extends TestCase
             'account_subsub' => '6101',
             'created_by' => $user->id,
         ]);
+
+        $subaccount = Subaccount::factory()->create();
+        $product->subaccounts()->sync([$subaccount->id]);
+        $user->subaccounts()->sync([$subaccount->id]);
 
         $user->companies()->attach($company->id);
         $user->costCenters()->attach($costCenter->id, [

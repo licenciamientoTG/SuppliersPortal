@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enum\RequisitionStatus;
 use App\Models\BudgetCedula;
-use App\Models\Category;
 use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\ReceivingLocation;
@@ -27,7 +26,7 @@ class QuotationPlannerTestSeeder extends Seeder
             ]
         );
 
-        $this->command->info('Usuario admin verificado [ID: ' . $admin->id . ']');
+        $this->command->info('Usuario admin verificado [ID: '.$admin->id.']');
 
         $expenseCategory = ExpenseCategory::firstOrCreate(
             ['code' => 'EXP-OP-001'],
@@ -71,21 +70,13 @@ class QuotationPlannerTestSeeder extends Seeder
         ];
 
         foreach ($testData as $categoryData) {
-            $category = Category::firstOrCreate(
-                ['name' => $categoryData['category']],
-                ['created_by' => $admin->id]
-            );
-
             foreach ($categoryData['products'] as $productData) {
                 ProductService::firstOrCreate(
                     ['code' => $productData['code']],
                     [
                         'short_name' => $productData['name'],
-                        'technical_description' => $productData['name'] . ' - Especificacion tecnica corporativa requerida por TotalGas.',
+                        'technical_description' => $productData['name'].' - Especificacion tecnica corporativa requerida por TotalGas.',
                         'product_type' => 'PRODUCTO',
-                        'category_id' => $category->id,
-                        'cost_center_id' => 1,
-                        'company_id' => 1,
                         'status' => 'ACTIVE',
                         'is_active' => true,
                         'created_by' => $admin->id,
@@ -112,7 +103,7 @@ class QuotationPlannerTestSeeder extends Seeder
             'updated_by' => $admin->id,
         ]);
 
-        $this->command->info('Requisicion creada: ' . $requisition->folio);
+        $this->command->info('Requisicion creada: '.$requisition->folio);
 
         $products = ProductService::all();
 
@@ -132,14 +123,14 @@ class QuotationPlannerTestSeeder extends Seeder
             ]);
         }
 
-        $requisition->load(['items.productService.category']);
+        $requisition->load(['items.productService']);
 
         $this->command->newLine();
         $this->command->info('Datos de prueba del planificador listos.');
-        $this->command->info('ID: ' . $requisition->id);
-        $this->command->info('Folio: ' . $requisition->folio);
-        $this->command->info('Estado: ' . $requisition->statusLabel());
-        $this->command->info('Partidas: ' . $requisition->items->count());
-        $this->command->line('URL: http://localhost/requisitions/' . $requisition->id . '/quotation-planner');
+        $this->command->info('ID: '.$requisition->id);
+        $this->command->info('Folio: '.$requisition->folio);
+        $this->command->info('Estado: '.$requisition->statusLabel());
+        $this->command->info('Partidas: '.$requisition->items->count());
+        $this->command->line('URL: http://localhost/requisitions/'.$requisition->id.'/quotation-planner');
     }
 }
