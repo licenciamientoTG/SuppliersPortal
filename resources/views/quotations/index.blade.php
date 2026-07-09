@@ -177,7 +177,7 @@
                             <table class="table table-sm mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>CC / Categoria / Cedula</th>
+                                        <th>CC / Cuenta / Subcuenta</th>
                                         <th>Mes</th>
                                         <th class="text-end">Asignado</th>
                                         <th class="text-end">Comprometido</th>
@@ -337,7 +337,7 @@
                 <tr>
                     <td>
                         <div class="fw-semibold">${line.cost_center || 'Sin centro de costo'}</div>
-                        <div class="text-muted small">${line.expense_category || 'Sin categoria'} - ${line.budget_cedula || 'Sin subcategoria'}</div>
+                        <div class="text-muted small">${line.expense_category || 'Sin cuenta'} - ${line.budget_cedula || 'Sin subcuenta'}</div>
                         ${line.message ? `<div class="small ${line.is_available ? 'text-success' : 'text-danger'}">${line.message}</div>` : ''}
                     </td>
                     <td>${line.application_month || '-'}</td>

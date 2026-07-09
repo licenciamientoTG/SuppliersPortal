@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('cedula_name').value = cedula.name;
             document.getElementById('cedula_status').value = cedula.status;
         } else {
-            document.getElementById('cedulaModalTitle').textContent = 'Nueva cédula';
+            document.getElementById('cedulaModalTitle').textContent = 'Nueva subcuenta';
         }
         cedulaModal.show();
     }
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const cedula = allCedulas.find(c => c.id === id);
         Swal.fire({
             icon: 'warning',
-            title: '¿Eliminar la cédula?',
+            title: '¿Eliminar la subcuenta?',
             text: `¿Eliminar "${cedula.name}"? Esta acción no se puede deshacer.`,
             showCancelButton: true,
             confirmButtonText: 'Eliminar',

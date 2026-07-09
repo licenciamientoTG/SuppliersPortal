@@ -131,7 +131,7 @@
                                                         <td style="min-width: 260px;">
                                                             <input type="text" name="name" class="form-control form-control-sm" value="{{ $subaccount->name }}" required>
                                                             @if ($subaccount->legacy_budget_cedula_id)
-                                                                <small class="text-muted">Legacy cédula #{{ $subaccount->legacy_budget_cedula_id }}</small>
+                                                                <small class="text-muted">Legacy subcuenta #{{ $subaccount->legacy_budget_cedula_id }}</small>
                                                             @endif
                                                         </td>
                                                         <td class="text-center">

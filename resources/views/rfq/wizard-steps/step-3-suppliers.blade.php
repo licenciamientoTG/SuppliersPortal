@@ -102,7 +102,7 @@
                                     <th width="5%">#</th>
                                     <th>Descripción</th>
                                     <th width="15%">Cantidad</th>
-                                    <th width="20%">Categoría</th>
+                                    <th width="20%">Cuenta</th>
                                 </tr>
                             </thead>
                             <tbody>

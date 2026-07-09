@@ -133,7 +133,7 @@
                                             <th width="45%">Descripción</th>
                                             <th width="15%">Cantidad</th>
                                             <th width="15%">Unidad</th>
-                                            <th width="20%">Categoría</th>
+                                            <th width="20%">Cuenta</th>
                                         </tr>
                                     </thead>
                                     <tbody>

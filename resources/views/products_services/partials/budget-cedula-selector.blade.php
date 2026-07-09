@@ -16,14 +16,14 @@
     <div class="p-3 border-bottom bg-light">
         <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
             <div>
-                <label class="form-label mb-1">Cédulas de Gasto / Subcuentas</label>
-                <div class="small text-muted">Selecciona una categoría para incluir todas sus subcuentas.</div>
+                <label class="form-label mb-1">Subcuentas</label>
+                <div class="small text-muted">Selecciona una cuenta para incluir todas sus subcuentas.</div>
             </div>
             <span class="badge bg-primary js-selected-count">0 seleccionadas</span>
         </div>
         <div class="input-group input-group-sm mt-2">
             <span class="input-group-text"><i class="ti ti-search"></i></span>
-            <input type="search" class="form-control js-budget-search" placeholder="Filtrar por categoría, cuenta o subcuenta...">
+            <input type="search" class="form-control js-budget-search" placeholder="Filtrar por cuenta o subcuenta...">
         </div>
     </div>
 
@@ -45,7 +45,7 @@
                            id="{{ $selectorId }}-cat-{{ $categoryKey }}"
                            data-category="{{ $categoryKey }}">
                     <label class="form-check-label flex-grow-1" for="{{ $selectorId }}-cat-{{ $categoryKey }}">
-                        <span class="fw-semibold">{{ $category?->code ?? 'S/C' }} - {{ $category?->name ?? 'Sin categoría' }}</span>
+                        <span class="fw-semibold">{{ $category?->code ?? 'S/C' }} - {{ $category?->name ?? 'Sin cuenta' }}</span>
                         <span class="badge bg-light text-dark border ms-1">{{ $cedulas->count() }} subcuentas</span>
                         <span class="badge bg-success ms-1 js-category-selected-count" data-category="{{ $categoryKey }}">{{ $categorySelectedCount }}</span>
                     </label>

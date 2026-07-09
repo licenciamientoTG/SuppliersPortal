@@ -319,7 +319,7 @@
 
                     <div class="row mb-2">
                         <div class="col-5">
-                            <strong>Categorías de Gasto:</strong>
+                            <strong>Cuentas:</strong>
                         </div>
                         <div class="col-7">
                             @forelse ($productService->expenseCategories as $category)
@@ -332,7 +332,7 @@
 
                     <div class="row mb-2">
                         <div class="col-5">
-                            <strong>Cédulas de Gasto:</strong>
+                            <strong>Subcuentas:</strong>
                         </div>
                         <div class="col-7">
                             @forelse ($productService->budgetCedulas as $cedula)

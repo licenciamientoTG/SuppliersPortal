@@ -43,7 +43,7 @@
                 <th>Producto / Servicio</th>
                 <th class="text-center" width="100">Cant.</th>
                 <th class="text-center" width="100">Unidad</th>
-                <th width="200">Categoría de Gasto</th>
+                                <th width="200">Cuenta</th>
             </tr>
         </thead>
         <tbody>

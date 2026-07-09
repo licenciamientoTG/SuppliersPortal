@@ -265,7 +265,7 @@
             <li class="side-nav-item">
                 <a href="{{ route('expense-cedulas.index') }}"
                     class="side-nav-link {{ request()->routeIs('expense-cedulas.*') ? 'active' : '' }}">
-                    <span class="menu-text">Cédulas de Gasto</span>
+                    <span class="menu-text">Subcuentas</span>
                 </a>
             </li>
             @can('catalogo_cuentas.ver')

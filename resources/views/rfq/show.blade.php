@@ -375,7 +375,7 @@
                                     <th>Descripción</th>
                                     <th width="100" class="text-end">Cantidad</th>
                                     <th width="80" class="text-center">Unidad</th>
-                                    <th width="160">Categoría</th>
+                                    <th width="160">Cuenta</th>
                                     <th width="60" class="text-center">Notas</th>
                                 </tr>
                             </thead>
@@ -441,7 +441,7 @@
                                     <strong>{{ number_format($rfq->requisitionItem->quantity, 3) }} {{ $rfq->requisitionItem->unit }}</strong>
                                 </div>
                                 <div class="col-sm-4">
-                                    <small class="text-muted d-block">Categoría</small>
+                                    <small class="text-muted d-block">Cuenta</small>
                                     <span class="badge bg-info">{{ $rfq->requisitionItem->expenseCategory?->name ?? '—' }}</span>
                                 </div>
                                 @if($rfq->requisitionItem->notes)
