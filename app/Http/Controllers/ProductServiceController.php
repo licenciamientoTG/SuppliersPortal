@@ -453,7 +453,7 @@ class ProductServiceController extends Controller
         if (! $productService->budgetCedulas()->exists()) {
             return redirect()
                 ->route('products-services.show', $productService)
-                ->with('error', 'El producto debe tener al menos una cédula de gasto/subcuenta asignada para ser aprobado.');
+                ->with('error', 'El producto debe tener al menos una subcuenta asignada para ser aprobado.');
         }
 
         return DB::transaction(function () use ($productService) {
@@ -536,7 +536,7 @@ class ProductServiceController extends Controller
 
         if (! $productService->budgetCedulas()->exists()) {
             return $this->statusActionResponse($request, $productService, false,
-                'El producto debe tener al menos una cédula de gasto/subcuenta asignada para reactivarse.');
+                'El producto debe tener al menos una subcuenta asignada para reactivarse.');
         }
 
         $productService->status = ProductServiceStatus::ACTIVE->value;

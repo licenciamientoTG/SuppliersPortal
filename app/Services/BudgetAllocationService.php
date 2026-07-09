@@ -227,7 +227,7 @@ class BudgetAllocationService
                     $response = $item->rfqResponse;
 
                     if (! $requisitionItem?->expense_category_id || ! $requisitionItem?->budget_cedula_id) {
-                        throw new RuntimeException("La partida {$item->requisition_item_id} no tiene categorÃ­a y subcategorÃ­a presupuestal completas.");
+                        throw new RuntimeException("La partida {$item->requisition_item_id} no tiene cuenta y subcuenta presupuestal completas.");
                     }
 
                     if (! $response?->quotation_date || $response->delivery_days === null) {
@@ -273,7 +273,7 @@ class BudgetAllocationService
                 $requisitionItem = $response->requisitionItem;
 
                 if (! $requisitionItem?->expense_category_id || ! $requisitionItem?->budget_cedula_id) {
-                    throw new RuntimeException("La partida {$response->requisition_item_id} no tiene categoría y subcategoría presupuestal completas.");
+                    throw new RuntimeException("La partida {$response->requisition_item_id} no tiene cuenta y subcuenta presupuestal completas.");
                 }
 
                 if (! $response->quotation_date || $response->delivery_days === null) {

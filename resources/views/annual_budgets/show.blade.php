@@ -139,7 +139,7 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">Resumen por Categoría</h6>
+        <h6 class="mb-0">Resumen por Cuenta</h6>
         <a href="{{ route('budget_monthly_distributions.matrix', $annual_budget->id) }}" class="btn btn-sm btn-outline-primary">
             <i class="ti ti-layout-grid me-1"></i> Vista Matriz
         </a>
@@ -148,13 +148,13 @@
         <table class="table table-sm table-hover mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Categoría</th>
+                    <th>Cuenta</th>
                     <th class="text-end">Asignado</th>
                     <th class="text-end">Consumido</th>
                     <th class="text-end">Comprometido</th>
                     <th class="text-end">Disponible</th>
                     <th class="text-end">% Uso</th>
-                    <th>Cédulas</th>
+                    <th>Subcuentas</th>
                 </tr>
             </thead>
             <tbody>

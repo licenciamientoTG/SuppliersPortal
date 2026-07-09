@@ -1,10 +1,10 @@
 @extends('layouts.zircos')
 
-@section('title', 'Cédulas de Gasto')
-@section('page.title', 'Cédulas de Gasto')
+@section('title', 'Subcuentas')
+@section('page.title', 'Subcuentas')
 @section('page.breadcrumbs')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
-    <li class="breadcrumb-item active">Cédulas de Gasto</li>
+    <li class="breadcrumb-item active">Subcuentas</li>
 @endsection
 
 @section('content')
@@ -13,16 +13,16 @@
     <div class="col-lg-5">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="ti ti-category me-1"></i> Categorías de Gasto</h5>
+                <h5 class="mb-0"><i class="ti ti-category me-1"></i> Cuentas</h5>
                 <button type="button" class="btn btn-primary btn-sm" id="btnNewCategory">
-                    <i class="ti ti-plus me-1"></i> Nueva categoría
+                    <i class="ti ti-plus me-1"></i> Nueva cuenta
                 </button>
             </div>
             <div class="card-body">
                 <input type="text" id="categoryFilter" class="form-control form-control-sm mb-3"
                     placeholder="Buscar por código o nombre...">
                 <div id="categoryList" class="list-group"></div>
-                <div id="categoryEmpty" class="text-muted text-center py-4 d-none">No hay categorías que coincidan con la búsqueda.</div>
+                <div id="categoryEmpty" class="text-muted text-center py-4 d-none">No hay cuentas que coincidan con la búsqueda.</div>
             </div>
         </div>
     </div>
@@ -31,14 +31,14 @@
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0" id="cedulaPanelTitle"><i class="ti ti-list-details me-1"></i> Cédulas</h5>
+                <h5 class="mb-0" id="cedulaPanelTitle"><i class="ti ti-list-details me-1"></i> Subcuentas</h5>
                 <button type="button" class="btn btn-primary btn-sm" id="btnNewCedula" disabled>
-                    <i class="ti ti-plus me-1"></i> Nueva cédula
+                    <i class="ti ti-plus me-1"></i> Nueva subcuenta
                 </button>
             </div>
             <div class="card-body">
                 <div id="cedulaEmptyState" class="text-muted text-center py-5">
-                    <i class="ti ti-arrow-left me-1"></i> Selecciona una categoría para ver sus cédulas.
+                    <i class="ti ti-arrow-left me-1"></i> Selecciona una cuenta para ver sus subcuentas.
                 </div>
                 <div id="cedulaPanelBody" class="d-none">
                     <input type="text" id="cedulaFilter" class="form-control form-control-sm mb-3"

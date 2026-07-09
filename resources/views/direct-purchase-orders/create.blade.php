@@ -167,7 +167,7 @@
                                 <tr>
                                     <th width="22%" class="ps-2">Descripción</th>
                                     <th width="18%">Centro de costo</th>
-                                    <th width="18%">Categoría de Gasto</th>
+                                    <th width="18%">Cuenta</th>
                                     <th width="6%">Cant.</th>
                                     <th width="9%">P. Unit.</th>
                                     <th width="7%">IVA</th>
@@ -576,7 +576,7 @@ $(document).ready(function() {
         element.select2({
             theme: 'bootstrap-5',
             width: '100%',
-            placeholder: 'Categoría...',
+            placeholder: 'Cuenta...',
             minimumResultsForSearch: 5,
             dropdownParent: element.closest('td'),
             language: {
@@ -850,8 +850,8 @@ $(document).ready(function() {
                     if (!silent) {
                         Swal.fire({
                         icon: 'warning',
-                        title: 'Sin categorías de gasto',
-                        text: response.message || 'El centro de costo seleccionado no tiene categorías de gasto configuradas para el año actual.',
+                        title: 'Sin cuentas',
+                        text: response.message || 'El centro de costo seleccionado no tiene cuentas configuradas para el año actual.',
                         confirmButtonText: 'Entendido'
                         });
                     }
@@ -863,7 +863,7 @@ $(document).ready(function() {
                     Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Ocurrió un error al consultar las categorías de gasto.',
+                    text: 'Ocurrió un error al consultar las cuentas.',
                     confirmButtonText: 'Cerrar'
                     });
                 }

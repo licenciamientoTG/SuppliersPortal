@@ -470,7 +470,7 @@ class RequisitionController extends Controller
                     'expense_category_id' => $item['expense_category_id'] ?? null,
                     'expense_category_name' => $category?->name ?? 'Categoría seleccionada',
                     'budget_cedula_id' => $item['budget_cedula_id'] ?? null,
-                    'budget_cedula_name' => $cedula?->name ?? 'Subcategoría seleccionada',
+                    'budget_cedula_name' => $cedula?->name ?? 'Subcuenta seleccionada',
                     'cost_center_id' => $item['cost_center_id'] ?? null,
                     'cost_center_name' => $costCenter?->name ?? 'Centro de costo seleccionado',
                     'purchase_type' => $item['purchase_type']

@@ -185,10 +185,10 @@ class SaveRequisitionRequest extends FormRequest
             'items.min' => 'Debe agregar al menos una partida a la requisición (RN-003).',
             'items.*.product_service_id.required' => 'Debe seleccionar un producto del catálogo (RN-001).',
             'items.*.product_service_id.exists' => 'El producto seleccionado no existe en el catálogo.',
-            'items.*.expense_category_id.required' => 'La categoría de gasto es obligatoria (RN-010A).',
-            'items.*.expense_category_id.exists' => 'La categoría de gasto seleccionada no existe.',
-            'items.*.budget_cedula_id.required' => 'La subcategoría presupuestal es obligatoria.',
-            'items.*.budget_cedula_id.exists' => 'La subcategoría presupuestal seleccionada no existe.',
+            'items.*.expense_category_id.required' => 'La cuenta es obligatoria (RN-010A).',
+            'items.*.expense_category_id.exists' => 'La cuenta seleccionada no existe.',
+            'items.*.budget_cedula_id.required' => 'La subcuenta es obligatoria.',
+            'items.*.budget_cedula_id.exists' => 'La subcuenta seleccionada no existe.',
             'items.*.cost_center_id.required' => 'El centro de costo de la partida es obligatorio.',
             'items.*.cost_center_id.exists' => 'El centro de costo de la partida no existe.',
             'items.*.quantity.required' => 'La cantidad es obligatoria.',
@@ -340,7 +340,7 @@ class SaveRequisitionRequest extends FormRequest
                     if (! $belongsToCategory) {
                         $validator->errors()->add(
                             "items.{$index}.budget_cedula_id",
-                            'La subcategoría presupuestal no pertenece a la categoría de gasto seleccionada.'
+                            'La subcuenta no pertenece a la cuenta seleccionada.'
                         );
 
                         continue;
@@ -354,7 +354,7 @@ class SaveRequisitionRequest extends FormRequest
                     )) {
                         $validator->errors()->add(
                             "items.{$index}.budget_cedula_id",
-                            'La subcategoría presupuestal no está configurada para este centro de costo y ejercicio fiscal.'
+                            'La subcuenta no está configurada para este centro de costo y ejercicio fiscal.'
                         );
                     }
                 }

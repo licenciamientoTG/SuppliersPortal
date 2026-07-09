@@ -104,7 +104,7 @@
 
                         <div class="col-md-4 mb-3">
                             <label for="expense_category_id" class="form-label">
-                                Categoría de Gasto <span class="text-danger">*</span>
+                                Cuenta <span class="text-danger">*</span>
                             </label>
                             <select name="expense_category_id" id="expense_category_id" class="form-select @error('expense_category_id') is-invalid @enderror" required>
                                 <option value="">-- Seleccione --</option>
@@ -139,7 +139,7 @@
                     {{-- Alerta de Presupuesto (se llenará con AJAX en Paso 4) --}}
                     <div id="budget-alert" class="alert alert-info d-none">
                         <i class="ti ti-info-circle me-1"></i>
-                        <span id="budget-message">Seleccione CC, Categoría y Mes para verificar presupuesto disponible.</span>
+                        <span id="budget-message">Seleccione CC, Cuenta y Mes para verificar presupuesto disponible.</span>
                     </div>
                     @error('budget')
                         <div class="alert alert-danger">{{ $message }}</div>

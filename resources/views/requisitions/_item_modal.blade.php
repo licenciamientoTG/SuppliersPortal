@@ -81,7 +81,7 @@
                         {{-- Categoría de Gasto --}}
                         <div class="col-md-6">
                             <label for="modal_expense_category" class="form-label">
-                                Categoría de Gasto <span class="text-danger">*</span>
+                                Cuenta <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="modal_expense_category" required>
                                 <option value="">Seleccionar categoría...</option>

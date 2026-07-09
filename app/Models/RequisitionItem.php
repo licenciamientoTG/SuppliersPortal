@@ -80,7 +80,7 @@ class RequisitionItem extends Model
     }
 
     /**
-     * Relación con la subcategoría presupuestal (cédula).
+     * Relación con la subcuenta.
      */
     public function budgetCedula(): BelongsTo
     {
@@ -167,8 +167,8 @@ class RequisitionItem extends Model
             'description' => $this->getFullDescription(),
             'quantity' => (float) $this->quantity,
             'unit' => $this->unit,
-            'expense_category' => $this->expenseCategory?->name ?? 'Sin categoría',
-            'budget_cedula' => $this->budgetCedula?->name ?? 'Sin subcategoría',
+            'expense_category' => $this->expenseCategory?->name ?? 'Sin cuenta',
+            'budget_cedula' => $this->budgetCedula?->name ?? 'Sin subcuenta',
             'cost_center' => $this->costCenter?->name ?? 'Sin centro de costo',
             'notes' => $this->notes,
             'suggested_vendor' => $this->suggestedVendor?->name ?? null,
@@ -287,7 +287,7 @@ class RequisitionItem extends Model
             if (! isset($grouped[$key])) {
                 $grouped[$key] = [
                     'expense_category_id' => $item->expense_category_id,
-                    'expense_category_name' => $item->expenseCategory?->name ?? 'Sin categoría',
+                    'expense_category_name' => $item->expenseCategory?->name ?? 'Sin cuenta',
                     'items_count' => 0,
                     'items' => [],
                 ];
@@ -317,11 +317,11 @@ class RequisitionItem extends Model
             }
 
             if (! $item->expense_category_id) {
-                $errors[] = "Partida {$item->line_number}: Falta categoría de gasto (RN-010A)";
+                $errors[] = "Partida {$item->line_number}: Falta cuenta (RN-010A)";
             }
 
             if (! $item->budget_cedula_id) {
-                $errors[] = "Partida {$item->line_number}: Falta subcategoría presupuestal.";
+                $errors[] = "Partida {$item->line_number}: Falta subcuenta.";
             }
 
             if (! $item->cost_center_id) {

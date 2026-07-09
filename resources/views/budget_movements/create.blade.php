@@ -218,12 +218,12 @@
                                 <!-- Categoría Origen -->
                                 <div class="mb-3">
                                     <label for="origin_expense_category_id" class="form-label">
-                                        Categoría de Gasto <span class="text-danger">*</span>
+                                        Cuenta <span class="text-danger">*</span>
                                     </label>
                                     <select class="form-select select2 @error('origin_expense_category_id') is-invalid @enderror"
                                         id="origin_expense_category_id"
                                         name="origin_expense_category_id">
-                                        <option value="">Seleccione una categoría</option>
+                                        <option value="">Seleccione una cuenta</option>
                                         @foreach($expenseCategories as $cat)
                                         <option value="{{ $cat->id }}" {{ old('origin_expense_category_id') == $cat->id ? 'selected' : '' }}>
                                             {{ $cat->name }}
@@ -315,12 +315,12 @@
                                 <!-- Categoría Destino -->
                                 <div class="mb-3">
                                     <label for="destination_expense_category_id" class="form-label">
-                                        Categoría de Gasto <span class="text-danger">*</span>
+                                        Cuenta <span class="text-danger">*</span>
                                     </label>
                                     <select class="form-select select2 @error('destination_expense_category_id') is-invalid @enderror"
                                         id="destination_expense_category_id"
                                         name="destination_expense_category_id">
-                                        <option value="">Seleccione una categoría</option>
+                                        <option value="">Seleccione una cuenta</option>
                                         @foreach($expenseCategories as $cat)
                                         <option value="{{ $cat->id }}" {{ old('destination_expense_category_id') == $cat->id ? 'selected' : '' }}>
                                             {{ $cat->name }}
@@ -399,13 +399,13 @@
                         <!-- Categoría -->
                         <div class="row mb-3">
                             <label for="expense_category_id" class="col-sm-3 col-form-label">
-                                Categoría de Gasto <span class="text-danger">*</span>
+                                Cuenta <span class="text-danger">*</span>
                             </label>
                             <div class="col-sm-9">
                                 <select class="form-select select2 @error('expense_category_id') is-invalid @enderror"
                                     id="expense_category_id"
                                     name="expense_category_id">
-                                    <option value="">Seleccione una categoría</option>
+                                    <option value="">Seleccione una cuenta</option>
                                     @foreach($expenseCategories as $cat)
                                     <option value="{{ $cat->id }}" {{ old('expense_category_id') == $cat->id ? 'selected' : '' }}>
                                         {{ $cat->name }}
@@ -498,7 +498,7 @@
                 <ul>
                     <li>Define el <strong>origen</strong> (de dónde sale el dinero)</li>
                     <li>Define el <strong>destino</strong> (a dónde va el dinero)</li>
-                    <li>Al menos uno debe ser diferente: centro, mes o categoría</li>
+                    <li>Al menos uno debe ser diferente: centro, mes o cuenta</li>
                 </ul>
             `,
                 'AMPLIACION': `
@@ -506,7 +506,7 @@
                 <p>Aumenta el presupuesto de un centro de costo.</p>
                 <ul>
                     <li>El monto se <strong>suma</strong> al presupuesto actual</li>
-                    <li>Define el centro, mes y categoría a ampliar</li>
+                    <li>Define el centro, mes y cuenta a ampliar</li>
                 </ul>
             `,
                 'REDUCCION': `
@@ -514,7 +514,7 @@
                 <p>Disminuye el presupuesto de un centro de costo.</p>
                 <ul>
                     <li>El monto se <strong>resta</strong> del presupuesto actual</li>
-                    <li>Define el centro, mes y categoría a reducir</li>
+                    <li>Define el centro, mes y cuenta a reducir</li>
                 </ul>
             `
             };
@@ -612,7 +612,7 @@
                         e.preventDefault();
                         Swal.fire({
                             title: 'Error',
-                            text: 'En una transferencia, al menos uno de estos campos debe ser diferente: centro de costo, mes o categoría.',
+                            text: 'En una transferencia, al menos uno de estos campos debe ser diferente: centro de costo, mes o cuenta.',
                             icon: 'error',
                             customClass: {
                                 confirmButton: 'btn btn-danger'

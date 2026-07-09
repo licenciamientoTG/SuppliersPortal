@@ -20,7 +20,7 @@
     <div class="card-header">
         <h5 class="mb-0">
             <i class="ti ti-table me-2"></i>
-            Distribución Mensual por Categoría y Cédula
+            Distribución Mensual por Cuenta y Subcuenta
         </h5>
     </div>
     <div class="card-body">
@@ -41,12 +41,12 @@
             <div class="card-header">
                 <h6 class="mb-0">
                     <i class="ti ti-category me-2"></i>
-                    Paso 1: Seleccione las categorías a presupuestar
+                    Paso 1: Seleccione las cuentas a presupuestar
                 </h6>
             </div>
             <div class="card-body">
                 <label for="categorySelector" class="form-label">
-                    Categorías de gasto <span class="text-danger">*</span>
+                    Cuentas <span class="text-danger">*</span>
                 </label>
                 <select id="categorySelector" class="form-select" multiple="multiple" style="width: 100%;">
                     @foreach ($categories as $category)
@@ -59,7 +59,7 @@
                         </option>
                     @endforeach
                 </select>
-                <small class="text-muted">Cada categoría agrupa sus cédulas hijas. Los montos se capturan en las cédulas y la categoría solo resume.</small>
+                <small class="text-muted">Cada cuenta agrupa sus subcuentas hijas. Los montos se capturan en las subcuentas y la cuenta solo resume.</small>
             </div>
         </div>
 
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         [${category.code}] ${category.name}
                     </button>
                     <div class="text-end">
-                        <small class="text-muted d-block">Total categoría</small>
+                        <small class="text-muted d-block">Total cuenta</small>
                         <strong class="category-total" data-category="${category.id}">$0.00</strong>
                     </div>
                 </div>
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <table class="table table-bordered table-hover table-sm mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="sticky-column" style="min-width: 250px;">Cédula</th>
+                                        <th class="sticky-column" style="min-width: 250px;">Subcuenta</th>
                                         ${monthLabels.map(label => `<th class="text-center text-nowrap">${label}</th>`).join('')}
                                         <th class="text-center bg-secondary text-white">TOTAL</th>
                                     </tr>
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </tbody>
                                 <tfoot class="table-secondary">
                                     <tr>
-                                        <th class="sticky-column">Total categoría por mes</th>
+                                        <th class="sticky-column">Total cuenta por mes</th>
                                         ${monthLabels.map((_, idx) => `<th class="text-center"><strong class="category-month-total" data-category="${category.id}" data-month="${idx + 1}">$0.00</strong></th>`).join('')}
                                         <th class="text-center bg-dark text-white"><strong class="category-total" data-category="${category.id}">$0.00</strong></th>
                                     </tr>
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
         globalIndex = 0;
         const selected = selectedCategories();
         categoryPanels.innerHTML = selected.length === 0
-            ? '<div class="alert alert-secondary text-center"><i class="ti ti-info-circle me-2"></i>Seleccione al menos una categoría para capturar el presupuesto.</div>'
+            ? '<div class="alert alert-secondary text-center"><i class="ti ti-info-circle me-2"></i>Seleccione al menos una cuenta para capturar el presupuesto.</div>'
             : selected.map((category, index) => renderCategoryPanel(category, index)).join('');
 
         attachInputEvents();
@@ -344,8 +344,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if ((categorySelector.val() || []).length === 0) {
             e.preventDefault();
             Swal.fire({
-                title: 'Sin categorías',
-                text: 'Debe seleccionar al menos una categoría para el presupuesto.',
+                title: 'Sin cuentas',
+                text: 'Debe seleccionar al menos una cuenta para el presupuesto.',
                 icon: 'error',
                 confirmButtonText: 'Entendido'
             });

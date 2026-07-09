@@ -96,8 +96,8 @@ class QuotationApprovalController extends Controller
                             $item?->costCenter?->code,
                             $item?->costCenter?->name,
                         ])->filter()->implode(' - ')),
-                        'expense_category' => $item?->expenseCategory?->name ?? 'Sin categoria',
-                        'budget_cedula' => $item?->budgetCedula?->name ?? 'Sin subcategoria',
+                        'expense_category' => $item?->expenseCategory?->name ?? 'Sin cuenta',
+                        'budget_cedula' => $item?->budgetCedula?->name ?? 'Sin subcuenta',
                         'requested_amount' => '$' . number_format((float) $line['amount'], 2),
                         'assigned_amount' => array_key_exists('assigned_amount', $budgetCheck)
                             ? '$' . number_format((float) $budgetCheck['assigned_amount'], 2)

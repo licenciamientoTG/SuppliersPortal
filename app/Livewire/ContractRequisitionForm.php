@@ -402,7 +402,7 @@ class ContractRequisitionForm extends Component
 
             if (! $budgetCedula || (int) $budgetCedula->id !== (int) $classification['budget_cedula_id']) {
                 throw ValidationException::withMessages([
-                    'items' => 'La partida '.($index + 1).' tiene una cédula presupuestal distinta a la inferida por producto.',
+                    'items' => 'La partida '.($index + 1).' tiene una subcuenta distinta a la inferida por producto.',
                 ]);
             }
 
@@ -413,7 +413,7 @@ class ContractRequisitionForm extends Component
                 $this->fiscalYear
             )) {
                 throw ValidationException::withMessages([
-                    'items' => 'La partida '.($index + 1).' usa una cedula presupuestal no permitida para ese centro de costo.',
+                    'items' => 'La partida '.($index + 1).' usa una subcuenta no permitida para ese centro de costo.',
                 ]);
             }
 

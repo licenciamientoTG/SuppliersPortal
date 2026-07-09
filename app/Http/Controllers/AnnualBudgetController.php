@@ -297,7 +297,7 @@ class AnnualBudgetController extends Controller
         if (! $summary) {
             return response()->json([
                 'success' => false,
-                'message' => 'No hay presupuesto asignado para esta categoría de gasto.',
+                'message' => 'No hay presupuesto asignado para esta cuenta.',
                 'has_budget' => false
             ]);
         }

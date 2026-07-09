@@ -38,7 +38,7 @@ class ProductBudgetClassificationService
         $expenseCategory = ExpenseCategory::query()->find($account->legacy_expense_category_id);
 
         if (! $expenseCategory || (int) $budgetCedula->expense_category_id !== (int) $expenseCategory->id) {
-            throw new RuntimeException('La cuenta y subcuenta del producto no coinciden con la cédula presupuestal legacy.');
+            throw new RuntimeException('La cuenta y subcuenta del producto no coinciden con la subcuenta legacy.');
         }
 
         return [

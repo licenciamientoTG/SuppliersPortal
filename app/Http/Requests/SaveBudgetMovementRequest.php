@@ -107,8 +107,8 @@ class SaveBudgetMovementRequest extends FormRequest
             'origin_month.integer' => 'El mes origen debe ser un número.',
             'origin_month.min' => 'El mes origen debe ser entre 1 y 12.',
             'origin_month.max' => 'El mes origen debe ser entre 1 y 12.',
-            'origin_expense_category_id.required' => 'Debe seleccionar la categoría de gasto origen.',
-            'origin_expense_category_id.exists' => 'La categoría de gasto origen seleccionada no existe.',
+            'origin_expense_category_id.required' => 'Debe seleccionar la cuenta origen.',
+            'origin_expense_category_id.exists' => 'La cuenta origen seleccionada no existe.',
 
             // Mensajes para DESTINO (Transferencias y Ampliaciones)
             'destination_cost_center_id.required' => 'Debe seleccionar el centro de costo destino.',
@@ -118,8 +118,8 @@ class SaveBudgetMovementRequest extends FormRequest
             'destination_month.integer' => 'El mes destino debe ser un número.',
             'destination_month.min' => 'El mes destino debe ser entre 1 y 12.',
             'destination_month.max' => 'El mes destino debe ser entre 1 y 12.',
-            'destination_expense_category_id.required' => 'Debe seleccionar la categoría de gasto destino.',
-            'destination_expense_category_id.exists' => 'La categoría de gasto destino seleccionada no existe.',
+            'destination_expense_category_id.required' => 'Debe seleccionar la cuenta destino.',
+            'destination_expense_category_id.exists' => 'La cuenta destino seleccionada no existe.',
 
             // Mensajes genéricos para Ampliaciones y Reducciones
             'cost_center_id.required' => 'Debe seleccionar el centro de costo.',
@@ -128,8 +128,8 @@ class SaveBudgetMovementRequest extends FormRequest
             'month.integer' => 'El mes debe ser un número.',
             'month.min' => 'El mes debe ser entre 1 y 12.',
             'month.max' => 'El mes debe ser entre 1 y 12.',
-            'expense_category_id.required' => 'Debe seleccionar la categoría de gasto.',
-            'expense_category_id.exists' => 'La categoría de gasto seleccionada no existe.',
+            'expense_category_id.required' => 'Debe seleccionar la cuenta.',
+            'expense_category_id.exists' => 'La cuenta seleccionada no existe.',
         ];
     }
 
@@ -143,13 +143,13 @@ class SaveBudgetMovementRequest extends FormRequest
             'total_amount' => 'monto total',
             'origin_cost_center_id' => 'centro de costo origen',
             'origin_month' => 'mes origen',
-            'origin_expense_category_id' => 'categoría origen',
+            'origin_expense_category_id' => 'cuenta origen',
             'destination_cost_center_id' => 'centro de costo destino',
             'destination_month' => 'mes destino',
-            'destination_expense_category_id' => 'categoría destino',
+            'destination_expense_category_id' => 'cuenta destino',
             'cost_center_id' => 'centro de costo',
             'month' => 'mes',
-            'expense_category_id' => 'categoría de gasto',
+            'expense_category_id' => 'cuenta',
         ];
     }
 }

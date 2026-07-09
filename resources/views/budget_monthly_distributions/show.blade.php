@@ -7,7 +7,7 @@
 @section('content')
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Distribución mensual por cédula</h5>
+        <h5 class="mb-0">Distribución mensual por subcuenta</h5>
         <a href="{{ route('annual_budgets.show', $distribution->annualBudget->id) }}" class="btn btn-outline-secondary btn-sm">
             <i class="ti ti-arrow-left me-1"></i> Volver
         </a>
@@ -17,10 +17,10 @@
             <dt class="col-sm-3">Centro de costo</dt>
             <dd class="col-sm-9">[{{ $distribution->annualBudget->costCenter?->code }}] {{ $distribution->annualBudget->costCenter?->name }}</dd>
 
-            <dt class="col-sm-3">Categoría</dt>
+            <dt class="col-sm-3">Cuenta</dt>
             <dd class="col-sm-9">[{{ $distribution->expenseCategory?->code }}] {{ $distribution->expenseCategory?->name }}</dd>
 
-            <dt class="col-sm-3">Cédula</dt>
+            <dt class="col-sm-3">Subcuenta</dt>
             <dd class="col-sm-9">{{ $distribution->budgetCedula?->name ?? '—' }}</dd>
 
             <dt class="col-sm-3">Mes</dt>

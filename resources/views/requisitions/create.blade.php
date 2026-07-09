@@ -196,8 +196,8 @@
                                 <th>Producto</th>
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
-                                <th>Categoría de gasto</th>
-                                <th>Subcategoría presupuestal</th>
+                                <th>Cuenta</th>
+                                <th>Subcuenta</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
@@ -250,7 +250,7 @@
                     {{-- Categoría de gasto --}}
                     <div class="mb-3">
                         <label for="modal_expense_category" class="form-label fw-semibold">
-                            Categoría de Gasto <span class="text-danger">*</span>
+                            Cuenta <span class="text-danger">*</span>
                         </label>
                         <select id="modal_expense_category" class="form-select" required>
                             <option value="">Seleccionar categoría...</option>
@@ -263,13 +263,13 @@
                     {{-- Subcategoría presupuestal --}}
                     <div class="mb-3">
                         <label for="modal_budget_cedula" class="form-label fw-semibold">
-                            Subcategoría Presupuestal <span class="text-danger">*</span>
+                            Subcuenta <span class="text-danger">*</span>
                         </label>
                         <select id="modal_budget_cedula" class="form-select" required disabled>
                             <option value="">Selecciona primero una categoría de gasto...</option>
                         </select>
                         <div class="form-text">
-                            La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
+                            La subcuenta disponible depende del centro de costo, la cuenta y el ejercicio fiscal.
                         </div>
                     </div>
 
@@ -465,7 +465,7 @@
         initSearchableSelect($purchaseType, 'Buscar tipo de compra...');
         initSearchableSelect($cc, 'Buscar centro de costo...');
         initSearchableSelect($('#receiving_location_id'), 'Buscar ubicación de recepción...');
-        initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+        initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
             dropdownParent: $('#itemModal')
         });
 
@@ -742,17 +742,17 @@
                 $expenseCategory
                     .empty()
                     .append('<option value="">Selecciona primero un centro de costo...</option>');
-                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
                     dropdownParent: $('#itemModal')
                 });
                 return;
             }
 
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
-        initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+        initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
             dropdownParent: $('#itemModal')
         });
-        initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+        initSearchableSelect($budgetCedula, 'Buscar subcuenta...', {
             dropdownParent: $('#itemModal')
         });
 
@@ -782,14 +782,14 @@
                 $expenseCategory
                     .empty()
                     .append('<option value="">Selecciona primero un centro de costo...</option>');
-                initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
                     dropdownParent: $('#itemModal')
                 });
                 return;
             }
 
             $expenseCategory.empty().append('<option value="">Cargando...</option>');
-            initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+            initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
                 dropdownParent: $('#itemModal')
             });
 
@@ -811,12 +811,12 @@
                     }
                 })
                 .fail(function(xhr) {
-                    const message = xhr.responseJSON?.message || 'No se pudieron cargar las categorías de gasto.';
+                    const message = xhr.responseJSON?.message || 'No se pudieron cargar las cuentas.';
                     $expenseCategory.empty().append(`<option value="">${message}</option>`);
                     Swal.fire('Error', message, 'error');
                 })
                 .always(function() {
-                    initSearchableSelect($expenseCategory, 'Buscar categoría de gasto...', {
+                    initSearchableSelect($expenseCategory, 'Buscar cuenta...', {
                         dropdownParent: $('#itemModal')
                     });
                 });
@@ -830,7 +830,7 @@
                 .append(`<option value="">${message}</option>`)
                 .prop('disabled', true);
 
-            initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+            initSearchableSelect($budgetCedula, 'Buscar subcuenta...', {
                 dropdownParent: $('#itemModal')
             });
         }
@@ -849,7 +849,7 @@
                 .empty()
                 .append('<option value="">Cargando subcategorías...</option>');
 
-            initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+            initSearchableSelect($budgetCedula, 'Buscar subcuenta...', {
                 dropdownParent: $('#itemModal')
             });
 
@@ -869,7 +869,7 @@
                     });
 
                     $budgetCedula.prop('disabled', false);
-                    initSearchableSelect($budgetCedula, 'Buscar subcategoría presupuestal...', {
+                    initSearchableSelect($budgetCedula, 'Buscar subcuenta...', {
                         dropdownParent: $('#itemModal')
                     });
 
@@ -881,9 +881,9 @@
                     return;
                 }
 
-                resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
+                resetBudgetCedulaSelect('No hay subcuentas configuradas para esta cuenta.');
             }).fail(function() {
-                resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
+                resetBudgetCedulaSelect('No se pudieron cargar las subcuentas.');
             });
         }
 
@@ -908,7 +908,7 @@
             const purchaseType = $('#purchase_type').val();
 
             if (!budgetCedulaId) {
-                Swal.fire('Error', 'Selecciona una subcategoría presupuestal.', 'error');
+                Swal.fire('Error', 'Selecciona una subcuenta.', 'error');
                 return;
             }
 
@@ -929,7 +929,7 @@
             }
 
             if (!categoryId) {
-                Swal.fire('Error', 'Selecciona una categoría de gasto (RN-010A).', 'error');
+                Swal.fire('Error', 'Selecciona una cuenta (RN-010A).', 'error');
                 return;
             }
 

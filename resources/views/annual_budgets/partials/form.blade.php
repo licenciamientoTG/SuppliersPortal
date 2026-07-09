@@ -108,7 +108,7 @@
         @enderror
         <small class="text-muted d-block mt-1">
             <i class="ti ti-info-circle me-1"></i>
-            Este monto se distribuirá mensualmente entre 7 categorías de gasto.
+            Este monto se distribuirá mensualmente entre 7 cuentas.
         </small>
     </div>
 </div>
@@ -127,7 +127,7 @@
             </div>
             <div class="col-4">
                 <div>
-                    <small class="text-muted d-block mb-1">Por Categoría/Mes</small>
+                    <small class="text-muted d-block mb-1">Por Cuenta/Mes</small>
                     <h6 class="mb-0" id="montoCategoria">$0.00</h6>
                     <small class="text-muted">(promedio)</small>
                 </div>

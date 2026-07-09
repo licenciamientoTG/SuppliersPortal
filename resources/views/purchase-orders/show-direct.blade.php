@@ -364,7 +364,7 @@
                                 <th style="width: 35px">#</th>
                                 <th>Descripción</th>
                                 <th class="text-muted" style="width: 160px">Centro de costo</th>
-                                <th class="text-muted" style="width: 110px">Categoría</th>
+                                <th class="text-muted" style="width: 110px">Cuenta</th>
                                 <th class="text-center" style="width: 75px">Cant.</th>
                                 <th class="text-center" style="width: 55px">UM</th>
                                 <th class="text-end" style="width: 130px">P. Unitario</th>

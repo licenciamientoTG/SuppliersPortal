@@ -109,7 +109,7 @@
                         <th>Descripción</th>
                         <th class="text-center" width="100">Cant.</th>
                         <th class="text-center" width="100">Unidad</th>
-                        <th width="200">Categoría de Gasto</th>
+                        <th width="200">Cuenta</th>
                         <th width="80">Notas</th>
                     </tr>
                 </thead>

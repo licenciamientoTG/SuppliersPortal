@@ -24,7 +24,7 @@
         </p>
         @else
         <h5 class="mb-1">Distribuciones Mensuales</h5>
-        <p class="text-muted mb-0">Consulta de distribuciones presupuestales por mes y categoría.</p>
+        <p class="text-muted mb-0">Consulta de distribuciones presupuestales por mes y cuenta.</p>
         @endif
     </div>
 
@@ -116,7 +116,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Mes</th>
-                        <th>Categoría</th>
+                        <th>Cuenta</th>
                         <th class="text-end">Asignado</th>
                         <th class="text-end">Consumido</th>
                         <th class="text-end">Comprometido</th>

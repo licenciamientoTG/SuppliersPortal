@@ -149,8 +149,8 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'items.*.unit_price.min' => 'El precio unitario debe ser mayor a 0.',
 
             // Categoría de Gasto por partida
-            'items.*.expense_category_id.required' => 'Debe seleccionar una categoría de gasto para cada partida.',
-            'items.*.expense_category_id.exists' => 'La categoría de gasto seleccionada no existe.',
+            'items.*.expense_category_id.required' => 'Debe seleccionar una cuenta para cada partida.',
+            'items.*.expense_category_id.exists' => 'La cuenta seleccionada no existe.',
 
             // Tasa de IVA
             'items.*.iva_rate.required' => 'Debe seleccionar una tasa de IVA.',
@@ -178,7 +178,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             'items.*.description' => 'descripción',
             'items.*.quantity' => 'cantidad',
             'items.*.unit_price' => 'precio unitario',
-            'items.*.expense_category_id' => 'categoría de gasto',
+            'items.*.expense_category_id' => 'cuenta',
             'items.*.iva_rate' => 'tasa de IVA',
             'items.*.unit_of_measure' => 'unidad de medida',
             'items.*.sku' => 'SKU/Código',

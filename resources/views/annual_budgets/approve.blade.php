@@ -127,7 +127,7 @@
                     <div class="row text-center">
                         <div class="col-md-4 mb-3">
                             <div class="p-3 bg-light rounded">
-                                <div class="text-muted small mb-1">Categorías Configuradas</div>
+                                <div class="text-muted small mb-1">Cuentas Configuradas</div>
                                 <div class="h4 mb-0 text-primary">{{ $categoriesCount }}</div>
                             </div>
                         </div>

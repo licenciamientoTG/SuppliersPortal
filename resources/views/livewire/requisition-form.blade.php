@@ -182,7 +182,7 @@
                                     <option value="">Seleccione primero un centro de costo...</option>
                                 </select>
                                 <select id="modal_budget_cedula" class="form-select" required disabled>
-                                    <option value="">Selecciona primero una categoría de gasto...</option>
+                                    <option value="">Selecciona primero una cuenta...</option>
                                 </select>
                                 <div id="modal_budget_cedula_help"></div>
                             </div>
@@ -216,8 +216,8 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Centro de Costo</th>
-                                <th>Categoría de gasto</th>
-                                <th>Subcategoría presupuestal</th>
+                                <th>Cuenta</th>
+                                <th>Subcuenta</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
@@ -240,7 +240,7 @@
                                     </td>
                                     <td>
                                         <div class="fw-semibold text-body">{{ $item['budget_cedula_name'] ?? '—' }}</div>
-                                        <small class="text-muted">Cédula presupuestal</small>
+                                        <small class="text-muted">Subcuenta</small>
                                     </td>
                                     <td>
                                         @if(!empty($item['notes']))
@@ -681,7 +681,7 @@ $(function() {
                     <td><span class="badge bg-info">${expenseCategory}</span></td>
                     <td>
                         <div class="fw-semibold text-body">${budgetCedula}</div>
-                        <small class="text-muted">Cédula presupuestal</small>
+                        <small class="text-muted">Subcuenta</small>
                     </td>
                     <td>${notesCell}</td>
                     <td class="text-nowrap">
@@ -805,7 +805,7 @@ $(function() {
     }
 
     function initializeExpenseCategorySelect() {
-        initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
+        initializeSearchableSelect($('#modal_expense_category'), 'Buscar cuenta...', {
             dropdownParent: $('#itemFormPanel'),
             allowClear: false
         });
@@ -1321,7 +1321,7 @@ $(function() {
 
             $select.prop('disabled', true)
                 .empty()
-                .append('<option value="">Cargando categorías...</option>');
+                .append('<option value="">Cargando cuentas...</option>');
             initializeExpenseCategorySelect();
 
             $.ajax({
@@ -1332,7 +1332,7 @@ $(function() {
                 },
                 dataType: 'json',
                 success: function(response) {
-                    $select.empty().append('<option value="">Seleccionar categoría...</option>');
+                    $select.empty().append('<option value="">Seleccionar cuenta...</option>');
 
                     if (response.success && response.categories && response.categories.length > 0) {
                         response.categories.forEach(cat => {
@@ -1364,13 +1364,13 @@ $(function() {
                             Toast.fire({
                                 icon: 'info',
                                 title: 'Centro de consumo libre',
-                                html: '<small>Todas las categorías disponibles</small>'
+                                html: '<small>Todas las cuentas disponibles</small>'
                             });
                         }
 
                         resolve(true);
                     } else {
-                        $select.append('<option value="">Sin categorías disponibles</option>');
+                        $select.append('<option value="">Sin cuentas disponibles</option>');
                         initializeExpenseCategorySelect();
                         showBudgetError(response);
                         resolve(false);
@@ -1385,7 +1385,7 @@ $(function() {
                     } else {
                         Swal.fire({
                             title: 'Error',
-                            text: 'Error al cargar las categorías de gasto.',
+                            text: 'Error al cargar las cuentas.',
                             icon: 'error',
                             confirmButtonText: 'Entendido'
                         });
@@ -1462,7 +1462,7 @@ $(function() {
                             </h6>
                             <p class="small mb-0">
                                 El presupuesto anual existe, pero no tiene <strong>distribuciones mensuales</strong>
-                                asignadas a categorías de gasto. Sin esto, no se pueden crear requisiciones.
+                                asignadas a cuentas. Sin esto, no se pueden crear requisiciones.
                             </p>
                         </div>
                     </div>
@@ -1475,7 +1475,7 @@ $(function() {
                             <ol class="small mb-0 ps-3">
                                 <li class="mb-2">Contacta al <strong>responsable del centro de costo</strong></li>
                                 <li class="mb-2">Solicita que configure las <strong>distribuciones mensuales</strong> del presupuesto</li>
-                                <li>Debe asignar montos a las categorías de gasto por mes</li>
+                                <li>Debe asignar montos a las cuentas por mes</li>
                             </ol>
                         </div>
                     </div>
@@ -1483,9 +1483,9 @@ $(function() {
             `;
             icon = 'info';
         } else {
-            title = 'Sin categorías disponibles';
+            title = 'Sin cuentas disponibles';
             html = `
-                <p>${response.message || 'No hay categorías de gasto disponibles para este centro de costo.'}</p>
+                <p>${response.message || 'No hay cuentas disponibles para este centro de costo.'}</p>
                 <p class="text-muted small">${response.instructions || 'Contacta al administrador del sistema.'}</p>
             `;
             icon = 'warning';
@@ -1508,7 +1508,7 @@ $(function() {
     // 6. GUARDAR PARTIDA -> Llamar a Livewire
     // =====================================================
     function initializeBudgetCedulaSelect() {
-        initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcategoría presupuestal...', {
+        initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcuenta...', {
             dropdownParent: $('#itemFormPanel'),
             allowClear: false
         });
@@ -1529,7 +1529,7 @@ $(function() {
         return {{ $isEditMode ? (int) ($requisition->created_at?->year ?? now()->year) : now()->year }};
     }
 
-    function resetBudgetCedulaSelect(message = 'Selecciona primero una categoría de gasto...') {
+    function resetBudgetCedulaSelect(message = 'Selecciona primero una cuenta...') {
         const $cedula = $('#modal_budget_cedula');
         $cedula.val(null);
         $cedula.data('pending-value', null);
@@ -1551,7 +1551,7 @@ $(function() {
 
             $cedula.prop('disabled', true)
                 .empty()
-                .append('<option value="">Cargando subcategorías...</option>');
+                .append('<option value="">Cargando subcuentas...</option>');
             initializeBudgetCedulaSelect();
 
             $.ajax({
@@ -1564,7 +1564,7 @@ $(function() {
                     fiscal_year: getRequisitionFiscalYear()
                 },
                 success: function(response) {
-                    $cedula.empty().append('<option value="">Seleccionar subcategoría...</option>');
+                    $cedula.empty().append('<option value="">Seleccionar subcuenta...</option>');
 
                     if (response.success && response.cedulas && response.cedulas.length > 0) {
                         response.cedulas.forEach(cedula => {
@@ -1580,12 +1580,12 @@ $(function() {
                         return;
                     }
 
-                    resetBudgetCedulaSelect('No hay subcategorías configuradas para esta categoría.');
+                    resetBudgetCedulaSelect('No hay subcuentas configuradas para esta cuenta.');
                     resolve(false);
                 },
                 error: function(xhr) {
-                    resetBudgetCedulaSelect('No se pudieron cargar las subcategorías.');
-                    console.error('Error al cargar subcategorías presupuestales:', xhr);
+                    resetBudgetCedulaSelect('No se pudieron cargar las subcuentas.');
+                    console.error('Error al cargar subcuentas:', xhr);
                     resolve(false);
                 }
             });
@@ -1689,7 +1689,7 @@ $(function() {
         }
 
         if (!classification) {
-            Swal.fire('Error', 'El producto no tiene subcuenta presupuestal asignada.', 'error');
+            Swal.fire('Error', 'El producto no tiene subcuenta asignada.', 'error');
             return;
         }
 

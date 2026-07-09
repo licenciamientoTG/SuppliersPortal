@@ -107,7 +107,7 @@
                                 <th>Tipo</th>
                                 <th>Centro de Costo</th>
                                 <th>Mes</th>
-                                <th>Categoría</th>
+                                <th>Cuenta</th>
                                 <th class="text-end">Monto</th>
                             </tr>
                         </thead>

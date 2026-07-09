@@ -110,7 +110,7 @@
                             <tr>
                                 <th>Centro de Costo</th>
                                 <th>Mes</th>
-                                <th>Categoría</th>
+                                <th>Cuenta</th>
                                 <th>Disponible</th>
                                 <th>Estado</th>
                             </tr>

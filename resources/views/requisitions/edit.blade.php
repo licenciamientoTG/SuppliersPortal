@@ -213,7 +213,7 @@
                                     <th>Producto</th>
                                     <th>Cantidad</th>
                                     <th>Unidad</th>
-                                    <th>Categoría de gasto</th>
+                                    <th>Cuenta</th>
                                     <th>Notas</th>
                                     <th width="100">Acciones</th>
                                 </tr>
@@ -332,7 +332,7 @@
                         {{-- Categoría de gasto --}}
                         <div class="mb-3">
                             <label for="modal_expense_category" class="form-label fw-semibold">
-                                Categoría de Gasto <span class="text-danger">*</span>
+                                Cuenta <span class="text-danger">*</span>
                             </label>
                             <select id="modal_expense_category" class="form-select" required>
                                 <option value="">Seleccionar categoría...</option>
