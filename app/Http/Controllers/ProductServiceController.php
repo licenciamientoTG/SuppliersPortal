@@ -3,29 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Enum\ProductServiceStatus;
+use App\Events\ProductServiceApproved;
 use App\Http\Requests\SaveProductServiceRequest;
+use App\Models\Account;
 use App\Models\Company;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
-use App\Models\Account;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
 use App\Models\Subaccount;
 use App\Models\Supplier;
+use App\Models\User;
+use App\Notifications\NewProductRequestedNotification;
+use App\Services\BudgetAccessService;
+use App\Services\ProductBudgetClassificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
-use Illuminate\Http\JsonResponse;
-use Yajra\DataTables\Facades\DataTables;
-use App\Notifications\NewProductRequestedNotification;
-use App\Models\User;
-use App\Events\ProductServiceApproved;
-use App\Services\BudgetAccessService;
-use App\Services\ProductBudgetClassificationService;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+use Yajra\DataTables\Facades\DataTables;
 
 /**
  * ProductServiceController
@@ -56,24 +56,27 @@ class ProductServiceController extends Controller
         }
 
         return DataTables::of($query)
-            ->addColumn('category_name', fn($p) => e($p->category?->name ?? '—'))
-            ->addColumn('cost_center_name', fn($p) => e($p->costCenter?->name ?? '—'))
-            ->addColumn('company_name', fn($p) => e($p->company?->name ?? '—'))
-            ->addColumn('creator_name', fn($p) => e($p->creator?->name ?? '—'))
+            ->addColumn('category_name', fn ($p) => e($p->category?->name ?? '—'))
+            ->addColumn('cost_center_name', fn ($p) => e($p->costCenter?->name ?? '—'))
+            ->addColumn('company_name', fn ($p) => e($p->company?->name ?? '—'))
+            ->addColumn('creator_name', fn ($p) => e($p->creator?->name ?? '—'))
             ->addColumn('product_type_badge', function ($p) {
                 $color = $p->product_type === 'SERVICIO' ? 'info' : 'primary';
-                return '<span class="badge bg-' . $color . '">' . $p->product_type . '</span>';
+
+                return '<span class="badge bg-'.$color.'">'.$p->product_type.'</span>';
             })
-            ->editColumn('estimated_price', fn($p) => number_format((float) $p->estimated_price, 2))
+            ->editColumn('estimated_price', fn ($p) => number_format((float) $p->estimated_price, 2))
             ->editColumn('status', function ($p) {
                 $status = ProductServiceStatus::from($p->status);
                 $cls = ProductServiceStatus::badgeClass($status);
                 $label = ProductServiceStatus::options()[$status->value] ?? $status->value;
                 $activeIcon = $p->is_active ? '<i class="ti ti-check-circle ms-1"></i>' : '';
-                return '<span class="badge bg-' . $cls . '">' . $label . $activeIcon . '</span>';
+
+                return '<span class="badge bg-'.$cls.'">'.$label.$activeIcon.'</span>';
             })
             ->editColumn('technical_description', function ($p) {
                 $display = $p->short_name ?? Str::limit($p->technical_description, 60);
+
                 return e($display);
             })
             ->addColumn('actions', function ($p) {
@@ -88,46 +91,46 @@ class ProductServiceController extends Controller
                 $canReactivate = $p->status === ProductServiceStatus::INACTIVE->value;
 
                 $html = '<div class="d-flex justify-content-end gap-1">'
-                    . '<a class="btn btn-sm btn-outline-secondary" href="' . $showUrl . '" title="Ver"><i class="ti ti-eye"></i></a>'
-                    . '<a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '" title="Editar"><i class="ti ti-pencil"></i></a>';
+                    .'<a class="btn btn-sm btn-outline-secondary" href="'.$showUrl.'" title="Ver"><i class="ti ti-eye"></i></a>'
+                    .'<a class="btn btn-sm btn-outline-primary" href="'.$editUrl.'" title="Editar"><i class="ti ti-pencil"></i></a>';
 
                 // Acciones de estado (solo para Administrador del Catálogo)
                 if (auth()->check() && auth()->user()->hasRole(['catalog_admin', 'superadmin'])) {
                     if ($canActivate) {
                         $approveUrl = route('products-services.approve', $p->id);
-                        $html .= '<form action="' . $approveUrl . '" method="POST" class="js-approve-form d-inline">'
-                            . csrf_field()
-                            . '<button type="submit" class="btn btn-sm btn-outline-success" title="Aprobar"><i class="ti ti-check"></i></button>'
-                            . '</form>';
+                        $html .= '<form action="'.$approveUrl.'" method="POST" class="js-approve-form d-inline">'
+                            .csrf_field()
+                            .'<button type="submit" class="btn btn-sm btn-outline-success" title="Aprobar"><i class="ti ti-check"></i></button>'
+                            .'</form>';
                     }
 
                     if ($canReject) {
                         $rejectUrl = route('products-services.reject', $p->id);
-                        $html .= '<a class="btn btn-sm btn-outline-warning js-reject-btn" href="#" data-url="' . $rejectUrl . '" data-entity="' . $p->code . '" title="Rechazar"><i class="ti ti-x"></i></a>';
+                        $html .= '<a class="btn btn-sm btn-outline-warning js-reject-btn" href="#" data-url="'.$rejectUrl.'" data-entity="'.$p->code.'" title="Rechazar"><i class="ti ti-x"></i></a>';
                     }
 
                     if ($canDeactivate) {
                         $deactivateUrl = route('products-services.deactivate', $p->id);
-                        $html .= '<form action="' . $deactivateUrl . '" method="POST" class="js-status-action-form d-inline">'
-                            . csrf_field()
-                            . '<button type="submit" class="btn btn-sm btn-outline-secondary" title="Desactivar"><i class="ti ti-circle-off"></i></button>'
-                            . '</form>';
+                        $html .= '<form action="'.$deactivateUrl.'" method="POST" class="js-status-action-form d-inline">'
+                            .csrf_field()
+                            .'<button type="submit" class="btn btn-sm btn-outline-secondary" title="Desactivar"><i class="ti ti-circle-off"></i></button>'
+                            .'</form>';
                     }
 
                     if ($canReactivate) {
                         $reactivateUrl = route('products-services.reactivate', $p->id);
-                        $html .= '<form action="' . $reactivateUrl . '" method="POST" class="js-status-action-form d-inline">'
-                            . csrf_field()
-                            . '<button type="submit" class="btn btn-sm btn-outline-success" title="Reactivar"><i class="ti ti-circle-check"></i></button>'
-                            . '</form>';
+                        $html .= '<form action="'.$reactivateUrl.'" method="POST" class="js-status-action-form d-inline">'
+                            .csrf_field()
+                            .'<button type="submit" class="btn btn-sm btn-outline-success" title="Reactivar"><i class="ti ti-circle-check"></i></button>'
+                            .'</form>';
                     }
                 }
 
-                $html .= '<form action="' . $deleteUrl . '" method="POST" class="js-delete-form d-inline">'
-                    . csrf_field() . method_field('DELETE')
-                    . '<button type="button" class="btn btn-sm btn-outline-danger js-delete-btn" data-entity="' . $p->code . '" title="Eliminar"><i class="ti ti-trash"></i></button>'
-                    . '</form>'
-                    . '</div>';
+                $html .= '<form action="'.$deleteUrl.'" method="POST" class="js-delete-form d-inline">'
+                    .csrf_field().method_field('DELETE')
+                    .'<button type="button" class="btn btn-sm btn-outline-danger js-delete-btn" data-entity="'.$p->code.'" title="Eliminar"><i class="ti ti-trash"></i></button>'
+                    .'</form>'
+                    .'</div>';
 
                 return $html;
             })
@@ -196,7 +199,7 @@ class ProductServiceController extends Controller
             $data = $request->validated();
             $costCenter = $this->resolveCatalogCostCenter((int) $data['cost_center_id'], (int) $data['company_id']);
 
-            $productService = new ProductService();
+            $productService = new ProductService;
             $productService->fill([
                 // Identificación
                 'code' => ProductService::nextCode(),
@@ -445,6 +448,7 @@ class ProductServiceController extends Controller
 
         if ($requisitionItem) {
             $folio = $requisitionItem->requisition?->folio ?? "#{$requisitionItem->requisition_id}";
+
             return "No se puede eliminar el producto/servicio \"{$productService->code}\": está registrado como partida en la requisición {$folio}.";
         }
 
@@ -454,6 +458,7 @@ class ProductServiceController extends Controller
 
         if ($contractProduct) {
             $folio = $contractProduct->contract?->folio ?? "#{$contractProduct->contract_id}";
+
             return "No se puede eliminar el producto/servicio \"{$productService->code}\": está registrado como parte del contrato {$folio}.";
         }
 
@@ -641,9 +646,9 @@ class ProductServiceController extends Controller
         $query = ProductService::active()
             ->with(['category', 'costCenter', 'defaultVendor', 'subaccounts.account']);
 
-        // Filtrar por compañía (OBLIGATORIO)
-        $query->where('company_id', $companyId)
-            ->where('cost_center_id', $costCenterId);
+        // Filtrar por compañía. El centro de costo ya fue validado contra el usuario;
+        // la disponibilidad de productos se determina por subcuentas permitidas.
+        $query->where('company_id', $companyId);
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
         if ($allowedSubaccounts->isNotEmpty()) {
@@ -680,37 +685,37 @@ class ProductServiceController extends Controller
                 }
 
                 return [
-                'id' => $p->id,
-                'code' => $p->code,
-                'description' => $p->technical_description,
-                'short_name' => $p->short_name,
-                'product_type' => $p->product_type,
-                'brand' => $p->brand,
-                'model' => $p->model,
-                'unit_of_measure' => $p->unit_of_measure,
-                'estimated_price' => (float) $p->estimated_price,
-                'currency_code' => $p->currency_code,
-                'category' => $p->category?->name,
-                'cost_center' => $p->costCenter?->name,
-                'cost_center_id' => $p->cost_center_id,
-                'default_vendor_id' => $p->default_vendor_id,
-                'default_vendor_name' => $p->defaultVendor?->name,
-                'minimum_quantity' => $p->minimum_quantity ? (float) $p->minimum_quantity : null,
-                'maximum_quantity' => $p->maximum_quantity ? (float) $p->maximum_quantity : null,
-                'lead_time_days' => $p->lead_time_days,
-                'budget_classification' => $budgetClassification,
-                'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
-                    'id' => $subaccount->id,
-                    'code' => $subaccount->code,
-                    'name' => $subaccount->name,
-                    'account_id' => $subaccount->account_id,
-                    'account_name' => $subaccount->account?->name,
-                    'legacy_budget_cedula_id' => $subaccount->legacy_budget_cedula_id,
-                    'legacy_expense_category_id' => $subaccount->account?->legacy_expense_category_id,
-                    'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $subaccount->account?->is_fixed_asset),
-                ])->values(),
+                    'id' => $p->id,
+                    'code' => $p->code,
+                    'description' => $p->technical_description,
+                    'short_name' => $p->short_name,
+                    'product_type' => $p->product_type,
+                    'brand' => $p->brand,
+                    'model' => $p->model,
+                    'unit_of_measure' => $p->unit_of_measure,
+                    'estimated_price' => (float) $p->estimated_price,
+                    'currency_code' => $p->currency_code,
+                    'category' => $p->category?->name,
+                    'cost_center' => $p->costCenter?->name,
+                    'cost_center_id' => $p->cost_center_id,
+                    'default_vendor_id' => $p->default_vendor_id,
+                    'default_vendor_name' => $p->defaultVendor?->name,
+                    'minimum_quantity' => $p->minimum_quantity ? (float) $p->minimum_quantity : null,
+                    'maximum_quantity' => $p->maximum_quantity ? (float) $p->maximum_quantity : null,
+                    'lead_time_days' => $p->lead_time_days,
+                    'budget_classification' => $budgetClassification,
+                    'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
+                        'id' => $subaccount->id,
+                        'code' => $subaccount->code,
+                        'name' => $subaccount->name,
+                        'account_id' => $subaccount->account_id,
+                        'account_name' => $subaccount->account?->name,
+                        'legacy_budget_cedula_id' => $subaccount->legacy_budget_cedula_id,
+                        'legacy_expense_category_id' => $subaccount->account?->legacy_expense_category_id,
+                        'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $subaccount->account?->is_fixed_asset),
+                    ])->values(),
                 ];
-            })
+            }),
         ]);
     }
 
@@ -736,7 +741,7 @@ class ProductServiceController extends Controller
         return DB::transaction(function () use ($validated) {
             $costCenter = $this->resolveCatalogCostCenter((int) $validated['cost_center_id'], (int) $validated['company_id']);
 
-            $productService = new ProductService();
+            $productService = new ProductService;
             $productService->fill([
                 'code' => ProductService::nextCode(),
                 'technical_description' => $validated['technical_description'],
@@ -751,7 +756,6 @@ class ProductServiceController extends Controller
                 'estimated_price' => $validated['estimated_price'],
                 'currency_code' => $validated['currency_code'] ?? 'MXN',
                 'default_vendor_id' => $validated['default_vendor_id'] ?? null,
-
 
                 'status' => ProductServiceStatus::PENDING->value,
                 'is_active' => false,
@@ -775,7 +779,7 @@ class ProductServiceController extends Controller
                     'unit_of_measure' => $productService->unit_of_measure,
                     'status' => $productService->status,
                     'category' => $costCenter->category?->name,
-                ]
+                ],
             ], 201);
         });
     }
@@ -801,4 +805,3 @@ class ProductServiceController extends Controller
         return $costCenter;
     }
 }
-

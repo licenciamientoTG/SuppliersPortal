@@ -3,10 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enum\ProductServiceStatus;
+use App\Models\Account;
+use App\Models\BudgetCedula;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\CostCenter;
+use App\Models\ExpenseCategory;
 use App\Models\ProductService;
+use App\Models\Subaccount;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -59,6 +63,81 @@ class ProductServiceForRequisitionApiTest extends TestCase
         $response->assertJsonFragment([
             'success' => false,
             'message' => 'No tienes permiso para consultar este centro de costo.',
+        ]);
+    }
+
+    public function test_staff_can_load_company_products_by_allowed_subaccount_even_when_catalog_cost_center_differs(): void
+    {
+        $context = $this->createContext();
+
+        $catalogCostCenter = CostCenter::create([
+            'code' => '00181',
+            'name' => 'SISTEMAS',
+            'purchase_type' => 'Gasto Staff',
+            'category_id' => $context['category']->id,
+            'company_id' => $context['company']->id,
+            'responsible_user_id' => $context['user']->id,
+            'budget_type' => 'ANNUAL',
+            'status' => 'ACTIVO',
+            'created_by' => $context['user']->id,
+        ]);
+
+        $expenseCategory = ExpenseCategory::factory()->create([
+            'code' => 'TEC',
+            'name' => 'Tecnologia',
+            'status' => 'ACTIVO',
+        ]);
+        $budgetCedula = BudgetCedula::factory()->create([
+            'expense_category_id' => $expenseCategory->id,
+            'name' => 'Apps y software',
+            'status' => 'ACTIVO',
+        ]);
+        $account = Account::factory()->create([
+            'legacy_expense_category_id' => $expenseCategory->id,
+            'name' => 'Tecnologia',
+        ]);
+        $subaccount = Subaccount::factory()->create([
+            'account_id' => $account->id,
+            'legacy_budget_cedula_id' => $budgetCedula->id,
+            'name' => 'Apps y software',
+        ]);
+
+        $appSoftwareProduct = ProductService::create([
+            'code' => 'PROD-APP001',
+            'technical_description' => 'Servicio de suscripcion para aplicaciones y software.',
+            'short_name' => 'App y Software',
+            'product_type' => 'SERVICIO',
+            'category_id' => $context['category']->id,
+            'cost_center_id' => $catalogCostCenter->id,
+            'company_id' => $context['company']->id,
+            'unit_of_measure' => 'SERVICIO',
+            'estimated_price' => 1500,
+            'currency_code' => 'MXN',
+            'status' => ProductServiceStatus::ACTIVE->value,
+            'is_active' => true,
+            'account_major' => '6000',
+            'account_sub' => '6100',
+            'account_subsub' => '6101',
+            'created_by' => $context['user']->id,
+        ]);
+        $appSoftwareProduct->subaccounts()->sync([$subaccount->id]);
+
+        $context['user']->subaccounts()->sync([$subaccount->id]);
+
+        $response = $this->actingAs($context['user'])
+            ->getJson(route('products-services.api.active-for-requisitions', [
+                'company_id' => $context['company']->id,
+                'cost_center_id' => $context['costCenter']->id,
+            ]));
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'id' => $appSoftwareProduct->id,
+            'short_name' => 'App y Software',
+        ]);
+        $response->assertJsonFragment([
+            'expense_category_name' => 'Tecnologia',
+            'budget_cedula_name' => 'Apps y software',
         ]);
     }
 
@@ -121,6 +200,7 @@ class ProductServiceForRequisitionApiTest extends TestCase
         return [
             'user' => $user,
             'company' => $company,
+            'category' => $category,
             'costCenter' => $costCenter,
             'product' => $product,
         ];

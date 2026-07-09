@@ -117,10 +117,108 @@
                     </span>
                 </h5>
                 <button type="button" class="btn btn-sm btn-primary" id="btnAddItem">
-                    <i class="ti ti-plus me-1"></i> Agregar Partida
+                    <i class="ti ti-plus me-1"></i> Nueva Partida
                 </button>
             </div>
             <div class="card-body">
+                <div id="itemFormPanel" class="border rounded p-3 mb-3 d-none" wire:ignore>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0" id="itemModalTitle">Agregar Partida</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCancelItem">
+                            <i class="ti ti-x me-1"></i>Cancelar
+                        </button>
+                    </div>
+
+                    <form id="itemForm" class="needs-validation" novalidate>
+                        <input type="hidden" id="item_index">
+
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="modal_cost_center_id" class="form-label fw-semibold">
+                                    Centro de Costo <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-chart-pie"></i></span>
+                                    <select id="modal_cost_center_id" class="form-select" required disabled>
+                                        <option value="">Seleccionar centro de costo...</option>
+                                    </select>
+                                </div>
+                                <div class="form-text" id="modal_cost_center_help"></div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <label for="modal_product_id" class="form-label fw-semibold">
+                                    Producto del catálogo <span class="text-danger">*</span>
+                                </label>
+                                <select id="modal_product_id" class="form-select" required>
+                                    <option value="">Buscar producto del catálogo...</option>
+                                </select>
+                                <div class="form-text">
+                                    <i class="ti ti-info-circle me-1"></i>RN-001: Solo productos del catálogo
+                                </div>
+                                <div id="product_info" class="alert alert-light border mt-2" style="display:none;">
+                                    <div class="d-flex gap-3 align-items-center flex-wrap">
+                                        <span id="product_type_badge"></span>
+                                        <span id="product_code_display"></span>
+                                        <span id="product_brand_model" style="display:none;"></span>
+                                    </div>
+                                    <div id="product_budget_classification" class="d-none"></div>
+                                </div>
+                            </div>
+
+                            <textarea id="modal_description" class="d-none"></textarea>
+
+                            <div class="col-md-3">
+                                <label for="modal_quantity" class="form-label fw-semibold">
+                                    Cantidad <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-numbers"></i></span>
+                                    <input type="number" id="modal_quantity" class="form-control"
+                                        min="0.001" step="0.001" value="1" required>
+                                </div>
+                                <div class="form-text">Mínimo: 0.001</div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="modal_unit" class="form-label fw-semibold">Unidad de Medida</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="ti ti-ruler-measure"></i></span>
+                                    <input type="text" id="modal_unit" class="form-control bg-light" readonly>
+                                </div>
+                            </div>
+
+                            <div class="d-none">
+                                <select id="modal_expense_category" class="form-select" required>
+                                    <option value="">Seleccione primero un centro de costo...</option>
+                                </select>
+                                <select id="modal_budget_cedula" class="form-select" required disabled>
+                                    <option value="">Selecciona primero una categoría de gasto...</option>
+                                </select>
+                                <div id="modal_budget_cedula_help"></div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="modal_notes" class="form-label fw-semibold">Observaciones</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-notes"></i></span>
+                                    <textarea id="modal_notes" class="form-control" rows="2"
+                                        placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-secondary" id="btnCancelItemBottom">
+                                <i class="ti ti-x me-1"></i>Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" id="btnSaveItem">
+                                <i class="ti ti-check me-1"></i>Guardar Partida
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
@@ -187,7 +285,7 @@
                                 <tr>
                                     <td colspan="9" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
-                                        No hay partidas agregadas. Haz clic en "Agregar Partida"
+                                        No hay partidas agregadas. Haz clic en "Nueva Partida"
                                     </td>
                                 </tr>
                             @endforelse
@@ -220,135 +318,6 @@
                         {{ $isEditMode ? 'Actualizar y Enviar a Compras' : 'Enviar a Compras' }}
                     </span>
                 </button>
-            </div>
-        </div>
-    </div>
-
-    {{-- Modal para agregar/editar partidas --}}
-    <div class="modal fade" id="itemModal" tabindex="-1" wire:ignore>
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="itemModalTitle">Agregar Partida</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="itemForm" class="needs-validation" novalidate>
-                        <input type="hidden" id="item_index">
-
-                        {{-- Centro de Costo (con el tipo de compra como prefijo) --}}
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <label for="modal_cost_center_id" class="form-label fw-semibold">
-                                    Centro de Costo <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ti ti-chart-pie"></i></span>
-                                    <select id="modal_cost_center_id" class="form-select" required disabled>
-                                        <option value="">Seleccionar centro de costo...</option>
-                                    </select>
-                                </div>
-                                <div class="form-text" id="modal_cost_center_help"></div>
-                            </div>
-                        </div>
-
-                        {{-- Producto del catálogo --}}
-                        <div class="mb-4">
-                            <div class="mb-3">
-                                <label for="modal_product_id" class="form-label fw-semibold">
-                                    Producto del catálogo <span class="text-danger">*</span>
-                                </label>
-                                <select id="modal_product_id" class="form-select" required>
-                                    <option value="">Buscar producto del catálogo...</option>
-                                </select>
-                                <div class="form-text">
-                                    <i class="ti ti-info-circle me-1"></i>RN-001: Solo productos del catálogo
-                                </div>
-                                {{-- Info del producto seleccionado --}}
-                                <div id="product_info" class="alert alert-light border mt-2" style="display:none;">
-                                    <div class="d-flex gap-3 align-items-center flex-wrap">
-                                        <span id="product_type_badge"></span>
-                                        <span id="product_code_display"></span>
-                                        <span id="product_brand_model" style="display:none;"></span>
-                                    </div>
-                                    <div id="product_budget_classification" class="small text-muted mt-2"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <textarea id="modal_description" class="d-none"></textarea>
-
-                        {{-- Cantidad y Unidad --}}
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="modal_quantity" class="form-label fw-semibold">
-                                    Cantidad <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="ti ti-numbers"></i>
-                                    </span>
-                                    <input type="number" id="modal_quantity" class="form-control"
-                                        min="0.001" step="0.001" value="1" required>
-                                </div>
-                                <div class="form-text">Mínimo: 0.001</div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="modal_unit" class="form-label fw-semibold">Unidad de Medida</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light">
-                                        <i class="ti ti-ruler-measure"></i>
-                                    </span>
-                                    <input type="text" id="modal_unit" class="form-control bg-light" readonly>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Categoría de gasto --}}
-                        <div class="mb-3">
-                            <label for="modal_expense_category" class="form-label fw-bold text-muted">
-                                <i class="ti ti-subtask me-1"></i> Categoría de Gasto <span class="text-danger">*</span>
-                            </label>
-                            <select id="modal_expense_category" class="form-select select2-simple" required>
-                                <option value="">Seleccione primero un centro de costo...</option>
-                            </select>
-                            <div class="form-text text-muted mt-2">Selecciona la categoría para desbloquear la subcategoría presupuestal.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="modal_budget_cedula" class="form-label fw-bold text-muted">
-                                <i class="ti ti-list-details me-1"></i> Subcategoría Presupuestal <span class="text-danger">*</span>
-                            </label>
-                            <select id="modal_budget_cedula" class="form-select select2-simple" required disabled>
-                                <option value="">Selecciona primero una categoría de gasto...</option>
-                            </select>
-                            <div class="form-text text-muted" id="modal_budget_cedula_help">
-                                La cédula disponible depende del centro de costo, la categoría y el ejercicio fiscal.
-                            </div>
-                        </div>
-
-                        {{-- Observaciones --}}
-                        <div class="mb-3">
-                            <label for="modal_notes" class="form-label fw-semibold">Observaciones</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="ti ti-notes"></i>
-                                </span>
-                                <textarea id="modal_notes" class="form-control" rows="3"
-                                    placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc. 1"></textarea>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        <i class="ti ti-x me-1"></i>Cancelar
-                    </button>
-                    <button type="button" class="btn btn-primary" id="btnSaveItem">
-                        <i class="ti ti-check me-1"></i>Guardar Partida
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -414,13 +383,6 @@
 <script>
 
 let itemModalInitialState = null;
-let allowItemModalClose = false;
-
-function getItemModalInstance() {
-    return bootstrap.Modal.getOrCreateInstance(document.getElementById('itemModal'), {
-        focus: false
-    });
-}
 
 // =====================================================
 // FUNCIÓN PARA CONFIRMAR ELIMINACIÓN DE PARTIDA
@@ -720,7 +682,7 @@ $(function() {
                .append('<option value="">Selecciona primero una compañía...</option>');
             $('#modal_cost_center_help').text('');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-                dropdownParent: $('#itemModal')
+                dropdownParent: $('#itemFormPanel')
             });
             return;
         }
@@ -734,7 +696,7 @@ $(function() {
                .append('<option value="">Sin centros de costo para esta compañía</option>');
             $('#modal_cost_center_help').text('No tienes centros de costo asignados en esta compañía.');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-                dropdownParent: $('#itemModal')
+                dropdownParent: $('#itemFormPanel')
             });
             return;
         }
@@ -761,7 +723,7 @@ $(function() {
         }
 
         initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-            dropdownParent: $('#itemModal')
+            dropdownParent: $('#itemFormPanel')
         });
 
         if ($cc.val()) {
@@ -795,7 +757,7 @@ $(function() {
 
     function initializeExpenseCategorySelect() {
         initializeSearchableSelect($('#modal_expense_category'), 'Buscar categoría de gasto...', {
-            dropdownParent: $('#itemModal'),
+            dropdownParent: $('#itemFormPanel'),
             allowClear: false
         });
     }
@@ -807,7 +769,7 @@ $(function() {
 
     function initializeModalBaseSelects() {
         initializeSearchableSelect($('#modal_cost_center_id'), 'Seleccionar centro de costo...', {
-            dropdownParent: $('#itemModal')
+            dropdownParent: $('#itemFormPanel')
         });
     }
 
@@ -861,30 +823,20 @@ $(function() {
 
     initializeRequisitionSelects();
 
-    $('#itemModal')
-        .off('hide.bs.modal.requisitionGuard')
-        .on('hide.bs.modal.requisitionGuard', function(e) {
-            if (allowItemModalClose) {
-                return;
-            }
+    function showItemFormPanel() {
+        $('#itemFormPanel').removeClass('d-none');
+        document.getElementById('itemFormPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-            if (!itemModalHasUnsavedChanges()) {
-                itemModalInitialState = null;
-                return;
-            }
+    function hideItemFormPanel(force = false) {
+        if (!force && itemModalHasUnsavedChanges()) {
+            confirmItemModalClose(() => hideItemFormPanel(true));
+            return;
+        }
 
-            e.preventDefault();
-
-            confirmItemModalClose(() => {
-                allowItemModalClose = true;
-                $('#itemModal').modal('hide');
-            });
-        })
-        .off('hidden.bs.modal.requisitionGuard')
-        .on('hidden.bs.modal.requisitionGuard', function() {
-            allowItemModalClose = false;
-            itemModalInitialState = null;
-        });
+        $('#itemFormPanel').addClass('d-none');
+        itemModalInitialState = null;
+    }
 
     function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
         const $company = $('#company_id');
@@ -1097,7 +1049,8 @@ $(function() {
         loadProductsForCostCenter();
         loadExpenseCategories();
 
-        $('#itemModal').modal('show');
+        showItemFormPanel();
+        setTimeout(setItemModalInitialState, 100);
     }
 
     // =====================================================
@@ -1140,7 +1093,8 @@ $(function() {
             $('#modal_notes').val(item.notes || '');
         }, 500);
 
-        $('#itemModal').modal('show');
+        showItemFormPanel();
+        setTimeout(setItemModalInitialState, 200);
     }
 
     // =====================================================
@@ -1229,9 +1183,7 @@ $(function() {
             .append(`<option value="${classification.budget_cedula_id}">${classification.budget_cedula_name}</option>`)
             .val(String(classification.budget_cedula_id));
 
-        $('#product_budget_classification').html(
-            `<span class="fw-semibold">Cuenta/Subcuenta inferida:</span> ${classification.expense_category_name} / ${classification.budget_cedula_name}`
-        );
+        $('#product_budget_classification').empty();
 
         return true;
     }
@@ -1244,7 +1196,7 @@ $(function() {
         }
 
         $('#modal_product_id').select2({
-            dropdownParent: $('#itemModal'),
+            dropdownParent: $('#itemFormPanel'),
             placeholder: 'Buscar producto...',
             allowClear: true,
             width: '100%'
@@ -1508,7 +1460,7 @@ $(function() {
     // =====================================================
     function initializeBudgetCedulaSelect() {
         initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcategoría presupuestal...', {
-            dropdownParent: $('#itemModal'),
+            dropdownParent: $('#itemFormPanel'),
             allowClear: false
         });
     }
@@ -1613,7 +1565,6 @@ $(function() {
 
     openItemModal = function() {
         editingIndex = null;
-        allowItemModalClose = false;
 
         $('#itemModalTitle').text('Agregar Partida');
         document.getElementById('itemForm').reset();
@@ -1629,13 +1580,12 @@ $(function() {
         initializeExpenseCategorySelect();
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
 
-        getItemModalInstance().show();
+        showItemFormPanel();
         setTimeout(setItemModalInitialState, 100);
     }
 
     openItemModalForEdit = function(index, item) {
         editingIndex = index;
-        allowItemModalClose = false;
 
         $('#itemModalTitle').text('Editar Partida');
         $('#item_index').val(index);
@@ -1657,23 +1607,20 @@ $(function() {
             setTimeout(setItemModalInitialState, 200);
         }, 600);
 
-        getItemModalInstance().show();
+        showItemFormPanel();
     }
 
-    function hideItemModalBeforeMorph() {
-        return new Promise((resolve) => {
-            const $modal = $('#itemModal');
+    function hideItemFormPanelBeforeMorph() {
+        hideItemFormPanel(true);
 
-            if (! $modal.hasClass('show')) {
-                resolve();
-                return;
-            }
+        return Promise.resolve();
+    }
 
-            allowItemModalClose = true;
-            $modal.one('hidden.bs.modal', resolve);
-            getItemModalInstance().hide();
+    $(document)
+        .off('click.requisitionCancelItem', '#btnCancelItem, #btnCancelItemBottom')
+        .on('click.requisitionCancelItem', '#btnCancelItem, #btnCancelItemBottom', function() {
+            hideItemFormPanel(false);
         });
-    }
 
     $(document).off('click.requisitionSaveItem', '#btnSaveItem').on('click.requisitionSaveItem', '#btnSaveItem', async function() {
         const $saveButton = $(this);
@@ -1764,8 +1711,7 @@ $(function() {
         $saveButton.prop('disabled', true);
 
         try {
-            // Bootstrap debe terminar de modificar el modal antes del morph de Livewire.
-            await hideItemModalBeforeMorph();
+            await hideItemFormPanelBeforeMorph();
 
             if (editIndex !== '' && editIndex !== null) {
                 await wire.$call('updateItem', parseInt(editIndex), itemData);
