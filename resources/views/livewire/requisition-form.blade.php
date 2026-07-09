@@ -118,7 +118,10 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div id="itemFormPanel" class="border rounded p-3 mb-3" wire:ignore>
+                <div id="itemFormPanel"
+                     class="border rounded p-3 mb-3 requisition-item-form-panel"
+                     wire:ignore
+                     wire:key="requisition-item-form-panel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0" id="itemModalTitle">Agregar Partida</h6>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddItem">
@@ -279,7 +282,7 @@
                                 <tr>
                                     <td colspan="9" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
-                                        No hay partidas agregadas. Haz clic en "Nueva Partida"
+                                        No hay partidas agregadas. Usa el formulario superior para agregar una partida.
                                     </td>
                                 </tr>
                             @endforelse
@@ -354,6 +357,13 @@
 
     .modal-footer {
         border-top: 1px solid #dee2e6;
+    }
+
+    #itemFormPanel.requisition-item-form-panel {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
     }
 
     #modal_description {
@@ -578,7 +588,26 @@ $(function() {
         return text.length > length ? `${text.slice(0, length - 1)}…` : text;
     }
 
+    function ensureItemFormVisible() {
+        const panel = document.getElementById('itemFormPanel');
+
+        if (!panel) {
+            console.error('No se encontró el formulario de partida en el DOM.');
+            return;
+        }
+
+        panel.classList.remove('d-none', 'collapse', 'collapsing');
+        panel.hidden = false;
+        panel.style.setProperty('display', 'block', 'important');
+        panel.style.setProperty('visibility', 'visible', 'important');
+        panel.style.setProperty('opacity', '1', 'important');
+        panel.style.removeProperty('height');
+    }
+    window.ensureItemFormVisible = ensureItemFormVisible;
+
     function renderRequisitionItems() {
+        ensureItemFormVisible();
+
         const wire = getRequisitionWire();
         const items = Array.isArray(wire?.$get('items')) ? wire.$get('items') : [];
         const $body = $('#requisitionItemsBody');
@@ -593,9 +622,9 @@ $(function() {
         if (items.length === 0) {
             $body.html(`
                 <tr>
-                    <td colspan="10" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
-                        No hay partidas agregadas. Haz clic en "Agregar Partida"
+                        No hay partidas agregadas. Usa el formulario superior para agregar una partida.
                     </td>
                 </tr>
             `);
@@ -859,6 +888,7 @@ $(function() {
     }
 
     initializeRequisitionSelects();
+    ensureItemFormVisible();
     resetItemFormControls();
 
     function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
@@ -917,6 +947,7 @@ $(function() {
                 renderRequisitionItems();
             }
 
+            ensureItemFormVisible();
             resetItemFormControls();
             loadReceivingLocationsForCompany(companyId);
         });
@@ -1816,6 +1847,8 @@ $(function() {
     });
 
     Livewire.on('company-context-changed', (event) => {
+        ensureItemFormVisible();
+
         if (!event.itemsCleared) {
             return;
         }
@@ -1833,6 +1866,9 @@ $(function() {
             title: 'Se reiniciaron las partidas por cambio de compañía'
         });
     });
+
+    document.addEventListener('livewire:morph.updated', ensureItemFormVisible);
+    document.addEventListener('livewire:navigated', ensureItemFormVisible);
 
     // =====================================================
     // 8. LISTENERS ADICIONALES DE VALIDACIÓN Y GUARDADO
