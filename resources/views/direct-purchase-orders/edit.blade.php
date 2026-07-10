@@ -147,32 +147,23 @@
                         <h6 class="m-0 fw-bold text-uppercase small text-primary">Partidas</h6>
                         <button type="button" class="btn btn-xs btn-outline-primary" id="add-item-btn"><i class="ti ti-plus"></i> Agregar</button>
                     </div>
-                    <div class="border rounded overflow-hidden">
+                    <div class="border rounded items-table-wrap">
                         <table class="table table-sm table-hover mb-0" id="items-table">
                             <thead class="table-light small">
                                 <tr>
+                                    <th style="width:27%">Centro de costo</th>
                                     <th style="width:30%">Producto</th>
-                                    <th style="width:23%">Centro de costo</th>
                                     <th style="width:6%">Cant.</th>
-                                    <th style="width:9%">P. Unit.</th>
-                                    <th style="width:11%">IVA</th>
-                                    <th style="width:9%">Subtotal</th>
-                                    <th style="width:11%">Total</th>
-                                    <th style="width:1%"></th>
+                                    <th style="width:8%">P. Unit.</th>
+                                    <th style="width:10%">IVA</th>
+                                    <th style="width:8%">Subtotal</th>
+                                    <th style="width:8%">Total</th>
+                                    <th style="width:3%"></th>
                                 </tr>
                             </thead>
                             <tbody id="items-tbody">
                                 @foreach($directPurchaseOrder->items as $index => $item)
                                     <tr class="item-row">
-                                        <td>
-                                            <input type="text"
-                                                   name="items[{{ $index }}][description]"
-                                                   class="form-control form-control-sm border-0 item-description"
-                                                   placeholder="Descripción"
-                                                   value="{{ old("items.$index.description", $item->description) }}"
-                                                   required
-                                                   maxlength="500">
-                                        </td>
                                         <td>
                                             <select name="items[{{ $index }}][cost_center_id]"
                                                     class="form-select form-select-sm border-0 item-cost-center"
@@ -186,6 +177,15 @@
                                                     required disabled style="display:none">
                                                 <option value="">Seleccione...</option>
                                             </select>
+                                        </td>
+                                        <td>
+                                            <input type="text"
+                                                   name="items[{{ $index }}][description]"
+                                                   class="form-control form-control-sm border-0 item-description"
+                                                   placeholder="Descripción"
+                                                   value="{{ old("items.$index.description", $item->description) }}"
+                                                   required
+                                                   maxlength="500">
                                         </td>
                                         <td>
                                             <input type="number"
@@ -426,6 +426,12 @@
     #items-table {
         table-layout: fixed;
         width: 100%;
+        min-width: 1080px;
+    }
+
+    .items-table-wrap {
+        overflow-x: auto;
+        overflow-y: visible;
     }
 
     #items-table th {
@@ -441,6 +447,12 @@
     #items-table td {
         padding: 0.35rem;
         vertical-align: middle;
+    }
+
+    #items-table th:last-child,
+    #items-table td:last-child {
+        min-width: 40px;
+        width: 40px;
     }
 
     #items-table .form-control-sm,
@@ -918,7 +930,6 @@ $(document).ready(function() {
         const costCenterOptions = buildCostCenterOptions();
         const newRow = `
             <tr class="item-row">
-                <td><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td>
                     <select name="items[${itemIndex}][cost_center_id]" class="form-select form-select-sm border-0 item-cost-center" required>
                         ${costCenterOptions.html}
@@ -927,6 +938,7 @@ $(document).ready(function() {
                         <option value="">Seleccione...</option>
                     </select>
                 </td>
+                <td><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
                 <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control form-control-sm border-0 item-quantity" step="0.01" min="0.01" required></td>
                 <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control form-control-sm border-0 item-unit-price" step="0.01" min="0.01" required></td>
                 <td>
