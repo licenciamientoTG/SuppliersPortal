@@ -271,7 +271,7 @@
         }
 
         .bp-picker-list {
-            max-height: 300px;
+            max-height: 360px;
             overflow: auto;
         }
 
@@ -305,6 +305,14 @@
             text-align: left;
         }
 
+        .bp-picker-group-title i {
+            transition: transform .15s ease;
+        }
+
+        .bp-picker-group-title.collapsed i {
+            transform: rotate(-90deg);
+        }
+
         .bp-picker-actions {
             display: inline-flex;
             gap: .25rem;
@@ -319,7 +327,7 @@
 
         .bp-picker-options {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: .35rem;
             padding: 0 .75rem .75rem;
         }
@@ -372,6 +380,10 @@
         @media (max-width: 1199.98px) {
             .bp-summary,
             .bp-profile-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .bp-picker-options {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
@@ -508,7 +520,7 @@
                                 <input type="text" name="description" class="form-control" value="{{ old('description') }}" placeholder="Ej. Compra operativa mensual">
                             </div>
 
-                            <div class="col-lg-3 col-md-12">
+                            <div class="col-12">
                                 <label class="form-label fw-semibold">Subcuentas</label>
                                 @include('budget_profiles.partials.subaccount-picker', [
                                     'pickerId' => 'createSubaccountPicker',

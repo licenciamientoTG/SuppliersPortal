@@ -25,7 +25,7 @@
 
             <section class="bp-picker-group js-subaccount-group" data-search="{{ $accountSearch }}">
                 <div class="bp-picker-group-head">
-                    <button class="bp-picker-group-title" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $groupKey }}" aria-expanded="true" aria-controls="{{ $groupKey }}">
+                    <button class="bp-picker-group-title collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $groupKey }}" aria-expanded="false" aria-controls="{{ $groupKey }}">
                         <i class="ti ti-chevron-down"></i>
                         <span>{{ $account?->code }} {{ $account?->name ?? 'Sin cuenta' }}</span>
                     </button>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
 
-                <div class="collapse show" id="{{ $groupKey }}">
+                <div class="collapse" id="{{ $groupKey }}">
                     <div class="bp-picker-options">
                         @foreach ($accountSubaccounts as $subaccount)
                             @php
