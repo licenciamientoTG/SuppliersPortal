@@ -136,10 +136,41 @@
             max-width: 420px;
         }
 
+        .bp-list-controls {
+            display: grid;
+            grid-template-columns: minmax(240px, 1fr) minmax(220px, .55fr) auto;
+            gap: .75rem;
+            align-items: center;
+            width: min(100%, 920px);
+        }
+
         .bp-profile-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: .9rem;
+        }
+
+        .bp-pagination {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--bp-border);
+        }
+
+        .bp-page-actions {
+            display: inline-flex;
+            gap: .4rem;
+            align-items: center;
+        }
+
+        .bp-page-status {
+            color: var(--bp-muted);
+            font-size: .84rem;
+            font-weight: 700;
         }
 
         .bp-profile-card {
@@ -405,6 +436,11 @@
                 max-width: none;
             }
 
+            .bp-list-controls {
+                grid-template-columns: 1fr;
+                width: 100%;
+            }
+
             .bp-picker-toolbar,
             .bp-picker-options {
                 grid-template-columns: 1fr;
@@ -543,9 +579,25 @@
                         <div>
                             <h5 class="bp-panel-title">Perfiles configurados</h5>
                         </div>
-                        <div class="input-group bp-search">
-                            <span class="input-group-text"><i class="ti ti-search"></i></span>
-                            <input type="search" class="form-control" id="profileSearch" placeholder="Buscar por perfil, departamento o subcuenta">
+                        <div class="bp-list-controls">
+                            <div class="input-group bp-search">
+                                <span class="input-group-text"><i class="ti ti-search"></i></span>
+                                <input type="search" class="form-control" id="profileSearch" placeholder="Buscar por perfil o subcuenta">
+                            </div>
+
+                            <select class="form-select" id="profileDepartmentFilter" aria-label="Filtrar por departamento">
+                                <option value="">Todos los departamentos</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+
+                            <select class="form-select" id="profilePageSize" aria-label="Perfiles por pagina">
+                                <option value="8">8 por pagina</option>
+                                <option value="12" selected>12 por pagina</option>
+                                <option value="24">24 por pagina</option>
+                                <option value="9999">Todos</option>
+                            </select>
                         </div>
                     </div>
                     <div class="bp-panel-body">
@@ -569,7 +621,7 @@
                                             ->implode(' ');
                                     @endphp
 
-                                    <article class="bp-profile-card js-profile-card" data-search="{{ Str::lower($profileSearch) }}">
+                                    <article class="bp-profile-card js-profile-card" data-search="{{ Str::lower($profileSearch) }}" data-department-id="{{ $profile->department_id }}">
                                         <div class="bp-profile-head">
                                             <div>
                                                 <h5 class="bp-profile-name">{{ $profile->name }}</h5>
@@ -674,6 +726,19 @@
                                 <i class="ti ti-search fs-2 d-block mb-2"></i>
                                 Sin resultados.
                             </div>
+
+                            <div class="bp-pagination" id="profilePagination">
+                                <div class="bp-page-status" id="profilePageStatus"></div>
+                                <div class="bp-page-actions">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="profilePrevPage">
+                                        <i class="ti ti-chevron-left me-1"></i>Anterior
+                                    </button>
+                                    <span class="bp-page-status" id="profilePageNumber"></span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="profileNextPage">
+                                        Siguiente<i class="ti ti-chevron-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
                         @endif
                     </div>
                 </div>
@@ -724,20 +789,64 @@
                 return (value || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             };
 
-            $('#profileSearch').on('input', function () {
-                const term = normalize(this.value);
-                let visible = 0;
+            const $profileCards = $('.js-profile-card');
+            const $profilePagination = $('#profilePagination');
+            let profilePage = 1;
 
-                $('.js-profile-card').each(function () {
-                    const matches = normalize($(this).data('search')).includes(term);
-                    $(this).toggle(matches);
+            const applyProfileFilters = function () {
+                const term = normalize($('#profileSearch').val());
+                const departmentId = $('#profileDepartmentFilter').val();
+                const pageSize = parseInt($('#profilePageSize').val(), 10);
+                const matchedCards = [];
+
+                $profileCards.each(function () {
+                    const $card = $(this);
+                    const matchesSearch = normalize($card.data('search')).includes(term);
+                    const matchesDepartment = ! departmentId || String($card.data('department-id')) === departmentId;
+                    const matches = matchesSearch && matchesDepartment;
+
+                    $card.toggleClass('d-none', ! matches);
+
                     if (matches) {
-                        visible++;
+                        matchedCards.push($card);
                     }
                 });
 
-                $('#profileEmptySearch').toggleClass('d-none', visible !== 0);
+                const totalMatches = matchedCards.length;
+                const totalPages = Math.max(1, Math.ceil(totalMatches / pageSize));
+                profilePage = Math.min(profilePage, totalPages);
+
+                matchedCards.forEach(function ($card, index) {
+                    const isCurrentPage = index >= (profilePage - 1) * pageSize && index < profilePage * pageSize;
+                    $card.toggleClass('d-none', ! isCurrentPage);
+                });
+
+                $('#profileEmptySearch').toggleClass('d-none', totalMatches !== 0);
+                $profilePagination.toggleClass('d-none', totalMatches === 0);
+                $('#profilePageStatus').text(totalMatches === 0 ? '' : totalMatches + ' perfiles encontrados');
+                $('#profilePageNumber').text('Pagina ' + profilePage + ' de ' + totalPages);
+                $('#profilePrevPage').prop('disabled', profilePage <= 1);
+                $('#profileNextPage').prop('disabled', profilePage >= totalPages);
+            };
+
+            $('#profileSearch, #profileDepartmentFilter, #profilePageSize').on('input change', function () {
+                profilePage = 1;
+                applyProfileFilters();
             });
+
+            $('#profilePrevPage').on('click', function () {
+                if (profilePage > 1) {
+                    profilePage--;
+                    applyProfileFilters();
+                }
+            });
+
+            $('#profileNextPage').on('click', function () {
+                profilePage++;
+                applyProfileFilters();
+            });
+
+            applyProfileFilters();
 
             $('.js-subaccount-picker').each(function () {
                 const $picker = $(this);
