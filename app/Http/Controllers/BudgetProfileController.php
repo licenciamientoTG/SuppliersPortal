@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Subaccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -43,6 +44,7 @@ class BudgetProfileController extends Controller
     public function storeProfile(Request $request): RedirectResponse
     {
         $data = $this->validateProfile($request);
+        $data['key'] = $this->makeUniqueKey($data['department_id'], $data['name']);
 
         $profile = BudgetProfile::create($data);
         $profile->subaccounts()->sync($request->input('subaccount_ids', []));
@@ -53,6 +55,7 @@ class BudgetProfileController extends Controller
     public function updateProfile(Request $request, BudgetProfile $budgetProfile): RedirectResponse
     {
         $data = $this->validateProfile($request, $budgetProfile);
+        $data['key'] = $budgetProfile->key;
 
         $budgetProfile->update($data);
         $budgetProfile->subaccounts()->sync($request->input('subaccount_ids', []));
@@ -72,7 +75,7 @@ class BudgetProfileController extends Controller
         return $request->validate([
             'department_id' => ['required', 'exists:departments,id'],
             'key' => [
-                'required',
+                'nullable',
                 'string',
                 'max:80',
                 'regex:/^[a-z0-9_]+$/',
@@ -84,5 +87,28 @@ class BudgetProfileController extends Controller
             'subaccount_ids' => ['array'],
             'subaccount_ids.*' => ['integer', 'exists:subaccounts,id'],
         ]) + ['is_active' => false];
+    }
+
+    private function makeUniqueKey(int $departmentId, string $name): string
+    {
+        $department = Department::query()->find($departmentId);
+        $base = Str::of($department?->name.' '.$name)
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '_')
+            ->trim('_')
+            ->limit(70, '')
+            ->value();
+
+        $base = $base !== '' ? $base : 'perfil_presupuestal';
+        $key = $base;
+        $suffix = 2;
+
+        while (BudgetProfile::query()->where('key', $key)->exists()) {
+            $key = Str::limit($base, 75 - strlen((string) $suffix), '').'_'.$suffix;
+            $suffix++;
+        }
+
+        return $key;
     }
 }
