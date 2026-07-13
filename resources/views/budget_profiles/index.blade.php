@@ -455,6 +455,9 @@
         $activeProfiles = $profiles->where('is_active', true)->count();
         $totalUsers = $profiles->sum('users_count');
         $assignedSubaccounts = $profiles->sum('subaccounts_count');
+        $totalDepartments = $departments->count();
+        $activeDepartments = $departments->where('is_active', true)->count();
+        $inactiveDepartments = $totalDepartments - $activeDepartments;
     @endphp
 
     <div class="budget-profile-page">
@@ -748,33 +751,209 @@
                 <div class="bp-panel">
                     <div class="bp-panel-header">
                         <div>
-                            <h5 class="bp-panel-title">Departamentos con perfiles</h5>
+                            <h5 class="bp-panel-title">Nuevo departamento</h5>
+                        </div>
+                        <span class="bp-chip bp-chip-success">
+                            <i class="ti ti-circle-check"></i>Activo al crear
+                        </span>
+                    </div>
+                    <div class="bp-panel-body">
+                        <form method="POST" action="{{ route('budget-profiles.departments.store') }}" class="row g-3 align-items-end">
+                            @csrf
+                            <input type="hidden" name="is_active" value="1">
+
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold">Nombre</label>
+                                <input type="text" name="name" class="form-control" value="{{ old('name') }}" maxlength="100" placeholder="Ej. Operaciones" required>
+                            </div>
+
+                            <div class="col-lg-2 col-md-6">
+                                <label class="form-label fw-semibold">Abreviacion</label>
+                                <input type="text" name="abbreviated" class="form-control text-uppercase" value="{{ old('abbreviated') }}" maxlength="10" placeholder="OPE" required>
+                            </div>
+
+                            <div class="col-lg-5 col-md-12">
+                                <label class="form-label fw-semibold">Notas</label>
+                                <input type="text" name="notes" class="form-control" value="{{ old('notes') }}" maxlength="255" placeholder="Contexto interno del departamento">
+                            </div>
+
+                            <div class="col-lg-1 d-grid">
+                                <button type="submit" class="btn btn-primary" title="Crear departamento">
+                                    <i class="ti ti-plus me-1"></i>Crear
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="bp-summary">
+                    <div class="bp-metric">
+                        <div class="bp-metric-label">Departamentos</div>
+                        <div class="bp-metric-value">{{ $totalDepartments }}</div>
+                    </div>
+                    <div class="bp-metric">
+                        <div class="bp-metric-label">Activos</div>
+                        <div class="bp-metric-value">{{ $activeDepartments }}</div>
+                    </div>
+                    <div class="bp-metric">
+                        <div class="bp-metric-label">Inactivos</div>
+                        <div class="bp-metric-value">{{ $inactiveDepartments }}</div>
+                    </div>
+                    <div class="bp-metric">
+                        <div class="bp-metric-label">Con perfiles</div>
+                        <div class="bp-metric-value">{{ $departments->filter(fn ($department) => $department->budgetProfiles->isNotEmpty())->count() }}</div>
+                    </div>
+                </div>
+
+                <div class="bp-panel">
+                    <div class="bp-panel-header">
+                        <div>
+                            <h5 class="bp-panel-title">Departamentos configurados</h5>
+                        </div>
+                        <div class="bp-list-controls">
+                            <div class="input-group bp-search">
+                                <span class="input-group-text"><i class="ti ti-search"></i></span>
+                                <input type="search" class="form-control" id="departmentSearch" placeholder="Buscar departamento, abreviacion o nota">
+                            </div>
+
+                            <select class="form-select" id="departmentStatusFilter" aria-label="Filtrar por estatus">
+                                <option value="">Todos los estatus</option>
+                                <option value="1">Activos</option>
+                                <option value="0">Inactivos</option>
+                            </select>
+
+                            <select class="form-select" id="departmentPageSize" aria-label="Departamentos por pagina">
+                                <option value="8">8 por pagina</option>
+                                <option value="12" selected>12 por pagina</option>
+                                <option value="24">24 por pagina</option>
+                                <option value="9999">Todos</option>
+                            </select>
                         </div>
                     </div>
                     <div class="bp-panel-body">
-                        <div class="bp-department-list">
-                            @foreach ($departments as $department)
-                                <section class="bp-department-row">
-                                    <div>
-                                        <div class="bp-department-name">{{ $department->name }}</div>
-                                        <span class="bp-chip {{ $department->is_active ? 'bp-chip-success' : 'bp-chip-muted' }} mt-2">
-                                            <i class="ti {{ $department->is_active ? 'ti-circle-check' : 'ti-circle-off' }}"></i>
-                                            {{ $department->is_active ? 'Activo' : 'Inactivo' }}
-                                        </span>
-                                    </div>
-                                    <div class="bp-chip-row">
-                                        @forelse ($department->budgetProfiles as $profile)
-                                            <span class="bp-chip">
-                                                <i class="ti ti-wallet"></i>
-                                                {{ $profile->name }} - {{ $profile->subaccounts_count }} subcuentas - {{ $profile->users_count }} usuarios
+                        @if ($departments->isEmpty())
+                            <div class="bp-empty">
+                                <i class="ti ti-building fs-2 d-block mb-2"></i>
+                                Sin departamentos.
+                            </div>
+                        @else
+                            <div class="bp-profile-grid" id="departmentGrid">
+                                @foreach ($departments as $department)
+                                    @php
+                                        $departmentSearch = collect([
+                                            $department->name,
+                                            $department->abbreviated,
+                                            $department->notes,
+                                            $department->is_active ? 'activo' : 'inactivo',
+                                        ])->filter()->implode(' ');
+                                    @endphp
+
+                                    <article class="bp-profile-card js-department-card" data-search="{{ Str::lower($departmentSearch) }}" data-status="{{ $department->is_active ? '1' : '0' }}">
+                                        <div class="bp-profile-head">
+                                            <div>
+                                                <h5 class="bp-profile-name">{{ $department->name }}</h5>
+                                                <div class="bp-profile-department">
+                                                    <i class="ti ti-tag me-1"></i>{{ $department->abbreviated }}
+                                                </div>
+                                            </div>
+                                            <span class="bp-chip {{ $department->is_active ? 'bp-chip-success' : 'bp-chip-muted' }}">
+                                                <i class="ti {{ $department->is_active ? 'ti-circle-check' : 'ti-circle-off' }}"></i>
+                                                {{ $department->is_active ? 'Activo' : 'Inactivo' }}
                                             </span>
-                                        @empty
-                                            <span class="bp-chip bp-chip-muted">Sin perfiles</span>
-                                        @endforelse
-                                    </div>
-                                </section>
-                            @endforeach
-                        </div>
+                                        </div>
+
+                                        <div class="bp-profile-body">
+                                            <p class="bp-profile-description mb-3">
+                                                {{ $department->notes ?: 'Sin notas.' }}
+                                            </p>
+
+                                            <div class="bp-chip-row mb-3">
+                                                <span class="bp-chip"><i class="ti ti-wallet"></i>{{ $department->budgetProfiles->count() }} perfiles</span>
+                                                <span class="bp-chip"><i class="ti ti-list-details"></i>{{ $department->budgetProfiles->sum('subaccounts_count') }} subcuentas</span>
+                                                <span class="bp-chip"><i class="ti ti-users"></i>{{ $department->budgetProfiles->sum('users_count') }} usuarios</span>
+                                            </div>
+
+                                            <div class="bp-chip-row">
+                                                @forelse ($department->budgetProfiles->take(4) as $profile)
+                                                    <span class="bp-chip">
+                                                        <i class="ti ti-wallet"></i>
+                                                        {{ $profile->name }}
+                                                    </span>
+                                                @empty
+                                                    <span class="bp-chip bp-chip-muted">Sin perfiles</span>
+                                                @endforelse
+
+                                                @if ($department->budgetProfiles->count() > 4)
+                                                    <span class="bp-chip bp-chip-muted">+{{ $department->budgetProfiles->count() - 4 }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <div class="bp-profile-actions">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#editDepartment{{ $department->id }}" aria-expanded="false" aria-controls="editDepartment{{ $department->id }}">
+                                                <i class="ti ti-edit me-1"></i>Editar
+                                            </button>
+                                        </div>
+
+                                        <div class="collapse" id="editDepartment{{ $department->id }}">
+                                            <div class="bp-edit-area">
+                                                <form method="POST" action="{{ route('budget-profiles.departments.update', $department) }}" class="row g-3">
+                                                    @csrf
+                                                    @method('PUT')
+
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Nombre</label>
+                                                        <input type="text" name="name" class="form-control form-control-sm" value="{{ $department->name }}" maxlength="100" required>
+                                                    </div>
+
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Abreviacion</label>
+                                                        <input type="text" name="abbreviated" class="form-control form-control-sm text-uppercase" value="{{ $department->abbreviated }}" maxlength="10" required>
+                                                    </div>
+
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Estatus</label>
+                                                        <select name="is_active" class="form-select form-select-sm">
+                                                            <option value="1" @selected($department->is_active)>Activo</option>
+                                                            <option value="0" @selected(! $department->is_active)>Inactivo</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="col-12">
+                                                        <label class="form-label fw-semibold">Notas</label>
+                                                        <input type="text" name="notes" class="form-control form-control-sm" value="{{ $department->notes }}" maxlength="255">
+                                                    </div>
+
+                                                    <div class="col-12 text-end">
+                                                        <button type="submit" class="btn btn-primary btn-sm">
+                                                            <i class="ti ti-device-floppy me-1"></i>Guardar cambios
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+
+                            <div class="bp-empty d-none" id="departmentEmptySearch">
+                                <i class="ti ti-search fs-2 d-block mb-2"></i>
+                                Sin resultados.
+                            </div>
+
+                            <div class="bp-pagination" id="departmentPagination">
+                                <div class="bp-page-status" id="departmentPageStatus"></div>
+                                <div class="bp-page-actions">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentPrevPage">
+                                        <i class="ti ti-chevron-left me-1"></i>Anterior
+                                    </button>
+                                    <span class="bp-page-status" id="departmentPageNumber"></span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentNextPage">
+                                        Siguiente<i class="ti ti-chevron-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -847,6 +1026,65 @@
             });
 
             applyProfileFilters();
+
+            const $departmentCards = $('.js-department-card');
+            const $departmentPagination = $('#departmentPagination');
+            let departmentPage = 1;
+
+            const applyDepartmentFilters = function () {
+                const term = normalize($('#departmentSearch').val());
+                const status = $('#departmentStatusFilter').val();
+                const pageSize = parseInt($('#departmentPageSize').val(), 10);
+                const matchedCards = [];
+
+                $departmentCards.each(function () {
+                    const $card = $(this);
+                    const matchesSearch = normalize($card.data('search')).includes(term);
+                    const matchesStatus = ! status || String($card.data('status')) === status;
+                    const matches = matchesSearch && matchesStatus;
+
+                    $card.toggleClass('d-none', ! matches);
+
+                    if (matches) {
+                        matchedCards.push($card);
+                    }
+                });
+
+                const totalMatches = matchedCards.length;
+                const totalPages = Math.max(1, Math.ceil(totalMatches / pageSize));
+                departmentPage = Math.min(departmentPage, totalPages);
+
+                matchedCards.forEach(function ($card, index) {
+                    const isCurrentPage = index >= (departmentPage - 1) * pageSize && index < departmentPage * pageSize;
+                    $card.toggleClass('d-none', ! isCurrentPage);
+                });
+
+                $('#departmentEmptySearch').toggleClass('d-none', totalMatches !== 0);
+                $departmentPagination.toggleClass('d-none', totalMatches === 0);
+                $('#departmentPageStatus').text(totalMatches === 0 ? '' : totalMatches + ' departamentos encontrados');
+                $('#departmentPageNumber').text('Pagina ' + departmentPage + ' de ' + totalPages);
+                $('#departmentPrevPage').prop('disabled', departmentPage <= 1);
+                $('#departmentNextPage').prop('disabled', departmentPage >= totalPages);
+            };
+
+            $('#departmentSearch, #departmentStatusFilter, #departmentPageSize').on('input change', function () {
+                departmentPage = 1;
+                applyDepartmentFilters();
+            });
+
+            $('#departmentPrevPage').on('click', function () {
+                if (departmentPage > 1) {
+                    departmentPage--;
+                    applyDepartmentFilters();
+                }
+            });
+
+            $('#departmentNextPage').on('click', function () {
+                departmentPage++;
+                applyDepartmentFilters();
+            });
+
+            applyDepartmentFilters();
 
             $('.js-subaccount-picker').each(function () {
                 const $picker = $(this);

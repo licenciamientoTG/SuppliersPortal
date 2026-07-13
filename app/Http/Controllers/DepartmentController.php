@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 
 class DepartmentController extends Controller
@@ -21,7 +21,7 @@ class DepartmentController extends Controller
 
         return DataTables::of($query)
             ->editColumn('abbreviated', function ($row) {
-                return '<span class="badge bg-secondary">' . e($row->abbreviated) . '</span>';
+                return '<span class="badge bg-secondary">'.e($row->abbreviated).'</span>';
             })
             ->editColumn('is_active', function ($row) {
                 return $row->is_active
@@ -30,20 +30,12 @@ class DepartmentController extends Controller
             })
             ->addColumn('actions', function ($row) {
                 $editUrl = route('departments.edit', $row->id);
-                $deleteUrl = route('departments.destroy', $row->id);
 
                 return '
                 <div class="d-flex justify-content-end gap-1">
-                    <a href="' . $editUrl . '" class="btn btn-sm btn-outline-primary">
+                    <a href="'.$editUrl.'" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-edit"></i>
                     </a>
-                    <form action="' . $deleteUrl . '" method="POST" class="d-inline js-delete-form">
-                        ' . csrf_field() . method_field('DELETE') . '
-                        <button type="button" class="btn btn-sm btn-outline-danger js-delete-btn"
-                                data-entity="' . e($row->name) . '">
-                            <i class="ti ti-trash"></i>
-                        </button>
-                    </form>
                 </div>';
             })
             ->rawColumns(['abbreviated', 'is_active', 'actions'])
@@ -87,13 +79,13 @@ class DepartmentController extends Controller
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('departments', 'name')->ignore($department->id)
+                Rule::unique('departments', 'name')->ignore($department->id),
             ],
             'abbreviated' => [
                 'required',
                 'string',
                 'max:10',
-                Rule::unique('departments', 'abbreviated')->ignore($department->id)
+                Rule::unique('departments', 'abbreviated')->ignore($department->id),
             ],
             'is_active' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:255'],
@@ -111,7 +103,8 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
-        $department->delete();
-        return redirect()->route('departments.index')->with('success', 'Departamento eliminado.');
+        $department->update(['is_active' => false]);
+
+        return redirect()->route('departments.index')->with('success', 'Departamento desactivado correctamente.');
     }
 }

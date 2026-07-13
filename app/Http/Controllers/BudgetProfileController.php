@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Subaccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -70,6 +71,27 @@ class BudgetProfileController extends Controller
         return back()->with('success', 'Perfil presupuestal actualizado correctamente.');
     }
 
+    public function storeDepartment(Request $request): RedirectResponse
+    {
+        $data = $this->validateDepartment($request);
+        $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        $data['created_by'] = Auth::id();
+
+        Department::create($data);
+
+        return back()->with('success', 'Departamento creado correctamente.');
+    }
+
+    public function updateDepartment(Request $request, Department $department): RedirectResponse
+    {
+        $data = $this->validateDepartment($request, $department);
+        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+
+        $department->update($data);
+
+        return back()->with('success', 'Departamento actualizado correctamente.');
+    }
+
     private function validateProfile(Request $request, ?BudgetProfile $profile = null): array
     {
         return $request->validate([
@@ -87,6 +109,26 @@ class BudgetProfileController extends Controller
             'subaccount_ids' => ['array'],
             'subaccount_ids.*' => ['integer', 'exists:subaccounts,id'],
         ]) + ['is_active' => false];
+    }
+
+    private function validateDepartment(Request $request, ?Department $department = null): array
+    {
+        return $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('departments', 'name')->ignore($department?->id),
+            ],
+            'abbreviated' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::unique('departments', 'abbreviated')->ignore($department?->id),
+            ],
+            'notes' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
     }
 
     private function makeUniqueKey(int $departmentId, string $name): string

@@ -305,6 +305,8 @@ Route::middleware(['auth', 'lock'])->group(function () {
             ->controller(BudgetProfileController::class)
             ->group(function () {
                 Route::get('/', 'index')->name('index');
+                Route::post('/departments', 'storeDepartment')->name('departments.store');
+                Route::put('/departments/{department}', 'updateDepartment')->name('departments.update');
                 Route::post('/', 'storeProfile')->name('store');
                 Route::put('/{budgetProfile}', 'updateProfile')->name('update');
             });
