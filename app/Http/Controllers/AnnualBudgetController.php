@@ -5,13 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ApproveBudgetRequest;
 use App\Http\Requests\SaveAnnualBudgetRequest;
 use App\Models\AnnualBudget;
-use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
-use App\Models\User;
 use App\Services\BudgetCategorySummaryService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
@@ -20,8 +18,7 @@ class AnnualBudgetController extends Controller
 {
     public function __construct(
         private readonly BudgetCategorySummaryService $categorySummaryService
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -51,17 +48,36 @@ class AnnualBudgetController extends Controller
         }
 
         return DataTables::of($query)
+            ->filter(function ($query) use ($request) {
+                if (! $request->filled('search.value')) {
+                    return;
+                }
+
+                $search = $request->input('search.value');
+
+                $query->where(function ($query) use ($search) {
+                    $query->where('status', 'like', "%{$search}%")
+                        ->orWhereHas('costCenter', function ($query) use ($search) {
+                            $query->where('code', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('costCenter.company', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%");
+                        });
+                });
+            })
             ->addColumn('company_name', fn (AnnualBudget $row) => e($row->costCenter?->company?->name ?? '—'))
             ->addColumn('cost_center_label', function (AnnualBudget $row) {
                 if (! $row->costCenter) {
                     return '—';
                 }
 
-                $code = $row->costCenter->code ? '[' . $row->costCenter->code . '] ' : '';
-                return e($code . ($row->costCenter->name ?? '—'));
+                $code = $row->costCenter->code ? '['.$row->costCenter->code.'] ' : '';
+
+                return e($code.($row->costCenter->name ?? '—'));
             })
             ->editColumn('fiscal_year', fn (AnnualBudget $row) => (int) $row->fiscal_year)
-            ->editColumn('total_annual_amount', fn (AnnualBudget $row) => '$' . number_format((float) $row->total_annual_amount, 2))
+            ->editColumn('total_annual_amount', fn (AnnualBudget $row) => '$'.number_format((float) $row->total_annual_amount, 2))
             ->addColumn('status_label', function (AnnualBudget $row) {
                 $badges = [
                     'PLANIFICACION' => '<span class="badge bg-info">En Planificación</span>',
@@ -69,7 +85,7 @@ class AnnualBudgetController extends Controller
                     'CERRADO' => '<span class="badge bg-secondary">Cerrado</span>',
                 ];
 
-                return $badges[$row->status] ?? '<span class="badge bg-secondary">' . e($row->status) . '</span>';
+                return $badges[$row->status] ?? '<span class="badge bg-secondary">'.e($row->status).'</span>';
             })
             ->addColumn('approved_by_name', fn (AnnualBudget $row) => e($row->approvedBy?->name ?? '—'))
             ->addColumn('actions', function (AnnualBudget $row) {
@@ -78,24 +94,24 @@ class AnnualBudgetController extends Controller
                 $showUrl = route('annual_budgets.show', $row->id);
 
                 $actions = '<div class="d-flex justify-content-end gap-1">'
-                    . '<a class="btn btn-sm btn-outline-secondary" href="' . $showUrl . '" title="Ver detalle"><i class="ti ti-eye"></i></a>';
+                    .'<a class="btn btn-sm btn-outline-secondary" href="'.$showUrl.'" title="Ver detalle"><i class="ti ti-eye"></i></a>';
 
                 if ($row->monthly_distributions_count > 0) {
-                    $actions .= '<a class="btn btn-sm btn-outline-secondary" href="' . route('budget_monthly_distributions.edit', $row->id) . '" title="Ver/Editar Distribuciones"><i class="ti ti-calendar-stats"></i></a>';
+                    $actions .= '<a class="btn btn-sm btn-outline-secondary" href="'.route('budget_monthly_distributions.edit', $row->id).'" title="Ver/Editar Distribuciones"><i class="ti ti-calendar-stats"></i></a>';
                 } elseif ($row->status === 'PLANIFICACION') {
-                    $actions .= '<a class="btn btn-sm btn-outline-secondary" href="' . route('budget_monthly_distributions.create', $row->id) . '" title="Crear Distribuciones"><i class="ti ti-calendar-plus"></i></a>';
+                    $actions .= '<a class="btn btn-sm btn-outline-secondary" href="'.route('budget_monthly_distributions.create', $row->id).'" title="Crear Distribuciones"><i class="ti ti-calendar-plus"></i></a>';
                 }
 
                 if ($row->status === 'PLANIFICACION') {
-                    $actions .= '<a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '" title="Editar"><i class="ti ti-pencil"></i></a>';
-                    $actions .= '<a class="btn btn-sm btn-outline-success" href="' . route('annual_budgets.approve', $row->id) . '" title="Aprobar"><i class="ti ti-check"></i></a>';
+                    $actions .= '<a class="btn btn-sm btn-outline-primary" href="'.$editUrl.'" title="Editar"><i class="ti ti-pencil"></i></a>';
+                    $actions .= '<a class="btn btn-sm btn-outline-success" href="'.route('annual_budgets.approve', $row->id).'" title="Aprobar"><i class="ti ti-check"></i></a>';
                 }
 
-                $actions .= '<form action="' . $deleteUrl . '" method="POST" class="js-delete-form d-inline">'
-                    . csrf_field()
-                    . method_field('DELETE')
-                    . '<button type="button" class="btn btn-sm btn-outline-danger js-delete-btn" data-entity="Presupuesto ' . $row->fiscal_year . '" title="Eliminar"><i class="ti ti-trash"></i></button>'
-                    . '</form></div>';
+                $actions .= '<form action="'.$deleteUrl.'" method="POST" class="js-delete-form d-inline">'
+                    .csrf_field()
+                    .method_field('DELETE')
+                    .'<button type="button" class="btn btn-sm btn-outline-danger js-delete-btn" data-entity="Presupuesto '.$row->fiscal_year.'" title="Eliminar"><i class="ti ti-trash"></i></button>'
+                    .'</form></div>';
 
                 return $actions;
             })
@@ -264,7 +280,7 @@ class AnnualBudgetController extends Controller
         if (! $costCenterId || ! $categoryId || ! $month || ! $fiscalYear) {
             return response()->json([
                 'success' => false,
-                'message' => 'Faltan parámetros requeridos'
+                'message' => 'Faltan parámetros requeridos',
             ], 400);
         }
 
@@ -277,7 +293,7 @@ class AnnualBudgetController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'No hay presupuesto asignado para este centro de costos.',
-                'has_budget' => false
+                'has_budget' => false,
             ]);
         }
 
@@ -288,7 +304,7 @@ class AnnualBudgetController extends Controller
                 'message' => 'Centro de consumo libre - Sin límite presupuestal',
                 'has_budget' => true,
                 'is_free_consumption' => true,
-                'budget_type' => 'free'
+                'budget_type' => 'free',
             ]);
         }
 
@@ -298,7 +314,7 @@ class AnnualBudgetController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'No hay presupuesto asignado para esta cuenta.',
-                'has_budget' => false
+                'has_budget' => false,
             ]);
         }
 
@@ -334,7 +350,7 @@ class AnnualBudgetController extends Controller
                     'success' => false,
                     'message' => 'Faltan parámetros requeridos (cost_center_id, application_month)',
                     'has_budget' => false,
-                    'categories' => []
+                    'categories' => [],
                 ], 400);
             }
 
@@ -344,7 +360,7 @@ class AnnualBudgetController extends Controller
                     'success' => false,
                     'message' => 'Centro de costo no encontrado',
                     'has_budget' => false,
-                    'categories' => []
+                    'categories' => [],
                 ], 404);
             }
 
@@ -355,7 +371,7 @@ class AnnualBudgetController extends Controller
                     'success' => false,
                     'message' => 'Formato de mes inválido. Use YYYY-MM',
                     'has_budget' => false,
-                    'categories' => []
+                    'categories' => [],
                 ], 400);
             }
 
@@ -403,10 +419,10 @@ class AnnualBudgetController extends Controller
             if (! $annualBudget) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No existe presupuesto configurado para este centro de costo en el año ' . $fiscalYear,
+                    'message' => 'No existe presupuesto configurado para este centro de costo en el año '.$fiscalYear,
                     'error_type' => 'NO_BUDGET',
                     'has_budget' => false,
-                    'categories' => []
+                    'categories' => [],
                 ]);
             }
 
@@ -421,7 +437,7 @@ class AnnualBudgetController extends Controller
                     'consumed' => $summary['consumed_amount'],
                     'committed' => $summary['committed_amount'],
                     'available' => $summary['available_amount'],
-                    'available_formatted' => '$' . number_format($summary['available_amount'], 2, '.', ','),
+                    'available_formatted' => '$'.number_format($summary['available_amount'], 2, '.', ','),
                 ])
                 ->values();
 
@@ -431,7 +447,7 @@ class AnnualBudgetController extends Controller
                     'message' => 'No hay presupuesto disponible en ninguna categoría para este mes',
                     'error_type' => 'NO_AVAILABLE_BUDGET',
                     'has_budget' => false,
-                    'categories' => []
+                    'categories' => [],
                 ]);
             }
 
@@ -461,7 +477,7 @@ class AnnualBudgetController extends Controller
                 'success' => false,
                 'message' => 'Error al verificar el presupuesto disponible',
                 'has_budget' => false,
-                'categories' => []
+                'categories' => [],
             ], 500);
         }
     }
