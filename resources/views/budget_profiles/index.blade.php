@@ -246,8 +246,127 @@
             background: #fbfdff;
         }
 
-        .select2-container--bootstrap-5 .select2-selection {
-            border-color: #d7dee8;
+        .bp-subaccount-picker {
+            border: 1px solid var(--bp-border);
+            border-radius: 8px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .bp-picker-toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: .75rem;
+            align-items: center;
+            padding: .75rem;
+            border-bottom: 1px solid var(--bp-border);
+            background: #f8fafc;
+        }
+
+        .bp-picker-count {
+            color: var(--bp-muted);
+            font-size: .78rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .bp-picker-list {
+            max-height: 300px;
+            overflow: auto;
+        }
+
+        .bp-picker-group + .bp-picker-group {
+            border-top: 1px solid var(--bp-border);
+        }
+
+        .bp-picker-group-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .55rem .75rem;
+            background: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .bp-picker-group-title {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            min-width: 0;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            color: #0f172a;
+            font-size: .86rem;
+            font-weight: 800;
+            text-align: left;
+        }
+
+        .bp-picker-actions {
+            display: inline-flex;
+            gap: .25rem;
+            flex: 0 0 auto;
+        }
+
+        .bp-picker-actions .btn {
+            padding: 0 .25rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .bp-picker-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .35rem;
+            padding: 0 .75rem .75rem;
+        }
+
+        .bp-picker-option {
+            display: flex;
+            align-items: flex-start;
+            gap: .5rem;
+            min-height: 42px;
+            padding: .48rem .55rem;
+            border: 1px solid #e6edf5;
+            border-radius: 7px;
+            background: #fbfdff;
+            color: #334155;
+            cursor: pointer;
+            line-height: 1.25;
+        }
+
+        .bp-picker-option:hover {
+            border-color: #b9c7d8;
+            background: #f4f8fc;
+        }
+
+        .bp-picker-option input {
+            margin-top: .1rem;
+            flex: 0 0 auto;
+        }
+
+        .bp-picker-option:has(input:checked) {
+            border-color: rgba(37, 99, 235, .45);
+            background: rgba(37, 99, 235, .08);
+            color: #1e3a8a;
+        }
+
+        .bp-picker-option strong {
+            margin-right: .2rem;
+        }
+
+        .bp-picker-empty {
+            display: none;
+            padding: 1rem;
+            color: var(--bp-muted);
+            text-align: center;
+        }
+
+        .bp-subaccount-picker.is-empty .bp-picker-empty {
+            display: block;
         }
 
         @media (max-width: 1199.98px) {
@@ -272,6 +391,11 @@
 
             .bp-search {
                 max-width: none;
+            }
+
+            .bp-picker-toolbar,
+            .bp-picker-options {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -384,18 +508,16 @@
                                 <input type="text" name="description" class="form-control" value="{{ old('description') }}" placeholder="Ej. Compra operativa mensual">
                             </div>
 
-                            <div class="col-lg-2 col-md-6">
+                            <div class="col-lg-3 col-md-12">
                                 <label class="form-label fw-semibold">Subcuentas</label>
-                                <select name="subaccount_ids[]" class="form-select js-budget-select" multiple>
-                                    @foreach ($subaccounts as $subaccount)
-                                        <option value="{{ $subaccount->id }}" @selected(in_array($subaccount->id, old('subaccount_ids', [])))>
-                                            {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->code }} {{ $subaccount->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @include('budget_profiles.partials.subaccount-picker', [
+                                    'pickerId' => 'createSubaccountPicker',
+                                    'subaccounts' => $subaccounts,
+                                    'selectedSubaccountIds' => old('subaccount_ids', []),
+                                ])
                             </div>
 
-                            <div class="col-lg-1 d-grid">
+                            <div class="col-lg-12 d-grid d-lg-flex justify-content-lg-end">
                                 <button type="submit" class="btn btn-primary" title="Crear perfil">
                                     <i class="ti ti-plus me-1"></i>Crear
                                 </button>
@@ -517,13 +639,11 @@
 
                                                     <div class="col-12">
                                                         <label class="form-label fw-semibold">Subcuentas</label>
-                                                        <select name="subaccount_ids[]" class="form-select form-select-sm js-budget-select" multiple>
-                                                            @foreach ($subaccounts as $subaccount)
-                                                                <option value="{{ $subaccount->id }}" @selected($profile->subaccounts->contains('id', $subaccount->id))>
-                                                                    {{ $subaccount->account?->code }} - {{ $subaccount->account?->name }} / {{ $subaccount->code }} {{ $subaccount->name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
+                                                        @include('budget_profiles.partials.subaccount-picker', [
+                                                            'pickerId' => 'editSubaccountPicker'.$profile->id,
+                                                            'subaccounts' => $subaccounts,
+                                                            'selectedSubaccountIds' => $profile->subaccounts->pluck('id'),
+                                                        ])
                                                     </div>
 
                                                     <div class="col-12 text-end">
@@ -569,7 +689,7 @@
                                         @forelse ($department->budgetProfiles as $profile)
                                             <span class="bp-chip">
                                                 <i class="ti ti-wallet"></i>
-                                                {{ $profile->name }} · {{ $profile->subaccounts_count }} subcuentas · {{ $profile->users_count }} usuarios
+                                                {{ $profile->name }} - {{ $profile->subaccounts_count }} subcuentas - {{ $profile->users_count }} usuarios
                                             </span>
                                         @empty
                                             <span class="bp-chip bp-chip-muted">Sin perfiles</span>
@@ -588,13 +708,6 @@
 @push('scripts')
     <script>
         $(function () {
-            $('.js-budget-select').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: 'Selecciona subcuentas',
-                closeOnSelect: false
-            });
-
             const normalize = function (value) {
                 return (value || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             };
@@ -612,6 +725,68 @@
                 });
 
                 $('#profileEmptySearch').toggleClass('d-none', visible !== 0);
+            });
+
+            $('.js-subaccount-picker').each(function () {
+                const $picker = $(this);
+                const $count = $picker.find('.js-subaccount-count');
+
+                const updateCount = function () {
+                    $count.text($picker.find('input[type="checkbox"]:checked').length);
+                };
+
+                const updateSearch = function () {
+                    const term = normalize($picker.find('.js-subaccount-search').val());
+                    let visibleGroups = 0;
+
+                    $picker.find('.js-subaccount-group').each(function () {
+                        const $group = $(this);
+                        const groupMatches = normalize($group.data('search')).includes(term);
+                        let visibleOptions = 0;
+
+                        $group.find('.js-subaccount-option').each(function () {
+                            const $option = $(this);
+                            const matches = groupMatches || normalize($option.data('search')).includes(term);
+                            $option.toggle(matches);
+
+                            if (matches) {
+                                visibleOptions++;
+                            }
+                        });
+
+                        $group.toggle(visibleOptions > 0);
+
+                        if (visibleOptions > 0) {
+                            visibleGroups++;
+                        }
+                    });
+
+                    $picker.toggleClass('is-empty', visibleGroups === 0);
+                };
+
+                $picker.on('change', 'input[type="checkbox"]', updateCount);
+
+                $picker.on('input', '.js-subaccount-search', updateSearch);
+
+                $picker.on('click', '.js-select-group', function () {
+                    $(this)
+                        .closest('.js-subaccount-group')
+                        .find('.js-subaccount-option:visible input[type="checkbox"]')
+                        .prop('checked', true);
+
+                    updateCount();
+                });
+
+                $picker.on('click', '.js-clear-group', function () {
+                    $(this)
+                        .closest('.js-subaccount-group')
+                        .find('.js-subaccount-option:visible input[type="checkbox"]')
+                        .prop('checked', false);
+
+                    updateCount();
+                });
+
+                updateCount();
             });
         });
     </script>
