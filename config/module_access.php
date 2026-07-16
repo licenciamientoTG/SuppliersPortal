@@ -34,6 +34,9 @@ return [
         'document_review' => [
             'roles' => ['buyer', 'superadmin'],
         ],
+        'supplier_document_catalog' => [
+            'roles' => ['buyer', 'superadmin'],
+        ],
         'communicator' => [
             'roles' => ['superadmin', 'accounting'],
         ],

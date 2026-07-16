@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enum\PaymentTerm;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\SupplierDocumentRequirementService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -133,6 +134,11 @@ class Supplier extends Authenticatable
         return $this->hasMany(SupplierDocument::class);
     }
 
+    public function documentRequirements(): HasMany
+    {
+        return $this->hasMany(SupplierDocumentRequirement::class);
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(SupplierInvoice::class);
@@ -203,7 +209,7 @@ class Supplier extends Authenticatable
 
     public function canAccessFullPortal(): bool
     {
-        return $this->isApproved();
+        return $this->isApproved() && ! app(SupplierDocumentRequirementService::class)->hasBlockingRequirements($this);
     }
 
     public function hasRestrictedPortalAccess(): bool
@@ -213,29 +219,12 @@ class Supplier extends Authenticatable
 
     public function recalculateDocumentStatus(): string
     {
-        $requiredTypes = SupplierDocument::requiredTypesFor($this);
-
-        $docs = $this->documents()
-            ->whereIn('doc_type', $requiredTypes)
-            ->get(['doc_type', 'status', 'uploaded_at', 'created_at'])
-            ->groupBy('doc_type')
-            ->map(fn ($group) => $group->sortByDesc(fn ($doc) => $doc->uploaded_at ?? $doc->created_at)->first());
-
-        if ($docs->isEmpty()) {
-            $this->forceFill(['document_status' => 'pending'])->saveQuietly();
-
-            return 'pending';
-        }
-
-        $hasPending = $docs->contains(fn ($doc) => $doc->status === 'pending_review');
-        $hasRejected = $docs->contains(fn ($doc) => $doc->status === 'rejected');
-        $missingRequired = array_diff($requiredTypes, $docs->keys()->all());
-
+        $requirements = app(SupplierDocumentRequirementService::class)->ensureForSupplier($this);
         $status = match (true) {
-            $hasPending => 'in_review',
-            $hasRejected => 'rejected',
-            empty($missingRequired) => 'approved',
-            default => 'pending',
+            $requirements->contains(fn (SupplierDocumentRequirement $item) => $item->status === 'rejected') => 'rejected',
+            $requirements->contains(fn (SupplierDocumentRequirement $item) => $item->status === 'submitted') => 'in_review',
+            app(SupplierDocumentRequirementService::class)->hasBlockingRequirements($this) => 'pending',
+            default => 'approved',
         };
 
         $this->forceFill(['document_status' => $status])->saveQuietly();

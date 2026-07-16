@@ -1,14 +1,13 @@
 <?php
 
-
+use App\Http\Controllers\AccountCatalogController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AnnualBudgetController;
-use App\Http\Controllers\AccountCatalogController;
 use App\Http\Controllers\ApprovalLevelController;
 use App\Http\Controllers\AuthorizerRoleController;
-use App\Http\Controllers\BudgetProfileController;
 use App\Http\Controllers\BudgetMonthlyDistributionController;
 use App\Http\Controllers\BudgetMovementController;
+use App\Http\Controllers\BudgetProfileController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CatSupplierController;
 use App\Http\Controllers\CompanyController;
@@ -40,6 +39,7 @@ use App\Http\Controllers\RequisitionWorkflowController;
 use App\Http\Controllers\RfqComparisonController;
 use App\Http\Controllers\RfqController;
 use App\Http\Controllers\RfqInboxController;
+use App\Http\Controllers\RolesCatalogController;
 use App\Http\Controllers\SatEfos69bController;
 use App\Http\Controllers\SatRetencionController;
 use App\Http\Controllers\StationController;
@@ -47,12 +47,12 @@ use App\Http\Controllers\SupplierBankController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierDeliveryController;
 use App\Http\Controllers\SupplierDocumentController;
+use App\Http\Controllers\SupplierDocumentTypeController;
 use App\Http\Controllers\SupplierInvoiceController;
 use App\Http\Controllers\SupplierPortalController;
 use App\Http\Controllers\SupplierSirocController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\Tools\CfdiGeneratorController;
-use App\Http\Controllers\RolesCatalogController;
 use App\Http\Controllers\UserController;
 use App\Models\Requisition;
 use Illuminate\Support\Facades\Route;
@@ -199,6 +199,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::delete('/suppliers/{supplier}/documents/{document}', [SupplierDocumentController::class, 'destroy'])->name('suppliers.destroy');
         Route::post('/review/feedback', [SupplierDocumentController::class, 'feedback'])->name('suppliers.feedback');
     });
+
+    Route::middleware('module.access:supplier_document_catalog')->resource('supplier-document-types', SupplierDocumentTypeController::class)
+        ->except(['show', 'destroy']);
 
     // ========================================================================
     //  Supplier Banking, REPSE & SIROC
@@ -594,7 +597,6 @@ Route::middleware(['auth:supplier'])->prefix('supplier')->name('supplier.')->gro
         Route::post('/', [SupplierInvoiceController::class, 'store'])->name('store');
     });
 });
-
 
 // ============================================================================
 //  Tools (superadmin)

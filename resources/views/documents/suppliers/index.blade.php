@@ -22,11 +22,14 @@
     // Armar una lista simple de filas con el "último" documento por tipo
     // docsByType: Collection groupedBy('doc_type') que llega desde el controlador
     $rows = [];
-    foreach ($requiredTypes as $type) {
+    foreach ($supplierRequirements as $requirement) {
+        $type = $requirement->documentType->code;
         $collection = $docsByType[$type] ?? collect();
         $latest = $collection->sortByDesc(fn($d) => $d->uploaded_at ?? $d->created_at)->first();
         $rows[] = [
             'type'  => $type,
+            'label' => $requirement->documentType->name,
+            'requirement' => $requirement,
             'doc'   => $latest, // puede ser null
         ];
     }
@@ -60,6 +63,9 @@
         'acta_confidencialidad'    => 'Acta de confidencialidad',
         'curso_induccion'          => 'Curso de inducción',
     ];
+    foreach ($rows as $row) {
+        $labels[$row['type']] = $row['label'];
+    }
 
     // Helper de badge de estatus
     function status_badge($status) {
@@ -257,7 +263,7 @@
                                     /** @var \App\Models\SupplierDocument|null $doc */
                                     $doc = $r['doc'];
                                     $type = $r['type'];
-                                    $label = $labels[$type] ?? ucfirst(str_replace('_',' ', $type));
+                                    $label = $r['label'];
                                     $statusHtml = $doc ? status_badge($doc->status) : '<span class="badge bg-secondary">Sin cargar</span>';
                                     $dateHuman = $doc
                                         ? optional($doc->uploaded_at ?? $doc->created_at)->format('Y-m-d H:i')

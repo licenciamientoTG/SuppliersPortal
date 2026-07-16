@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterSupplierRequest;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
+use App\Models\SupplierDocumentType;
 use App\Models\User;
 use App\Notifications\NewSupplierRegistrationForBuyerNotification;
 use App\Notifications\SupplierWelcomeNotification;
 use App\Rules\EfosNotListed;
 use App\Rules\ValidRfc;
 use App\Services\SupplierCsfExtractorService;
+use App\Services\SupplierDocumentRequirementService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,12 +64,12 @@ class SupplierRegistrationController extends Controller
         ]);
     }
 
-    public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor)
+    public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor, SupplierDocumentRequirementService $requirements)
     {
         $data = $request->validated();
         $isForeign = $request->boolean('is_foreign');
 
-        return DB::transaction(function () use ($data, $request, $extractor, $isForeign) {
+        return DB::transaction(function () use ($data, $request, $extractor, $isForeign, $requirements) {
             $repseData = $this->prepareRepseData($data);
             $csfUpload = null;
             $fiscalData = null;
@@ -94,7 +96,7 @@ class SupplierRegistrationController extends Controller
                         'rfc' => $fiscalData['rfc'] ?? null,
                     ],
                     [
-                        'rfc' => ['required', 'unique:suppliers,rfc', new ValidRfc(), new EfosNotListed()],
+                        'rfc' => ['required', 'unique:suppliers,rfc', new ValidRfc, new EfosNotListed],
                     ]
                 );
 
@@ -110,20 +112,29 @@ class SupplierRegistrationController extends Controller
                 : $this->buildNationalSupplierData($data, $fiscalData, $repseData);
 
             $supplier = Supplier::create($supplierData);
+            $requirements->ensureForSupplier($supplier);
 
             if ($csfUpload) {
                 $documentPath = $extractor->persistTemporaryUploadAsDocument($supplier->id, $csfUpload);
 
+                $type = SupplierDocumentType::where('code', 'constancia_fiscal')->first();
+                $requirement = $type ? $requirements->requirementForUpload($supplier, $type) : null;
                 SupplierDocument::create([
                     'supplier_id' => $supplier->id,
                     'uploaded_by' => null,
                     'doc_type' => 'constancia_fiscal',
+                    'supplier_document_type_id' => $type?->id,
+                    'supplier_document_requirement_id' => $requirement?->id,
                     'path_file' => $documentPath,
                     'size_bytes' => $csfUpload['size_bytes'] ?? null,
                     'mime_type' => $csfUpload['mime_type'] ?? 'application/pdf',
                     'status' => 'pending_review',
                     'uploaded_at' => now(),
                 ]);
+
+                if ($requirement) {
+                    $requirements->markSubmitted($requirement);
+                }
 
                 $supplier->recalculateDocumentStatus();
                 $extractor->forgetTemporaryUpload((string) $data['csf_upload_token'], $request->session());
@@ -294,7 +305,7 @@ class SupplierRegistrationController extends Controller
         if (in_array('otros', $specializedServices) && ! empty($data['otros_descripcion'])) {
             $key = array_search('otros', $specializedServices);
             if ($key !== false) {
-                $specializedServices[$key] = 'otros: ' . trim($data['otros_descripcion']);
+                $specializedServices[$key] = 'otros: '.trim($data['otros_descripcion']);
             }
         }
 
@@ -315,7 +326,7 @@ class SupplierRegistrationController extends Controller
         $number = strtoupper(trim($number));
 
         if (! str_starts_with($number, 'REPSE-')) {
-            $number = 'REPSE-' . $number;
+            $number = 'REPSE-'.$number;
         }
 
         return $number;

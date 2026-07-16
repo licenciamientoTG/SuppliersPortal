@@ -376,6 +376,13 @@
                     @endif
                 </a>
             </li>
+            @moduleAccess('supplier_document_catalog')
+            <li class="side-nav-item">
+                <a href="{{ route('supplier-document-types.index') }}" class="side-nav-link {{ request()->routeIs('supplier-document-types.*') ? 'active' : '' }}">
+                    <span class="menu-text">Catálogo documental</span>
+                </a>
+            </li>
+            @endmoduleAccess
         </ul>
     </div>
 </li>

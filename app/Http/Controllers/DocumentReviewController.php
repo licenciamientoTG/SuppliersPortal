@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
+use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,7 @@ class DocumentReviewController extends Controller
         $requiredTypes = SupplierDocument::ALL_TYPES;
 
         // Bandeja: solo pendientes (para mostrar)
-        $pendingDocs = SupplierDocument::with(['supplier:id,company_name,rfc', 'uploader:id,name'])
+        $pendingDocs = SupplierDocument::with(['supplier:id,company_name,rfc', 'uploader:id,name', 'documentType'])
             ->where('status', 'pending_review')
             ->orderByDesc('uploaded_at')
             ->limit(50)
@@ -91,16 +92,20 @@ class DocumentReviewController extends Controller
         ]);
     }
 
-    public function accept(Request $request, SupplierDocument $document)
+    public function accept(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
-        DB::transaction(function () use ($request, $document) {
+        $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
+        $data = $request->validate([
+            'document_expiration_date' => [$isPeriodic ? 'required' : 'nullable', 'nullable', 'date'],
+        ]);
+        DB::transaction(function () use ($request, $document, $requirements, $data) {
             $document->update([
                 'status' => 'accepted',
                 'rejection_reason' => null,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);
-
+            $requirements->accept($document, $data['document_expiration_date'] ?? null, $request->user()->id);
             $document->supplier?->recalculateDocumentStatus();
         });
 
@@ -119,20 +124,20 @@ class DocumentReviewController extends Controller
         return back()->with('success', 'Documento aprobado correctamente.');
     }
 
-    public function reject(Request $request, SupplierDocument $document)
+    public function reject(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ], [], ['reason' => 'motivo de rechazo']);
 
-        DB::transaction(function () use ($request, $document, $data) {
+        DB::transaction(function () use ($request, $document, $data, $requirements) {
             $document->update([
                 'status' => 'rejected',
                 'rejection_reason' => $data['reason'],
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);
-
+            $requirements->reject($document);
             $document->supplier?->recalculateDocumentStatus();
         });
 

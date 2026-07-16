@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Mail\SupplierFeedbackMail;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
+use App\Models\SupplierDocumentType;
+use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +14,7 @@ use Illuminate\Validation\Rule;
 
 class SupplierDocumentController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, SupplierDocumentRequirementService $requirements)
     {
         $supplier = $request->user('supplier') ?? Supplier::whereKey(optional($request->user())->supplier?->id)->firstOrFail();
 
@@ -21,25 +23,29 @@ class SupplierDocumentController extends Controller
             ->get()
             ->groupBy('doc_type');
 
+        $supplierRequirements = $requirements->ensureForSupplier($supplier)->where('is_enforced', true);
+
         return view('documents.suppliers.index', [
             'supplier' => $supplier,
             'requiredTypes' => SupplierDocument::requiredTypesFor($supplier),
             'docsByType' => $docs,
+            'supplierRequirements' => $supplierRequirements,
         ]);
     }
 
-    public function store(Request $request, Supplier $supplier)
+    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements)
     {
         $authenticatedSupplier = $request->user('supplier');
         if ($authenticatedSupplier) {
             abort_unless((int) $authenticatedSupplier->id === (int) $supplier->id, 403);
         }
 
-        $docType = $request->input('doc_type');
+        $docType = (string) $request->input('doc_type');
+        $type = SupplierDocumentType::query()->where('code', $docType)->where('is_active', true)->firstOrFail();
         $maxKb = SupplierDocument::maxKbFor($docType);
 
         $request->validate([
-            'doc_type' => ['required', Rule::in(SupplierDocument::ALL_TYPES)],
+            'doc_type' => ['required', Rule::in(SupplierDocumentType::query()->where('is_active', true)->pluck('code')->all())],
             'file' => [
                 'required',
                 'file',
@@ -51,16 +57,23 @@ class SupplierDocumentController extends Controller
         $file = $request->file('file');
         $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
 
+        $requirement = $requirements->requirementForUpload($supplier, $type);
         $doc = SupplierDocument::create([
             'supplier_id' => $supplier->id,
             'uploaded_by' => $request->user('web')?->id,
             'doc_type' => $docType,
+            'supplier_document_type_id' => $type->id,
+            'supplier_document_requirement_id' => $requirement?->id,
             'path_file' => $path,
             'size_bytes' => $file->getSize(),
             'mime_type' => $file->getClientMimeType(),
             'status' => 'pending_review',
             'uploaded_at' => now(),
         ]);
+
+        if ($requirement) {
+            $requirements->markSubmitted($requirement);
+        }
 
         $supplier->recalculateDocumentStatus();
 
@@ -76,13 +89,15 @@ class SupplierDocumentController extends Controller
         ]);
     }
 
-    public function review(Request $request, Supplier $supplier, SupplierDocument $document)
+    public function review(Request $request, Supplier $supplier, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
         $this->authorize('review', $document);
 
-        $request->validate([
+        $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
+        $data = $request->validate([
             'action' => ['required', Rule::in(['accept', 'reject'])],
             'rejection_reason' => ['nullable', 'string', 'max:2000'],
+            'document_expiration_date' => [$isPeriodic && $request->input('action') === 'accept' ? 'required' : 'nullable', 'nullable', 'date'],
         ]);
 
         if ($request->action === 'accept') {
@@ -101,12 +116,17 @@ class SupplierDocumentController extends Controller
             ]);
         }
 
+        if ($request->action === 'accept') {
+            $requirements->accept($document, $data['document_expiration_date'] ?? null, $request->user('web')?->id);
+        } else {
+            $requirements->reject($document);
+        }
         $supplier->recalculateDocumentStatus();
 
         return back()->with('success', 'Revisión registrada.');
     }
 
-    public function destroy(Request $request, Supplier $supplier, $documentId)
+    public function destroy(Request $request, Supplier $supplier, $documentId, SupplierDocumentRequirementService $requirements)
     {
         $authenticatedSupplier = $request->user('supplier');
         if ($authenticatedSupplier) {
@@ -115,11 +135,16 @@ class SupplierDocumentController extends Controller
 
         $document = $supplier->documents()->whereKey($documentId)->firstOrFail();
 
+        abort_if($document->requirement?->current_document_id === $document->id, 422, 'No puedes eliminar el documento vigente. Carga una nueva versión para reemplazarlo.');
+
         if ($document->path_file && Storage::disk('public')->exists($document->path_file)) {
             Storage::disk('public')->delete($document->path_file);
         }
 
         $document->delete();
+        if ($document->requirement) {
+            $requirements->refreshRequirement($document->requirement);
+        }
         $supplier->recalculateDocumentStatus();
 
         return response()->json(['ok' => true]);

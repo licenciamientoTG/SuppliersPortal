@@ -42,15 +42,32 @@ class SupplierDocument extends Model
         'uploaded_at',
         'reviewed_by',
         'reviewed_at',
+        'supplier_document_type_id',
+        'supplier_document_requirement_id',
+        'document_expiration_date',
+        'expiration_verified_at',
+        'expiration_verified_by',
     ];
 
     protected $casts = [
         'uploaded_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'document_expiration_date' => 'date',
+        'expiration_verified_at' => 'datetime',
     ];
 
     public static function requiredTypesFor(?Supplier $supplier): array
     {
+        if ($supplier) {
+            try {
+                return SupplierDocumentType::query()
+                    ->requiredForSupplier($supplier)
+                    ->pluck('code')
+                    ->all();
+            } catch (\Throwable) {
+                // Permite ejecutar instalaciones donde la migracion aun no se ha aplicado.
+            }
+        }
         $required = [
             'constancia_fiscal',
             'comprobante_domicilio',
@@ -92,5 +109,20 @@ class SupplierDocument extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function documentType(): BelongsTo
+    {
+        return $this->belongsTo(SupplierDocumentType::class, 'supplier_document_type_id');
+    }
+
+    public function requirement(): BelongsTo
+    {
+        return $this->belongsTo(SupplierDocumentRequirement::class, 'supplier_document_requirement_id');
+    }
+
+    public function expirationVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'expiration_verified_by');
     }
 }

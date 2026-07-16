@@ -22,3 +22,8 @@ Schedule::command('exchange-rates:sync')
     ->between('8:00', '18:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/exchange-rates.log'));
+
+Schedule::command('supplier-documents:notify-renewals')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/supplier-document-renewals.log'));
