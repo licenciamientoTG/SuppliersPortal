@@ -36,7 +36,7 @@ class SupplierDocumentCatalogTest extends TestCase
     {
         $supplier = Supplier::factory()->create(['person_type' => 'fisica', 'approval_status' => 'approved', 'is_active' => true]);
         $type = SupplierDocumentType::query()->where('code', 'opinion_sat')->firstOrFail();
-        $type->update(['renewal_mode' => 'periodic', 'renewal_interval_days' => 30]);
+        $type->update(['renewal_mode' => 'periodic', 'renewal_interval_value' => 3, 'renewal_interval_unit' => 'months']);
         $service = app(SupplierDocumentRequirementService::class);
         $requirement = $service->requirementForUpload($supplier, $type);
         $document = SupplierDocument::create([
@@ -44,11 +44,30 @@ class SupplierDocumentCatalogTest extends TestCase
             'supplier_document_type_id' => $type->id, 'supplier_document_requirement_id' => $requirement->id,
             'path_file' => 'supplier/test.pdf', 'status' => 'accepted', 'uploaded_at' => now(), 'reviewed_at' => now(),
         ]);
-        $service->accept($document, now()->addMonth()->toDateString(), null);
+        $service->accept($document, now()->subMonth()->toDateString(), null);
 
         $this->assertFalse($service->hasBlockingRequirements($supplier));
         $requirement->update(['expires_at' => now()->subDay(), 'status' => 'expired']);
         $this->assertTrue($service->hasBlockingRequirements($supplier));
+    }
+
+    public function test_periodic_expiry_is_calculated_from_issue_date_not_approval_date(): void
+    {
+        $supplier = Supplier::factory()->create(['person_type' => 'fisica']);
+        $type = SupplierDocumentType::query()->where('code', 'opinion_sat')->firstOrFail();
+        $type->update(['renewal_mode' => 'periodic', 'renewal_interval_value' => 3, 'renewal_interval_unit' => 'months']);
+        $service = app(SupplierDocumentRequirementService::class);
+        $requirement = $service->requirementForUpload($supplier, $type);
+        $document = SupplierDocument::create([
+            'supplier_id' => $supplier->id, 'doc_type' => $type->code,
+            'supplier_document_type_id' => $type->id, 'supplier_document_requirement_id' => $requirement->id,
+            'path_file' => 'supplier/opinion.pdf', 'status' => 'accepted', 'uploaded_at' => now(), 'reviewed_at' => now(),
+        ]);
+
+        $service->accept($document, '2026-01-31', null);
+
+        $this->assertSame('2026-04-30', $requirement->fresh()->expires_at->toDateString());
+        $this->assertSame('2026-01-31', $document->fresh()->issued_at->toDateString());
     }
 
     public function test_new_catalog_requirement_grants_existing_supplier_fourteen_days(): void

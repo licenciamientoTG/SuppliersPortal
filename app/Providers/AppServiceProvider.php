@@ -2,18 +2,19 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use App\Services\NotificationCenterService;
-use App\Services\ModuleAccessService;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Gate; // 👈 AGREGAR ESTA LÍNEA
-use Illuminate\Validation\Rules\Password;
 use App\Models\ExchangeRate;
+use App\Models\ReceivingLocation;
 use App\Models\SupplierDocument;
-use App\Models\ReceivingLocation; // 👈 AGREGAR ESTA LÍNEA
-use App\Policies\ReceivingLocationPolicy; // 👈 AGREGAR ESTA LÍNEA
+use App\Policies\ReceivingLocationPolicy;
+use App\Services\DocumentIssueDateExtractionService;
+use App\Services\ModuleAccessService;
+use App\Services\NotificationCenterService;
+use Illuminate\Support\Facades\Blade; // 👈 AGREGAR ESTA LÍNEA
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider; // 👈 AGREGAR ESTA LÍNEA
+use Illuminate\Validation\Rules\Password; // 👈 AGREGAR ESTA LÍNEA
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(DocumentIssueDateExtractionService::class, fn () => new DocumentIssueDateExtractionService);
     }
 
     /**

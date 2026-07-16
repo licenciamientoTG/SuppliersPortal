@@ -96,7 +96,7 @@ class DocumentReviewController extends Controller
     {
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
         $data = $request->validate([
-            'document_expiration_date' => [$isPeriodic ? 'required' : 'nullable', 'nullable', 'date'],
+            'issued_at' => [$isPeriodic ? 'required' : 'nullable', 'nullable', 'date'],
         ]);
         DB::transaction(function () use ($request, $document, $requirements, $data) {
             $document->update([
@@ -105,7 +105,7 @@ class DocumentReviewController extends Controller
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);
-            $requirements->accept($document, $data['document_expiration_date'] ?? null, $request->user()->id);
+            $requirements->accept($document, $data['issued_at'] ?? null, $request->user()->id);
             $document->supplier?->recalculateDocumentStatus();
         });
 

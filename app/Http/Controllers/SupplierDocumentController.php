@@ -6,6 +6,7 @@ use App\Mail\SupplierFeedbackMail;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
 use App\Models\SupplierDocumentType;
+use App\Services\DocumentIssueDateExtractionService;
 use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -33,7 +34,7 @@ class SupplierDocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements)
+    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements, DocumentIssueDateExtractionService $issueDates)
     {
         $authenticatedSupplier = $request->user('supplier');
         if ($authenticatedSupplier) {
@@ -56,6 +57,9 @@ class SupplierDocumentController extends Controller
 
         $file = $request->file('file');
         $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
+        $issueDateExtraction = $type->validity_source === 'qr'
+            ? $issueDates->extract($file, $type)
+            : ['issued_at' => null, 'metadata' => null];
 
         $requirement = $requirements->requirementForUpload($supplier, $type);
         $doc = SupplierDocument::create([
@@ -69,6 +73,9 @@ class SupplierDocumentController extends Controller
             'mime_type' => $file->getClientMimeType(),
             'status' => 'pending_review',
             'uploaded_at' => now(),
+            'issued_at' => $issueDateExtraction['issued_at'],
+            'issued_at_source' => $issueDateExtraction['issued_at'] ? 'qr' : null,
+            'issue_date_extraction_data' => $issueDateExtraction['metadata'],
         ]);
 
         if ($requirement) {
@@ -97,7 +104,7 @@ class SupplierDocumentController extends Controller
         $data = $request->validate([
             'action' => ['required', Rule::in(['accept', 'reject'])],
             'rejection_reason' => ['nullable', 'string', 'max:2000'],
-            'document_expiration_date' => [$isPeriodic && $request->input('action') === 'accept' ? 'required' : 'nullable', 'nullable', 'date'],
+            'issued_at' => [$isPeriodic && $request->input('action') === 'accept' ? 'required' : 'nullable', 'nullable', 'date'],
         ]);
 
         if ($request->action === 'accept') {
@@ -117,7 +124,7 @@ class SupplierDocumentController extends Controller
         }
 
         if ($request->action === 'accept') {
-            $requirements->accept($document, $data['document_expiration_date'] ?? null, $request->user('web')?->id);
+            $requirements->accept($document, $data['issued_at'] ?? null, $request->user('web')?->id);
         } else {
             $requirements->reject($document);
         }

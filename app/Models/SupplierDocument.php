@@ -47,6 +47,11 @@ class SupplierDocument extends Model
         'document_expiration_date',
         'expiration_verified_at',
         'expiration_verified_by',
+        'issued_at',
+        'issued_at_source',
+        'issued_at_verified_at',
+        'issued_at_verified_by',
+        'issue_date_extraction_data',
     ];
 
     protected $casts = [
@@ -54,6 +59,9 @@ class SupplierDocument extends Model
         'reviewed_at' => 'datetime',
         'document_expiration_date' => 'date',
         'expiration_verified_at' => 'datetime',
+        'issued_at' => 'date',
+        'issued_at_verified_at' => 'datetime',
+        'issue_date_extraction_data' => 'array',
     ];
 
     public static function requiredTypesFor(?Supplier $supplier): array
@@ -124,5 +132,10 @@ class SupplierDocument extends Model
     public function expirationVerifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'expiration_verified_by');
+    }
+
+    public function issueDateVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'issued_at_verified_by');
     }
 }

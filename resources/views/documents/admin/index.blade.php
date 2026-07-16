@@ -164,6 +164,7 @@
                                                 data-type="{{ $type }}"
                                                 data-doc="{{ $doc->id ?? '' }}"
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
+                                                data-issued-at="{{ $doc->issued_at?->format('Y-m-d') }}"
                                                 title="Revisar">
                                                 <i class="ti ti-eye me-1"></i> Revisar
                                             </button>
@@ -312,8 +313,8 @@
                 {{-- Panel de confirmación de aprobación (inline) --}}
                 <div id="reviewAcceptPanel" class="d-none p-4 text-center">
                     <div id="expirationDateGroup" class="d-none text-start mx-auto mb-3" style="max-width: 320px;">
-                        <label class="form-label">Fecha verificada en el documento</label>
-                        <input id="documentExpirationDate" type="date" class="form-control">
+                        <label class="form-label">Fecha de emisión</label>
+                        <input id="documentIssuedAt" type="date" class="form-control">
                     </div>
                     <i class="ti ti-circle-check text-success" style="font-size:3rem;"></i>
                     <h6 class="mt-3">¿Confirmar aprobación?</h6>
@@ -438,6 +439,7 @@ $(function () {
             .data('type',         btn.data('type'))
             .data('doc',          btn.data('doc'));
         $('#reviewModal').data('periodic', btn.data('periodic') === 1);
+        $('#reviewModal').data('issued-at', btn.data('issued-at') || '');
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById('reviewModal')).show();
     });
@@ -460,6 +462,7 @@ $(function () {
 
     $(document).on('click', '.js-show-accept', () => {
         $('#expirationDateGroup').toggleClass('d-none', !$('#reviewModal').data('periodic'));
+        $('#documentIssuedAt').val($('#reviewModal').data('issued-at'));
         showPanel('reviewAcceptPanel', 'reviewFooterAccept');
     });
 
@@ -473,13 +476,13 @@ $(function () {
         const $btn = $(this).prop('disabled', true).text('Aprobando…');
 
         const periodic = $('#reviewModal').data('periodic');
-        const documentExpirationDate = $('#documentExpirationDate').val();
-        if (periodic && !documentExpirationDate) {
-            toast('error', 'Fecha requerida', 'Confirma la fecha de vigencia mostrada en el documento.');
+        const issuedAt = $('#documentIssuedAt').val();
+        if (periodic && !issuedAt) {
+            toast('error', 'Fecha requerida', 'Confirma la fecha de emisión mostrada en el documento.');
             $btn.prop('disabled', false).html('<i class="ti ti-check me-1"></i> SÃ­, aprobar');
             return;
         }
-        $.post(url, periodic ? { document_expiration_date: documentExpirationDate } : {}).done(() => {
+        $.post(url, periodic ? { issued_at: issuedAt } : {}).done(() => {
             bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
             if ($activeRow) $activeRow.find('td:nth-child(6)').html('<span class="badge bg-success">Aprobado</span>');
             $('#kpiPendientes').text(Math.max(0, parseInt($('#kpiPendientes').text()) - 1));

@@ -87,7 +87,7 @@ class SupplierDocumentRequirementService
         $requirement->update(['status' => 'submitted']);
     }
 
-    public function accept(SupplierDocument $document, ?string $documentExpirationDate, ?int $reviewerId): void
+    public function accept(SupplierDocument $document, ?string $issuedAt, ?int $reviewerId): void
     {
         $type = $document->documentType;
         $requirement = $document->requirement;
@@ -95,12 +95,16 @@ class SupplierDocumentRequirementService
             return;
         }
 
-        $expiresAt = $type->calculateExpiry(now());
+        $issuedAt = $issuedAt ? \Carbon\Carbon::parse($issuedAt) : null;
+        $expiresAt = $issuedAt ? $type->calculateExpiry($issuedAt) : null;
 
         $document->update([
-            'document_expiration_date' => $documentExpirationDate,
-            'expiration_verified_at' => $type->renewal_mode === 'periodic' ? now() : null,
-            'expiration_verified_by' => $type->renewal_mode === 'periodic' ? $reviewerId : null,
+            'issued_at' => $issuedAt,
+            'issued_at_source' => $issuedAt
+                ? ($document->issued_at && $document->issued_at->isSameDay($issuedAt) ? 'qr' : 'manual')
+                : null,
+            'issued_at_verified_at' => $type->renewal_mode === 'periodic' ? now() : null,
+            'issued_at_verified_by' => $type->renewal_mode === 'periodic' ? $reviewerId : null,
         ]);
 
         $requirement->update([
@@ -137,8 +141,8 @@ class SupplierDocumentRequirementService
 
         if ($latestAccepted) {
             $expiresAt = $requirement->expires_at;
-            if ($type->renewal_mode === 'periodic' && ! $expiresAt) {
-                $expiresAt = $type->calculateExpiry($latestAccepted->reviewed_at ?? $latestAccepted->uploaded_at ?? now());
+            if ($type->renewal_mode === 'periodic' && ! $expiresAt && $latestAccepted->issued_at) {
+                $expiresAt = $type->calculateExpiry($latestAccepted->issued_at);
             }
             $requirement->update([
                 'current_document_id' => $latestAccepted->id,
