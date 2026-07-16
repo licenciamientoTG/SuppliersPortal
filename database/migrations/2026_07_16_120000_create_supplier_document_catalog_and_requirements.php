@@ -9,7 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('supplier_document_types', function (Blueprint $table) {
+        if (! Schema::hasTable('supplier_document_types')) {
+            Schema::create('supplier_document_types', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->unique();
             $table->string('name', 120);
@@ -24,9 +25,11 @@ return new class extends Migration
             $table->string('validity_source', 20)->default('manual');
             $table->timestamp('activated_at')->nullable();
             $table->timestamps();
-        });
+            });
+        }
 
-        Schema::create('supplier_document_requirements', function (Blueprint $table) {
+        if (! Schema::hasTable('supplier_document_requirements')) {
+            Schema::create('supplier_document_requirements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_id')->constrained()->noActionOnDelete();
             $table->foreignId('supplier_document_type_id')->constrained()->noActionOnDelete();
@@ -41,9 +44,11 @@ return new class extends Migration
             $table->unique(['supplier_id', 'supplier_document_type_id'], 'supplier_document_requirement_unique');
             $table->index(['is_enforced', 'due_at']);
             $table->index(['is_enforced', 'expires_at']);
-        });
+            });
+        }
 
-        Schema::create('supplier_document_requirement_notifications', function (Blueprint $table) {
+        if (! Schema::hasTable('supplier_document_requirement_notifications')) {
+            Schema::create('supplier_document_requirement_notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_document_requirement_id')->constrained()->cascadeOnDelete();
             $table->integer('milestone_days');
@@ -51,14 +56,25 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['supplier_document_requirement_id', 'milestone_days'], 'supplier_document_requirement_notice_unique');
-        });
+            });
+        }
 
         Schema::table('supplier_documents', function (Blueprint $table) {
+            if (! Schema::hasColumn('supplier_documents', 'supplier_document_type_id')) {
             $table->foreignId('supplier_document_type_id')->nullable()->after('supplier_id')->constrained()->noActionOnDelete();
+            }
+            if (! Schema::hasColumn('supplier_documents', 'supplier_document_requirement_id')) {
             $table->foreignId('supplier_document_requirement_id')->nullable()->after('supplier_document_type_id')->constrained()->noActionOnDelete();
+            }
+            if (! Schema::hasColumn('supplier_documents', 'document_expiration_date')) {
             $table->date('document_expiration_date')->nullable()->after('reviewed_at');
+            }
+            if (! Schema::hasColumn('supplier_documents', 'expiration_verified_at')) {
             $table->timestamp('expiration_verified_at')->nullable()->after('document_expiration_date');
+            }
+            if (! Schema::hasColumn('supplier_documents', 'expiration_verified_by')) {
             $table->foreignId('expiration_verified_by')->nullable()->after('expiration_verified_at')->constrained('users')->noActionOnDelete();
+            }
         });
 
         $now = now();
@@ -79,6 +95,9 @@ return new class extends Migration
         ];
 
         foreach ($types as [$code, $name, $physical, $legal, $repseOnly, $required]) {
+            if (DB::table('supplier_document_types')->where('code', $code)->exists()) {
+                continue;
+            }
             DB::table('supplier_document_types')->insert([
                 'code' => $code,
                 'name' => $name,
@@ -95,19 +114,28 @@ return new class extends Migration
             ]);
         }
 
-        $typeIds = DB::table('supplier_document_types')->pluck('id', 'code');
-        DB::table('supplier_documents')->orderBy('id')->each(function (object $document) use ($typeIds): void {
-            $typeId = $typeIds[$document->doc_type] ?? null;
-            if ($typeId) {
-                DB::table('supplier_documents')->where('id', $document->id)->update(['supplier_document_type_id' => $typeId]);
-            }
-        });
+        if (DB::connection()->getDriverName() === 'sqlsrv') {
+            DB::statement('UPDATE sd SET supplier_document_type_id = sdt.id FROM supplier_documents sd INNER JOIN supplier_document_types sdt ON sdt.code = sd.doc_type WHERE sd.supplier_document_type_id IS NULL');
+        } else {
+            $typeIds = DB::table('supplier_document_types')->pluck('id', 'code');
+            DB::table('supplier_documents')->whereNull('supplier_document_type_id')->orderBy('id')->each(function (object $document) use ($typeIds): void {
+                $typeId = $typeIds[$document->doc_type] ?? null;
+                if ($typeId) DB::table('supplier_documents')->where('id', $document->id)->update(['supplier_document_type_id' => $typeId]);
+            });
+        }
 
         DB::table('suppliers')->orderBy('id')->each(function (object $supplier) use ($now): void {
             foreach (DB::table('supplier_document_types')->where('is_required', true)->get() as $type) {
                 $matchesPerson = ($supplier->person_type === 'fisica' && $type->applies_to_physical)
                     || ($supplier->person_type === 'moral' && $type->applies_to_legal);
                 if (! $matchesPerson || ($type->requires_repse && ! $supplier->provides_specialized_services)) {
+                    continue;
+                }
+
+                if (DB::table('supplier_document_requirements')
+                    ->where('supplier_id', $supplier->id)
+                    ->where('supplier_document_type_id', $type->id)
+                    ->exists()) {
                     continue;
                 }
 
