@@ -51,7 +51,8 @@ class SupplierDocumentTypeController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
             'renewal_mode' => ['required', Rule::in(SupplierDocumentType::RENEWAL_MODES)],
-            'renewal_interval_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+            'renewal_interval_value' => ['nullable', 'integer', 'min:1', 'max:3650'],
+            'renewal_interval_unit' => ['nullable', Rule::in(SupplierDocumentType::PERIODICITY_UNITS)],
             'validity_source' => ['required', Rule::in(SupplierDocumentType::VALIDITY_SOURCES)],
         ]);
 
@@ -61,10 +62,17 @@ class SupplierDocumentTypeController extends Controller
         $data['applies_to_legal'] = $request->boolean('applies_to_legal');
         $data['requires_repse'] = $request->boolean('requires_repse');
         if ($data['renewal_mode'] === 'periodic') {
-            validator($data, ['renewal_interval_days' => ['required', 'integer', 'min:1']])->validate();
+            validator($data, [
+                'renewal_interval_value' => ['required', 'integer', 'min:1'],
+                'renewal_interval_unit' => ['required', Rule::in(SupplierDocumentType::PERIODICITY_UNITS)],
+            ])->validate();
         } else {
-            $data['renewal_interval_days'] = null;
+            $data['renewal_interval_value'] = null;
+            $data['renewal_interval_unit'] = null;
         }
+        $data['renewal_interval_days'] = ($data['renewal_interval_unit'] ?? null) === 'days'
+            ? $data['renewal_interval_value']
+            : null;
         if ($data['is_active'] && ! $type?->is_active) {
             $data['activated_at'] = now();
         }

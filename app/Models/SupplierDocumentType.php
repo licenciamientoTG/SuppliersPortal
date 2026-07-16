@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,10 +13,12 @@ class SupplierDocumentType extends Model
 
     public const VALIDITY_SOURCES = ['manual', 'qr'];
 
+    public const PERIODICITY_UNITS = ['days', 'weeks', 'months', 'years'];
+
     protected $fillable = [
         'code', 'name', 'description', 'is_active', 'is_required',
         'applies_to_physical', 'applies_to_legal', 'requires_repse',
-        'renewal_mode', 'renewal_interval_days', 'validity_source', 'activated_at',
+        'renewal_mode', 'renewal_interval_days', 'renewal_interval_value', 'renewal_interval_unit', 'validity_source', 'activated_at',
     ];
 
     protected function casts(): array
@@ -30,6 +33,50 @@ class SupplierDocumentType extends Model
     public function requirements(): HasMany
     {
         return $this->hasMany(SupplierDocumentRequirement::class);
+    }
+
+    public function periodicityValue(): ?int
+    {
+        return $this->renewal_interval_value ?? $this->renewal_interval_days;
+    }
+
+    public function periodicityUnit(): string
+    {
+        return $this->renewal_interval_unit ?: 'days';
+    }
+
+    public function calculateExpiry(CarbonInterface $from): ?CarbonInterface
+    {
+        if ($this->renewal_mode !== 'periodic' || ! $this->periodicityValue()) {
+            return null;
+        }
+
+        $value = $this->periodicityValue();
+
+        return match ($this->periodicityUnit()) {
+            'weeks' => $from->copy()->addWeeks($value),
+            'months' => $from->copy()->addMonthsNoOverflow($value),
+            'years' => $from->copy()->addYearsNoOverflow($value),
+            default => $from->copy()->addDays($value),
+        };
+    }
+
+    public function periodicityLabel(): string
+    {
+        if ($this->renewal_mode !== 'periodic' || ! $this->periodicityValue()) {
+            return 'Una sola vez';
+        }
+
+        $value = $this->periodicityValue();
+        $labels = [
+            'days' => ['día', 'días'],
+            'weeks' => ['semana', 'semanas'],
+            'months' => ['mes', 'meses'],
+            'years' => ['año', 'años'],
+        ];
+        $unit = $labels[$this->periodicityUnit()] ?? $labels['days'];
+
+        return 'Cada '.$value.' '.($value === 1 ? $unit[0] : $unit[1]);
     }
 
     public function appliesTo(Supplier $supplier): bool

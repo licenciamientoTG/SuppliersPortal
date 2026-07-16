@@ -95,9 +95,7 @@ class SupplierDocumentRequirementService
             return;
         }
 
-        $expiresAt = $type->renewal_mode === 'periodic'
-            ? now()->addDays((int) $type->renewal_interval_days)
-            : null;
+        $expiresAt = $type->calculateExpiry(now());
 
         $document->update([
             'document_expiration_date' => $documentExpirationDate,
@@ -140,8 +138,7 @@ class SupplierDocumentRequirementService
         if ($latestAccepted) {
             $expiresAt = $requirement->expires_at;
             if ($type->renewal_mode === 'periodic' && ! $expiresAt) {
-                $expiresAt = ($latestAccepted->reviewed_at ?? $latestAccepted->uploaded_at ?? now())
-                    ->copy()->addDays((int) $type->renewal_interval_days);
+                $expiresAt = $type->calculateExpiry($latestAccepted->reviewed_at ?? $latestAccepted->uploaded_at ?? now());
             }
             $requirement->update([
                 'current_document_id' => $latestAccepted->id,

@@ -8,6 +8,7 @@ use App\Models\SupplierDocumentRequirement;
 use App\Models\SupplierDocumentType;
 use App\Models\User;
 use App\Services\SupplierDocumentRequirementService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -61,5 +62,31 @@ class SupplierDocumentCatalogTest extends TestCase
 
         $requirement = SupplierDocumentRequirement::where('supplier_id', $supplier->id)->where('supplier_document_type_id', $type->id)->firstOrFail();
         $this->assertTrue($requirement->due_at->isSameDay(now()->addDays(14)));
+    }
+
+    public function test_periodicity_calculates_days_weeks_months_and_years_without_overflow(): void
+    {
+        $type = new SupplierDocumentType(['renewal_mode' => 'periodic']);
+
+        $type->fill(['renewal_interval_value' => 9, 'renewal_interval_unit' => 'days']);
+        $this->assertSame('2026-01-10', $type->calculateExpiry(Carbon::parse('2026-01-01'))->toDateString());
+
+        $type->fill(['renewal_interval_value' => 17, 'renewal_interval_unit' => 'weeks']);
+        $this->assertSame('2026-05-01', $type->calculateExpiry(Carbon::parse('2026-01-02'))->toDateString());
+
+        $type->fill(['renewal_interval_value' => 1, 'renewal_interval_unit' => 'months']);
+        $this->assertSame('2026-02-28', $type->calculateExpiry(Carbon::parse('2026-01-31'))->toDateString());
+
+        $type->fill(['renewal_interval_value' => 2, 'renewal_interval_unit' => 'years']);
+        $this->assertSame('2026-02-28', $type->calculateExpiry(Carbon::parse('2024-02-29'))->toDateString());
+    }
+
+    public function test_periodicity_label_uses_correct_singular_and_plural(): void
+    {
+        $type = new SupplierDocumentType(['renewal_mode' => 'periodic', 'renewal_interval_value' => 1, 'renewal_interval_unit' => 'years']);
+        $this->assertSame('Cada 1 año', $type->periodicityLabel());
+
+        $type->renewal_interval_value = 2;
+        $this->assertSame('Cada 2 años', $type->periodicityLabel());
     }
 }
