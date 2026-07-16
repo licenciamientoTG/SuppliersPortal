@@ -13,10 +13,10 @@
                 <div class="col-md-8"><label class="form-label">Nombre</label><input class="form-control" name="name" value="{{ old('name', $type->name) }}" required></div>
                 <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="description" rows="2">{{ old('description', $type->description) }}</textarea></div>
 
-                <div class="col-md-3"><label class="form-label">Modalidad</label><select class="form-select" name="renewal_mode"><option value="once" @selected(old('renewal_mode', $type->renewal_mode ?: 'once') === 'once')>Una sola vez</option><option value="periodic" @selected(old('renewal_mode', $type->renewal_mode) === 'periodic')>Periódico</option></select></div>
-                <div class="col-md-3"><label class="form-label">Cada</label><input class="form-control" type="number" min="1" name="renewal_interval_value" value="{{ old('renewal_interval_value', $type->periodicityValue()) }}"></div>
-                <div class="col-md-3"><label class="form-label">Unidad</label><select class="form-select" name="renewal_interval_unit"><option value="">Selecciona</option>@foreach(['days' => 'Días', 'weeks' => 'Semanas', 'months' => 'Meses', 'years' => 'Años'] as $value => $label)<option value="{{ $value }}" @selected(old('renewal_interval_unit', $type->renewal_interval_unit ?: 'days') === $value)>{{ $label }}</option>@endforeach</select></div>
-                <div class="col-md-3"><label class="form-label">Origen de vigencia</label><select class="form-select" name="validity_source"><option value="manual" @selected(old('validity_source', $type->validity_source ?: 'manual') === 'manual')>Confirmada por revisor</option><option value="qr" @selected(old('validity_source', $type->validity_source) === 'qr')>Extraída desde QR</option></select></div>
+                <div class="col-md-3"><label class="form-label">Modalidad</label><select class="form-select" name="renewal_mode" id="renewalMode"><option value="once" @selected(old('renewal_mode', $type->renewal_mode ?: 'once') === 'once')>Una sola vez</option><option value="periodic" @selected(old('renewal_mode', $type->renewal_mode) === 'periodic')>Periódico</option></select></div>
+                <div class="col-md-3 periodicity-field"><label class="form-label">Cada</label><input class="form-control" type="number" min="1" name="renewal_interval_value" value="{{ old('renewal_interval_value', $type->periodicityValue()) }}"></div>
+                <div class="col-md-3 periodicity-field"><label class="form-label">Unidad</label><select class="form-select" name="renewal_interval_unit"><option value="">Selecciona</option>@foreach(['days' => 'Días', 'weeks' => 'Semanas', 'months' => 'Meses', 'years' => 'Años'] as $value => $label)<option value="{{ $value }}" @selected(old('renewal_interval_unit', $type->renewal_interval_unit ?: 'days') === $value)>{{ $label }}</option>@endforeach</select></div>
+                <div class="col-md-3 periodicity-field"><label class="form-label">Origen de vigencia</label><select class="form-select" name="validity_source"><option value="manual" @selected(old('validity_source', $type->validity_source ?: 'manual') === 'manual')>Confirmada por revisor</option><option value="qr" @selected(old('validity_source', $type->validity_source) === 'qr')>Extraída desde QR</option></select></div>
 
                 <div class="col-12"><div class="d-flex flex-wrap gap-4">@foreach(['is_active'=>'Activo','is_required'=>'Obligatorio','applies_to_physical'=>'Persona física','applies_to_legal'=>'Persona moral','requires_repse'=>'Solo REPSE'] as $field=>$label)<label class="form-check"><input class="form-check-input" type="checkbox" name="{{ $field }}" value="1" @checked(old($field, $type->{$field} ?? ($field !== 'requires_repse')))><span class="form-check-label">{{ $label }}</span></label>@endforeach</div></div>
             </div>
@@ -25,3 +25,19 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const mode = document.getElementById('renewalMode');
+    const fields = document.querySelectorAll('.periodicity-field');
+
+    const updatePeriodicityFields = () => {
+        fields.forEach((field) => field.classList.toggle('d-none', mode.value !== 'periodic'));
+    };
+
+    mode.addEventListener('change', updatePeriodicityFields);
+    updatePeriodicityFields();
+});
+</script>
+@endpush

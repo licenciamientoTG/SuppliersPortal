@@ -69,6 +69,7 @@ class SupplierDocumentTypeController extends Controller
         } else {
             $data['renewal_interval_value'] = null;
             $data['renewal_interval_unit'] = null;
+            $data['validity_source'] = 'manual';
         }
         $data['renewal_interval_days'] = ($data['renewal_interval_unit'] ?? null) === 'days'
             ? $data['renewal_interval_value']
