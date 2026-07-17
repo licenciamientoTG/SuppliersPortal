@@ -233,37 +233,26 @@
                         </thead>
                         <tbody>
                             @forelse ($suppliersSummary as $row)
-                                @php
-                                    $s = $row['supplier']; // instancia Supplier
-                                    $totalReq = $row['total_required'] ?? count($requiredTypes);
-                                    $uploaded  = $row['uploaded']  ?? 0;
-                                    $accepted  = $row['accepted']  ?? 0;
-                                    $rejected  = $row['rejected']  ?? 0;
-                                    $pending   = max($totalReq - $accepted - $rejected, 0); // display simple
-                                    $pct = $totalReq > 0 ? round(($uploaded / $totalReq) * 100) : 0;
-                                    $pct = max(0, min(100, $pct));
-                                    $last = $row['last_activity_at'] ?? null;
-                                @endphp
                                 <tr>
-                                    <td>{{ $s->company_name ?? '—' }}</td>
-                                    <td>{{ $s->rfc ?? '—' }}</td>
+                                    <td>{{ $row['supplier']?->company_name ?? '—' }}</td>
+                                    <td>{{ $row['supplier']?->rfc ?? '—' }}</td>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="progress" style="width:140px;height:10px;">
                                                 <div class="progress-bar" role="progressbar"
-                                                     style="width: {{ $pct ?? 0 }}%;" aria-valuenow="{{ $pct ?? 0 }}" aria-valuemin="0" aria-valuemax="100">
+                                                     style="width: {{ $row['progress_percent'] ?? 0 }}%;" aria-valuenow="{{ $row['progress_percent'] ?? 0 }}" aria-valuemin="0" aria-valuemax="100">
                                                 </div>
                                             </div>
-                                            <span class="small">{{ $pct ?? 0 }}%</span>
+                                            <span class="small">{{ $row['progress_percent'] ?? 0 }}%</span>
                                         </div>
                                     </td>
-                                    <td><span class="chip ok">{{ $accepted }}</span></td>
-                                    <td><span class="chip bad">{{ $rejected }}</span></td>
-                                    <td><span class="chip wait">{{ $pending }}</span></td>
-                                    <td>{{ $last ? \Illuminate\Support\Carbon::parse($last)->format('Y-m-d H:i') : '—' }}</td>
+                                    <td><span class="chip ok">{{ $row['accepted'] ?? 0 }}</span></td>
+                                    <td><span class="chip bad">{{ $row['rejected'] ?? 0 }}</span></td>
+                                    <td><span class="chip wait">{{ $row['pending'] ?? 0 }}</span></td>
+                                    <td>{{ !empty($row['last_activity_at']) ? \Illuminate\Support\Carbon::parse($row['last_activity_at'])->format('Y-m-d H:i') : '—' }}</td>
                                     <td>
-                                        @if($s)
-                                            <a href="{{ route('admin.review.suppliers.show', $s->id) }}" class="btn btn-sm btn-outline-primary">
+                                        @if($row['supplier'] ?? null)
+                                            <a href="{{ route('admin.review.suppliers.show', $row['supplier']->id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="ti ti-eye mx-1"></i> Ver detalles
                                             </a>
                                         @else

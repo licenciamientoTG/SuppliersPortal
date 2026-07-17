@@ -51,13 +51,21 @@ class DocumentReviewController extends Controller
             $docs = $s->documents; // Ya cargado, sin consulta adicional
             $requiredTypes = SupplierDocument::requiredTypesFor($s);
             $requiredDocs = $docs->whereIn('doc_type', $requiredTypes);
+            $totalRequired = count($requiredTypes);
+            $uploaded = $requiredDocs->pluck('doc_type')->unique()->count();
+            $accepted = $requiredDocs->where('status', 'accepted')->count();
+            $rejected = $requiredDocs->where('status', 'rejected')->count();
+            $pending = max($totalRequired - $accepted - $rejected, 0);
+            $progress = $totalRequired > 0 ? round(($uploaded / $totalRequired) * 100) : 0;
 
             return [
                 'supplier' => $s,
-                'total_required' => count($requiredTypes),
-                'uploaded' => $requiredDocs->pluck('doc_type')->unique()->count(),
-                'accepted' => $requiredDocs->where('status', 'accepted')->count(),
-                'rejected' => $requiredDocs->where('status', 'rejected')->count(),
+                'total_required' => $totalRequired,
+                'uploaded' => $uploaded,
+                'accepted' => $accepted,
+                'rejected' => $rejected,
+                'pending' => $pending,
+                'progress_percent' => max(0, min(100, $progress)),
                 'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
             ];
         });
