@@ -138,4 +138,12 @@ class SupplierDocument extends Model
     {
         return $this->belongsTo(User::class, 'issued_at_verified_by');
     }
+
+    public function hasFailedAutomaticValidation(): bool
+    {
+        $validation = $this->issue_date_extraction_data ?? [];
+
+        return ($validation['rfc_matches_supplier'] ?? true) === false
+            || ($validation['compliance_is_positive'] ?? true) === false;
+    }
 }

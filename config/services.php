@@ -44,4 +44,8 @@ return [
         'cipher_list' => env('SAT_CIPHER_LIST', 'DEFAULT@SECLEVEL=1'),
     ],
 
+    'pdf' => [
+        'pdftoppm_binary' => env('PDFTOPPM_BINARY', 'pdftoppm'),
+    ],
+
 ];

@@ -7,7 +7,7 @@ use Carbon\CarbonInterface;
 readonly class DocumentIssueDateExtraction
 {
     public function __construct(
-        public CarbonInterface $issuedAt,
+        public ?CarbonInterface $issuedAt,
         public array $metadata = [],
     ) {}
 }

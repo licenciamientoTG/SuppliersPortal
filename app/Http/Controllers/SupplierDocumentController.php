@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ValidateInfonavitSupplierDocument;
 use App\Mail\SupplierFeedbackMail;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
@@ -58,7 +59,7 @@ class SupplierDocumentController extends Controller
         $file = $request->file('file');
         $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
         $issueDateExtraction = $type->validity_source === 'qr'
-            ? $issueDates->extract($file, $type)
+            ? $issueDates->extract($file, $type, $supplier)
             : ['issued_at' => null, 'metadata' => null];
 
         $requirement = $requirements->requirementForUpload($supplier, $type);
@@ -81,6 +82,9 @@ class SupplierDocumentController extends Controller
         if ($requirement) {
             $requirements->markSubmitted($requirement);
         }
+        if ($docType === 'opinion_infonavit' && ($issueDateExtraction['metadata']['qr_found'] ?? false)) {
+            ValidateInfonavitSupplierDocument::dispatch($doc->id);
+        }
 
         $supplier->recalculateDocumentStatus();
 
@@ -99,6 +103,8 @@ class SupplierDocumentController extends Controller
     public function review(Request $request, Supplier $supplier, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
         $this->authorize('review', $document);
+
+        abort_if($request->input('action') === 'accept' && $document->hasFailedAutomaticValidation(), 422, 'La validacion automatica detecto RFC distinto u opinion de cumplimiento no positiva. Rechaza el documento y solicita una version valida.');
 
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
         $data = $request->validate([

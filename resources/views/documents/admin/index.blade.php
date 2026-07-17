@@ -125,6 +125,7 @@
                                 <th>Tipo de documento</th>
                                 <th>Subido por</th>
                                 <th>Fecha carga</th>
+                                <th>Validacion</th>
                                 <th>Status</th>
                                 <th>Acciones</th>
                             </tr>
@@ -150,6 +151,20 @@
                                     <td><span class="badge bg-info">{{ $label }}</span></td>
                                     <td>{{ $uploader?->name ?? '—' }}</td>
                                     <td>{{ optional($doc->uploaded_at ?? $doc->created_at)->format('Y-m-d H:i') }}</td>
+                                    <td>
+                                        @php($validation = $doc->issue_date_extraction_data ?? [])
+                                        @if(($validation['status'] ?? null) === 'extracted')
+                                            @if(($validation['rfc_matches_supplier'] ?? true) === false || ($validation['compliance_is_positive'] ?? true) === false)
+                                                <span class="badge bg-danger">Inconsistente</span>
+                                            @else
+                                                <span class="badge bg-success">QR validado</span>
+                                            @endif
+                                        @elseif($doc->documentType?->validity_source === 'qr')
+                                            <span class="badge bg-warning text-dark">Pendiente QR</span>
+                                        @else
+                                            <span class="text-muted">No aplica</span>
+                                        @endif
+                                    </td>
                                     <td>{!! badge_status($doc->status) !!}</td>
                                     <td>
                                         <div class="d-flex justify-content-end gap-1">
@@ -165,6 +180,8 @@
                                                 data-doc="{{ $doc->id ?? '' }}"
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
                                                 data-issued-at="{{ $doc->issued_at?->format('Y-m-d') }}"
+                                                data-validation="{{ e(json_encode($doc->issue_date_extraction_data ?? [], JSON_UNESCAPED_UNICODE)) }}"
+                                                data-revalidate-url="{{ $doc->doc_type === 'opinion_infonavit' ? route('admin.review.documents.revalidate', $doc) : '' }}"
                                                 title="Revisar">
                                                 <i class="ti ti-eye me-1"></i> Revisar
                                             </button>
@@ -173,7 +190,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-5">
+                                    <td colspan="8" class="py-5">
                                         <div class="d-flex flex-column align-items-center justify-content-center text-muted">
                                             <i class="ti ti-inbox-off fs-1 mb-2"></i>
                                             <h6 class="mb-1">Sin documentos pendientes</h6>
@@ -280,6 +297,7 @@
                 {{-- Visor del documento --}}
                 <div id="reviewViewer">
                     <iframe id="reviewModalFrame" src="" style="width:100%;height:72vh;border:0;" allowfullscreen></iframe>
+                    <div id="qrValidationSummary" class="border-top bg-light p-3 small d-none"></div>
                 </div>
 
                 {{-- Panel de rechazo (inline) --}}
@@ -421,6 +439,7 @@ $(function () {
         $('#rejectReasonError').addClass('d-none');
         $('#feedbackMessageInput').val('');
         $('#feedbackMessageError').addClass('d-none');
+        $('#qrValidationSummary').addClass('d-none').empty();
     }
 
     // ── Abrir modal ──────────────────────────────────────────────────────────
@@ -440,8 +459,44 @@ $(function () {
             .data('doc',          btn.data('doc'));
         $('#reviewModal').data('periodic', btn.data('periodic') === 1);
         $('#reviewModal').data('issued-at', btn.data('issued-at') || '');
+        $('#reviewModal').data('revalidate-url', btn.data('revalidate-url') || '');
+        const validation = btn.data('validation') || {};
+        $('#reviewModal').data('validation', validation);
+        if (Object.keys(validation).length) {
+            const rfc = validation.rfc || 'No identificado';
+            const date = validation.issued_at || btn.data('issued-at') || 'No identificada';
+            const opinion = validation.compliance_status || 'No aplica';
+            const rfcState = validation.rfc_matches_supplier === false ? 'No coincide' : (validation.rfc_matches_supplier === true ? 'Coincide' : 'Pendiente');
+            const opinionState = validation.compliance_is_positive === false ? 'No positiva' : opinion;
+            $('#qrValidationSummary')
+                .removeClass('d-none')
+                .html(`<strong>Validacion automatica</strong><span class="ms-3">RFC: ${$('<div>').text(rfc).html()} (${rfcState})</span><span class="ms-3">Emision: ${$('<div>').text(date).html()}</span><span class="ms-3">Opinion: ${$('<div>').text(opinionState).html()}</span>`);
+            if (validation.status === 'pending_external_validation' && btn.data('revalidate-url')) {
+                $('#qrValidationSummary').append('<button type="button" class="btn btn-sm btn-outline-primary ms-3 js-revalidate-infonavit"><i class="ti ti-refresh me-1"></i>Consultar INFONAVIT</button>');
+            }
+        }
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById('reviewModal')).show();
+    });
+
+    $(document).on('click', '.js-revalidate-infonavit', function () {
+        const $button = $(this).prop('disabled', true).text('Consultando...');
+        $.post($('#reviewModal').data('revalidate-url')).done(response => {
+            if (!response.ok) {
+                toast('warning', 'Consulta pendiente', response.message);
+                return;
+            }
+            $('#reviewModal').data('issued-at', response.issued_at);
+            $('#documentIssuedAt').val(response.issued_at);
+            $('#qrValidationSummary').html(
+                `<strong>Validacion automatica</strong><span class="ms-3">RFC: ${$('<div>').text(response.validation.rfc).html()} (${response.validation.rfc_matches_supplier ? 'Coincide' : 'No coincide'})</span><span class="ms-3">Emision: ${response.issued_at}</span><span class="ms-3">Opinion: ${$('<div>').text(response.validation.compliance_status).html()}</span>`
+            );
+            toast('success', 'Consulta completada');
+        }).fail(xhr => {
+            toast('error', 'No fue posible consultar', xhr.responseJSON?.message || 'Intenta nuevamente.');
+        }).always(() => {
+            $button.prop('disabled', false).html('<i class="ti ti-refresh me-1"></i>Consultar INFONAVIT');
+        });
     });
 
     document.getElementById('reviewModal').addEventListener('hidden.bs.modal', () => {

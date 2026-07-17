@@ -173,6 +173,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
             Route::get('/queue', [DocumentReviewController::class, 'queue'])->name('queue');
             Route::get('/suppliers', [DocumentReviewController::class, 'suppliers'])->name('suppliers');
             Route::get('/suppliers/{supplier}', [DocumentReviewController::class, 'showSupplier'])->name('suppliers.show');
+            Route::post('/documents/{document}/revalidate', [DocumentReviewController::class, 'revalidate'])->name('documents.revalidate');
             Route::post('/documents/{document}/accept', [DocumentReviewController::class, 'accept'])->name('documents.accept');
             Route::post('/documents/{document}/reject', [DocumentReviewController::class, 'reject'])->name('documents.reject');
         });

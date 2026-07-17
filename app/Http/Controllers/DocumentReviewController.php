@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
+use App\Services\InfonavitQrValidationService;
 use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,8 @@ class DocumentReviewController extends Controller
 
     public function accept(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
+        abort_if($document->hasFailedAutomaticValidation(), 422, 'La validacion automatica detecto RFC distinto u opinion de cumplimiento no positiva. Rechaza el documento y solicita una version valida.');
+
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
         $data = $request->validate([
             'issued_at' => [$isPeriodic ? 'required' : 'nullable', 'nullable', 'date'],
@@ -122,6 +125,26 @@ class DocumentReviewController extends Controller
 
         // Fallback a navegación tradicional
         return back()->with('success', 'Documento aprobado correctamente.');
+    }
+
+    public function revalidate(SupplierDocument $document, InfonavitQrValidationService $infonavit)
+    {
+        abort_unless($document->doc_type === 'opinion_infonavit', 422, 'Este documento no utiliza la consulta de INFONAVIT.');
+
+        if (! $infonavit->validateDocument($document)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'INFONAVIT no respondio o aun no mostro el resultado. Puedes reintentar.',
+            ], 202);
+        }
+
+        $document->refresh();
+
+        return response()->json([
+            'ok' => true,
+            'issued_at' => $document->issued_at?->format('Y-m-d'),
+            'validation' => $document->issue_date_extraction_data,
+        ]);
     }
 
     public function reject(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)

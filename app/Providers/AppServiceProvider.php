@@ -6,6 +6,7 @@ use App\Models\ExchangeRate;
 use App\Models\ReceivingLocation;
 use App\Models\SupplierDocument;
 use App\Policies\ReceivingLocationPolicy;
+use App\Services\ComplianceDocumentQrExtractor;
 use App\Services\DocumentIssueDateExtractionService;
 use App\Services\ModuleAccessService;
 use App\Services\NotificationCenterService;
@@ -23,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(DocumentIssueDateExtractionService::class, fn () => new DocumentIssueDateExtractionService);
+        $this->app->singleton(DocumentIssueDateExtractionService::class, fn ($app) => new DocumentIssueDateExtractionService([
+            $app->make(ComplianceDocumentQrExtractor::class),
+        ]));
     }
 
     /**
