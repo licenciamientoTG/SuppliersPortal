@@ -48,4 +48,12 @@ return [
         'pdftoppm_binary' => env('PDFTOPPM_BINARY', 'pdftoppm'),
     ],
 
+    'infonavit' => [
+        'timeout' => env('INFONAVIT_TIMEOUT', 120),
+        'poll_seconds' => env('INFONAVIT_POLL_SECONDS', 5),
+        'browser_enabled' => env('INFONAVIT_BROWSER_ENABLED', false),
+        'node_binary' => env('INFONAVIT_NODE_BINARY', 'node'),
+        'chrome_binary' => env('INFONAVIT_CHROME_BINARY'),
+    ],
+
 ];

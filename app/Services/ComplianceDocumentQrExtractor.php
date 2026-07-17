@@ -134,6 +134,10 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
 
     private function safePayload(string $payload): string
     {
-        return strlen($payload) > 500 ? substr($payload, 0, 500).'...' : $payload;
+        if (parse_url($payload, PHP_URL_HOST) === 'portalmx.infonavit.org.mx') {
+            return $payload;
+        }
+
+        return strlen($payload) > 2000 ? substr($payload, 0, 2000).'...' : $payload;
     }
 }

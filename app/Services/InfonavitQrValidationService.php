@@ -6,7 +6,9 @@ use App\Models\SupplierDocument;
 use Carbon\Carbon;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 class InfonavitQrValidationService
@@ -51,32 +53,47 @@ class InfonavitQrValidationService
             return null;
         }
 
+        $browserResult = $this->validateWithBrowser($qrUrl, $rfc);
+        if ($browserResult) {
+            return $browserResult;
+        }
+
         $cookies = new CookieJar;
+        $deadline = microtime(true) + $this->timeoutSeconds();
+        $lastUrl = $qrUrl;
 
-        try {
-            $page = Http::connectTimeout(10)
-                ->timeout(30)
-                ->withOptions(['cookies' => $cookies])
-                ->get($qrUrl);
-        } catch (ConnectionException) {
-            return null;
-        }
+        do {
+            $page = $this->getPage($lastUrl, $cookies);
+            if (! $page) {
+                return null;
+            }
 
-        if (! $page->successful()) {
-            return null;
-        }
+            $lastUrl = $this->effectiveUrl($page) ?? $lastUrl;
 
-        $form = $this->findRfcForm($page->body(), $qrUrl);
-        if (! $form) {
-            return $this->parseResult($page->body(), $rfc, $qrUrl);
-        }
+            $form = $this->findRfcForm($page->body(), $lastUrl);
+            if ($form) {
+                break;
+            }
+
+            $result = $this->parseResult($page->body(), $rfc, $lastUrl);
+            if ($result) {
+                return $result;
+            }
+
+            if (microtime(true) >= $deadline) {
+                return null;
+            }
+
+            sleep($this->pollSeconds());
+        } while (true);
 
         $form['fields'][$form['rfc_field']] = strtoupper($rfc);
 
         try {
             $request = Http::connectTimeout(10)
-                ->timeout(30)
-                ->withOptions(['cookies' => $cookies]);
+                ->timeout($this->requestTimeoutSeconds())
+                ->withOptions(['cookies' => $cookies])
+                ->withHeaders($this->browserHeaders($lastUrl));
             $result = $form['method'] === 'get'
                 ? $request->get($form['action'], $form['fields'])
                 : $request->asForm()->post($form['action'], $form['fields']);
@@ -85,8 +102,99 @@ class InfonavitQrValidationService
         }
 
         return $result->successful()
-            ? $this->parseResult($result->body(), $rfc, $form['action'])
+            ? $this->parseResult($result->body(), $rfc, $this->effectiveUrl($result) ?? $form['action'])
             : null;
+    }
+
+    private function validateWithBrowser(string $qrUrl, string $rfc): ?array
+    {
+        if (! config('services.infonavit.browser_enabled')) {
+            return null;
+        }
+
+        $chrome = config('services.infonavit.chrome_binary');
+        if (! is_string($chrome) || $chrome === '' || ! is_file($chrome)) {
+            return null;
+        }
+
+        $script = base_path('resources/scripts/infonavit-validator.mjs');
+        if (! is_file($script)) {
+            return null;
+        }
+
+        $result = Process::timeout($this->timeoutSeconds() + 15)->run([
+            (string) config('services.infonavit.node_binary', 'node'),
+            $script,
+            $qrUrl,
+            strtoupper($rfc),
+            $chrome,
+            (string) ($this->timeoutSeconds() * 1000),
+        ]);
+
+        if (! $result->successful()) {
+            return null;
+        }
+
+        $payload = json_decode(trim($result->output()), true);
+        if (! is_array($payload) || ($payload['ok'] ?? false) !== true) {
+            return null;
+        }
+
+        $text = (string) ($payload['raw_text'] ?? '');
+        $issuedAt = $this->numericDate((string) ($payload['issued_at'] ?? ''))
+            ?? $this->spanishDate((string) ($payload['issued_at'] ?? ''));
+        $status = $this->normalizeStatus((string) ($payload['compliance_status'] ?? $text));
+        $detectedRfc = strtoupper((string) ($payload['rfc'] ?? ''));
+
+        if (! $issuedAt || ! $status || ! preg_match('/^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/u', $detectedRfc)) {
+            return null;
+        }
+
+        return [
+            'issued_at' => $issuedAt,
+            'rfc' => $detectedRfc,
+            'compliance_status' => $status,
+            'source_url' => (string) ($payload['url'] ?? $qrUrl),
+            'validation_method' => 'infonavit_browser',
+            'folio' => $payload['oficio'] ?? null,
+            'valid_until' => $payload['valid_until'] ?? null,
+            'bimestre' => $payload['bimestre'] ?? null,
+            'legal_name' => $payload['name'] ?? null,
+            'total_nrp' => $payload['total_nrp'] ?? null,
+            'total_workers' => $payload['total_workers'] ?? null,
+        ];
+    }
+
+    private function getPage(string $url, CookieJar $cookies): ?Response
+    {
+        try {
+            $page = Http::connectTimeout(10)
+                ->timeout($this->requestTimeoutSeconds())
+                ->withOptions(['cookies' => $cookies])
+                ->withHeaders($this->browserHeaders())
+                ->get($url);
+        } catch (ConnectionException) {
+            return null;
+        }
+
+        return $page->successful() ? $page : null;
+    }
+
+    private function browserHeaders(?string $referer = null): array
+    {
+        return array_filter([
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'es-MX,es;q=0.9,en;q=0.8',
+            'Referer' => $referer,
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
+        ]);
+    }
+
+    private function effectiveUrl(Response $response): ?string
+    {
+        $effectiveUri = $response->handlerStats()['url'] ?? null;
+
+        return is_string($effectiveUri) && $this->isAllowedUrl($effectiveUri) ? $effectiveUri : null;
     }
 
     private function findRfcForm(string $html, string $sourceUrl): ?array
@@ -140,12 +248,7 @@ class InfonavitQrValidationService
         );
         $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
 
-        $status = match (true) {
-            preg_match('/\bsin\s+adeudo\b/ui', $text) === 1 => 'POSITIVA',
-            preg_match('/\bcon\s+adeudo\b/ui', $text) === 1 => 'NEGATIVA',
-            preg_match('/\bsin\s+antecedentes\b/ui', $text) === 1 => 'SIN OPINION',
-            default => null,
-        };
+        $status = $this->normalizeStatus($text);
 
         $issuedAt = null;
         if (preg_match('/fecha\s+(?:de\s+)?(?:oficio|emisi[oó]n)[^0-9]{0,40}(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/ui', $text, $match)) {
@@ -202,6 +305,18 @@ class InfonavitQrValidationService
             : null;
     }
 
+    private function normalizeStatus(string $text): ?string
+    {
+        return match (true) {
+            preg_match('/\bsin\s+adeudo\b/ui', $text) === 1 => 'POSITIVA',
+            preg_match('/\bpositiv[ao]\b/ui', $text) === 1 => 'POSITIVA',
+            preg_match('/\bcon\s+adeudo\b/ui', $text) === 1 => 'NEGATIVA',
+            preg_match('/\bnegativ[ao]\b/ui', $text) === 1 => 'NEGATIVA',
+            preg_match('/\bsin\s+antecedentes\b/ui', $text) === 1 => 'SIN OPINION',
+            default => null,
+        };
+    }
+
     private function absoluteUrl(string $baseUrl, string $action): ?string
     {
         if ($action === '') {
@@ -221,6 +336,12 @@ class InfonavitQrValidationService
             return "$scheme://$host$action";
         }
 
+        if (str_starts_with($action, '?')) {
+            $path = (string) parse_url($baseUrl, PHP_URL_PATH);
+
+            return "$scheme://$host$path$action";
+        }
+
         $path = (string) parse_url($baseUrl, PHP_URL_PATH);
 
         return "$scheme://$host/".ltrim(dirname($path).'/'.$action, '/');
@@ -230,5 +351,20 @@ class InfonavitQrValidationService
     {
         return parse_url($url, PHP_URL_SCHEME) === 'https'
             && parse_url($url, PHP_URL_HOST) === 'portalmx.infonavit.org.mx';
+    }
+
+    private function timeoutSeconds(): int
+    {
+        return max(30, (int) config('services.infonavit.timeout', 120));
+    }
+
+    private function requestTimeoutSeconds(): int
+    {
+        return min(45, $this->timeoutSeconds());
+    }
+
+    private function pollSeconds(): int
+    {
+        return max(1, (int) config('services.infonavit.poll_seconds', 5));
     }
 }
