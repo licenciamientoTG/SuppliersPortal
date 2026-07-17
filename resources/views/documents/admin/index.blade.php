@@ -241,6 +241,7 @@
                                     $rejected  = $row['rejected']  ?? 0;
                                     $pending   = max($totalReq - $accepted - $rejected, 0); // display simple
                                     $pct = $totalReq > 0 ? round(($uploaded / $totalReq) * 100) : 0;
+                                    $pct = max(0, min(100, $pct));
                                     $last = $row['last_activity_at'] ?? null;
                                 @endphp
                                 <tr>
@@ -250,10 +251,10 @@
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="progress" style="width:140px;height:10px;">
                                                 <div class="progress-bar" role="progressbar"
-                                                     style="width: {{ $pct }}%;" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
+                                                     style="width: {{ $pct ?? 0 }}%;" aria-valuenow="{{ $pct ?? 0 }}" aria-valuemin="0" aria-valuemax="100">
                                                 </div>
                                             </div>
-                                            <span class="small">{{ $pct }}%</span>
+                                            <span class="small">{{ $pct ?? 0 }}%</span>
                                         </div>
                                     </td>
                                     <td><span class="chip ok">{{ $accepted }}</span></td>
@@ -261,9 +262,13 @@
                                     <td><span class="chip wait">{{ $pending }}</span></td>
                                     <td>{{ $last ? \Illuminate\Support\Carbon::parse($last)->format('Y-m-d H:i') : '—' }}</td>
                                     <td>
-                                        <a href="{{ route('admin.review.suppliers.show', $row['supplier']->id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="ti ti-eye mx-1"></i> Ver detalles
-                                        </a>
+                                        @if($s)
+                                            <a href="{{ route('admin.review.suppliers.show', $s->id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="ti ti-eye mx-1"></i> Ver detalles
+                                            </a>
+                                        @else
+                                            <span class="text-muted small">Sin proveedor</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
