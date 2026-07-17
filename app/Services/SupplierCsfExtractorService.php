@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Support\SupplierFiscalCatalog;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Contracts\Session\Session;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -18,13 +18,13 @@ class SupplierCsfExtractorService
 
     public function __construct(
         private readonly SatQrDataParser $parser,
-    ) {
-    }
+        private readonly DocumentQrReaderService $qrReader,
+    ) {}
 
     public function storeTemporaryUpload(UploadedFile $file, Session $session): array
     {
         $token = (string) Str::uuid();
-        $path = $file->storeAs('tmp/supplier-csf', $token . '.pdf', 'local');
+        $path = $file->storeAs('tmp/supplier-csf', $token.'.pdf', 'local');
 
         if (! is_string($path)) {
             throw new RuntimeException('No fue posible resguardar temporalmente la constancia.');
@@ -156,13 +156,62 @@ class SupplierCsfExtractorService
             }
         }
 
+        foreach ($this->extractSatUrlsWithQrReader($contents) as $qrUrl) {
+            $candidates[] = $qrUrl;
+        }
+
         $candidates = array_values(array_unique(array_filter($candidates, fn ($url) => $this->isSatQrUrl($url))));
 
         if ($candidates !== []) {
-            return $candidates[0];
+            return $this->preferredSatQrUrl($candidates);
         }
 
         return $this->extractSatUrlFromEmbeddedImage($contents);
+    }
+
+    private function extractSatUrlsWithQrReader(string $contents): array
+    {
+        $tempPath = storage_path('app/tmp/supplier-csf/pdf-'.Str::uuid().'.pdf');
+        $directory = dirname($tempPath);
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($tempPath, $contents);
+
+        try {
+            $file = new UploadedFile($tempPath, basename($tempPath), 'application/pdf', null, true);
+
+            return array_values(array_filter(
+                $this->qrReader->read($file),
+                fn ($payload) => is_string($payload) && $this->isSatQrUrl($payload)
+            ));
+        } catch (\Throwable) {
+            return [];
+        } finally {
+            if (is_file($tempPath)) {
+                @unlink($tempPath);
+            }
+        }
+    }
+
+    private function preferredSatQrUrl(array $urls): string
+    {
+        $score = function (string $url): int {
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $d1 = (string) ($query['D1'] ?? '');
+
+            return match ($d1) {
+                '10', '0' => 0,
+                '26' => 10,
+                default => 5,
+            };
+        };
+
+        usort($urls, fn (string $a, string $b) => $score($a) <=> $score($b));
+
+        return $urls[0];
     }
 
     private function decodePdfLiteralString(string $value): string
@@ -191,7 +240,7 @@ class SupplierCsfExtractorService
         $this->assertQrDependenciesAreAvailable();
 
         foreach ($this->extractPdfImageCandidates($contents) as $index => $image) {
-            $tempPath = storage_path('app/tmp/supplier-csf/qr-image-' . Str::uuid() . '-' . $index . '.jpg');
+            $tempPath = storage_path('app/tmp/supplier-csf/qr-image-'.Str::uuid().'-'.$index.'.jpg');
             $directory = dirname($tempPath);
 
             if (! is_dir($directory)) {
@@ -300,6 +349,7 @@ class SupplierCsfExtractorService
                 }
 
                 $current = $decoded;
+
                 continue;
             }
 
@@ -345,7 +395,7 @@ class SupplierCsfExtractorService
                     continue;
                 }
 
-                $tempCropPath = storage_path('app/tmp/supplier-csf/qr-crop-' . Str::uuid() . '.jpg');
+                $tempCropPath = storage_path('app/tmp/supplier-csf/qr-crop-'.Str::uuid().'.jpg');
 
                 try {
                     imagejpeg($cropped, $tempCropPath, 100);
@@ -420,7 +470,7 @@ class SupplierCsfExtractorService
             'sat_email' => $this->firstValue($items, ['Correo electrónico', 'Correo electronico']),
             'tax_regimes' => $normalizedRegimes,
             'tax_regime_labels' => array_values(array_map(
-                fn (array $regime) => trim($regime['code'] . ' - ' . $regime['label']),
+                fn (array $regime) => trim($regime['code'].' - '.$regime['label']),
                 $normalizedRegimes
             )),
             'raw_sections' => $parsed['sections'] ?? [],
@@ -481,6 +531,7 @@ class SupplierCsfExtractorService
                             'code' => $regime['code'],
                             'label' => $regime['label'],
                         ];
+
                         continue 2;
                     }
                 }
