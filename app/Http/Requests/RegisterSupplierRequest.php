@@ -36,8 +36,8 @@ class RegisterSupplierRequest extends FormRequest
                 'max:13',
                 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/',
                 $isForeign ? Rule::unique('suppliers', 'rfc') : null,
-                $isForeign ? new ValidRfc() : null,
-                $isForeign ? new EfosNotListed() : null,
+                $isForeign ? new ValidRfc : null,
+                $isForeign ? new EfosNotListed : null,
             ])),
             'address' => [$isForeign ? 'required' : 'nullable', 'string', 'max:1000'],
             'postal_code' => [$isForeign ? 'required' : 'nullable', 'string', 'regex:/^\d{5}$/'],
@@ -170,7 +170,7 @@ class RegisterSupplierRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            if (! $this->boolean('is_foreign') && $this->input('parsed_person_type') === 'moral') {
+            if (! $this->boolean('is_foreign') && $this->input('parsed_person_type') === 'fisica') {
                 if (! $this->filled('first_name')) {
                     $validator->errors()->add('first_name', 'El nombre es obligatorio cuando la constancia no lo incluye.');
                 }

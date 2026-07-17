@@ -426,15 +426,15 @@
                                 @if ($viewErrors->has('rfc'))<div class="error">{{ $viewErrors->first('rfc') }}</div>@endif
                             </div>
 
-                            <div class="field">
-                                <label for="first_name" class="required">Nombre(s)</label>
+                            <div class="field" id="first-name-wrapper">
+                                <label for="first_name" id="first-name-label" class="required">Nombre(s)</label>
                                 <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" autocomplete="given-name">
                                 <span class="hint" id="first-name-hint">Se obtiene desde la constancia fiscal cuando aplica.</span>
                                 @if ($viewErrors->has('first_name'))<div class="error">{{ $viewErrors->first('first_name') }}</div>@endif
                             </div>
 
-                            <div class="field">
-                                <label for="last_name" class="required">Apellidos</label>
+                            <div class="field" id="last-name-wrapper">
+                                <label for="last_name" id="last-name-label" class="required">Apellidos</label>
                                 <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" autocomplete="family-name">
                                 <span class="hint" id="last-name-hint">Se obtiene desde la constancia fiscal cuando aplica.</span>
                                 @if ($viewErrors->has('last_name'))<div class="error">{{ $viewErrors->first('last_name') }}</div>@endif
@@ -663,6 +663,8 @@
             const parsedRegimesInput = document.getElementById('parsed_tax_regimes_display');
             const firstNameInput = document.getElementById('first_name');
             const lastNameInput = document.getElementById('last_name');
+            const firstNameWrapper = document.getElementById('first-name-wrapper');
+            const lastNameWrapper = document.getElementById('last-name-wrapper');
             const companyNameInput = document.getElementById('company_name');
             const rfcInput = document.getElementById('rfc');
             const addressInput = document.getElementById('address');
@@ -698,7 +700,13 @@
 
             function applyReadonlyStateForNationalFlow() {
                 const isMoral = personTypeInput.value === 'moral';
-                const namesMissing = isMoral && (!firstNameInput.value.trim() || !lastNameInput.value.trim());
+                const isPhysical = personTypeInput.value === 'fisica';
+                const namesMissing = isPhysical && (!firstNameInput.value.trim() || !lastNameInput.value.trim());
+
+                firstNameWrapper.classList.toggle('hidden', isMoral);
+                lastNameWrapper.classList.toggle('hidden', isMoral);
+                firstNameInput.disabled = isMoral;
+                lastNameInput.disabled = isMoral;
 
                 setInputEditableState(firstNameInput, namesMissing);
                 setInputEditableState(lastNameInput, namesMissing);
@@ -710,6 +718,9 @@
                 if (namesMissing) {
                     firstNameHint.textContent = 'La constancia no incluyo este dato. Capturalo manualmente.';
                     lastNameHint.textContent = 'La constancia no incluyo este dato. Capturalo manualmente.';
+                } else if (isMoral) {
+                    firstNameHint.textContent = '';
+                    lastNameHint.textContent = '';
                 } else {
                     firstNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
                     lastNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
@@ -741,6 +752,10 @@
                 acceptedCheckbox.checked = false;
 
                 if (isForeign) {
+                    firstNameWrapper.classList.remove('hidden');
+                    lastNameWrapper.classList.remove('hidden');
+                    firstNameInput.disabled = false;
+                    lastNameInput.disabled = false;
                     fiscalInputs.forEach(function (input) {
                         setInputEditableState(input, true);
                     });
