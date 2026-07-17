@@ -72,6 +72,16 @@ class DocumentReviewController extends Controller
         ]);
     }
 
+    public function queue()
+    {
+        return $this->index();
+    }
+
+    public function suppliers()
+    {
+        return $this->index();
+    }
+
     /**
      * Ficha simple por proveedor (solo display).
      */

@@ -139,11 +139,11 @@
                                     $label = $labels[$doc->doc_type] ?? ucfirst(str_replace('_',' ',$doc->doc_type));
                                     $url = Storage::disk('public')->url($doc->path_file);
                                     // Construimos la URL de retroalimentación para este documento
-                                    $feedbackUrl = route('documents.suppliers.feedback', [
+                                    $feedbackUrl = $prov ? route('documents.suppliers.feedback', [
                                         'supplier' => $prov->id,
                                         'type'     => $type,
                                         'document' => $doc->id, // o null si quieres mantenerlo opcional
-                                    ]);
+                                    ]) : '';
                                 @endphp
                                 <tr>
                                     <td>{{ $prov?->company_name ?? '—' }}</td>
@@ -175,7 +175,7 @@
                                                 data-accept-url="{{ route('admin.review.documents.accept', $doc) }}"
                                                 data-reject-url="{{ route('admin.review.documents.reject', $doc) }}"
                                                 data-feedback-url="{{ $feedbackUrl }}"
-                                                data-supplier="{{ $prov->id }}"
+                                                data-supplier="{{ $prov?->id }}"
                                                 data-type="{{ $type }}"
                                                 data-doc="{{ $doc->id ?? '' }}"
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
