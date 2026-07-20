@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\SupplierFiscalCatalog;
+use Carbon\Carbon;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
@@ -107,7 +108,8 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible leer la constancia fiscal cargada.');
         }
 
-        $satUrl = $this->extractSatUrlFromPdfContents($contents);
+        $satUrls = $this->extractSatUrlsFromPdfContents($contents);
+        $satUrl = $this->preferredSatQrUrl($satUrls);
 
         if (! $satUrl) {
             throw new RuntimeException('No fue posible localizar el QR o la URL fiscal dentro del PDF.');
@@ -134,10 +136,18 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible consultar la pagina del SAT para validar la constancia.');
         }
 
-        return $this->normalizeParsedResult($this->parser->parse($response->body(), $satUrl));
+        $parsed = $this->parser->parse($response->body(), $satUrl);
+        $issueDate = $this->extractIssueDateFromSatUrls($satUrls, $parsed['rfc'] ?? null);
+
+        return $this->normalizeParsedResult($parsed, $issueDate);
     }
 
     private function extractSatUrlFromPdfContents(string $contents): ?string
+    {
+        return $this->preferredSatQrUrl($this->extractSatUrlsFromPdfContents($contents));
+    }
+
+    private function extractSatUrlsFromPdfContents(string $contents): array
     {
         $candidates = [];
 
@@ -160,13 +170,14 @@ class SupplierCsfExtractorService
             $candidates[] = $qrUrl;
         }
 
-        $candidates = array_values(array_unique(array_filter($candidates, fn ($url) => $this->isSatQrUrl($url))));
-
-        if ($candidates !== []) {
-            return $this->preferredSatQrUrl($candidates);
+        if ($candidates === []) {
+            $embeddedUrl = $this->extractSatUrlFromEmbeddedImage($contents);
+            if ($embeddedUrl) {
+                $candidates[] = $embeddedUrl;
+            }
         }
 
-        return $this->extractSatUrlFromEmbeddedImage($contents);
+        return array_values(array_unique(array_filter($candidates, fn ($url) => $this->isSatQrUrl($url))));
     }
 
     private function extractSatUrlsWithQrReader(string $contents): array
@@ -196,8 +207,12 @@ class SupplierCsfExtractorService
         }
     }
 
-    private function preferredSatQrUrl(array $urls): string
+    private function preferredSatQrUrl(array $urls): ?string
     {
+        if ($urls === []) {
+            return null;
+        }
+
         $score = function (string $url): int {
             parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
             $d1 = (string) ($query['D1'] ?? '');
@@ -212,6 +227,100 @@ class SupplierCsfExtractorService
         usort($urls, fn (string $a, string $b) => $score($a) <=> $score($b));
 
         return $urls[0];
+    }
+
+    private function extractIssueDateFromSatUrls(array $urls, ?string $expectedRfc): ?array
+    {
+        foreach ($urls as $url) {
+            $fromPayload = $this->extractCsfIssueDateFromQrPayload($url);
+
+            if ($fromPayload) {
+                return $this->buildIssueDateMetadata($fromPayload, $expectedRfc, $url, 'sat_csf_qr_payload');
+            }
+        }
+
+        foreach ($urls as $url) {
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+            if (($query['D1'] ?? null) !== '26') {
+                continue;
+            }
+
+            $fromPage = $this->extractCsfIssueDateFromSatPage($url);
+
+            if ($fromPage) {
+                return $this->buildIssueDateMetadata($fromPage, $expectedRfc, $url, 'sat_csf_cadena_original');
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCsfIssueDateFromQrPayload(string $url): ?array
+    {
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $data = urldecode((string) ($query['D3'] ?? ''));
+
+        return $this->extractCsfIssueDateFromText($data);
+    }
+
+    private function extractCsfIssueDateFromSatPage(string $url): ?array
+    {
+        try {
+            $response = Http::timeout(20)
+                ->withOptions([
+                    'verify' => config('services.sat.verify_ssl', true),
+                    'curl' => [
+                        CURLOPT_SSL_CIPHER_LIST => config('services.sat.cipher_list', 'DEFAULT@SECLEVEL=1'),
+                    ],
+                ])
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 SuppliersPortal SAT CSF Reader',
+                    'Accept-Language' => 'es-MX,es;q=0.9',
+                ])
+                ->get($url);
+        } catch (ConnectionException) {
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        return $this->extractCsfIssueDateFromText(html_entity_decode(strip_tags($response->body()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    private function extractCsfIssueDateFromText(string $text): ?array
+    {
+        if (! preg_match('/\|\|(\d{4})\/(\d{2})\/(\d{2})(?:\s+\d{2}:\d{2}:\d{2})?\|([A-Z&\x{00D1}]{3,4}\d{6}[A-Z0-9]{3})\|CONSTANCIA DE SITUACI/iu', $text, $match)) {
+            return null;
+        }
+
+        return [
+            'issued_at' => Carbon::createFromFormat('Y-m-d', "{$match[1]}-{$match[2]}-{$match[3]}")->startOfDay(),
+            'rfc' => strtoupper($match[4]),
+        ];
+    }
+
+    private function buildIssueDateMetadata(array $result, ?string $expectedRfc, string $sourceUrl, string $method): array
+    {
+        $rfc = strtoupper((string) ($result['rfc'] ?? ''));
+        $expectedRfc = strtoupper((string) $expectedRfc);
+
+        return [
+            'issued_at' => $result['issued_at'],
+            'metadata' => [
+                'status' => 'extracted',
+                'document_code' => 'constancia_fiscal',
+                'issued_at' => $result['issued_at']->toDateString(),
+                'rfc' => $rfc,
+                'rfc_matches_supplier' => $expectedRfc === '' || hash_equals($expectedRfc, $rfc),
+                'compliance_status' => null,
+                'compliance_is_positive' => true,
+                'source_url' => $sourceUrl,
+                'validation_method' => $method,
+            ],
+        ];
     }
 
     private function decodePdfLiteralString(string $value): string
@@ -419,7 +528,7 @@ class SupplierCsfExtractorService
         return null;
     }
 
-    private function normalizeParsedResult(array $parsed): array
+    private function normalizeParsedResult(array $parsed, ?array $issueDate = null): array
     {
         $rfc = strtoupper((string) ($parsed['rfc'] ?? ''));
 
@@ -473,6 +582,8 @@ class SupplierCsfExtractorService
                 fn (array $regime) => trim($regime['code'].' - '.$regime['label']),
                 $normalizedRegimes
             )),
+            'issued_at' => $issueDate ? $issueDate['issued_at']->toDateString() : null,
+            'issue_date_extraction_data' => $issueDate['metadata'] ?? null,
             'raw_sections' => $parsed['sections'] ?? [],
         ];
     }

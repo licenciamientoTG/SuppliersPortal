@@ -45,7 +45,10 @@ return [
     ],
 
     'pdf' => [
+        'pdftotext_binary' => env('PDFTOTEXT_BINARY', 'pdftotext'),
         'pdftoppm_binary' => env('PDFTOPPM_BINARY', 'pdftoppm'),
+        'tesseract_binary' => env('TESSERACT_BINARY', 'tesseract'),
+        'tesseract_lang' => env('TESSERACT_LANG', 'spa+eng'),
     ],
 
     'infonavit' => [
@@ -54,6 +57,8 @@ return [
         'browser_enabled' => env('INFONAVIT_BROWSER_ENABLED', false),
         'node_binary' => env('INFONAVIT_NODE_BINARY', 'node'),
         'chrome_binary' => env('INFONAVIT_CHROME_BINARY'),
+        'headless' => env('INFONAVIT_HEADLESS', true),
+        'xvfb_binary' => env('INFONAVIT_XVFB_BINARY', 'xvfb-run'),
     ],
 
 ];

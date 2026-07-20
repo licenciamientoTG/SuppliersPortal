@@ -27,4 +27,20 @@ class SupplierCsfExtractorServiceTest extends TestCase
         $this->assertStringContainsString('D1=10', $url);
         $this->assertStringContainsString('SGT220531R7A', $url);
     }
+
+    public function test_it_extracts_the_csf_issue_date_from_the_original_chain(): void
+    {
+        $reader = Mockery::mock(DocumentQrReaderService::class);
+        $service = new SupplierCsfExtractorService(new SatQrDataParser, $reader);
+        $method = new \ReflectionMethod($service, 'extractCsfIssueDateFromText');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(
+            $service,
+            'Cadena Original: ||2026/07/01 09:53:41|SGT220531R7A|CONSTANCIA DE SITUACION FISCAL|200001088888800000041||'
+        );
+
+        $this->assertSame('2026-07-01', $result['issued_at']->toDateString());
+        $this->assertSame('SGT220531R7A', $result['rfc']);
+    }
 }

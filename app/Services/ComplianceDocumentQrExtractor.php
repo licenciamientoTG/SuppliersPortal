@@ -14,7 +14,10 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
 {
     private const CODES = ['constancia_fiscal', 'opinion_sat', 'opinion_imss', 'opinion_infonavit'];
 
-    public function __construct(private readonly DocumentQrReaderService $qrReader) {}
+    public function __construct(
+        private readonly DocumentQrReaderService $qrReader,
+        private readonly InfonavitPdfTextExtractionService $infonavitText,
+    ) {}
 
     public function supports(SupplierDocumentType $type): bool
     {
@@ -23,6 +26,10 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
 
     public function extract(UploadedFile $file, SupplierDocumentType $type, ?Supplier $supplier = null): ?DocumentIssueDateExtraction
     {
+        if ($type->code === 'opinion_infonavit') {
+            return $this->extractInfonavitFromFile($file);
+        }
+
         $payloads = $this->qrReader->read($file);
         $metadata = [
             'status' => 'unavailable',
@@ -35,7 +42,6 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
             $result = match ($type->code) {
                 'constancia_fiscal' => $this->fromCsfQr($payload),
                 'opinion_sat' => $this->fromSatOpinionQr($payload),
-                'opinion_infonavit' => null,
                 'opinion_imss' => $this->fromImssQr($payload),
                 default => null,
             };
@@ -50,12 +56,33 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
             }
         }
 
-        if ($type->code === 'opinion_infonavit' && $payloads !== []) {
-            $metadata['status'] = 'pending_external_validation';
-            $metadata['message'] = 'El QR fue localizado. INFONAVIT no respondio; Compras puede reintentar la consulta.';
+        return new DocumentIssueDateExtraction(null, $metadata);
+    }
+
+    private function extractInfonavitFromFile(UploadedFile $file): DocumentIssueDateExtraction
+    {
+        $extraction = $this->infonavitText->extract($file);
+        $text = (string) ($extraction['text'] ?? '');
+        $result = $this->fromInfonavitText($text);
+
+        $metadata = [
+            'status' => $result ? 'extracted' : 'unavailable',
+            'document_code' => 'opinion_infonavit',
+            'validation_method' => $extraction['method'] ? 'infonavit_'.$extraction['method'] : null,
+            'raw_text_excerpt' => Str::limit(preg_replace('/\s+/u', ' ', $text) ?? $text, 2000, '...'),
+        ];
+
+        if (! $result) {
+            $metadata['message'] = 'No fue posible extraer la fecha, RFC u opinion de INFONAVIT desde el PDF/OCR.';
+
+            return new DocumentIssueDateExtraction(null, $metadata);
         }
 
-        return new DocumentIssueDateExtraction(null, $metadata);
+        $issuedAt = $result['issued_at'];
+
+        return new DocumentIssueDateExtraction($issuedAt, array_merge($metadata, $result, [
+            'issued_at' => $issuedAt->toDateString(),
+        ]));
     }
 
     private function fromCsfQr(string $payload): ?array
@@ -115,6 +142,63 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
         ];
     }
 
+    private function fromInfonavitText(string $text): ?array
+    {
+        $normalized = Str::of($text)->ascii()->replaceMatches('/\s+/', ' ')->trim()->value();
+        $upper = Str::upper($normalized);
+
+        $issuedAt = null;
+        foreach ([
+            '/Fecha\s+de\s+oficio\s*:?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i',
+            '/Fecha\s+de\s+emision\s*:?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i',
+            '/Fecha\s+de\s+oficio\s*:?\s*(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/i',
+            '/Fecha\s+de\s+emision\s*:?\s*(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/i',
+            '/\ba\s+(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/i',
+            '/\bregistrada\s+el\s+dia\s+(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/i',
+        ] as $pattern) {
+            if (preg_match($pattern, $normalized, $match)) {
+                $issuedAt = str_contains($match[1], ' de ')
+                    ? $this->spanishDate($match[1])
+                    : $this->numericDate($match[1]);
+
+                if ($issuedAt) {
+                    break;
+                }
+            }
+        }
+
+        $rfc = preg_match('/\b([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})\b/u', $upper, $match)
+            ? $match[1]
+            : null;
+
+        $status = match (true) {
+            str_contains($upper, 'SIN ADEUDO') => 'POSITIVA',
+            str_contains($upper, 'CON ADEUDO') => 'NEGATIVA',
+            str_contains($upper, 'POSITIVA') => 'POSITIVA',
+            str_contains($upper, 'NEGATIVA') => 'NEGATIVA',
+            default => null,
+        };
+
+        if (! $issuedAt || ! $rfc || ! $status) {
+            return null;
+        }
+
+        return [
+            'issued_at' => $issuedAt,
+            'rfc' => $rfc,
+            'compliance_status' => $status,
+            'folio' => $this->firstMatch($normalized, [
+                '/Folio\s*:?\s*([A-Z0-9\/-]+)/i',
+                '/Numero\s+de\s+oficio\s*:?\s*([A-Z0-9\/-]+)/i',
+                '/No\.?\s+de\s+oficio\s*:?\s*([A-Z0-9\/-]+)/i',
+            ]),
+            'valid_until' => $this->firstMatch($normalized, [
+                '/Fecha\s+fin\s+de\s+vigencia\s*:?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i',
+                '/Vigencia\s*:?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i',
+            ]),
+        ];
+    }
+
     private function spanishDate(string $value): ?Carbon
     {
         $normalized = Str::of($value)->ascii()->lower()->value();
@@ -130,6 +214,29 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
         $month = $months[$match[2]] ?? null;
 
         return $month ? Carbon::create((int) $match[3], $month, (int) $match[1])->startOfDay() : null;
+    }
+
+    private function numericDate(string $value): ?Carbon
+    {
+        foreach (['d/m/Y', 'd-m-Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->startOfDay();
+            } catch (\Throwable) {
+            }
+        }
+
+        return null;
+    }
+
+    private function firstMatch(string $text, array $patterns): ?string
+    {
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text, $match)) {
+                return trim($match[1]);
+            }
+        }
+
+        return null;
     }
 
     private function safePayload(string $payload): string

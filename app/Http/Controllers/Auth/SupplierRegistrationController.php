@@ -130,6 +130,9 @@ class SupplierRegistrationController extends Controller
                     'mime_type' => $csfUpload['mime_type'] ?? 'application/pdf',
                     'status' => 'pending_review',
                     'uploaded_at' => now(),
+                    'issued_at' => $fiscalData['issued_at'] ?? null,
+                    'issued_at_source' => ! empty($fiscalData['issued_at']) ? 'qr' : null,
+                    'issue_date_extraction_data' => $fiscalData['issue_date_extraction_data'] ?? null,
                 ]);
 
                 if ($requirement) {

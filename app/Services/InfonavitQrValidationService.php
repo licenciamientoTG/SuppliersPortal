@@ -122,14 +122,22 @@ class InfonavitQrValidationService
             return null;
         }
 
-        $result = Process::timeout($this->timeoutSeconds() + 15)->run([
+        $command = [
             (string) config('services.infonavit.node_binary', 'node'),
             $script,
             $qrUrl,
             strtoupper($rfc),
             $chrome,
             (string) ($this->timeoutSeconds() * 1000),
-        ]);
+            config('services.infonavit.headless') ? 'headless' : 'headed',
+        ];
+
+        if (! config('services.infonavit.headless')) {
+            array_unshift($command, '-a');
+            array_unshift($command, (string) config('services.infonavit.xvfb_binary', 'xvfb-run'));
+        }
+
+        $result = Process::timeout($this->timeoutSeconds() + 15)->run($command);
 
         if (! $result->successful()) {
             return null;

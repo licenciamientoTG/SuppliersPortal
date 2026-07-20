@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ValidateInfonavitSupplierDocument;
 use App\Mail\SupplierFeedbackMail;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
@@ -61,6 +60,7 @@ class SupplierDocumentController extends Controller
         $issueDateExtraction = $type->validity_source === 'qr'
             ? $issueDates->extract($file, $type, $supplier)
             : ['issued_at' => null, 'metadata' => null];
+        $issuedAtSource = $this->issuedAtSourceFromExtraction($issueDateExtraction);
 
         $requirement = $requirements->requirementForUpload($supplier, $type);
         $doc = SupplierDocument::create([
@@ -75,17 +75,13 @@ class SupplierDocumentController extends Controller
             'status' => 'pending_review',
             'uploaded_at' => now(),
             'issued_at' => $issueDateExtraction['issued_at'],
-            'issued_at_source' => $issueDateExtraction['issued_at'] ? 'qr' : null,
+            'issued_at_source' => $issuedAtSource,
             'issue_date_extraction_data' => $issueDateExtraction['metadata'],
         ]);
 
         if ($requirement) {
             $requirements->markSubmitted($requirement);
         }
-        if ($docType === 'opinion_infonavit' && ($issueDateExtraction['metadata']['qr_found'] ?? false)) {
-            ValidateInfonavitSupplierDocument::dispatch($doc->id);
-        }
-
         $supplier->recalculateDocumentStatus();
 
         $url = Storage::disk('public')->url($doc->path_file);
@@ -98,6 +94,21 @@ class SupplierDocumentController extends Controller
             'url' => $url,
             'destroy_url' => route($request->user('supplier') ? 'supplier.documents.destroy' : 'documents.suppliers.destroy', [$supplier, $doc->id]),
         ]);
+    }
+
+    private function issuedAtSourceFromExtraction(array $issueDateExtraction): ?string
+    {
+        if (empty($issueDateExtraction['issued_at'])) {
+            return null;
+        }
+
+        $method = (string) ($issueDateExtraction['metadata']['validation_method'] ?? '');
+
+        return match ($method) {
+            'infonavit_pdftotext' => 'pdf_text',
+            'infonavit_ocr' => 'ocr',
+            default => 'qr',
+        };
     }
 
     public function review(Request $request, Supplier $supplier, SupplierDocument $document, SupplierDocumentRequirementService $requirements)

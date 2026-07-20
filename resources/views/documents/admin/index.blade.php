@@ -157,7 +157,9 @@
                                             @if(($validation['rfc_matches_supplier'] ?? true) === false || ($validation['compliance_is_positive'] ?? true) === false)
                                                 <span class="badge bg-danger">Inconsistente</span>
                                             @else
-                                                <span class="badge bg-success">QR validado</span>
+                                                <span class="badge bg-success">
+                                                    {{ $validation['compliance_status'] ?? 'Validado' }}
+                                                </span>
                                             @endif
                                         @elseif($doc->documentType?->validity_source === 'qr')
                                             <span class="badge bg-warning text-dark">Pendiente QR</span>
@@ -181,7 +183,7 @@
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
                                                 data-issued-at="{{ $doc->issued_at?->format('Y-m-d') }}"
                                                 data-validation="{{ e(json_encode($doc->issue_date_extraction_data ?? [], JSON_UNESCAPED_UNICODE)) }}"
-                                                data-revalidate-url="{{ $doc->doc_type === 'opinion_infonavit' ? route('admin.review.documents.revalidate', $doc) : '' }}"
+                                                data-revalidate-url=""
                                                 title="Revisar">
                                                 <i class="ti ti-eye me-1"></i> Revisar
                                             </button>
@@ -290,8 +292,8 @@
             <div class="modal-body p-0">
                 {{-- Visor del documento --}}
                 <div id="reviewViewer">
+                    <div id="qrValidationSummary" class="border-bottom bg-light p-3 small d-none"></div>
                     <iframe id="reviewModalFrame" src="" style="width:100%;height:72vh;border:0;" allowfullscreen></iframe>
-                    <div id="qrValidationSummary" class="border-top bg-light p-3 small d-none"></div>
                 </div>
 
                 {{-- Panel de rechazo (inline) --}}
@@ -454,7 +456,14 @@ $(function () {
         $('#reviewModal').data('periodic', btn.data('periodic') === 1);
         $('#reviewModal').data('issued-at', btn.data('issued-at') || '');
         $('#reviewModal').data('revalidate-url', btn.data('revalidate-url') || '');
-        const validation = btn.data('validation') || {};
+        let validation = btn.data('validation') || {};
+        if (typeof validation === 'string') {
+            try {
+                validation = JSON.parse(validation);
+            } catch (error) {
+                validation = {};
+            }
+        }
         $('#reviewModal').data('validation', validation);
         if (Object.keys(validation).length) {
             const rfc = validation.rfc || 'No identificado';
@@ -462,9 +471,28 @@ $(function () {
             const opinion = validation.compliance_status || 'No aplica';
             const rfcState = validation.rfc_matches_supplier === false ? 'No coincide' : (validation.rfc_matches_supplier === true ? 'Coincide' : 'Pendiente');
             const opinionState = validation.compliance_is_positive === false ? 'No positiva' : opinion;
+            const sourceLabels = {
+                infonavit_pdftotext: 'PDF',
+                infonavit_ocr: 'OCR',
+                imss_qr_payload: 'QR IMSS',
+                sat_csf_cadena_original: 'QR SAT',
+                sat_csf_qr_payload: 'QR SAT',
+            };
+            const source = sourceLabels[validation.validation_method] || (validation.validation_method ? validation.validation_method : 'Automatico');
+            const opinionClass = validation.compliance_is_positive === false ? 'bg-danger' : (opinion === 'No aplica' ? 'bg-secondary' : 'bg-success');
+            const rfcClass = validation.rfc_matches_supplier === false ? 'bg-danger' : (validation.rfc_matches_supplier === true ? 'bg-success' : 'bg-warning text-dark');
             $('#qrValidationSummary')
                 .removeClass('d-none')
-                .html(`<strong>Validacion automatica</strong><span class="ms-3">RFC: ${$('<div>').text(rfc).html()} (${rfcState})</span><span class="ms-3">Emision: ${$('<div>').text(date).html()}</span><span class="ms-3">Opinion: ${$('<div>').text(opinionState).html()}</span>`);
+                .html(`
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <strong class="me-2">Validacion automatica</strong>
+                        <span class="badge ${rfcClass}">RFC ${$('<div>').text(rfcState).html()}</span>
+                        <span class="badge ${opinionClass}">${$('<div>').text(opinionState).html()}</span>
+                        <span class="badge bg-info text-dark">${$('<div>').text(source).html()}</span>
+                        <span class="text-muted ms-md-2">RFC: <strong>${$('<div>').text(rfc).html()}</strong></span>
+                        <span class="text-muted">Emision: <strong>${$('<div>').text(date).html()}</strong></span>
+                    </div>
+                `);
             if (validation.status === 'pending_external_validation' && btn.data('revalidate-url')) {
                 $('#qrValidationSummary').append('<button type="button" class="btn btn-sm btn-outline-primary ms-3 js-revalidate-infonavit"><i class="ti ti-refresh me-1"></i>Consultar INFONAVIT</button>');
             }
