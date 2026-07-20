@@ -100,6 +100,18 @@ class SupplierDocumentCatalogTest extends TestCase
         $this->assertSame('2026-02-28', $type->calculateExpiry(Carbon::parse('2024-02-29'))->toDateString());
     }
 
+    public function test_periodic_document_is_not_current_after_its_configured_validity_period(): void
+    {
+        $type = new SupplierDocumentType([
+            'renewal_mode' => 'periodic',
+            'renewal_interval_value' => 3,
+            'renewal_interval_unit' => 'months',
+        ]);
+
+        $this->assertTrue($type->isCurrentOn(Carbon::parse('2026-02-15'), Carbon::parse('2026-05-14')));
+        $this->assertFalse($type->isCurrentOn(Carbon::parse('2026-02-15'), Carbon::parse('2026-05-15')));
+    }
+
     public function test_periodicity_label_uses_correct_singular_and_plural(): void
     {
         $type = new SupplierDocumentType(['renewal_mode' => 'periodic', 'renewal_interval_value' => 1, 'renewal_interval_unit' => 'years']);

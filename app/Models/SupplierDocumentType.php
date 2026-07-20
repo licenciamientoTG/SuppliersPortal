@@ -61,6 +61,13 @@ class SupplierDocumentType extends Model
         };
     }
 
+    public function isCurrentOn(CarbonInterface $issuedAt, CarbonInterface $date): bool
+    {
+        $expiresAt = $this->calculateExpiry($issuedAt);
+
+        return $expiresAt !== null && $expiresAt->gt($date);
+    }
+
     public function periodicityLabel(): string
     {
         if ($this->renewal_mode !== 'periodic' || ! $this->periodicityValue()) {

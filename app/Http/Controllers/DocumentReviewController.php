@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use App\Models\SupplierDocument;
 use App\Services\InfonavitQrValidationService;
 use App\Services\SupplierDocumentRequirementService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -184,6 +185,21 @@ class DocumentReviewController extends Controller
             throw ValidationException::withMessages([
                 'compliance_status' => 'Para aprobar una opinión de cumplimiento, la validación debe ser POSITIVA.',
             ]);
+        }
+
+        if ($document->documentType?->renewal_mode === 'periodic' && ! empty($data['issued_at'])) {
+            $issuedAt = Carbon::parse($data['issued_at'])->startOfDay();
+            $expiresAt = $document->documentType->calculateExpiry($issuedAt);
+
+            if (! $document->documentType->isCurrentOn($issuedAt, now()->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'issued_at' => sprintf(
+                        'La fecha de origen ya quedo fuera de vigencia. Este documento vence el %s segun la periodicidad configurada (%s).',
+                        $expiresAt?->toDateString(),
+                        $document->documentType->periodicityLabel(),
+                    ),
+                ]);
+            }
         }
     }
 

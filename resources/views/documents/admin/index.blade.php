@@ -1,6 +1,7 @@
 @extends('layouts.zircos')
 
 @php
+    use Carbon\Carbon;
     use Illuminate\Support\Facades\Storage;
 
     // Mapa de etiquetas amigables
@@ -42,6 +43,7 @@
     .chip.ok { background:#e9f7ef; color:#198754; }
     .chip.bad { background:#fdecea; color:#dc3545; }
     .chip.wait { background:#fff3cd; color:#856404; }
+    .validation-badges { display: flex; flex-wrap: wrap; gap: .25rem; }
     /* SweetAlert2 debe quedar por encima del modal de Bootstrap */
     .swal2-container { z-index: 99999 !important; }
 </style>
@@ -144,6 +146,26 @@
                                         'type'     => $type,
                                         'document' => $doc->id, // o null si quieres mantenerlo opcional
                                     ]) : '';
+                                    $validation = $doc->issue_date_extraction_data ?? [];
+                                    $validationMethod = $validation['validation_method'] ?? '';
+                                    $validationSource = match ($validationMethod) {
+                                        'infonavit_pdftotext' => 'PDF',
+                                        'infonavit_ocr' => 'OCR',
+                                        'imss_qr_payload', 'sat_csf_cadena_original', 'sat_csf_qr_payload' => 'QR',
+                                        default => null,
+                                    };
+                                    $issuedAt = $validation['issued_at'] ?? $doc->issued_at?->toDateString();
+                                    $expiresAt = null;
+                                    $isCurrent = null;
+                                    if ($doc->documentType?->renewal_mode === 'periodic' && $issuedAt) {
+                                        try {
+                                            $originDate = Carbon::parse($issuedAt)->startOfDay();
+                                            $expiresAt = $doc->documentType->calculateExpiry($originDate);
+                                            $isCurrent = $doc->documentType->isCurrentOn($originDate, now()->startOfDay());
+                                        } catch (\Throwable) {
+                                            $isCurrent = false;
+                                        }
+                                    }
                                 @endphp
                                 <tr>
                                     <td>{{ $prov?->company_name ?? '—' }}</td>
@@ -152,19 +174,33 @@
                                     <td>{{ $uploader?->name ?? '—' }}</td>
                                     <td>{{ optional($doc->uploaded_at ?? $doc->created_at)->format('Y-m-d H:i') }}</td>
                                     <td>
-                                        @php($validation = $doc->issue_date_extraction_data ?? [])
-                                        @if(($validation['status'] ?? null) === 'extracted')
-                                            @if(($validation['rfc_matches_supplier'] ?? true) === false || ($validation['compliance_is_positive'] ?? true) === false)
-                                                <span class="badge bg-danger">Inconsistente</span>
-                                            @else
-                                                <span class="badge bg-success">
-                                                    {{ $validation['compliance_status'] ?? 'Validado' }}
+                                        <div class="validation-badges">
+                                            @if(array_key_exists('rfc_matches_supplier', $validation))
+                                                <span class="badge {{ $validation['rfc_matches_supplier'] ? 'bg-success' : 'bg-danger' }}">
+                                                    RFC {{ $validation['rfc_matches_supplier'] ? 'coincide' : 'no coincide' }}
                                                 </span>
                                             @endif
-                                        @elseif($doc->documentType?->validity_source === 'qr')
-                                            <span class="badge bg-warning text-dark">Pendiente QR</span>
-                                        @else
-                                            <span class="text-muted">No aplica</span>
+                                            @if(in_array($doc->doc_type, ['opinion_sat', 'opinion_imss', 'opinion_infonavit'], true) && ! empty($validation['compliance_status']))
+                                                <span class="badge {{ $validation['compliance_status'] === 'POSITIVA' ? 'bg-success' : 'bg-danger' }}">
+                                                    {{ $validation['compliance_status'] }}
+                                                </span>
+                                            @endif
+                                            @if($validationSource)
+                                                <span class="badge bg-info text-dark">{{ $validationSource }}</span>
+                                            @endif
+                                            @if($isCurrent !== null)
+                                                <span class="badge {{ $isCurrent ? 'bg-success' : 'bg-danger' }}" title="Vence: {{ $expiresAt?->toDateString() }}">
+                                                    {{ $isCurrent ? 'Vigente' : 'Vencido' }}
+                                                </span>
+                                            @endif
+                                            @if(empty($validation) && $doc->documentType?->validity_source === 'qr')
+                                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                            @elseif(empty($validation) && ! $validationSource)
+                                                <span class="text-muted">No aplica</span>
+                                            @endif
+                                        </div>
+                                        @if($expiresAt)
+                                            <small class="d-block text-muted mt-1">Vence: {{ $expiresAt->toDateString() }}</small>
                                         @endif
                                     </td>
                                     <td>{!! badge_status($doc->status) !!}</td>
