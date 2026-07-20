@@ -96,21 +96,21 @@
     {{-- Tabs de modos de trabajo --}}
     <ul class="nav nav-pills nav-workmodes mb-3" id="workModes" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="bandeja-tab" data-bs-toggle="pill" data-bs-target="#bandejaPane" type="button" role="tab" aria-controls="bandejaPane" aria-selected="true">
+            <a class="nav-link {{ ($activeTab ?? 'bandeja') === 'bandeja' ? 'active' : '' }}" id="bandeja-tab" href="{{ route('admin.review.index') }}" role="tab" aria-controls="bandejaPane" aria-selected="{{ ($activeTab ?? 'bandeja') === 'bandeja' ? 'true' : 'false' }}">
                 <i class="ti ti-inbox me-1"></i> Bandeja (documentos)
-            </button>
+            </a>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="proveedores-tab" data-bs-toggle="pill" data-bs-target="#proveedoresPane" type="button" role="tab" aria-controls="proveedoresPane" aria-selected="false">
+            <a class="nav-link {{ ($activeTab ?? 'bandeja') === 'proveedores' ? 'active' : '' }}" id="proveedores-tab" href="{{ route('admin.review.index', ['tab' => 'proveedores']) }}" role="tab" aria-controls="proveedoresPane" aria-selected="{{ ($activeTab ?? 'bandeja') === 'proveedores' ? 'true' : 'false' }}">
                 <i class="ti ti-users me-1"></i> Proveedores
-            </button>
+            </a>
         </li>
     </ul>
 
     <div class="tab-content" id="workModesContent">
 
         {{-- PANE 1: BANDEJA --}}
-        <div class="tab-pane fade show active" id="bandejaPane" role="tabpanel" aria-labelledby="bandeja-tab" tabindex="0">
+        <div class="tab-pane fade {{ ($activeTab ?? 'bandeja') === 'bandeja' ? 'show active' : '' }}" id="bandejaPane" role="tabpanel" aria-labelledby="bandeja-tab" tabindex="0">
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Documentos pendientes de revisión</h5>
@@ -178,6 +178,7 @@
                                                 data-reject-url="{{ route('admin.review.documents.reject', $doc) }}"
                                                 data-feedback-url="{{ $feedbackUrl }}"
                                                 data-supplier="{{ $prov?->id }}"
+                                                data-supplier-rfc="{{ $prov?->rfc }}"
                                                 data-type="{{ $type }}"
                                                 data-doc="{{ $doc->id ?? '' }}"
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
@@ -213,7 +214,7 @@
         </div>
 
         {{-- PANE 2: PROVEEDORES --}}
-        <div class="tab-pane fade" id="proveedoresPane" role="tabpanel" aria-labelledby="proveedores-tab" tabindex="0">
+        <div class="tab-pane fade {{ ($activeTab ?? 'bandeja') === 'proveedores' ? 'show active' : '' }}" id="proveedoresPane" role="tabpanel" aria-labelledby="proveedores-tab" tabindex="0">
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Estado por proveedor</h5>
@@ -325,14 +326,36 @@
                 </div>
 
                 {{-- Panel de confirmación de aprobación (inline) --}}
-                <div id="reviewAcceptPanel" class="d-none p-4 text-center">
-                    <div id="expirationDateGroup" class="d-none text-start mx-auto mb-3" style="max-width: 320px;">
-                        <label class="form-label">Fecha de emisión</label>
-                        <input id="documentIssuedAt" type="date" class="form-control">
+                <div id="reviewAcceptPanel" class="d-none p-4">
+                    <div class="mx-auto text-start" style="max-width: 760px;">
+                        <h6 class="mb-3">
+                            <i class="ti ti-checkup-list me-2 text-success"></i>Confirmación de validación
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">RFC detectado</label>
+                                <input id="validatedRfcInput" type="text" class="form-control text-uppercase" maxlength="13">
+                                <div class="form-text">Debe coincidir con el RFC del proveedor.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Validación</label>
+                                <select id="complianceStatusInput" class="form-select">
+                                    <option value="POSITIVA">POSITIVA</option>
+                                    <option value="NEGATIVA">NEGATIVA</option>
+                                    <option value="SIN OPINION">SIN OPINIÓN</option>
+                                    <option value="NO APLICA">NO APLICA</option>
+                                </select>
+                                <div class="form-text">Para opiniones de cumplimiento debe ser POSITIVA.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Fecha de origen</label>
+                                <input id="documentIssuedAt" type="date" class="form-control">
+                                <div class="form-text">Fecha de emisión/oficio del documento.</div>
+                            </div>
+                        </div>
+                        <div id="acceptValidationError" class="alert alert-danger d-none mt-3 mb-0 small"></div>
+                        <p class="text-muted small mt-3 mb-0">Puedes corregir estos campos si la lectura automática u OCR detectó algo mal.</p>
                     </div>
-                    <i class="ti ti-circle-check text-success" style="font-size:3rem;"></i>
-                    <h6 class="mt-3">¿Confirmar aprobación?</h6>
-                    <p class="text-muted small">Esta acción no se puede deshacer.</p>
                 </div>
             </div>
 
@@ -408,18 +431,7 @@ const toast = (icon, title, text) => Swal.fire({
 });
 
 $(function () {
-    // ── Recordar última pestaña ──────────────────────────────────────────────
-    const tabKey = 'reviewTab';
-    const lastTab = localStorage.getItem(tabKey);
-    if (lastTab) {
-        const el = document.querySelector(`[data-bs-target="${lastTab}"]`);
-        if (el) bootstrap.Tab.getOrCreateInstance(el).show();
-    }
-    document.querySelectorAll('#workModes [data-bs-toggle="pill"]').forEach(el => {
-        el.addEventListener('shown.bs.tab', e => localStorage.setItem(tabKey, e.target.getAttribute('data-bs-target')));
-    });
-
-    // ── Estado del modal ─────────────────────────────────────────────────────
+    // Estado del modal
     let $activeRow = null;
 
     function showPanel(panelId, footerId) {
@@ -436,6 +448,10 @@ $(function () {
         $('#feedbackMessageInput').val('');
         $('#feedbackMessageError').addClass('d-none');
         $('#qrValidationSummary').addClass('d-none').empty();
+        $('#acceptValidationError').addClass('d-none').empty();
+        $('#validatedRfcInput').val('');
+        $('#complianceStatusInput').val('NO APLICA');
+        $('#documentIssuedAt').val('');
     }
 
     // ── Abrir modal ──────────────────────────────────────────────────────────
@@ -452,7 +468,8 @@ $(function () {
             .data('reject-url',   btn.data('reject-url'))
             .data('feedback-url', btn.data('feedback-url'))
             .data('type',         btn.data('type'))
-            .data('doc',          btn.data('doc'));
+            .data('doc',          btn.data('doc'))
+            .data('supplier-rfc', btn.data('supplier-rfc') || '');
         $('#reviewModal').data('periodic', btn.data('periodic') === 1);
         $('#reviewModal').data('issued-at', btn.data('issued-at') || '');
         $('#reviewModal').data('revalidate-url', btn.data('revalidate-url') || '');
@@ -538,8 +555,16 @@ $(function () {
     });
 
     $(document).on('click', '.js-show-accept', () => {
-        $('#expirationDateGroup').toggleClass('d-none', !$('#reviewModal').data('periodic'));
-        $('#documentIssuedAt').val($('#reviewModal').data('issued-at'));
+        const modal = $('#reviewModal');
+        const validation = modal.data('validation') || {};
+        const type = String(modal.data('type') || '');
+        const detectedRfc = validation.rfc || modal.data('supplier-rfc') || '';
+        const detectedStatus = validation.compliance_status || (type.startsWith('opinion_') ? 'POSITIVA' : 'NO APLICA');
+
+        $('#validatedRfcInput').val(detectedRfc);
+        $('#complianceStatusInput').val(detectedStatus);
+        $('#documentIssuedAt').val(validation.issued_at || modal.data('issued-at'));
+        $('#acceptValidationError').addClass('d-none').empty();
         showPanel('reviewAcceptPanel', 'reviewFooterAccept');
     });
 
@@ -548,26 +573,61 @@ $(function () {
     });
 
     // ── Confirmar aprobación ─────────────────────────────────────────────────
+    // Confirmar aprobacion
     $(document).on('click', '.js-do-accept', function () {
-        const url = $('#reviewModal').data('accept-url');
-        const $btn = $(this).prop('disabled', true).text('Aprobando…');
+        const modal = $('#reviewModal');
+        const url = modal.data('accept-url');
+        const $btn = $(this).prop('disabled', true).text('Aprobando...');
+        const restoreButton = () => $btn.prop('disabled', false).html('<i class="ti ti-check me-1"></i> Si, aprobar');
+        const showAcceptError = (message) => {
+            $('#acceptValidationError').removeClass('d-none').text(message);
+            restoreButton();
+        };
 
-        const periodic = $('#reviewModal').data('periodic');
+        const periodic = modal.data('periodic');
         const issuedAt = $('#documentIssuedAt').val();
-        if (periodic && !issuedAt) {
-            toast('error', 'Fecha requerida', 'Confirma la fecha de emisión mostrada en el documento.');
-            $btn.prop('disabled', false).html('<i class="ti ti-check me-1"></i> SÃ­, aprobar');
+        const validatedRfc = $('#validatedRfcInput').val().trim().toUpperCase();
+        const complianceStatus = $('#complianceStatusInput').val();
+        const supplierRfc = String(modal.data('supplier-rfc') || '').trim().toUpperCase();
+        const type = String(modal.data('type') || '');
+        $('#acceptValidationError').addClass('d-none').empty();
+
+        if (supplierRfc && validatedRfc && supplierRfc !== validatedRfc) {
+            showAcceptError('El RFC confirmado no coincide con el RFC del proveedor.');
             return;
         }
-        $.post(url, periodic ? { issued_at: issuedAt } : {}).done(() => {
+
+        if (type.startsWith('opinion_') && complianceStatus !== 'POSITIVA') {
+            showAcceptError('Para aprobar una opinion de cumplimiento, la validacion debe ser POSITIVA.');
+            return;
+        }
+
+        if (periodic && !issuedAt) {
+            showAcceptError('Confirma la fecha de origen mostrada en el documento.');
+            return;
+        }
+
+        $.post(url, {
+            issued_at: issuedAt,
+            validated_rfc: validatedRfc,
+            compliance_status: complianceStatus,
+        }).done(() => {
             bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
-            if ($activeRow) $activeRow.find('td:nth-child(6)').html('<span class="badge bg-success">Aprobado</span>');
+            if ($activeRow) {
+                $activeRow.find('td:nth-child(6)').html('<span class="badge bg-success">Aprobado</span>');
+                $activeRow.find('td:nth-child(7)').html('<span class="badge bg-success">Aprobado</span>');
+            }
             $('#kpiPendientes').text(Math.max(0, parseInt($('#kpiPendientes').text()) - 1));
             $('#kpiAprobadosHoy').text(parseInt($('#kpiAprobadosHoy').text()) + 1);
             toast('success', 'Aprobado');
         }).fail(xhr => {
-            $btn.prop('disabled', false).html('<i class="ti ti-check me-1"></i> Sí, aprobar');
-            toast('error', 'Error', 'No se pudo aprobar.');
+            restoreButton();
+            let msg = 'No se pudo aprobar.';
+            if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                msg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                $('#acceptValidationError').removeClass('d-none').text(msg);
+            }
+            toast('error', 'Error', msg);
             console.error(xhr?.responseText || xhr);
         });
     });

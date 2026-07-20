@@ -8,6 +8,8 @@ use App\Services\InfonavitQrValidationService;
 use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DocumentReviewController extends Controller
 {
@@ -15,8 +17,9 @@ class DocumentReviewController extends Controller
      * Vista unificada con tabs: Bandeja (documentos) y Proveedores.
      * Solo display. Sin acciones.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $activeTab = $request->query('tab') === 'proveedores' ? 'proveedores' : 'bandeja';
         $requiredTypes = SupplierDocument::ALL_TYPES;
 
         // Bandeja: solo pendientes (para mostrar)
@@ -38,17 +41,42 @@ class DocumentReviewController extends Controller
             ->whereBetween('reviewed_at', [$start, $end])
             ->count();
 
-        // (Si quieres solo los revisados por el admin actual, añade ->where('reviewed_by', auth()->id()))
+        // El resumen por proveedor es pesado; solo se calcula cuando se abre esa pestana.
+        $suppliersSummary = $activeTab === 'proveedores'
+            ? $this->supplierReviewSummary()
+            : collect();
 
-        // Resumen por proveedor (con eager loading para evitar N+1)
+        return view('documents.admin.index', [
+            'activeTab' => $activeTab,
+            'pendingDocs' => $pendingDocs,
+            'suppliersSummary' => $suppliersSummary,
+            'requiredTypes' => $requiredTypes,
+            'kpiPendientes' => $kpiPendientes,
+            'kpiAprobadosHoy' => $kpiAprobadosHoy,
+            'kpiRechazadosHoy' => $kpiRechazadosHoy,
+        ]);
+    }
+
+    public function queue()
+    {
+        return redirect()->route('admin.review.index');
+    }
+
+    public function suppliers()
+    {
+        return redirect()->route('admin.review.index', ['tab' => 'proveedores']);
+    }
+
+    private function supplierReviewSummary(): \Illuminate\Support\Collection
+    {
         $suppliers = Supplier::with(['documents' => function ($query) {
             $query->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
         }])
             ->select('id', 'company_name', 'rfc')
             ->get();
 
-        $suppliersSummary = $suppliers->map(function ($s) {
-            $docs = $s->documents; // Ya cargado, sin consulta adicional
+        return $suppliers->map(function ($s) {
+            $docs = $s->documents;
             $requiredTypes = SupplierDocument::requiredTypesFor($s);
             $requiredDocs = $docs->whereIn('doc_type', $requiredTypes);
             $totalRequired = count($requiredTypes);
@@ -69,25 +97,6 @@ class DocumentReviewController extends Controller
                 'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
             ];
         });
-
-        return view('documents.admin.index', [
-            'pendingDocs' => $pendingDocs,
-            'suppliersSummary' => $suppliersSummary,
-            'requiredTypes' => $requiredTypes,
-            'kpiPendientes' => $kpiPendientes,
-            'kpiAprobadosHoy' => $kpiAprobadosHoy,
-            'kpiRechazadosHoy' => $kpiRechazadosHoy,
-        ]);
-    }
-
-    public function queue()
-    {
-        return $this->index();
-    }
-
-    public function suppliers()
-    {
-        return $this->index();
     }
 
     /**
@@ -113,18 +122,25 @@ class DocumentReviewController extends Controller
 
     public function accept(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
-        abort_if($document->hasFailedAutomaticValidation(), 422, 'La validacion automatica detecto RFC distinto u opinion de cumplimiento no positiva. Rechaza el documento y solicita una version valida.');
-
+        $document->loadMissing('supplier', 'documentType');
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
         $data = $request->validate([
             'issued_at' => [$isPeriodic ? 'required' : 'nullable', 'nullable', 'date'],
+            'validated_rfc' => ['nullable', 'string', 'max:13'],
+            'compliance_status' => ['nullable', Rule::in(['POSITIVA', 'NEGATIVA', 'SIN OPINION', 'NO APLICA'])],
         ]);
+
+        $this->validateReviewerConfirmation($document, $data);
+
         DB::transaction(function () use ($request, $document, $requirements, $data) {
+            $metadata = $this->confirmedValidationMetadata($document, $data, $request->user()->id);
+
             $document->update([
                 'status' => 'accepted',
                 'rejection_reason' => null,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
+                'issue_date_extraction_data' => $metadata,
             ]);
             $requirements->accept($document, $data['issued_at'] ?? null, $request->user()->id);
             $document->supplier?->recalculateDocumentStatus();
@@ -143,6 +159,66 @@ class DocumentReviewController extends Controller
 
         // Fallback a navegación tradicional
         return back()->with('success', 'Documento aprobado correctamente.');
+    }
+
+    private function validateReviewerConfirmation(SupplierDocument $document, array $data): void
+    {
+        $expectedRfc = strtoupper((string) ($document->supplier?->rfc ?? ''));
+        $confirmedRfc = strtoupper((string) ($data['validated_rfc'] ?? ''));
+        $status = strtoupper((string) ($data['compliance_status'] ?? ''));
+        $requiresFiscalValidation = in_array($document->doc_type, ['constancia_fiscal', 'opinion_sat', 'opinion_imss', 'opinion_infonavit'], true);
+
+        if ($requiresFiscalValidation && $confirmedRfc === '') {
+            throw ValidationException::withMessages([
+                'validated_rfc' => 'Confirma el RFC detectado antes de aprobar.',
+            ]);
+        }
+
+        if ($confirmedRfc !== '' && $expectedRfc !== '' && ! hash_equals($expectedRfc, $confirmedRfc)) {
+            throw ValidationException::withMessages([
+                'validated_rfc' => 'El RFC confirmado no coincide con el RFC del proveedor.',
+            ]);
+        }
+
+        if (in_array($document->doc_type, ['opinion_sat', 'opinion_imss', 'opinion_infonavit'], true) && $status !== 'POSITIVA') {
+            throw ValidationException::withMessages([
+                'compliance_status' => 'Para aprobar una opinión de cumplimiento, la validación debe ser POSITIVA.',
+            ]);
+        }
+    }
+
+    private function confirmedValidationMetadata(SupplierDocument $document, array $data, int $reviewerId): array
+    {
+        $metadata = $document->issue_date_extraction_data ?? [];
+        $expectedRfc = strtoupper((string) ($document->supplier?->rfc ?? ''));
+        $confirmedRfc = strtoupper((string) ($data['validated_rfc'] ?? ($metadata['rfc'] ?? '')));
+        $status = strtoupper((string) ($data['compliance_status'] ?? ($metadata['compliance_status'] ?? '')));
+
+        if ($confirmedRfc !== '') {
+            $metadata['rfc'] = $confirmedRfc;
+        }
+
+        if ($status !== '' && $status !== 'NO APLICA') {
+            $metadata['compliance_status'] = $status;
+        }
+
+        if (! empty($data['issued_at'])) {
+            $metadata['issued_at'] = $data['issued_at'];
+        }
+
+        if ($confirmedRfc !== '' && $expectedRfc !== '') {
+            $metadata['rfc_matches_supplier'] = hash_equals($expectedRfc, $confirmedRfc);
+        }
+
+        if (isset($metadata['compliance_status'])) {
+            $metadata['compliance_is_positive'] = $metadata['compliance_status'] === 'POSITIVA';
+        }
+
+        $metadata['reviewer_confirmed'] = true;
+        $metadata['reviewer_confirmed_by'] = $reviewerId;
+        $metadata['reviewer_confirmed_at'] = now()->toDateTimeString();
+
+        return $metadata;
     }
 
     public function revalidate(SupplierDocument $document, InfonavitQrValidationService $infonavit)

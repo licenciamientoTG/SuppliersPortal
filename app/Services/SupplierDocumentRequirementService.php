@@ -101,7 +101,7 @@ class SupplierDocumentRequirementService
         $document->update([
             'issued_at' => $issuedAt,
             'issued_at_source' => $issuedAt
-                ? ($document->issued_at && $document->issued_at->isSameDay($issuedAt) ? 'qr' : 'manual')
+                ? ($document->issued_at && $document->issued_at->isSameDay($issuedAt) ? $document->issued_at_source : 'manual')
                 : null,
             'issued_at_verified_at' => $type->renewal_mode === 'periodic' ? now() : null,
             'issued_at_verified_by' => $type->renewal_mode === 'periodic' ? $reviewerId : null,
