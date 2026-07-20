@@ -184,6 +184,12 @@
                                                 data-periodic="{{ $doc->documentType?->renewal_mode === 'periodic' ? '1' : '0' }}"
                                                 data-issued-at="{{ $doc->issued_at?->format('Y-m-d') }}"
                                                 data-validation="{{ e(json_encode($doc->issue_date_extraction_data ?? [], JSON_UNESCAPED_UNICODE)) }}"
+                                                data-validation-rfc="{{ $validation['rfc'] ?? '' }}"
+                                                data-validation-status="{{ $validation['compliance_status'] ?? '' }}"
+                                                data-validation-issued-at="{{ $validation['issued_at'] ?? $doc->issued_at?->format('Y-m-d') }}"
+                                                data-validation-method="{{ $validation['validation_method'] ?? '' }}"
+                                                data-validation-rfc-match="{{ array_key_exists('rfc_matches_supplier', $validation) ? ($validation['rfc_matches_supplier'] ? '1' : '0') : '' }}"
+                                                data-validation-positive="{{ array_key_exists('compliance_is_positive', $validation) ? ($validation['compliance_is_positive'] ? '1' : '0') : '' }}"
                                                 data-revalidate-url=""
                                                 title="Revisar">
                                                 <i class="ti ti-eye me-1"></i> Revisar
@@ -374,7 +380,7 @@
                         <i class="ti ti-x me-1"></i> Rechazar
                     </button>
                     <button type="button" class="btn btn-success js-show-accept">
-                        <i class="ti ti-check me-1"></i> Aceptar
+                        <i class="ti ti-check me-1"></i> Validar y aceptar
                     </button>
                 </div>
             </div>
@@ -481,8 +487,20 @@ $(function () {
                 validation = {};
             }
         }
+        validation.rfc = validation.rfc || btn.data('validation-rfc') || '';
+        validation.compliance_status = validation.compliance_status || btn.data('validation-status') || '';
+        validation.issued_at = validation.issued_at || btn.data('validation-issued-at') || btn.data('issued-at') || '';
+        validation.validation_method = validation.validation_method || btn.data('validation-method') || '';
+        const rfcMatchAttr = btn.attr('data-validation-rfc-match');
+        const positiveAttr = btn.attr('data-validation-positive');
+        if (validation.rfc_matches_supplier === undefined && rfcMatchAttr !== undefined && rfcMatchAttr !== '') {
+            validation.rfc_matches_supplier = rfcMatchAttr === '1';
+        }
+        if (validation.compliance_is_positive === undefined && positiveAttr !== undefined && positiveAttr !== '') {
+            validation.compliance_is_positive = positiveAttr === '1';
+        }
         $('#reviewModal').data('validation', validation);
-        if (Object.keys(validation).length) {
+        if (Object.keys(validation).length || btn.data('supplier-rfc')) {
             const rfc = validation.rfc || 'No identificado';
             const date = validation.issued_at || btn.data('issued-at') || 'No identificada';
             const opinion = validation.compliance_status || 'No aplica';
@@ -501,13 +519,14 @@ $(function () {
             $('#qrValidationSummary')
                 .removeClass('d-none')
                 .html(`
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <strong class="me-2">Validacion automatica</strong>
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+                        <strong class="me-lg-2">Resumen de validacion</strong>
                         <span class="badge ${rfcClass}">RFC ${$('<div>').text(rfcState).html()}</span>
                         <span class="badge ${opinionClass}">${$('<div>').text(opinionState).html()}</span>
                         <span class="badge bg-info text-dark">${$('<div>').text(source).html()}</span>
-                        <span class="text-muted ms-md-2">RFC: <strong>${$('<div>').text(rfc).html()}</strong></span>
-                        <span class="text-muted">Emision: <strong>${$('<div>').text(date).html()}</strong></span>
+                        <span class="text-muted ms-lg-2">RFC detectado: <strong>${$('<div>').text(rfc).html()}</strong></span>
+                        <span class="text-muted">Fecha origen: <strong>${$('<div>').text(date).html()}</strong></span>
+                        <span class="text-muted">Proveedor: <strong>${$('<div>').text(btn.data('supplier-rfc') || 'Sin RFC').html()}</strong></span>
                     </div>
                 `);
             if (validation.status === 'pending_external_validation' && btn.data('revalidate-url')) {
