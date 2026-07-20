@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
+use App\Models\SupplierDocumentType;
 use App\Services\InfonavitQrValidationService;
 use App\Services\SupplierDocumentRequirementService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -68,36 +71,61 @@ class DocumentReviewController extends Controller
         return redirect()->route('admin.review.index', ['tab' => 'proveedores']);
     }
 
-    private function supplierReviewSummary(): \Illuminate\Support\Collection
+    private function supplierReviewSummary(): LengthAwarePaginator
     {
-        $suppliers = Supplier::with(['documents' => function ($query) {
-            $query->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
-        }])
-            ->select('id', 'company_name', 'rfc')
-            ->get();
+        $documentTypes = SupplierDocumentType::query()
+            ->where('is_active', true)
+            ->where('is_required', true)
+            ->get([
+                'id',
+                'code',
+                'applies_to_physical',
+                'applies_to_legal',
+                'requires_repse',
+            ]);
+        $documentTypeCodes = $documentTypes->pluck('code');
 
-        return $suppliers->map(function ($s) {
-            $docs = $s->documents;
-            $requiredTypes = SupplierDocument::requiredTypesFor($s);
-            $requiredDocs = $docs->whereIn('doc_type', $requiredTypes);
-            $totalRequired = count($requiredTypes);
-            $uploaded = $requiredDocs->pluck('doc_type')->unique()->count();
-            $accepted = $requiredDocs->where('status', 'accepted')->count();
-            $rejected = $requiredDocs->where('status', 'rejected')->count();
-            $pending = max($totalRequired - $accepted - $rejected, 0);
-            $progress = $totalRequired > 0 ? round(($uploaded / $totalRequired) * 100) : 0;
+        $suppliers = Supplier::query()
+            ->with(['documents' => function ($query) use ($documentTypeCodes) {
+                $query->whereIn('doc_type', $documentTypeCodes)
+                    ->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
+            }])
+            ->select('id', 'company_name', 'rfc', 'person_type', 'provides_specialized_services')
+            ->orderBy('company_name')
+            ->paginate(50)
+            ->withQueryString();
 
-            return [
-                'supplier' => $s,
-                'total_required' => $totalRequired,
-                'uploaded' => $uploaded,
-                'accepted' => $accepted,
-                'rejected' => $rejected,
-                'pending' => $pending,
-                'progress_percent' => max(0, min(100, $progress)),
-                'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
-            ];
-        });
+        $suppliers->setCollection($suppliers->getCollection()->map(function (Supplier $supplier) use ($documentTypes) {
+            return $this->supplierReviewRow($supplier, $documentTypes);
+        }));
+
+        return $suppliers;
+    }
+
+    private function supplierReviewRow(Supplier $supplier, Collection $documentTypes): array
+    {
+        $requiredTypes = $documentTypes
+            ->filter(fn (SupplierDocumentType $type) => $type->appliesTo($supplier))
+            ->pluck('code')
+            ->all();
+        $requiredDocs = $supplier->documents->whereIn('doc_type', $requiredTypes);
+        $totalRequired = count($requiredTypes);
+        $uploaded = $requiredDocs->pluck('doc_type')->unique()->count();
+        $accepted = $requiredDocs->where('status', 'accepted')->count();
+        $rejected = $requiredDocs->where('status', 'rejected')->count();
+        $pending = max($totalRequired - $accepted - $rejected, 0);
+        $progress = $totalRequired > 0 ? round(($uploaded / $totalRequired) * 100) : 0;
+
+        return [
+            'supplier' => $supplier,
+            'total_required' => $totalRequired,
+            'uploaded' => $uploaded,
+            'accepted' => $accepted,
+            'rejected' => $rejected,
+            'pending' => $pending,
+            'progress_percent' => max(0, min(100, $progress)),
+            'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
+        ];
     }
 
     /**

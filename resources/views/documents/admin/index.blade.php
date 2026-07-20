@@ -310,6 +310,14 @@
                             @endforelse
                         </tbody>
                     </table>
+                    @if(($activeTab ?? 'bandeja') === 'proveedores')
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-3">
+                            <span class="text-muted small">
+                                Mostrando {{ $suppliersSummary->firstItem() }}-{{ $suppliersSummary->lastItem() }} de {{ $suppliersSummary->total() }} proveedores
+                            </span>
+                            {{ $suppliersSummary->onEachSide(1)->links() }}
+                        </div>
+                    @endif
                     <div class="text-muted small mt-2">
                         <i class="ti ti-info-circle me-1"></i>
                         Esta vista muestra el <strong>avance por proveedor</strong>.
