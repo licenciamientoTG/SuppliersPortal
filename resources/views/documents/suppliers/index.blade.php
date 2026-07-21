@@ -154,15 +154,18 @@
     #docModal .modal-content { max-height: calc(100vh - 1rem); }
     #docModal #docForm { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
     #docModal .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    #docModal.is-guide-step .modal-dialog.modal-guide { width: calc(100vw - 4rem); max-width: 1400px; height: calc(100vh - 4rem); margin: 2rem auto; }
+    #docModal.is-guide-step .modal-content { height: 100%; max-height: none; }
     #docModal.is-guide-step .modal-body { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 1rem; }
     #docModal.is-guide-step #opinionQrGuide,
     #docModal.is-guide-step #csfQrGuide { width: 100%; margin: 0; padding: 0; border: 0; background: transparent; }
     #docModal.is-guide-step #opinionQrGuide img,
-    #docModal.is-guide-step #csfQrGuide img { width: auto; max-width: 100%; max-height: calc(100vh - 150px); object-fit: contain; }
+    #docModal.is-guide-step #csfQrGuide img { width: auto !important; max-width: 100% !important; max-height: calc(100vh - 190px); object-fit: contain; }
 
     @media (max-width: 575.98px) {
         #docModal .modal-content { max-height: 100vh; }
         #docModal .modal-body { padding-bottom: 1.5rem; }
+        #docModal.is-guide-step .modal-dialog.modal-guide { width: calc(100vw - 1rem); height: calc(100vh - 1rem); margin: .5rem auto; }
     }
 </style>
 @endpush
@@ -1361,14 +1364,14 @@ $(function () {
     function showGuideStep(docType) {
         updateDocumentGuides(docType);
         modalEl.classList.add('is-guide-step');
-        modalDialog.classList.add('modal-fullscreen');
+        modalDialog.classList.add('modal-guide');
         $('#documentUploadStep, #formErrors, #documentReplaceNotice, #uploadFooter').addClass('d-none');
         $('#guideFooter').removeClass('d-none');
     }
 
     function showUploadStep(openFilePicker = false) {
         modalEl.classList.remove('is-guide-step');
-        modalDialog.classList.remove('modal-fullscreen');
+        modalDialog.classList.remove('modal-guide');
         $('#opinionQrGuide, #csfQrGuide, #guideFooter').addClass('d-none');
         $('#documentUploadStep, #documentReplaceNotice, #uploadFooter').removeClass('d-none');
 
