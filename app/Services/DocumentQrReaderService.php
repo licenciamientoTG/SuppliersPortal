@@ -32,10 +32,6 @@ class DocumentQrReaderService
         if (strtolower($file->getClientOriginalExtension()) !== 'pdf') {
             $values[] = $this->readImage($path);
         } else {
-            $values = array_merge($values, $this->readPdfPagesWithImagick($path));
-            if ($values === []) {
-                $values = array_merge($values, $this->readPdfPagesWithPoppler($path));
-            }
             foreach ($this->pdfImageCandidates($contents) as $image) {
                 $temp = storage_path('app/tmp/document-qr/'.Str::uuid().'.jpg');
                 if (! is_dir(dirname($temp))) {
@@ -48,6 +44,13 @@ class DocumentQrReaderService
                 } finally {
                     @unlink($temp);
                 }
+            }
+
+            if ($values === []) {
+                $values = array_merge($values, $this->readPdfPagesWithImagick($path));
+            }
+            if ($values === []) {
+                $values = array_merge($values, $this->readPdfPagesWithPoppler($path));
             }
         }
 
