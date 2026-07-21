@@ -269,6 +269,7 @@
                                         ? optional($doc->uploaded_at ?? $doc->created_at)->format('Y-m-d H:i')
                                         : '—';
                                     $fileUrl = $doc ? Storage::url($doc->path_file) : '#';
+                                    $isCurrentDocument = $doc && (int) $r['requirement']->current_document_id === (int) $doc->id;
                                 @endphp
 
                                 <tr data-doc-type="{{ $type }}">
@@ -300,9 +301,11 @@
                                                 href="{{ $fileUrl }}" target="_blank" rel="noopener">
                                                     <i class="ti ti-eye me-1"></i> Ver
                                                 </a>
-                                                <button class="btn btn-sm btn-outline-danger js-delete-doc" data-doc-type="{{ $type }}" data-doc-id="{{ $doc->id }}" data-url="{{ route($documentsDestroyRoute, [$supplier, $doc->id]) }}">
-                                                    <i class="ti ti-trash me-1"></i> Eliminar
-                                                </button>
+                                                @if (! $isCurrentDocument)
+                                                    <button class="btn btn-sm btn-outline-danger js-delete-doc" data-doc-type="{{ $type }}" data-doc-id="{{ $doc->id }}" data-url="{{ route($documentsDestroyRoute, [$supplier, $doc->id]) }}">
+                                                        <i class="ti ti-trash me-1"></i> Eliminar
+                                                    </button>
+                                                @endif
                                             </div>
                                         @endif
                                     </td>
@@ -1494,7 +1497,15 @@ $(function () {
                 Swal.fire({ icon: 'success', title: 'Eliminado', timer: 1600, showConfirmButton: false });
             })
             .fail(function (xhr) {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el documento.' });
+                let message = xhr.responseJSON?.message;
+                if (!message) {
+                    try {
+                        message = JSON.parse(xhr.responseText || '{}').message;
+                    } catch (e) {
+                        message = null;
+                    }
+                }
+                Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: message || 'No se pudo eliminar el documento.' });
                 console.error(xhr?.responseText || xhr);
             });
         });
@@ -1520,12 +1531,13 @@ $(function () {
                 <a class="btn btn-sm btn-secondary js-view-file" href="${viewUrl}" target="_blank" rel="noopener">
                     <i class="ti ti-eye me-1"></i> Ver
                 </a>
-                <button class="btn btn-sm btn-outline-danger js-delete-doc"
-                        data-doc-type="${docType}"
-                        data-doc-id="${payload.id}"
-                        data-url="${destroyUrl}">
-                    <i class="ti ti-trash me-1"></i> Eliminar
-                </button>
+                ${payload.can_delete ? `
+                    <button class="btn btn-sm btn-outline-danger js-delete-doc"
+                            data-doc-type="${docType}"
+                            data-doc-id="${payload.id}"
+                            data-url="${destroyUrl}">
+                        <i class="ti ti-trash me-1"></i> Eliminar
+                    </button>` : ''}
             </div>`;
 
         $tr.find('.doc-actions').html(actionsHtml);

@@ -146,6 +146,7 @@ class SupplierDocumentController extends Controller
             'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
             'url' => $url,
             'destroy_url' => route($request->user('supplier') ? 'supplier.documents.destroy' : 'documents.suppliers.destroy', [$supplier, $doc->id]),
+            'can_delete' => $doc->requirement?->current_document_id !== $doc->id,
         ]);
     }
 
