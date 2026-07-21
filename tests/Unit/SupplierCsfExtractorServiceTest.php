@@ -43,4 +43,19 @@ class SupplierCsfExtractorServiceTest extends TestCase
         $this->assertSame('2026-07-01', $result['issued_at']->toDateString());
         $this->assertSame('SGT220531R7A', $result['rfc']);
     }
+
+    public function test_it_identifies_the_required_cedula_and_validation_qrs(): void
+    {
+        $service = new SupplierCsfExtractorService(new SatQrDataParser, Mockery::mock(DocumentQrReaderService::class));
+        $method = new \ReflectionMethod($service, 'csfQrPair');
+        $method->setAccessible(true);
+
+        $pair = $method->invoke($service, [
+            'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=26&D2=1&D3=validation',
+            'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=cedula',
+        ]);
+
+        $this->assertStringContainsString('D1=10', $pair['cedula']);
+        $this->assertStringContainsString('D1=26', $pair['validation']);
+    }
 }

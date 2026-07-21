@@ -48,8 +48,14 @@ class SupplierDocumentAutoAcceptanceService
         $issuedAt = $this->issuedAt($document, $metadata);
         $isCurrent = $issuedAt
             && $document->documentType?->isCurrentOn($issuedAt, now()->startOfDay());
+        $hasValidCsfQrPair = $document->doc_type !== 'constancia_fiscal'
+            || (
+                ($metadata['csf_cedula_qr_validated'] ?? false) === true
+                && ($metadata['csf_validation_qr_validated'] ?? false) === true
+                && ($metadata['csf_qr_rfc_matches'] ?? false) === true
+            );
 
-        $metadata['auto_acceptance'] = $rfcMatches && (! $isOpinion || $isPositive) && $isCurrent
+        $metadata['auto_acceptance'] = $rfcMatches && $hasValidCsfQrPair && (! $isOpinion || $isPositive) && $isCurrent
             ? 'accepted'
             : 'pending_review';
         $metadata['auto_acceptance_checked_at'] = now()->toDateTimeString();

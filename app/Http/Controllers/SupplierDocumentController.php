@@ -62,6 +62,15 @@ class SupplierDocumentController extends Controller
         $issueDateExtraction = $type->validity_source === 'qr'
             ? $issueDates->extract($file, $type, $supplier)
             : ['issued_at' => null, 'metadata' => null];
+
+        if ($docType === 'constancia_fiscal' && ! $this->hasValidatedCsfQrPair($issueDateExtraction['metadata'] ?? [])) {
+            Storage::disk('public')->delete($path);
+
+            return response()->json([
+                'message' => $issueDateExtraction['metadata']['message'] ?? 'La constancia debe incluir y validar el QR de la cedula fiscal y el QR de validacion.',
+            ], 422);
+        }
+
         $issuedAtSource = $this->issuedAtSourceFromExtraction($issueDateExtraction);
 
         try {
@@ -138,11 +147,25 @@ class SupplierDocumentController extends Controller
         };
     }
 
+    private function hasValidatedCsfQrPair(array $metadata): bool
+    {
+        return ($metadata['csf_cedula_qr_validated'] ?? false) === true
+            && ($metadata['csf_validation_qr_validated'] ?? false) === true
+            && ($metadata['csf_qr_rfc_matches'] ?? false) === true;
+    }
+
     public function review(Request $request, Supplier $supplier, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
     {
         $this->authorize('review', $document);
 
         abort_if($request->input('action') === 'accept' && $document->hasFailedAutomaticValidation(), 422, 'La validacion automatica detecto RFC distinto u opinion de cumplimiento no positiva. Rechaza el documento y solicita una version valida.');
+        abort_if(
+            $request->input('action') === 'accept'
+                && $document->doc_type === 'constancia_fiscal'
+                && ! $this->hasValidatedCsfQrPair($document->issue_date_extraction_data ?? []),
+            422,
+            'La constancia debe validar el QR de la cedula fiscal y el QR de validacion antes de aceptarse.'
+        );
 
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
         $data = $request->validate([

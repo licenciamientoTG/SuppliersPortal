@@ -66,6 +66,17 @@ class SupplierCsfExtractorService
         return $upload;
     }
 
+    public function extractFromFile(UploadedFile $file): array
+    {
+        $path = $file->getRealPath();
+
+        if (! is_string($path) || ! is_file($path)) {
+            throw new RuntimeException('No fue posible leer la constancia fiscal cargada.');
+        }
+
+        return $this->extractFromLocalPath($path);
+    }
+
     public function forgetTemporaryUpload(string $token, Session $session): void
     {
         $uploads = $session->get(self::SESSION_KEY, []);
@@ -109,10 +120,16 @@ class SupplierCsfExtractorService
         }
 
         $satUrls = $this->extractSatUrlsFromPdfContents($contents);
-        $satUrl = $this->preferredSatQrUrl($satUrls);
+        $qrPair = $this->csfQrPair($satUrls);
+        $cedulaQrUrl = $qrPair['cedula'];
+        $validationQrUrl = $qrPair['validation'];
 
-        if (! $satUrl) {
-            throw new RuntimeException('No fue posible localizar el QR o la URL fiscal dentro del PDF.');
+        if (! $cedulaQrUrl) {
+            throw new RuntimeException('La constancia debe incluir el QR de la cedula fiscal.');
+        }
+
+        if (! $validationQrUrl) {
+            throw new RuntimeException('La constancia debe incluir el QR de validacion de la constancia.');
         }
 
         try {
@@ -127,7 +144,7 @@ class SupplierCsfExtractorService
                     'User-Agent' => 'Mozilla/5.0 SuppliersPortal SAT CSF Reader',
                     'Accept-Language' => 'es-MX,es;q=0.9',
                 ])
-                ->get($satUrl);
+                ->get($cedulaQrUrl);
         } catch (ConnectionException $exception) {
             throw new RuntimeException('No fue posible consultar la pagina del SAT para validar la constancia.');
         }
@@ -136,8 +153,28 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible consultar la pagina del SAT para validar la constancia.');
         }
 
-        $parsed = $this->parser->parse($response->body(), $satUrl);
-        $issueDate = $this->extractIssueDateFromSatUrls($satUrls, $parsed['rfc'] ?? null);
+        $parsed = $this->parser->parse($response->body(), $cedulaQrUrl);
+        $issueDate = $this->extractIssueDateFromSatUrls([$validationQrUrl], $parsed['rfc'] ?? null);
+
+        if (! $issueDate) {
+            throw new RuntimeException('No fue posible validar la fecha de emision y el RFC desde el QR de validacion.');
+        }
+
+        $cedulaRfc = strtoupper((string) ($parsed['rfc'] ?? ''));
+        $validationRfc = strtoupper((string) ($issueDate['metadata']['rfc'] ?? ''));
+        if ($cedulaRfc === '' || $validationRfc === '' || ! hash_equals($cedulaRfc, $validationRfc)) {
+            throw new RuntimeException('El RFC de la cedula fiscal no coincide con el RFC del QR de validacion.');
+        }
+
+        $issueDate['metadata'] = array_merge($issueDate['metadata'], [
+            'csf_cedula_qr_url' => $cedulaQrUrl,
+            'csf_validation_qr_url' => $validationQrUrl,
+            'csf_cedula_rfc' => $cedulaRfc,
+            'csf_validation_rfc' => $validationRfc,
+            'csf_cedula_qr_validated' => true,
+            'csf_validation_qr_validated' => true,
+            'csf_qr_rfc_matches' => true,
+        ]);
 
         return $this->normalizeParsedResult($parsed, $issueDate);
     }
@@ -227,6 +264,27 @@ class SupplierCsfExtractorService
         usort($urls, fn (string $a, string $b) => $score($a) <=> $score($b));
 
         return $urls[0];
+    }
+
+    /** @return array{cedula: ?string, validation: ?string} */
+    private function csfQrPair(array $urls): array
+    {
+        $pair = ['cedula' => null, 'validation' => null];
+
+        foreach ($urls as $url) {
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $d1 = (string) ($query['D1'] ?? '');
+
+            if (in_array($d1, ['10', '0'], true) && ! $pair['cedula']) {
+                $pair['cedula'] = $url;
+            }
+
+            if ($d1 === '26' && ! $pair['validation']) {
+                $pair['validation'] = $url;
+            }
+        }
+
+        return $pair;
     }
 
     private function extractIssueDateFromSatUrls(array $urls, ?string $expectedRfc): ?array

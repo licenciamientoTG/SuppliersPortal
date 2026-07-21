@@ -17,6 +17,7 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
     public function __construct(
         private readonly DocumentQrReaderService $qrReader,
         private readonly InfonavitPdfTextExtractionService $infonavitText,
+        private readonly SupplierCsfExtractorService $csfExtractor,
     ) {}
 
     public function supports(SupplierDocumentType $type): bool
@@ -26,6 +27,10 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
 
     public function extract(UploadedFile $file, SupplierDocumentType $type, ?Supplier $supplier = null): ?DocumentIssueDateExtraction
     {
+        if ($type->code === 'constancia_fiscal') {
+            return $this->extractCsfFromFile($file);
+        }
+
         if ($type->code === 'opinion_infonavit') {
             return $this->extractInfonavitFromFile($file);
         }
@@ -40,7 +45,6 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
 
         foreach ($payloads as $payload) {
             $result = match ($type->code) {
-                'constancia_fiscal' => $this->fromCsfQr($payload),
                 'opinion_sat' => $this->fromSatOpinionQr($payload),
                 'opinion_imss' => $this->fromImssQr($payload),
                 default => null,
@@ -57,6 +61,14 @@ class ComplianceDocumentQrExtractor implements DocumentIssueDateExtractor
         }
 
         return new DocumentIssueDateExtraction(null, $metadata);
+    }
+
+    private function extractCsfFromFile(UploadedFile $file): DocumentIssueDateExtraction
+    {
+        $result = $this->csfExtractor->extractFromFile($file);
+        $issuedAt = Carbon::parse($result['issued_at'])->startOfDay();
+
+        return new DocumentIssueDateExtraction($issuedAt, $result['issue_date_extraction_data']);
     }
 
     private function extractInfonavitFromFile(UploadedFile $file): DocumentIssueDateExtraction

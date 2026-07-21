@@ -6,6 +6,7 @@ use App\Models\SupplierDocumentType;
 use App\Services\ComplianceDocumentQrExtractor;
 use App\Services\DocumentQrReaderService;
 use App\Services\InfonavitPdfTextExtractionService;
+use App\Services\SupplierCsfExtractorService;
 use Illuminate\Http\UploadedFile;
 use Mockery;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ class ComplianceDocumentQrExtractorTest extends TestCase
             'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=1&D2=1&D3=26NE9193705_SGT220531R7A_01-07-2026_P',
         ]);
 
-        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService))->extract(
+        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService, Mockery::mock(SupplierCsfExtractorService::class)))->extract(
             UploadedFile::fake()->create('opinion.pdf', 10, 'application/pdf'),
             new SupplierDocumentType(['code' => 'opinion_sat'])
         );
@@ -29,20 +30,30 @@ class ComplianceDocumentQrExtractorTest extends TestCase
         $this->assertSame('POSITIVA', $extraction->metadata['compliance_status']);
     }
 
-    public function test_it_extracts_csf_emission_date_from_the_signed_sat_qr(): void
+    public function test_it_uses_the_csf_service_that_validates_both_sat_qrs(): void
     {
         $reader = Mockery::mock(DocumentQrReaderService::class);
-        $reader->shouldReceive('read')->once()->andReturn([
-            'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=0&D2=1&D3=%7C%7C2024%2F08%2F07%7CRIVM5307255Q2%7CCONSTANCIA+DE+SITUACI%C3%93N+FISCAL%7C200001088888800000031%7C%7C_sello',
+        $reader->shouldNotReceive('read');
+        $csf = Mockery::mock(SupplierCsfExtractorService::class);
+        $csf->shouldReceive('extractFromFile')->once()->andReturn([
+            'issued_at' => '2024-08-07',
+            'issue_date_extraction_data' => [
+                'rfc' => 'RIVM5307255Q2',
+                'csf_cedula_qr_validated' => true,
+                'csf_validation_qr_validated' => true,
+                'csf_qr_rfc_matches' => true,
+            ],
         ]);
 
-        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService))->extract(
+        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService, $csf))->extract(
             UploadedFile::fake()->create('csf.pdf', 10, 'application/pdf'),
             new SupplierDocumentType(['code' => 'constancia_fiscal'])
         );
 
         $this->assertSame('2024-08-07', $extraction->issuedAt->toDateString());
         $this->assertSame('RIVM5307255Q2', $extraction->metadata['rfc']);
+        $this->assertTrue($extraction->metadata['csf_cedula_qr_validated']);
+        $this->assertTrue($extraction->metadata['csf_validation_qr_validated']);
     }
 
     public function test_it_extracts_rfc_date_and_opinion_from_imss_qr(): void
@@ -52,7 +63,7 @@ class ComplianceDocumentQrExtractorTest extends TestCase
             '||Invocante:portalimssdigital|Tramite:Carta de No Adeudo Art. 32D|Fecha:13 de enero 2025, 17:04:46|Folio:17368094870261299930620|RFC:SGT220531R7A|Opinion:POSITIVA|FechaInicioVigencia:13 de enero 2025, 17:04:46|FechaFinVigencia:13 de enero de 2025, 23:59:59||',
         ]);
 
-        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService))->extract(
+        $extraction = (new ComplianceDocumentQrExtractor($reader, new InfonavitPdfTextExtractionService, Mockery::mock(SupplierCsfExtractorService::class)))->extract(
             UploadedFile::fake()->create('imss.pdf', 10, 'application/pdf'),
             new SupplierDocumentType(['code' => 'opinion_imss'])
         );
@@ -79,7 +90,7 @@ class ComplianceDocumentQrExtractorTest extends TestCase
             ]),
         ]);
 
-        $extraction = (new ComplianceDocumentQrExtractor($reader, $textExtractor))->extract(
+        $extraction = (new ComplianceDocumentQrExtractor($reader, $textExtractor, Mockery::mock(SupplierCsfExtractorService::class)))->extract(
             UploadedFile::fake()->create('infonavit.pdf', 10, 'application/pdf'),
             new SupplierDocumentType(['code' => 'opinion_infonavit'])
         );
