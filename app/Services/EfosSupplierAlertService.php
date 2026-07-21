@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\SupplierListedInEfosNotification;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Role;
 
 class EfosSupplierAlertService
 {
@@ -17,7 +18,10 @@ class EfosSupplierAlertService
             return 0;
         }
 
-        $recipients = User::role(['buyer', 'superadmin', 'admin'])->get();
+        $roles = Role::query()
+            ->whereIn('name', ['buyer', 'superadmin', 'admin'])
+            ->get();
+        $recipients = $roles->isEmpty() ? collect() : User::role($roles)->get();
 
         foreach ($listedSuppliers as $supplier) {
             $recipients->each->notify(new SupplierListedInEfosNotification($supplier));

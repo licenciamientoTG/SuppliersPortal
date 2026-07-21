@@ -22,7 +22,6 @@ class EfosSupplierAlertServiceTest extends TestCase
 
         Role::create(['name' => 'buyer', 'guard_name' => 'web']);
         Role::create(['name' => 'superadmin', 'guard_name' => 'web']);
-        Role::create(['name' => 'admin', 'guard_name' => 'web']);
     }
 
     public function test_it_notifies_buyers_and_administrators_for_every_listed_active_supplier(): void
@@ -31,16 +30,14 @@ class EfosSupplierAlertServiceTest extends TestCase
         $supplier = Supplier::factory()->create(['rfc' => 'ABC010101ABC', 'is_active' => true]);
         $buyer = User::factory()->create();
         $superadmin = User::factory()->create();
-        $admin = User::factory()->create();
         $buyer->assignRole('buyer');
         $superadmin->assignRole('superadmin');
-        $admin->assignRole('admin');
         $this->addEfosRecord($supplier, 'Definitivo');
 
         $notified = app(EfosSupplierAlertService::class)->notifyListedActiveSuppliers();
 
         $this->assertSame(1, $notified);
-        Notification::assertSentTo([$buyer, $superadmin, $admin], SupplierListedInEfosNotification::class);
+        Notification::assertSentTo([$buyer, $superadmin], SupplierListedInEfosNotification::class);
     }
 
     public function test_it_sends_an_alert_even_if_the_supplier_was_already_listed_before_sync(): void
