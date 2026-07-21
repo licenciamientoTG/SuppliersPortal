@@ -75,6 +75,20 @@ class EfosSupplierAlertServiceTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_efos_email_uses_the_corporate_notification_template(): void
+    {
+        $recipient = User::factory()->create(['name' => 'Compras TotalGas']);
+        $notification = new SupplierListedInEfosNotification([
+            ['id' => 1, 'name' => 'Proveedor EFOS', 'rfc' => 'ABC010101ABC'],
+        ]);
+
+        $mail = $notification->toMail($recipient);
+
+        $this->assertSame('emails.notifications.supplier-listed-in-efos', $mail->view);
+        $this->assertSame('Compras TotalGas', $mail->viewData['name']);
+        $this->assertSame('ABC010101ABC', $mail->viewData['suppliers'][0]['rfc']);
+    }
+
     private function addEfosRecord(Supplier $supplier, string $situation): void
     {
         DB::table('sat_efos_69b')->insert([

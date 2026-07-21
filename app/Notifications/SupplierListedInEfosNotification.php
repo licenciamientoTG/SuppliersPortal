@@ -24,10 +24,11 @@ class SupplierListedInEfosNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Alerta EFOS: proveedores activos identificados')
-            ->greeting('Hola '.($notifiable->name ?? '').',')
-            ->line($this->message())
-            ->line($this->supplierList())
-            ->action('Revisar lista EFOS', route('sat_efos_69b.index'));
+            ->view('emails.notifications.supplier-listed-in-efos', [
+                'name' => $notifiable->first_name ?? $notifiable->name,
+                'suppliers' => $this->suppliers,
+                'url' => route('sat_efos_69b.index'),
+            ]);
     }
 
     public function toArray(object $notifiable): array
@@ -45,12 +46,5 @@ class SupplierListedInEfosNotification extends Notification
         $count = count($this->suppliers);
 
         return "Se identificaron {$count} proveedor(es) activo(s) en la lista EFOS del SAT.";
-    }
-
-    private function supplierList(): string
-    {
-        return collect($this->suppliers)
-            ->map(fn (array $supplier) => "{$supplier['name']} (RFC {$supplier['rfc']})")
-            ->implode("\n");
     }
 }
