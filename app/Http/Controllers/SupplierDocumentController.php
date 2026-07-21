@@ -9,6 +9,7 @@ use App\Models\SupplierDocumentType;
 use App\Services\DocumentIssueDateExtractionService;
 use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
+use App\Services\SupplierDocumentUploadPreparationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -36,7 +37,7 @@ class SupplierDocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements, DocumentIssueDateExtractionService $issueDates, SupplierDocumentAutoAcceptanceService $autoAcceptance)
+    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements, DocumentIssueDateExtractionService $issueDates, SupplierDocumentAutoAcceptanceService $autoAcceptance, SupplierDocumentUploadPreparationService $uploadPreparation)
     {
         $authenticatedSupplier = $request->user('supplier');
         if ($authenticatedSupplier) {
@@ -49,31 +50,41 @@ class SupplierDocumentController extends Controller
 
         $request->validate([
             'doc_type' => ['required', Rule::in(SupplierDocumentType::query()->where('is_active', true)->pluck('code')->all())],
+            'files' => ['required_without:file', 'array', 'max:5'],
+            'files.*' => [
+                'file',
+                "max:$maxKb",
+                'mimes:jpg,jpeg,png,pdf',
+            ],
             'file' => [
-                'required',
+                'nullable',
                 'file',
                 "max:$maxKb",
                 'mimes:jpg,jpeg,png,pdf',
             ],
         ]);
 
-        $file = $request->file('file');
-        $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
-        $issueDateExtraction = $type->validity_source === 'qr'
-            ? $issueDates->extract($file, $type, $supplier)
-            : ['issued_at' => null, 'metadata' => null];
-
-        if ($docType === 'constancia_fiscal' && ! $this->hasValidatedCsfQrPair($issueDateExtraction['metadata'] ?? [])) {
-            Storage::disk('public')->delete($path);
-
-            return response()->json([
-                'message' => $issueDateExtraction['metadata']['message'] ?? 'La constancia debe incluir y validar el QR de la cedula fiscal y el QR de validacion.',
-            ], 422);
-        }
-
-        $issuedAtSource = $this->issuedAtSourceFromExtraction($issueDateExtraction);
+        $files = $request->file('files') ?: array_filter([($request->file('file'))]);
+        $preparedUpload = $uploadPreparation->prepare($files, $maxKb);
+        $file = $preparedUpload['file'];
+        $temporaryPath = $preparedUpload['temporary_path'];
 
         try {
+            $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
+            $issueDateExtraction = $type->validity_source === 'qr'
+                ? $issueDates->extract($file, $type, $supplier)
+                : ['issued_at' => null, 'metadata' => null];
+
+            if ($docType === 'constancia_fiscal' && ! $this->hasValidatedCsfQrPair($issueDateExtraction['metadata'] ?? [])) {
+                Storage::disk('public')->delete($path);
+
+                return response()->json([
+                    'message' => $issueDateExtraction['metadata']['message'] ?? 'La constancia debe incluir y validar el QR de la cedula fiscal y el QR de validacion.',
+                ], 422);
+            }
+
+            $issuedAtSource = $this->issuedAtSourceFromExtraction($issueDateExtraction);
+
             [$doc, $replacedPaths] = DB::transaction(function () use ($supplier, $type, $docType, $request, $path, $file, $issueDateExtraction, $issuedAtSource, $requirements, $autoAcceptance) {
                 $previousPendingDocuments = SupplierDocument::query()
                     ->where('supplier_id', $supplier->id)
@@ -109,9 +120,15 @@ class SupplierDocumentController extends Controller
                 return [$doc, $replacedPaths];
             });
         } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($path);
+            if (isset($path)) {
+                Storage::disk('public')->delete($path);
+            }
 
             throw $exception;
+        } finally {
+            if ($temporaryPath && is_file($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
         }
 
         foreach ($replacedPaths as $replacedPath) {

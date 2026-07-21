@@ -1137,13 +1137,14 @@
                             </div>
 
                             {{-- Input real (oculto, lo usa el formulario) --}}
-                            <input type="file" name="file" id="fileInput" class="d-none"
-                                   accept=".jpg,.jpeg,.png,.pdf" required>
+                            <input type="file" name="files[]" id="fileInput" class="d-none"
+                                   accept=".jpg,.jpeg,.png,.pdf" multiple required>
 
                             <div class="form-text mt-2" id="sizeHelp">
                                 <i class="ti ti-info-circle me-1"></i>
                                 PDF / JPG / PNG &nbsp;·&nbsp; Máx. <span id="maxMb">10</span> MB
                             </div>
+                            <div class="form-text">Puedes cargar un PDF o seleccionar hasta cinco fotografías; las fotografías se consolidarán en un solo PDF.</div>
                         </div>
 
                         <div class="alert alert-info d-flex align-items-center py-2">
@@ -1339,13 +1340,25 @@ $(function () {
 
     // Validación de tamaño en cliente según doc_type
     $(document).on('change', '#fileInput', function () {
-        const file = this.files && this.files[0];
-        if (!file) return;
+        const files = Array.from(this.files || []);
+        if (!files.length) return;
 
         const docType = $('#docTypeInput').val();
         const maxBytes = getMaxBytes(docType);
 
-        if (file.size > maxBytes) {
+        const extensions = files.map(file => (file.name.split('.').pop() || '').toLowerCase());
+        const hasPdf = extensions.includes('pdf');
+        const validSelection = files.length <= 5
+            && (!hasPdf || files.length === 1)
+            && extensions.every(extension => ['pdf', 'jpg', 'jpeg', 'png'].includes(extension));
+
+        if (!validSelection) {
+            $('#formErrors').html(
+                '<div class="alert alert-danger"><i class="ti ti-alert-triangle me-1"></i>'
+                + 'Selecciona un solo PDF o entre una y cinco fotografias JPG/PNG.</div>'
+            ).removeClass('d-none');
+            this.value = '';
+        } else if (files.some(file => file.size > maxBytes)) {
             $('#formErrors').html(
             `<div class="alert alert-danger">
                 <i class="ti ti-alert-triangle me-1"></i>
@@ -1622,7 +1635,7 @@ $(function () {
 
         // Asignar al input real
         const dt = new DataTransfer();
-        dt.items.add(files[0]);
+        Array.from(files).forEach(file => dt.items.add(file));
         fileInput.files = dt.files;
 
         // Disparar change para que la validación existente de tamaño se ejecute
@@ -1631,9 +1644,9 @@ $(function () {
 
     // Cuando cambia el input (click o drop)
     fileInput.addEventListener('change', function () {
-        const file = this.files && this.files[0];
-        if (file) {
-            showPreview(file);
+        const files = Array.from(this.files || []);
+        if (files.length) {
+            showPreview(files);
         } else {
             clearPreview();
         }
@@ -1650,13 +1663,16 @@ $(function () {
         });
     }
 
-    function showPreview(file) {
+    function showPreview(files) {
+        const file = files[0];
         const ext = (file.name.split('.').pop() || '').toLowerCase();
         const isPdf   = ext === 'pdf';
         const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext);
 
-        previewName.textContent = file.name;
-        previewSize.textContent = formatBytes(file.size);
+        previewName.textContent = files.length === 1 ? file.name : `${files.length} fotografias seleccionadas`;
+        previewSize.textContent = files.length === 1
+            ? formatBytes(file.size)
+            : `${formatBytes(files.reduce((total, item) => total + item.size, 0))} - Se consolidaran en un PDF`;
 
         previewIcon.className = 'file-preview-icon';
         if (isPdf) {
