@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\EfosSupplierAlertService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +20,7 @@ class SyncEfosJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 1800;
+
     public int $tries = 1;
 
     public function __construct(public string $jobId) {}
@@ -27,39 +29,53 @@ class SyncEfosJob implements ShouldQueue
     {
         $key = "efos_sync_{$this->jobId}";
         $this->patch($key, ['status' => 'running', 'started_at' => now()->toDateTimeString()]);
+        $efosAlerts = app(EfosSupplierAlertService::class);
 
         try {
-            $url     = config('efos.csv_url');
-            $dirAbs  = storage_path('app/' . config('efos.storage_dir', 'efos'));
-            if (!is_dir($dirAbs)) mkdir($dirAbs, 0775, true);
-            $fullPath = $dirAbs . '/Listado_Completo_69-B.csv';
+            $url = config('efos.csv_url');
+            $dirAbs = storage_path('app/'.config('efos.storage_dir', 'efos'));
+            if (! is_dir($dirAbs)) {
+                mkdir($dirAbs, 0775, true);
+            }
+            $fullPath = $dirAbs.'/Listado_Completo_69-B.csv';
 
             $response = Http::withOptions(['sink' => $fullPath])->timeout(120)->retry(3, 2000)->get($url);
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 throw new \RuntimeException("No se pudo descargar el CSV (HTTP {$response->status()})");
             }
 
             $total = $this->countDataLines($fullPath);
             $this->patch($key, ['total' => $total, 'message' => 'Procesando registros...']);
 
-            $processed   = 0;
-            $rows        = [];
+            $processed = 0;
+            $rows = [];
             $headerFound = false;
-            $chunkSize   = 1000;
+            $chunkSize = 1000;
 
             $lines = LazyCollection::make(function () use ($fullPath) {
                 $handle = fopen($fullPath, 'r');
-                if (!$handle) { yield from []; return; }
-                while (($line = fgets($handle)) !== false) yield $line;
+                if (! $handle) {
+                    yield from [];
+
+                    return;
+                }
+                while (($line = fgets($handle)) !== false) {
+                    yield $line;
+                }
                 fclose($handle);
             });
 
             foreach ($lines as $rawLine) {
                 $line = mb_convert_encoding($rawLine, 'UTF-8', 'ISO-8859-1');
-                $row  = str_getcsv($line);
-                if (!$row || count($row) < 2) continue;
-                if (!$headerFound) {
-                    if (stripos($row[1] ?? '', 'RFC') !== false) $headerFound = true;
+                $row = str_getcsv($line);
+                if (! $row || count($row) < 2) {
+                    continue;
+                }
+                if (! $headerFound) {
+                    if (stripos($row[1] ?? '', 'RFC') !== false) {
+                        $headerFound = true;
+                    }
+
                     continue;
                 }
                 $rows[] = $row;
@@ -69,7 +85,7 @@ class SyncEfosJob implements ShouldQueue
                     $rows = [];
                     $this->patch($key, [
                         'processed' => $processed,
-                        'message'   => "Procesando... {$processed} de {$total} registros",
+                        'message' => "Procesando... {$processed} de {$total} registros",
                     ]);
                 }
             }
@@ -78,22 +94,26 @@ class SyncEfosJob implements ShouldQueue
                 $processed += count($rows);
             }
 
+            $listedSuppliers = $efosAlerts->notifyListedActiveSuppliers();
+
             $this->patch($key, [
-                'status'      => 'completed',
-                'processed'   => $processed,
-                'message'     => 'Sincronización completada',
+                'status' => 'completed',
+                'processed' => $processed,
+                'listed_suppliers' => $listedSuppliers,
+                'message' => 'Sincronización completada',
                 'finished_at' => now()->toDateTimeString(),
             ]);
             Log::info("SyncEfosJob completado: {$processed} registros procesados.");
         } catch (\Throwable $e) {
             try {
                 $this->patch($key, [
-                    'status'      => 'failed',
-                    'message'     => $e->getMessage(),
+                    'status' => 'failed',
+                    'message' => $e->getMessage(),
                     'finished_at' => now()->toDateTimeString(),
                 ]);
-            } catch (\Throwable) {}
-            Log::error("SyncEfosJob falló: " . $e->getMessage());
+            } catch (\Throwable) {
+            }
+            Log::error('SyncEfosJob falló: '.$e->getMessage());
             throw $e;
         }
     }
@@ -105,37 +125,52 @@ class SyncEfosJob implements ShouldQueue
 
     private function countDataLines(string $fullPath): int
     {
-        $count       = 0;
+        $count = 0;
         $headerFound = false;
-        $handle      = fopen($fullPath, 'r');
-        if (!$handle) return 0;
+        $handle = fopen($fullPath, 'r');
+        if (! $handle) {
+            return 0;
+        }
         while (($line = fgets($handle)) !== false) {
             $row = str_getcsv(mb_convert_encoding($line, 'UTF-8', 'ISO-8859-1'));
-            if (!$row || count($row) < 2) continue;
-            if (!$headerFound) {
-                if (stripos($row[1] ?? '', 'RFC') !== false) $headerFound = true;
+            if (! $row || count($row) < 2) {
+                continue;
+            }
+            if (! $headerFound) {
+                if (stripos($row[1] ?? '', 'RFC') !== false) {
+                    $headerFound = true;
+                }
+
                 continue;
             }
             $count++;
         }
         fclose($handle);
+
         return $count;
     }
 
     private function parseDate(?string $value): ?Carbon
     {
         $v = trim((string) $value);
-        if ($v === '') return null;
-        try { return Carbon::createFromFormat('d/m/Y', $v)->startOfDay(); }
-        catch (\Throwable) { return null; }
+        if ($v === '') {
+            return null;
+        }
+        try {
+            return Carbon::createFromFormat('d/m/Y', $v)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function upsertChunk(array $rows): void
     {
         $now = Carbon::now();
         foreach ($rows as $row) {
-            if (count($row) < 16) continue;
-            DB::statement("
+            if (count($row) < 16) {
+                continue;
+            }
+            DB::statement('
                 MERGE sat_efos_69b AS target
                 USING (VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))
                     AS source (number, rfc, company_name, situation,
@@ -167,14 +202,14 @@ class SyncEfosJob implements ShouldQueue
                     source.dof_presumption_notice_date, source.dof_presumed_pub_date,
                     source.sat_definitive_publication_date, source.dof_definitive_publication_date,
                     source.updated_at, source.created_at);
-            ", [
-                (int)($row[0] ?? 0),
-                mb_substr(trim((string)($row[1] ?? '')), 0, 13),
-                mb_substr(trim((string)($row[2] ?? '')), 0, 255),
-                mb_substr(trim((string)($row[3] ?? '')), 0, 255),
-                mb_substr(trim((string)($row[4] ?? '')), 0, 100),
+            ', [
+                (int) ($row[0] ?? 0),
+                mb_substr(trim((string) ($row[1] ?? '')), 0, 13),
+                mb_substr(trim((string) ($row[2] ?? '')), 0, 255),
+                mb_substr(trim((string) ($row[3] ?? '')), 0, 255),
+                mb_substr(trim((string) ($row[4] ?? '')), 0, 100),
                 optional($this->parseDate($row[5] ?? null))->toDateString(),
-                mb_substr(trim((string)($row[6] ?? '')), 0, 100),
+                mb_substr(trim((string) ($row[6] ?? '')), 0, 100),
                 optional($this->parseDate($row[7] ?? null))->toDateString(),
                 optional($this->parseDate($row[13] ?? null))->toDateString(),
                 optional($this->parseDate($row[15] ?? null))->toDateString(),
