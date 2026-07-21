@@ -1151,27 +1151,11 @@
                         </div>
 
                         <div id="opinionQrGuide" class="alert alert-warning d-none mb-3" role="alert">
-                            <div class="row align-items-center g-3">
-                                <div class="col-4 col-sm-3 text-center">
-                                    <img src="{{ asset('images/document-guides/opinion-qr-legible.png') }}" alt="Ejemplo ilustrado de una opinión con código QR legible" class="img-fluid" style="max-height:150px;">
-                                </div>
-                                <div class="col-8 col-sm-9">
-                                    <div class="fw-semibold mb-1"><i class="ti ti-qrcode me-1"></i>Antes de cargar la opinión</div>
-                                    <div class="small">El documento debe ser legible y el código QR debe verse completo, nítido y sin reflejos, sombras o recortes.</div>
-                                </div>
-                            </div>
+                            <img src="{{ asset('images/document-guides/opinion-qr-legible.png') }}" alt="Guía para cargar una opinión con código QR completo, nítido y legible" class="img-fluid d-block mx-auto rounded" style="width:100%;max-width:520px;">
                         </div>
 
                         <div id="csfQrGuide" class="alert alert-info d-none mb-3" role="alert">
-                            <div class="row align-items-center g-3">
-                                <div class="col-4 col-sm-3 text-center">
-                                    <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Ejemplo ilustrado de una constancia con todas las páginas y dos códigos QR" class="img-fluid" style="max-height:150px;">
-                                </div>
-                                <div class="col-8 col-sm-9">
-                                    <div class="fw-semibold mb-1"><i class="ti ti-file-invoice me-1"></i>Antes de cargar la constancia fiscal</div>
-                                    <div class="small">En PDF o fotografías, incluye todas las páginas completas. Los dos códigos QR deben verse completos, nítidos y legibles.</div>
-                                </div>
-                            </div>
+                            <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Guía para cargar una constancia fiscal con todas sus páginas y dos códigos QR legibles" class="img-fluid d-block mx-auto rounded" style="width:100%;max-width:520px;">
                         </div>
 
                         <div class="alert alert-info d-flex align-items-center py-2">

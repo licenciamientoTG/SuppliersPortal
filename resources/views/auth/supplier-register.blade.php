@@ -402,9 +402,8 @@
                             <button type="button" class="btn btn-secondary" id="parse-csf-button">Analizar constancia</button>
                         </div>
                         <div id="csf-feedback" class="banner info hidden" style="margin-top:14px;"></div>
-                        <div class="banner info" style="margin-top:14px;display:flex;align-items:center;gap:14px;">
-                            <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Ejemplo ilustrado de una constancia con todas las páginas y dos códigos QR" style="width:92px;height:92px;object-fit:contain;flex:0 0 auto;">
-                            <span>Incluye todas las páginas completas. Los dos códigos QR deben verse completos, nítidos y legibles, tanto en fotos como en PDF.</span>
+                        <div class="banner info" style="margin-top:14px;padding:12px;text-align:center;">
+                            <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Guía para cargar una constancia fiscal con todas sus páginas y dos códigos QR legibles" style="width:100%;max-width:440px;height:auto;display:block;margin:0 auto;">
                         </div>
                         @if ($viewErrors->has('csf_upload_token'))
                             <div class="error" style="margin-top:14px;">{{ $viewErrors->first('csf_upload_token') }}</div>
