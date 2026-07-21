@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use App\Models\SupplierDocument;
 use App\Models\SupplierDocumentType;
 use App\Services\InfonavitQrValidationService;
+use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -265,7 +266,7 @@ class DocumentReviewController extends Controller
         return $metadata;
     }
 
-    public function revalidate(SupplierDocument $document, InfonavitQrValidationService $infonavit)
+    public function revalidate(SupplierDocument $document, InfonavitQrValidationService $infonavit, SupplierDocumentAutoAcceptanceService $autoAcceptance, SupplierDocumentRequirementService $requirements)
     {
         abort_unless($document->doc_type === 'opinion_infonavit', 422, 'Este documento no utiliza la consulta de INFONAVIT.');
 
@@ -277,9 +278,12 @@ class DocumentReviewController extends Controller
         }
 
         $document->refresh();
+        $autoAcceptance->acceptIfEligible($document, $requirements);
+        $document->refresh();
 
         return response()->json([
             'ok' => true,
+            'status' => $document->status,
             'issued_at' => $document->issued_at?->format('Y-m-d'),
             'validation' => $document->issue_date_extraction_data,
         ]);

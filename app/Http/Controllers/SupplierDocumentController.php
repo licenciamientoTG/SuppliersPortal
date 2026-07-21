@@ -7,6 +7,7 @@ use App\Models\Supplier;
 use App\Models\SupplierDocument;
 use App\Models\SupplierDocumentType;
 use App\Services\DocumentIssueDateExtractionService;
+use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -34,7 +35,7 @@ class SupplierDocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements, DocumentIssueDateExtractionService $issueDates)
+    public function store(Request $request, Supplier $supplier, SupplierDocumentRequirementService $requirements, DocumentIssueDateExtractionService $issueDates, SupplierDocumentAutoAcceptanceService $autoAcceptance)
     {
         $authenticatedSupplier = $request->user('supplier');
         if ($authenticatedSupplier) {
@@ -79,7 +80,7 @@ class SupplierDocumentController extends Controller
             'issue_date_extraction_data' => $issueDateExtraction['metadata'],
         ]);
 
-        if ($requirement) {
+        if (! $autoAcceptance->acceptIfEligible($doc, $requirements) && $requirement) {
             $requirements->markSubmitted($requirement);
         }
         $supplier->recalculateDocumentStatus();

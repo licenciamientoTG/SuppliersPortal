@@ -7,6 +7,7 @@ use App\Models\SupplierDocument;
 use App\Models\SupplierDocumentRequirement;
 use App\Models\SupplierDocumentType;
 use App\Models\User;
+use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,6 +111,34 @@ class SupplierDocumentCatalogTest extends TestCase
 
         $this->assertTrue($type->isCurrentOn(Carbon::parse('2026-02-15'), Carbon::parse('2026-05-14')));
         $this->assertFalse($type->isCurrentOn(Carbon::parse('2026-02-15'), Carbon::parse('2026-05-15')));
+    }
+
+    public function test_current_positive_compliance_document_with_matching_rfc_is_accepted_automatically(): void
+    {
+        $supplier = Supplier::factory()->create(['person_type' => 'fisica', 'rfc' => 'AAA010101AAA']);
+        $type = SupplierDocumentType::query()->where('code', 'opinion_sat')->firstOrFail();
+        $type->update(['renewal_mode' => 'periodic', 'renewal_interval_value' => 3, 'renewal_interval_unit' => 'months']);
+        $requirements = app(SupplierDocumentRequirementService::class);
+        $requirement = $requirements->requirementForUpload($supplier, $type);
+        $document = SupplierDocument::create([
+            'supplier_id' => $supplier->id,
+            'doc_type' => $type->code,
+            'supplier_document_type_id' => $type->id,
+            'supplier_document_requirement_id' => $requirement?->id,
+            'path_file' => 'supplier/opinion.pdf',
+            'status' => 'pending_review',
+            'uploaded_at' => now(),
+            'issued_at' => now()->subMonth(),
+            'issue_date_extraction_data' => [
+                'rfc' => 'AAA010101AAA',
+                'compliance_status' => 'POSITIVA',
+                'issued_at' => now()->subMonth()->toDateString(),
+            ],
+        ]);
+
+        $this->assertTrue(app(SupplierDocumentAutoAcceptanceService::class)->acceptIfEligible($document, $requirements));
+        $this->assertSame('accepted', $document->fresh()->status);
+        $this->assertSame('compliant', $requirement?->fresh()->status);
     }
 
     public function test_periodicity_label_uses_correct_singular_and_plural(): void

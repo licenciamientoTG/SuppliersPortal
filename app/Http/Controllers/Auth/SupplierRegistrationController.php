@@ -13,6 +13,7 @@ use App\Notifications\SupplierWelcomeNotification;
 use App\Rules\EfosNotListed;
 use App\Rules\ValidRfc;
 use App\Services\SupplierCsfExtractorService;
+use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\JsonResponse;
@@ -64,12 +65,12 @@ class SupplierRegistrationController extends Controller
         ]);
     }
 
-    public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor, SupplierDocumentRequirementService $requirements)
+    public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor, SupplierDocumentRequirementService $requirements, SupplierDocumentAutoAcceptanceService $autoAcceptance)
     {
         $data = $request->validated();
         $isForeign = $request->boolean('is_foreign');
 
-        return DB::transaction(function () use ($data, $request, $extractor, $isForeign, $requirements) {
+        return DB::transaction(function () use ($data, $request, $extractor, $isForeign, $requirements, $autoAcceptance) {
             $repseData = $this->prepareRepseData($data);
             $csfUpload = null;
             $fiscalData = null;
@@ -119,7 +120,7 @@ class SupplierRegistrationController extends Controller
 
                 $type = SupplierDocumentType::where('code', 'constancia_fiscal')->first();
                 $requirement = $type ? $requirements->requirementForUpload($supplier, $type) : null;
-                SupplierDocument::create([
+                $document = SupplierDocument::create([
                     'supplier_id' => $supplier->id,
                     'uploaded_by' => null,
                     'doc_type' => 'constancia_fiscal',
@@ -135,7 +136,7 @@ class SupplierRegistrationController extends Controller
                     'issue_date_extraction_data' => $fiscalData['issue_date_extraction_data'] ?? null,
                 ]);
 
-                if ($requirement) {
+                if (! $autoAcceptance->acceptIfEligible($document, $requirements) && $requirement) {
                     $requirements->markSubmitted($requirement);
                 }
 
