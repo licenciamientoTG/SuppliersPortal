@@ -10,6 +10,7 @@ use App\Services\DocumentIssueDateExtractionService;
 use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -63,26 +64,51 @@ class SupplierDocumentController extends Controller
             : ['issued_at' => null, 'metadata' => null];
         $issuedAtSource = $this->issuedAtSourceFromExtraction($issueDateExtraction);
 
-        $requirement = $requirements->requirementForUpload($supplier, $type);
-        $doc = SupplierDocument::create([
-            'supplier_id' => $supplier->id,
-            'uploaded_by' => $request->user('web')?->id,
-            'doc_type' => $docType,
-            'supplier_document_type_id' => $type->id,
-            'supplier_document_requirement_id' => $requirement?->id,
-            'path_file' => $path,
-            'size_bytes' => $file->getSize(),
-            'mime_type' => $file->getClientMimeType(),
-            'status' => 'pending_review',
-            'uploaded_at' => now(),
-            'issued_at' => $issueDateExtraction['issued_at'],
-            'issued_at_source' => $issuedAtSource,
-            'issue_date_extraction_data' => $issueDateExtraction['metadata'],
-        ]);
+        try {
+            [$doc, $replacedPaths] = DB::transaction(function () use ($supplier, $type, $docType, $request, $path, $file, $issueDateExtraction, $issuedAtSource, $requirements, $autoAcceptance) {
+                $previousPendingDocuments = SupplierDocument::query()
+                    ->where('supplier_id', $supplier->id)
+                    ->where('doc_type', $docType)
+                    ->where('status', 'pending_review')
+                    ->lockForUpdate()
+                    ->get();
 
-        if (! $autoAcceptance->acceptIfEligible($doc, $requirements) && $requirement) {
-            $requirements->markSubmitted($requirement);
+                $requirement = $requirements->requirementForUpload($supplier, $type);
+                $doc = SupplierDocument::create([
+                    'supplier_id' => $supplier->id,
+                    'uploaded_by' => $request->user('web')?->id,
+                    'doc_type' => $docType,
+                    'supplier_document_type_id' => $type->id,
+                    'supplier_document_requirement_id' => $requirement?->id,
+                    'path_file' => $path,
+                    'size_bytes' => $file->getSize(),
+                    'mime_type' => $file->getClientMimeType(),
+                    'status' => 'pending_review',
+                    'uploaded_at' => now(),
+                    'issued_at' => $issueDateExtraction['issued_at'],
+                    'issued_at_source' => $issuedAtSource,
+                    'issue_date_extraction_data' => $issueDateExtraction['metadata'],
+                ]);
+
+                if (! $autoAcceptance->acceptIfEligible($doc, $requirements) && $requirement) {
+                    $requirements->markSubmitted($requirement);
+                }
+
+                $replacedPaths = $previousPendingDocuments->pluck('path_file')->filter()->all();
+                $previousPendingDocuments->each->delete();
+
+                return [$doc, $replacedPaths];
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($path);
+
+            throw $exception;
         }
+
+        foreach ($replacedPaths as $replacedPath) {
+            Storage::disk('public')->delete($replacedPath);
+        }
+
         $supplier->recalculateDocumentStatus();
 
         $url = Storage::disk('public')->url($doc->path_file);
