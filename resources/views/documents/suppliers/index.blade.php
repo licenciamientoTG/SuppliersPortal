@@ -1408,14 +1408,21 @@ $(function () {
             // Validación de Laravel (regla max, mimes, etc.)
             if (xhr.status === 422) {
                 let html = '<div class="alert alert-danger"><ul class="mb-0">';
+                const messages = [];
                 try {
-                    const res = xhr.responseJSON;
-                    Object.values(res.errors || {}).forEach(arr =>
-                        arr.forEach(msg => html += `<li>${msg}</li>`)
-                    );
+                    const res = xhr.responseJSON || JSON.parse(xhr.responseText || '{}');
+                    Object.values(res.errors || {}).forEach(arr => {
+                        (Array.isArray(arr) ? arr : [arr]).forEach(msg => messages.push(msg));
+                    });
+                    if (res.message) {
+                        messages.push(res.message);
+                    }
                 } catch (e) {
                     html += '<li>Datos inválidos.</li>';
                 }
+                [...new Set(messages.filter(Boolean))].forEach(message => {
+                    html += `<li>${$('<div>').text(message).html()}</li>`;
+                });
                 html += '</ul></div>';
                 $('#formErrors').html(html).removeClass('d-none');
                 return;
