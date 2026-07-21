@@ -40,7 +40,10 @@ class DocumentQrReaderService
 
                 file_put_contents($temp, $image);
                 try {
-                    $values[] = $this->readImage($temp);
+                    $value = $this->readImage($temp);
+                    if (is_string($value) && trim($value) !== '') {
+                        $values[] = trim($value);
+                    }
                 } finally {
                     @unlink($temp);
                 }
