@@ -149,6 +149,16 @@
         transition: color .15s, background .15s;
     }
     .file-preview-remove:hover { color: #dc2626; background: #fee2e2; }
+
+    /* Mantiene el encabezado visible y permite recorrer la guía completa en pantallas bajas. */
+    #docModal .modal-content { max-height: calc(100vh - 1rem); }
+    #docModal #docForm { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
+    #docModal .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+    @media (max-width: 575.98px) {
+        #docModal .modal-content { max-height: 100vh; }
+        #docModal .modal-body { padding-bottom: 1.5rem; }
+    }
 </style>
 @endpush
 
@@ -1097,7 +1107,7 @@
 
     {{-- Modal de Upload/Update --}}
     <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
             <div class="modal-content">
                 <form id="docForm" method="post" enctype="multipart/form-data"
                       action="{{ route($documentsStoreRoute, $supplier) }}">
