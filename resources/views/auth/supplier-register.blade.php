@@ -387,17 +387,17 @@
                     <section class="section" id="csf-section">
                         <h2 class="section-title">2. Constancia de situacion fiscal</h2>
                         <p class="section-copy">
-                            Sube tu constancia en PDF para leer el QR y recuperar la informacion fiscal oficial.
+                            Sube un PDF o hasta cinco fotografias para leer los QR y recuperar la informacion fiscal oficial.
                         </p>
                         <div class="upload-row">
                             <div class="field upload-field">
-                                <label for="csf_file" class="required">Archivo PDF</label>
+                                <label for="csf_file" class="required">Documento a cargar</label>
                                 <div class="upload-control" id="csf-upload-control">
-                                    <input type="file" id="csf_file" accept="application/pdf" class="hidden">
-                                    <button type="button" class="upload-trigger" id="csf-upload-trigger">Seleccionar PDF</button>
+                                    <input type="file" id="csf_file" accept="application/pdf,image/jpeg,image/png" multiple class="hidden">
+                                    <button type="button" class="upload-trigger" id="csf-upload-trigger">Seleccionar archivo(s)</button>
                                     <span class="upload-name is-empty" id="csf-file-name">Ningun archivo seleccionado</span>
                                 </div>
-                                <span class="hint">Solo PDF. Tamano maximo: 10 MB.</span>
+                                <span class="hint">Un PDF o hasta cinco fotos JPG/PNG. Se consolidan en un solo PDF. Maximo: 10 MB.</span>
                             </div>
                             <button type="button" class="btn btn-secondary" id="parse-csf-button">Analizar constancia</button>
                         </div>
@@ -728,16 +728,18 @@
             }
 
             function syncSelectedFile() {
-                const file = csfFileInput.files && csfFileInput.files[0] ? csfFileInput.files[0] : null;
+                const files = Array.from(csfFileInput.files || []);
 
-                if (!file) {
+                if (!files.length) {
                     csfFileName.textContent = 'Ningun archivo seleccionado';
                     csfFileName.classList.add('is-empty');
                     csfUploadControl.classList.remove('has-file');
                     return;
                 }
 
-                csfFileName.textContent = file.name;
+                csfFileName.textContent = files.length === 1
+                    ? files[0].name
+                    : `${files.length} fotografias seleccionadas`;
                 csfFileName.classList.remove('is-empty');
                 csfUploadControl.classList.add('has-file');
             }
@@ -798,13 +800,14 @@
             }
 
             async function parseCsf() {
-                if (!csfFileInput.files.length) {
-                    setFeedback('error', 'Selecciona primero un archivo PDF de constancia fiscal.');
+                const files = Array.from(csfFileInput.files || []);
+                if (!files.length) {
+                    setFeedback('error', 'Selecciona primero un PDF o las fotografias de la constancia fiscal.');
                     return;
                 }
 
                 const formData = new FormData();
-                formData.append('csf', csfFileInput.files[0]);
+                files.forEach((file) => formData.append('csf[]', file));
 
                 parseButton.disabled = true;
                 parseButton.textContent = 'Analizando...';

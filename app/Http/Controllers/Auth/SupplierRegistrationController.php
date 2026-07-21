@@ -15,6 +15,7 @@ use App\Rules\ValidRfc;
 use App\Services\SupplierCsfExtractorService;
 use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
+use App\Services\SupplierDocumentUploadPreparationService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,18 +33,29 @@ class SupplierRegistrationController extends Controller
         return view('auth.supplier-register');
     }
 
-    public function parseCsf(Request $request, SupplierCsfExtractorService $extractor): JsonResponse
+    public function parseCsf(Request $request, SupplierCsfExtractorService $extractor, SupplierDocumentUploadPreparationService $uploadPreparation): JsonResponse
     {
         $validated = $request->validate([
-            'csf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+            'csf' => ['required', 'array', 'min:1', 'max:5'],
+            'csf.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
         ], [
-            'csf.required' => 'Debes cargar la constancia de situacion fiscal en PDF.',
-            'csf.mimes' => 'La constancia debe enviarse en formato PDF.',
-            'csf.max' => 'La constancia fiscal no puede exceder 10 MB.',
+            'csf.required' => 'Debes cargar la constancia de situacion fiscal.',
+            'csf.array' => 'La constancia debe enviarse como un PDF o fotografias.',
+            'csf.max' => 'Puedes cargar un PDF o un maximo de cinco fotografias.',
+            'csf.*.mimes' => 'La constancia debe enviarse en PDF, JPG o PNG.',
+            'csf.*.max' => 'Cada archivo no puede exceder 10 MB.',
         ]);
 
         try {
-            $upload = $extractor->storeTemporaryUpload($validated['csf'], $request->session());
+            $preparedUpload = $uploadPreparation->prepare($validated['csf'], 10240);
+
+            try {
+                $upload = $extractor->storeTemporaryUpload($preparedUpload['file'], $request->session());
+            } finally {
+                if ($preparedUpload['temporary_path'] && is_file($preparedUpload['temporary_path'])) {
+                    @unlink($preparedUpload['temporary_path']);
+                }
+            }
         } catch (RuntimeException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
