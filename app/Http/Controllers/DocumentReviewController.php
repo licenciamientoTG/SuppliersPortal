@@ -26,10 +26,23 @@ class DocumentReviewController extends Controller
     {
         $activeTab = $request->query('tab') === 'proveedores' ? 'proveedores' : 'bandeja';
         $requiredTypes = SupplierDocument::ALL_TYPES;
+        $queueSearch = trim(substr((string) $request->query('queue_search', ''), 0, 100));
+        $supplierSearch = trim(substr((string) $request->query('supplier_search', ''), 0, 100));
 
         // Bandeja: solo pendientes (para mostrar)
         $pendingDocs = SupplierDocument::with(['supplier:id,company_name,rfc', 'uploader:id,name', 'documentType'])
             ->where('status', 'pending_review')
+            ->when($queueSearch !== '', function ($query) use ($queueSearch) {
+                $like = '%'.$queueSearch.'%';
+
+                $query->where(function ($searchQuery) use ($like) {
+                    $searchQuery->where('doc_type', 'like', $like)
+                        ->orWhereHas('supplier', function ($supplierQuery) use ($like) {
+                            $supplierQuery->where('company_name', 'like', $like)
+                                ->orWhere('rfc', 'like', $like);
+                        });
+                });
+            })
             ->orderByDesc('uploaded_at')
             ->limit(50)
             ->get();
@@ -48,7 +61,7 @@ class DocumentReviewController extends Controller
 
         // El resumen por proveedor es pesado; solo se calcula cuando se abre esa pestana.
         $suppliersSummary = $activeTab === 'proveedores'
-            ? $this->supplierReviewSummary()
+            ? $this->supplierReviewSummary($supplierSearch)
             : collect();
 
         return view('documents.admin.index', [
@@ -56,6 +69,8 @@ class DocumentReviewController extends Controller
             'pendingDocs' => $pendingDocs,
             'suppliersSummary' => $suppliersSummary,
             'requiredTypes' => $requiredTypes,
+            'queueSearch' => $queueSearch,
+            'supplierSearch' => $supplierSearch,
             'kpiPendientes' => $kpiPendientes,
             'kpiAprobadosHoy' => $kpiAprobadosHoy,
             'kpiRechazadosHoy' => $kpiRechazadosHoy,
@@ -72,7 +87,7 @@ class DocumentReviewController extends Controller
         return redirect()->route('admin.review.index', ['tab' => 'proveedores']);
     }
 
-    private function supplierReviewSummary(): LengthAwarePaginator
+    private function supplierReviewSummary(string $search = ''): LengthAwarePaginator
     {
         $documentTypes = SupplierDocumentType::query()
             ->where('is_active', true)
@@ -92,6 +107,14 @@ class DocumentReviewController extends Controller
                     ->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
             }])
             ->select('id', 'company_name', 'rfc', 'person_type', 'provides_specialized_services')
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.$search.'%';
+
+                $query->where(function ($searchQuery) use ($like) {
+                    $searchQuery->where('company_name', 'like', $like)
+                        ->orWhere('rfc', 'like', $like);
+                });
+            })
             ->orderBy('company_name')
             ->paginate(50)
             ->withQueryString();

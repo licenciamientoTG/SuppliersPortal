@@ -53,6 +53,7 @@
         min-width: 2rem;
         padding: 0 .375rem;
     }
+    .review-search { width: min(100%, 22rem); }
     /* SweetAlert2 debe quedar por encima del modal de Bootstrap */
     .swal2-container { z-index: 99999 !important; }
 </style>
@@ -125,7 +126,15 @@
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Documentos pendientes de revisión</h5>
-                    <span class="text-muted small"></span>
+                    <form action="{{ route('admin.review.index') }}" class="review-search" method="GET">
+                        <div class="input-group input-group-sm">
+                            <input aria-label="Buscar documentos pendientes" class="form-control" name="queue_search" placeholder="Proveedor, RFC o documento" type="search" value="{{ $queueSearch }}">
+                            @if($queueSearch)
+                                <a aria-label="Limpiar busqueda" class="btn btn-outline-secondary" href="{{ route('admin.review.index') }}" title="Limpiar busqueda"><i class="ti ti-x"></i></a>
+                            @endif
+                            <button aria-label="Buscar" class="btn btn-primary" title="Buscar" type="submit"><i class="ti ti-search"></i></button>
+                        </div>
+                    </form>
                 </div>
                 <div class="card-body">
                     <table class="table-bordered table-hover w-100 table">
@@ -269,7 +278,16 @@
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Estado por proveedor</h5>
-                    <span class="text-muted small"></span>
+                    <form action="{{ route('admin.review.index') }}" class="review-search" method="GET">
+                        <input name="tab" type="hidden" value="proveedores">
+                        <div class="input-group input-group-sm">
+                            <input aria-label="Buscar proveedores" class="form-control" name="supplier_search" placeholder="Proveedor o RFC" type="search" value="{{ $supplierSearch }}">
+                            @if($supplierSearch)
+                                <a aria-label="Limpiar busqueda" class="btn btn-outline-secondary" href="{{ route('admin.review.index', ['tab' => 'proveedores']) }}" title="Limpiar busqueda"><i class="ti ti-x"></i></a>
+                            @endif
+                            <button aria-label="Buscar" class="btn btn-primary" title="Buscar" type="submit"><i class="ti ti-search"></i></button>
+                        </div>
+                    </form>
                 </div>
                 <div class="card-body">
                     <table class="table-bordered table-hover w-100 table">
@@ -322,7 +340,11 @@
                     @if(($activeTab ?? 'bandeja') === 'proveedores')
                         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-3">
                             <span class="text-muted small">
-                                Mostrando {{ $suppliersSummary->firstItem() }}-{{ $suppliersSummary->lastItem() }} de {{ $suppliersSummary->total() }} proveedores
+                                @if($suppliersSummary->total())
+                                    Mostrando {{ $suppliersSummary->firstItem() }}-{{ $suppliersSummary->lastItem() }} de {{ $suppliersSummary->total() }} proveedores
+                                @else
+                                    Sin proveedores que coincidan con la busqueda
+                                @endif
                             </span>
                             <div class="supplier-review-pagination">
                                 {{ $suppliersSummary->onEachSide(1)->links('vendor.pagination.supplier-review') }}
