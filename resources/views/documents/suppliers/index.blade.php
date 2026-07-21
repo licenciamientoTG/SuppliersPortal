@@ -154,6 +154,11 @@
     #docModal .modal-content { max-height: calc(100vh - 1rem); }
     #docModal #docForm { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
     #docModal .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    #docModal.is-guide-step .modal-body { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 1rem; }
+    #docModal.is-guide-step #opinionQrGuide,
+    #docModal.is-guide-step #csfQrGuide { width: 100%; margin: 0; padding: 0; border: 0; background: transparent; }
+    #docModal.is-guide-step #opinionQrGuide img,
+    #docModal.is-guide-step #csfQrGuide img { width: auto; max-width: 100%; max-height: calc(100vh - 150px); object-fit: contain; }
 
     @media (max-width: 575.98px) {
         #docModal .modal-content { max-height: 100vh; }
@@ -1121,7 +1126,7 @@
 
                         <input type="hidden" name="doc_type" id="docTypeInput" value="">
 
-                        <div class="mb-3">
+                        <div id="documentUploadStep" class="mb-3">
                             <label class="form-label fw-semibold">Documento a cargar</label>
 
                             {{-- Drop zone --}}
@@ -1168,12 +1173,18 @@
                             <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Guía para cargar una constancia fiscal con todas sus páginas y dos códigos QR legibles" class="img-fluid d-block mx-auto rounded" style="width:100%;max-width:520px;">
                         </div>
 
-                        <div class="alert alert-info d-flex align-items-center py-2">
+                        <div id="documentReplaceNotice" class="alert alert-info d-flex align-items-center py-2">
                             <i class="ti ti-info-circle me-2"></i>
                             <div><strong>Nota:</strong> Al actualizar, se reemplaza la versión anterior.</div>
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div id="guideFooter" class="modal-footer d-none">
+                        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-primary" type="button" id="btnAcknowledgeDocumentGuide">
+                            <i class="ti ti-check me-1"></i> Entiendo, seleccionar archivo(s)
+                        </button>
+                    </div>
+                    <div id="uploadFooter" class="modal-footer">
                         <button class="btn btn-light" type="button" data-bs-dismiss="modal">Cancelar</button>
                         <button class="btn btn-primary" type="submit" id="btnSubmitDoc">
                             <i class="ti ti-upload me-1"></i> Guardar
@@ -1339,11 +1350,31 @@ $(function () {
 
     const modalEl = document.getElementById('docModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const modalDialog = modalEl.querySelector('.modal-dialog');
     const OPINION_QR_TYPES = ['opinion_sat', 'opinion_imss', 'opinion_infonavit'];
 
     function updateDocumentGuides(docType) {
         $('#opinionQrGuide').toggleClass('d-none', !OPINION_QR_TYPES.includes(docType));
         $('#csfQrGuide').toggleClass('d-none', docType !== 'constancia_fiscal');
+    }
+
+    function showGuideStep(docType) {
+        updateDocumentGuides(docType);
+        modalEl.classList.add('is-guide-step');
+        modalDialog.classList.add('modal-fullscreen');
+        $('#documentUploadStep, #formErrors, #documentReplaceNotice, #uploadFooter').addClass('d-none');
+        $('#guideFooter').removeClass('d-none');
+    }
+
+    function showUploadStep(openFilePicker = false) {
+        modalEl.classList.remove('is-guide-step');
+        modalDialog.classList.remove('modal-fullscreen');
+        $('#opinionQrGuide, #csfQrGuide, #guideFooter').addClass('d-none');
+        $('#documentUploadStep, #documentReplaceNotice, #uploadFooter').removeClass('d-none');
+
+        if (openFilePicker) {
+            document.getElementById('fileInput').click();
+        }
     }
 
     // Abrir modal para Subir/Actualizar
@@ -1358,12 +1389,20 @@ $(function () {
 
         // Actualizar el texto de máximo según el tipo
         $('#maxMb').text(getMaxMb(docType));
-        updateDocumentGuides(docType);
+        if (OPINION_QR_TYPES.includes(docType) || docType === 'constancia_fiscal') {
+            showGuideStep(docType);
+        } else {
+            showUploadStep();
+        }
 
         const label = docTypeToLabel(docType);
         $('#docModalTitle').text((action === 'update' ? 'Actualizar' : 'Subir') + ' — ' + label);
 
         modal.show();
+    });
+
+    $(document).on('click', '#btnAcknowledgeDocumentGuide', function () {
+        showUploadStep(true);
     });
 
     // Validación de tamaño en cliente según doc_type
@@ -1482,7 +1521,7 @@ $(function () {
         $('#fileInput').val('');
         $('#formErrors').addClass('d-none').empty();
         $('#maxMb').text('10'); // visual por defecto
-        updateDocumentGuides('');
+        showUploadStep();
     });
 
 
