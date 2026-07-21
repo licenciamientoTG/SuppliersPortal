@@ -1150,6 +1150,30 @@
                             <div class="form-text">Puedes cargar un PDF o seleccionar hasta cinco fotografías; las fotografías se consolidarán en un solo PDF.</div>
                         </div>
 
+                        <div id="opinionQrGuide" class="alert alert-warning d-none mb-3" role="alert">
+                            <div class="row align-items-center g-3">
+                                <div class="col-4 col-sm-3 text-center">
+                                    <img src="{{ asset('images/document-guides/opinion-qr-legible.png') }}" alt="Ejemplo ilustrado de una opinión con código QR legible" class="img-fluid" style="max-height:150px;">
+                                </div>
+                                <div class="col-8 col-sm-9">
+                                    <div class="fw-semibold mb-1"><i class="ti ti-qrcode me-1"></i>Antes de cargar la opinión</div>
+                                    <div class="small">El documento debe ser legible y el código QR debe verse completo, nítido y sin reflejos, sombras o recortes.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="csfQrGuide" class="alert alert-info d-none mb-3" role="alert">
+                            <div class="row align-items-center g-3">
+                                <div class="col-4 col-sm-3 text-center">
+                                    <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Ejemplo ilustrado de una constancia con todas las páginas y dos códigos QR" class="img-fluid" style="max-height:150px;">
+                                </div>
+                                <div class="col-8 col-sm-9">
+                                    <div class="fw-semibold mb-1"><i class="ti ti-file-invoice me-1"></i>Antes de cargar la constancia fiscal</div>
+                                    <div class="small">En PDF o fotografías, incluye todas las páginas completas. Los dos códigos QR deben verse completos, nítidos y legibles.</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="alert alert-info d-flex align-items-center py-2">
                             <i class="ti ti-info-circle me-2"></i>
                             <div><strong>Nota:</strong> Al actualizar, se reemplaza la versión anterior.</div>
@@ -1321,6 +1345,12 @@ $(function () {
 
     const modalEl = document.getElementById('docModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const OPINION_QR_TYPES = ['opinion_sat', 'opinion_imss', 'opinion_infonavit'];
+
+    function updateDocumentGuides(docType) {
+        $('#opinionQrGuide').toggleClass('d-none', !OPINION_QR_TYPES.includes(docType));
+        $('#csfQrGuide').toggleClass('d-none', docType !== 'constancia_fiscal');
+    }
 
     // Abrir modal para Subir/Actualizar
     $(document).on('click', '.js-open-upload', function (e) {
@@ -1334,6 +1364,7 @@ $(function () {
 
         // Actualizar el texto de máximo según el tipo
         $('#maxMb').text(getMaxMb(docType));
+        updateDocumentGuides(docType);
 
         const label = docTypeToLabel(docType);
         $('#docModalTitle').text((action === 'update' ? 'Actualizar' : 'Subir') + ' — ' + label);
@@ -1457,6 +1488,7 @@ $(function () {
         $('#fileInput').val('');
         $('#formErrors').addClass('d-none').empty();
         $('#maxMb').text('10'); // visual por defecto
+        updateDocumentGuides('');
     });
 
 
