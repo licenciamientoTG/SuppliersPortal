@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use App\Models\Supplier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -11,7 +10,10 @@ class SupplierListedInEfosNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public readonly Supplier $supplier) {}
+    /**
+     * @param  array<int, array{id: int, name: string, rfc: string}>  $suppliers
+     */
+    public function __construct(public readonly array $suppliers) {}
 
     public function via(object $notifiable): array
     {
@@ -21,21 +23,34 @@ class SupplierListedInEfosNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Alerta EFOS: proveedor activo identificado')
+            ->subject('Alerta EFOS: proveedores activos identificados')
             ->greeting('Hola '.($notifiable->name ?? '').',')
-            ->line('El proveedor activo '.$this->supplier->company_name.' (RFC '.$this->supplier->rfc.') fue identificado en la lista EFOS del SAT.')
-            ->action('Revisar proveedor', route('admin.review.suppliers.show', $this->supplier->id));
+            ->line($this->message())
+            ->line($this->supplierList())
+            ->action('Revisar lista EFOS', route('sat_efos_69b.index'));
     }
 
     public function toArray(object $notifiable): array
     {
         return [
-            'type' => 'supplier_listed_in_efos',
-            'supplier_id' => $this->supplier->id,
-            'supplier_name' => $this->supplier->company_name,
-            'supplier_rfc' => $this->supplier->rfc,
-            'message' => 'El proveedor activo '.$this->supplier->company_name.' fue identificado en la lista EFOS del SAT.',
-            'url' => route('admin.review.suppliers.show', $this->supplier->id),
+            'type' => 'suppliers_listed_in_efos',
+            'suppliers' => $this->suppliers,
+            'message' => $this->message(),
+            'url' => route('sat_efos_69b.index'),
         ];
+    }
+
+    private function message(): string
+    {
+        $count = count($this->suppliers);
+
+        return "Se identificaron {$count} proveedor(es) activo(s) en la lista EFOS del SAT.";
+    }
+
+    private function supplierList(): string
+    {
+        return collect($this->suppliers)
+            ->map(fn (array $supplier) => "{$supplier['name']} (RFC {$supplier['rfc']})")
+            ->implode("\n");
     }
 }

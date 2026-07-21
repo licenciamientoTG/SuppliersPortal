@@ -23,9 +23,16 @@ class EfosSupplierAlertService
             ->get();
         $recipients = $roles->isEmpty() ? collect() : User::role($roles)->get();
 
-        foreach ($listedSuppliers as $supplier) {
-            $recipients->each->notify(new SupplierListedInEfosNotification($supplier));
-        }
+        $supplierData = $listedSuppliers
+            ->map(fn (Supplier $supplier) => [
+                'id' => $supplier->id,
+                'name' => $supplier->company_name,
+                'rfc' => $supplier->rfc,
+            ])
+            ->values()
+            ->all();
+
+        $recipients->each->notify(new SupplierListedInEfosNotification($supplierData));
 
         return $listedSuppliers->count();
     }
