@@ -158,9 +158,9 @@
     #docModal.is-guide-step .modal-content { height: 100%; max-height: none; }
     #docModal.is-guide-step .modal-body { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 1rem; }
     #docModal.is-guide-step #opinionQrGuide,
-    #docModal.is-guide-step #csfQrGuide { width: 100%; margin: 0; padding: 0; border: 0; background: transparent; }
+    #docModal.is-guide-step #csfQrGuide { width: 100%; height: 100%; margin: 0; padding: 0; border: 0; background: transparent; }
     #docModal.is-guide-step #opinionQrGuide img,
-    #docModal.is-guide-step #csfQrGuide img { width: auto !important; max-width: 100% !important; max-height: calc(100vh - 190px); object-fit: contain; }
+    #docModal.is-guide-step #csfQrGuide img { width: auto !important; max-width: 100% !important; max-height: 100%; object-fit: contain; }
 
     @media (max-width: 575.98px) {
         #docModal .modal-content { max-height: 100vh; }
