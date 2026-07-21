@@ -44,6 +44,15 @@
     .chip.bad { background:#fdecea; color:#dc3545; }
     .chip.wait { background:#fff3cd; color:#856404; }
     .validation-badges { display: flex; flex-wrap: wrap; gap: .25rem; }
+    .supplier-review-pagination .pagination { margin: 0; }
+    .supplier-review-pagination .page-link {
+        align-items: center;
+        display: inline-flex;
+        height: 2rem;
+        justify-content: center;
+        min-width: 2rem;
+        padding: 0 .375rem;
+    }
     /* SweetAlert2 debe quedar por encima del modal de Bootstrap */
     .swal2-container { z-index: 99999 !important; }
 </style>
@@ -315,7 +324,9 @@
                             <span class="text-muted small">
                                 Mostrando {{ $suppliersSummary->firstItem() }}-{{ $suppliersSummary->lastItem() }} de {{ $suppliersSummary->total() }} proveedores
                             </span>
-                            {{ $suppliersSummary->onEachSide(1)->links() }}
+                            <div class="supplier-review-pagination">
+                                {{ $suppliersSummary->onEachSide(1)->links('vendor.pagination.supplier-review') }}
+                            </div>
                         </div>
                     @endif
                     <div class="text-muted small mt-2">
