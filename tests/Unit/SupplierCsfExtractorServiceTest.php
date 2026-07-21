@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\DocumentQrReaderService;
 use App\Services\SatQrDataParser;
 use App\Services\SupplierCsfExtractorService;
+use Illuminate\Http\UploadedFile;
 use Mockery;
 use Tests\TestCase;
 
@@ -57,5 +58,18 @@ class SupplierCsfExtractorServiceTest extends TestCase
 
         $this->assertStringContainsString('D1=10', $pair['cedula']);
         $this->assertStringContainsString('D1=26', $pair['validation']);
+    }
+
+    public function test_it_reads_the_cedula_qr_from_an_image_before_reporting_a_missing_validation_qr(): void
+    {
+        $reader = Mockery::mock(DocumentQrReaderService::class);
+        $reader->shouldReceive('read')->once()->andReturn([
+            'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=14080261378_AORM681022FY5',
+        ]);
+        $service = new SupplierCsfExtractorService(new SatQrDataParser, $reader);
+
+        $this->expectExceptionMessage('La constancia debe incluir el QR de validacion de la constancia.');
+
+        $service->extractFromFile(UploadedFile::fake()->image('csf.jpeg'));
     }
 }

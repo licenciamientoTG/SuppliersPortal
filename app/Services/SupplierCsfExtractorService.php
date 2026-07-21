@@ -74,7 +74,7 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible leer la constancia fiscal cargada.');
         }
 
-        return $this->extractFromLocalPath($path);
+        return $this->extractFromLocalPath($path, $file);
     }
 
     public function forgetTemporaryUpload(string $token, Session $session): void
@@ -111,7 +111,7 @@ class SupplierCsfExtractorService
         return $targetPath;
     }
 
-    private function extractFromLocalPath(string $absolutePath): array
+    private function extractFromLocalPath(string $absolutePath, ?UploadedFile $uploadedFile = null): array
     {
         $contents = file_get_contents($absolutePath);
 
@@ -119,7 +119,15 @@ class SupplierCsfExtractorService
             throw new RuntimeException('No fue posible leer la constancia fiscal cargada.');
         }
 
-        $satUrls = $this->extractSatUrlsFromPdfContents($contents);
+        $isUploadedImage = $uploadedFile
+            && strtolower($uploadedFile->getClientOriginalExtension()) !== 'pdf';
+        $satUrls = $isUploadedImage ? [] : $this->extractSatUrlsFromPdfContents($contents);
+        if ($uploadedFile) {
+            $satUrls = array_values(array_unique(array_merge(
+                $satUrls,
+                $this->extractSatUrlsFromUploadedFile($uploadedFile)
+            )));
+        }
         $qrPair = $this->csfQrPair($satUrls);
         $cedulaQrUrl = $qrPair['cedula'];
         $validationQrUrl = $qrPair['validation'];
@@ -241,6 +249,18 @@ class SupplierCsfExtractorService
             if (is_file($tempPath)) {
                 @unlink($tempPath);
             }
+        }
+    }
+
+    private function extractSatUrlsFromUploadedFile(UploadedFile $file): array
+    {
+        try {
+            return array_values(array_filter(
+                $this->qrReader->read($file),
+                fn ($payload) => is_string($payload) && $this->isSatQrUrl($payload)
+            ));
+        } catch (\Throwable) {
+            return [];
         }
     }
 
