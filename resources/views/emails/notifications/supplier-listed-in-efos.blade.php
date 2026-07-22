@@ -16,7 +16,7 @@
     @include('emails.partials.details', [
         'detailsTitle' => 'Proveedores desactivados',
         'rows' => collect($suppliers)->mapWithKeys(fn (array $supplier) => [
-            $supplier['name'].' (RFC '.$supplier['rfc'].')' => 'Estatus EFOS: '.$supplier['situation'],
+            $supplier['name'].' (RFC '.$supplier['rfc'].')' => 'Estatus EFOS: '.($supplier['situation'] ?? 'No identificado'),
         ])->all(),
     ])
 

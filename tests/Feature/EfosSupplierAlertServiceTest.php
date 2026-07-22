@@ -122,6 +122,19 @@ class EfosSupplierAlertServiceTest extends TestCase
         );
     }
 
+    public function test_efos_email_template_tolerates_legacy_notifications_without_a_situation(): void
+    {
+        $html = view('emails.notifications.supplier-listed-in-efos', [
+            'name' => 'Compras TotalGas',
+            'suppliers' => [
+                ['id' => 1, 'name' => 'Proveedor EFOS', 'rfc' => 'ABC010101ABC'],
+            ],
+            'url' => 'https://example.test/sat-efos-69b',
+        ])->render();
+
+        $this->assertStringContainsString('Estatus EFOS: No identificado', $html);
+    }
+
     private function addEfosRecord(Supplier $supplier, string $situation): void
     {
         DB::table('sat_efos_69b')->insert([
