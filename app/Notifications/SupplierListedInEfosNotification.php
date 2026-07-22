@@ -11,7 +11,7 @@ class SupplierListedInEfosNotification extends Notification
     use Queueable;
 
     /**
-     * @param  array<int, array{id: int, name: string, rfc: string}>  $suppliers
+     * @param  array<int, array{id: int, name: string, rfc: string, situation: string}>  $suppliers
      */
     public function __construct(public readonly array $suppliers) {}
 
@@ -23,7 +23,7 @@ class SupplierListedInEfosNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Alerta EFOS: proveedores activos identificados')
+            ->subject('Alerta EFOS: proveedores desactivados')
             ->view('emails.notifications.supplier-listed-in-efos', [
                 'name' => $notifiable->first_name ?? $notifiable->name,
                 'suppliers' => $this->suppliers,
@@ -45,6 +45,6 @@ class SupplierListedInEfosNotification extends Notification
     {
         $count = count($this->suppliers);
 
-        return "Se identificaron {$count} proveedor(es) activo(s) en la lista EFOS del SAT.";
+        return "Se desactivaron {$count} proveedor(es) por aparecer en la lista EFOS del SAT.";
     }
 }
