@@ -163,6 +163,37 @@
             width: 18px;
             height: 18px;
         }
+        .registration-type-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .registration-type-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-height: 88px;
+            padding: 15px;
+            border: 1px solid #d7e2ef;
+            border-radius: 14px;
+            background: #fbfdff;
+            cursor: pointer;
+        }
+        .registration-type-option:has(input:checked) {
+            border-color: #5b8fca;
+            background: #eef6ff;
+            box-shadow: inset 0 0 0 1px rgba(41, 105, 174, 0.08);
+        }
+        .registration-type-option input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            margin: 2px 0 0;
+            padding: 0;
+            accent-color: #1f6eb9;
+        }
+        .registration-type-option strong { display: block; color: #173f75; font-size: 0.9rem; }
+        .registration-type-option small { display: block; margin-top: 3px; color: #68809a; font-size: 0.78rem; line-height: 1.35; }
         .upload-row {
             display: flex;
             flex-wrap: wrap;
@@ -269,6 +300,41 @@
             width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto 16px;
         }
         .upload-guide-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .csf-processing {
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr);
+            align-items: center;
+            gap: 14px;
+            margin-top: 14px;
+            padding: 14px 16px;
+            border: 1px solid #c9e1ff;
+            border-radius: 14px;
+            background: #f8fbff;
+        }
+        .csf-processing-logo {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            background: transparent;
+            animation: csf-spin 1.25s linear infinite;
+        }
+        .csf-processing-title { color: #173f75; font-size: 0.9rem; font-weight: 700; }
+        .csf-processing-copy { margin-top: 2px; color: #607286; font-size: 0.78rem; }
+        .csf-progress-track {
+            height: 8px;
+            margin-top: 9px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #dce9f7;
+        }
+        .csf-progress-value {
+            width: 7%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #0f4b96, #1497d4, #a9cf35);
+            transition: width .45s ease;
+        }
+        @keyframes csf-spin { to { transform: rotate(360deg); } }
         .banner {
             border-radius: 14px;
             padding: 12px 14px;
@@ -299,6 +365,91 @@
             background: #edf4ff;
             color: #1f4e8a;
         }
+        .registration-progress {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            padding: 16px 26px 0;
+        }
+        .registration-progress-step {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #72849a;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .registration-progress-step::before {
+            content: attr(data-step);
+            display: inline-grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            border: 1px solid #cfdcea;
+            border-radius: 50%;
+            background: #fff;
+            color: #72849a;
+            font-size: 0.74rem;
+        }
+        .registration-progress-step.is-active,
+        .registration-progress-step.is-complete { color: #173f75; }
+        .registration-progress-step.is-active::before {
+            border-color: #173f75;
+            background: #173f75;
+            color: #fff;
+        }
+        .registration-progress-step.is-complete::before {
+            content: '✓';
+            border-color: #8cc7a3;
+            background: #eefbf3;
+            color: #267047;
+        }
+        .registration-details {
+            display: grid;
+            gap: 22px;
+        }
+        .fiscal-summary {
+            padding: 16px 18px;
+            border: 1px solid #c9e5d5;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #f4fcf7, #f7fbff);
+        }
+        .fiscal-summary-heading {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+        }
+        .fiscal-summary-status { color: #267047; font-size: 0.78rem; font-weight: 700; }
+        .fiscal-summary-type {
+            border-radius: 999px;
+            padding: 4px 9px;
+            background: #e9f2fd;
+            color: #295d9d;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+        .fiscal-summary-primary { margin-top: 12px; color: #173f75; font-size: 1rem; font-weight: 700; }
+        .fiscal-summary-rfc { margin-top: 3px; color: #5d748e; font-size: 0.84rem; font-weight: 600; }
+        .fiscal-summary-details { margin-top: 13px; border-top: 1px solid #d8e8df; padding-top: 11px; }
+        .fiscal-summary-details summary { color: #295d9d; cursor: pointer; font-size: 0.82rem; font-weight: 700; }
+        .fiscal-summary-detail-content { display: grid; gap: 11px; margin-top: 12px; }
+        .fiscal-summary-detail-content span { color: #6c7f92; font-size: 0.75rem; font-weight: 700; }
+        .fiscal-summary-detail-content p { margin: 3px 0 0; color: #29445f; font-size: 0.84rem; line-height: 1.45; }
+        .fiscal-summary-activities {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            margin-top: 14px;
+            border-top: 1px solid #d8e8df;
+            padding-top: 12px;
+        }
+        .fiscal-summary-activities span { color: #6c7f92; font-size: 0.75rem; font-weight: 700; }
+        .fiscal-summary-activities ul { margin: 6px 0 0; padding-left: 18px; color: #29445f; font-size: 0.83rem; line-height: 1.55; }
+        .fiscal-summary-edit { flex: 0 0 auto; padding: 9px 12px; font-size: 0.8rem; }
         .regime-box {
             min-height: 92px;
             white-space: pre-line;
@@ -395,7 +546,9 @@
         @media (max-width: 640px) {
             body { padding: 14px; }
             .form-header, .form-body, .footer-bar { padding-left: 18px; padding-right: 18px; }
-            .grid, .check-grid, .currency-options { grid-template-columns: 1fr; }
+            .registration-progress { padding-left: 18px; padding-right: 18px; }
+            .grid, .check-grid, .currency-options, .registration-type-options { grid-template-columns: 1fr; }
+            .fiscal-summary-activities { flex-direction: column; }
             .footer-bar { flex-direction: column-reverse; align-items: stretch; }
             .footer-bar .btn { width: 100%; }
             .form-header {
@@ -421,7 +574,12 @@
                         <p>Completa tu alta y continua con la carga documental del portal.</p>
                     </div>
                 </div>
-                <span class="pill">Formulario unico</span>
+            </div>
+
+            <div class="registration-progress" aria-label="Progreso del registro">
+                <div class="registration-progress-step is-active" data-registration-step="1" data-step="1">Validar constancia</div>
+                <div class="registration-progress-step" data-registration-step="2" data-step="2">Completar datos</div>
+                <div class="registration-progress-step" data-registration-step="3" data-step="3">Confirmar registro</div>
             </div>
 
             <form method="POST" action="{{ route('register') }}" id="supplier-form" novalidate>
@@ -432,18 +590,28 @@
 
                 <div class="form-body">
                     <section class="section">
-                        <h2 class="section-title">1. Tipo de registro</h2>
-                        <div class="toggle-row">
-                            <input type="hidden" name="is_foreign" value="0">
-                            <input type="checkbox" id="is_foreign" name="is_foreign" value="1" @checked($isForeign)>
-                            <label for="is_foreign" style="margin:0;">
-                                Soy proveedor extranjero y no cuento con constancia fiscal SAT para este registro
+                        <h2 class="section-title">¿Cómo deseas registrarte?</h2>
+                        <input type="hidden" name="is_foreign" id="is_foreign_value" value="{{ $isForeign ? '1' : '0' }}">
+                        <div class="registration-type-options">
+                            <label class="registration-type-option">
+                                <input type="radio" name="registration_mode" value="national" @checked(! $isForeign)>
+                                <span>
+                                    <strong>Tengo constancia fiscal SAT</strong>
+                                    <small>Cargaré mi constancia para completar mis datos automáticamente.</small>
+                                </span>
+                            </label>
+                            <label class="registration-type-option">
+                                <input type="radio" id="is_foreign" name="registration_mode" value="foreign" @checked($isForeign)>
+                                <span>
+                                    <strong>Soy proveedor extranjero</strong>
+                                    <small>No cuento con constancia fiscal SAT y capturaré mis datos manualmente.</small>
+                                </span>
                             </label>
                         </div>
                     </section>
 
                     <section class="section" id="csf-section">
-                        <h2 class="section-title">2. Constancia de situacion fiscal</h2>
+                        <h2 class="section-title">Carga y validación de constancia fiscal</h2>
                         <p class="section-copy">
                             Sube un PDF o hasta cinco fotografias para leer los QR y recuperar la informacion fiscal oficial.
                         </p>
@@ -459,6 +627,16 @@
                             </div>
                         </div>
                         <div id="csf-feedback" class="banner info hidden" style="margin-top:14px;"></div>
+                        <div class="csf-processing hidden" id="csf-processing" role="status" aria-live="polite">
+                            <img class="csf-processing-logo" src="{{ asset('images/logos/Logo.png') }}" alt="">
+                            <div>
+                                <div class="csf-processing-title">Analizando tu constancia fiscal</div>
+                                <div class="csf-processing-copy" id="csf-processing-copy">Estamos validando la información con SAT.</div>
+                                <div class="csf-progress-track" role="progressbar" aria-label="Progreso del análisis" aria-valuemin="0" aria-valuemax="100" aria-valuenow="7">
+                                    <div class="csf-progress-value" id="csf-progress-value"></div>
+                                </div>
+                            </div>
+                        </div>
                         @if ($viewErrors->has('csf_upload_token'))
                             <div class="error" style="margin-top:14px;">{{ $viewErrors->first('csf_upload_token') }}</div>
                         @endif
@@ -480,13 +658,42 @@
                         </div>
                     </dialog>
 
+                    <div class="registration-details hidden" id="registration-details">
                     <section class="section">
-                        <h2 class="section-title">3. Datos fiscales</h2>
+                        <h2 class="section-title">Datos fiscales detectados</h2>
                         <p class="section-copy">
                             Los datos fiscales de proveedores nacionales se autollenan desde SAT. En proveedores extranjeros
                             se capturan manualmente.
                         </p>
-                        <div class="grid">
+                        <div class="fiscal-summary hidden" id="fiscal-summary">
+                            <div class="fiscal-summary-heading">
+                                <span class="fiscal-summary-status">✓ Datos verificados con SAT</span>
+                                <span class="fiscal-summary-type" id="fiscal-summary-person-type"></span>
+                            </div>
+                            <div class="fiscal-summary-primary" id="fiscal-summary-company"></div>
+                            <div class="fiscal-summary-rfc" id="fiscal-summary-rfc"></div>
+                            <details class="fiscal-summary-details">
+                                <summary>Ver domicilio y regímenes fiscales</summary>
+                                <div class="fiscal-summary-detail-content">
+                                    <div>
+                                        <span>Domicilio fiscal</span>
+                                        <p id="fiscal-summary-address"></p>
+                                    </div>
+                                    <div>
+                                        <span>Regímenes fiscales</span>
+                                        <p id="fiscal-summary-regimes"></p>
+                                    </div>
+                                </div>
+                            </details>
+                            <div class="fiscal-summary-activities">
+                                <div>
+                                    <span>Actividades económicas</span>
+                                    <ul id="fiscal-summary-activities-list"></ul>
+                                </div>
+                                <button type="button" class="btn btn-ghost fiscal-summary-edit" id="edit-activities">Editar actividades</button>
+                            </div>
+                        </div>
+                        <div class="grid" id="fiscal-data-fields">
                             <div class="field" id="person-type-wrapper">
                                 <label>Tipo de persona</label>
                                 <input type="text" id="person_type_display" value="{{ old('parsed_person_type') }}" readonly>
@@ -541,7 +748,7 @@
                     </section>
 
                     <section class="section">
-                        <h2 class="section-title">4. Cuenta y contacto</h2>
+                        <h2 class="section-title">Cuenta y contacto</h2>
                         <div class="grid">
                             <div class="field full">
                                 <label for="email" class="required">Correo electronico</label>
@@ -622,9 +829,9 @@
                         </div>
                     </section>
 
-                    <section class="section">
-                        <h2 class="section-title">5. Actividades economicas</h2>
-                        <p class="section-copy">Se llenan desde la constancia fiscal; puedes corregirlas o agregar más si es necesario.</p>
+                    <section class="section" id="activity-section">
+                        <h2 class="section-title">Editar actividades económicas</h2>
+                        <p class="section-copy">Agrega, modifica o quita actividades según corresponda.</p>
                         <div class="activity-list" id="activity-list">
                             @foreach ($oldActivities as $index => $activity)
                                 <div class="activity-item">
@@ -633,7 +840,10 @@
                                 </div>
                             @endforeach
                         </div>
-                        <button type="button" class="btn btn-ghost" id="add-activity" style="margin-top:12px;">Agregar actividad</button>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                            <button type="button" class="btn btn-ghost" id="add-activity">Agregar actividad</button>
+                            <button type="button" class="btn btn-primary hidden" id="save-activities">Listo</button>
+                        </div>
                         @if ($viewErrors->has('economic_activity') || $viewErrors->has('economic_activity.*'))
                             <div class="error" style="margin-top:12px;">
                                 {{ $viewErrors->first('economic_activity') ?: $viewErrors->first('economic_activity.*') }}
@@ -642,7 +852,7 @@
                     </section>
 
                     <section class="section">
-                        <h2 class="section-title">6. Servicios y REPSE</h2>
+                        <h2 class="section-title">Servicios especializados</h2>
                         <div class="grid">
                             <div class="field full">
                                 <label class="required">Prestas servicios especializados?</label>
@@ -690,7 +900,7 @@
                     </section>
 
                     <section class="section">
-                        <h2 class="section-title">7. Confirmacion</h2>
+                        <h2 class="section-title">Confirma tu registro</h2>
                         <div class="banner info" id="confirmation-copy">
                             Confirma que la informacion mostrada y/o capturada corresponde a tus datos reales y autorizas
                             su uso para el proceso de alta como proveedor.
@@ -705,9 +915,10 @@
                             <div class="error" style="margin-top:12px;">{{ $viewErrors->first('accepted_prefilled_data') }}</div>
                         @endif
                     </section>
+                    </div>
                 </div>
 
-                <div class="footer-bar">
+                <div class="footer-bar hidden" id="registration-footer">
                     <a href="{{ route('login') }}">Ya tengo cuenta</a>
                     <button type="submit" class="btn btn-primary">Crear cuenta y continuar</button>
                 </div>
@@ -726,9 +937,18 @@
         document.addEventListener('DOMContentLoaded', function () {
             const supplierForm = document.getElementById('supplier-form');
             const submitButton = supplierForm.querySelector('button[type="submit"]');
+            const registrationDetails = document.getElementById('registration-details');
+            const registrationFooter = document.getElementById('registration-footer');
+            const registrationProgressSteps = document.querySelectorAll('[data-registration-step]');
             const foreignToggle = document.getElementById('is_foreign');
+            const isForeignInput = document.getElementById('is_foreign_value');
+            const registrationModeInputs = document.querySelectorAll('input[name="registration_mode"]');
             const csfSection = document.getElementById('csf-section');
             const csfFeedback = document.getElementById('csf-feedback');
+            const csfProcessing = document.getElementById('csf-processing');
+            const csfProcessingCopy = document.getElementById('csf-processing-copy');
+            const csfProgressValue = document.getElementById('csf-progress-value');
+            const csfProgressTrack = csfProgressValue.closest('[role="progressbar"]');
             const csfFileInput = document.getElementById('csf_file');
             const csfUploadTrigger = document.getElementById('csf-upload-trigger');
             const csfUploadGuide = document.getElementById('csf-upload-guide');
@@ -741,6 +961,15 @@
             const personTypeDisplay = document.getElementById('person_type_display');
             const taxRegimesDisplay = document.getElementById('tax_regimes_display');
             const parsedRegimesInput = document.getElementById('parsed_tax_regimes_display');
+            const fiscalSummary = document.getElementById('fiscal-summary');
+            const fiscalDataFields = document.getElementById('fiscal-data-fields');
+            const fiscalSummaryPersonType = document.getElementById('fiscal-summary-person-type');
+            const fiscalSummaryCompany = document.getElementById('fiscal-summary-company');
+            const fiscalSummaryRfc = document.getElementById('fiscal-summary-rfc');
+            const fiscalSummaryAddress = document.getElementById('fiscal-summary-address');
+            const fiscalSummaryRegimes = document.getElementById('fiscal-summary-regimes');
+            const fiscalSummaryActivities = document.getElementById('fiscal-summary-activities-list');
+            const editActivitiesButton = document.getElementById('edit-activities');
             const firstNameInput = document.getElementById('first_name');
             const lastNameInput = document.getElementById('last_name');
             const firstNameWrapper = document.getElementById('first-name-wrapper');
@@ -757,10 +986,15 @@
             const activityList = document.getElementById('activity-list');
             const activityTemplate = document.getElementById('activity-template');
             const addActivityButton = document.getElementById('add-activity');
+            const saveActivitiesButton = document.getElementById('save-activities');
+            const activitySection = document.getElementById('activity-section');
             const repseFields = document.getElementById('repse-fields');
             const repseRadios = document.querySelectorAll('input[name="provides_specialized_services"]');
             const otrosWrapper = document.getElementById('otros-wrapper');
             const fiscalInputs = [firstNameInput, lastNameInput, companyNameInput, rfcInput, addressInput, postalCodeInput];
+            let csfProgressTimer = null;
+            let csfProgress = 7;
+            let isEditingActivities = false;
 
             function setFeedback(type, message) {
                 csfFeedback.className = 'banner ' + type;
@@ -773,8 +1007,47 @@
                 csfFeedback.textContent = '';
             }
 
+            function setCsfProgress(value) {
+                csfProgress = Math.round(value);
+                csfProgressValue.style.width = `${csfProgress}%`;
+                csfProgressTrack.setAttribute('aria-valuenow', String(csfProgress));
+            }
+
+            function showCsfProcessing() {
+                setCsfProgress(7);
+                csfProcessingCopy.textContent = 'Estamos validando la información con SAT.';
+                csfProcessing.classList.remove('hidden');
+
+                csfProgressTimer = window.setInterval(function () {
+                    const nextProgress = Math.min(92, csfProgress + Math.max(1, (94 - csfProgress) * 0.08));
+                    setCsfProgress(nextProgress);
+                }, 500);
+            }
+
+            function hideCsfProcessing() {
+                if (csfProgressTimer) {
+                    window.clearInterval(csfProgressTimer);
+                    csfProgressTimer = null;
+                }
+
+                csfProcessing.classList.add('hidden');
+            }
+
             function setRegistrationBlocked(blocked) {
                 submitButton.disabled = blocked;
+            }
+
+            function setRegistrationDetailsVisible(visible) {
+                registrationDetails.classList.toggle('hidden', !visible);
+                registrationFooter.classList.toggle('hidden', !visible);
+
+                const currentStep = !visible ? 1 : (acceptedCheckbox.checked ? 3 : 2);
+                registrationProgressSteps.forEach(function (step) {
+                    const stepNumber = Number(step.dataset.registrationStep);
+                    step.classList.toggle('is-complete', stepNumber < currentStep);
+                    step.classList.toggle('is-active', stepNumber === currentStep);
+                    step.toggleAttribute('aria-current', stepNumber === currentStep);
+                });
             }
 
             function setInputEditableState(input, editable) {
@@ -809,6 +1082,49 @@
                     firstNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
                     lastNameHint.textContent = 'Se obtiene desde la constancia fiscal cuando aplica.';
                 }
+
+                updateFiscalPresentation();
+            }
+
+            function updateFiscalPresentation() {
+                const namesMissing = personTypeInput.value === 'fisica'
+                    && (!firstNameInput.value.trim() || !lastNameInput.value.trim());
+                const showSummary = !foreignToggle.checked && Boolean(csfTokenInput.value) && !namesMissing;
+
+                fiscalSummary.classList.toggle('hidden', !showSummary);
+                fiscalDataFields.classList.toggle('hidden', showSummary);
+
+                if (!showSummary) {
+                    updateActivityPresentation(false);
+                    return;
+                }
+
+                fiscalSummaryPersonType.textContent = personTypeInput.value === 'moral'
+                    ? 'Persona moral'
+                    : 'Persona física';
+                fiscalSummaryCompany.textContent = companyNameInput.value || [firstNameInput.value, lastNameInput.value].filter(Boolean).join(' ');
+                fiscalSummaryRfc.textContent = `RFC: ${rfcInput.value}`;
+                fiscalSummaryAddress.textContent = addressInput.value || 'No disponible';
+                fiscalSummaryRegimes.textContent = taxRegimesDisplay.value || 'No disponible';
+                updateActivityPresentation(true);
+            }
+
+            function updateActivityPresentation(showFiscalSummary) {
+                const activities = Array.from(activityList.querySelectorAll('input[name="economic_activity[]"]'))
+                    .map((input) => input.value.trim())
+                    .filter(Boolean);
+
+                fiscalSummaryActivities.replaceChildren(...activities.map(function (activity) {
+                    const item = document.createElement('li');
+                    item.textContent = activity;
+                    return item;
+                }));
+
+                const activitySummary = fiscalSummaryActivities.closest('.fiscal-summary-activities');
+                const showActivitySummary = showFiscalSummary && !isEditingActivities;
+                activitySummary.classList.toggle('hidden', !showActivitySummary);
+                activitySection.classList.toggle('hidden', showActivitySummary);
+                saveActivitiesButton.classList.toggle('hidden', !isEditingActivities || !showFiscalSummary);
             }
 
             function syncSelectedFile() {
@@ -830,6 +1146,7 @@
 
             function updateFiscalMode() {
                 const isForeign = foreignToggle.checked;
+                isForeignInput.value = isForeign ? '1' : '0';
                 csfSection.classList.toggle('hidden', isForeign);
 
                 personTypeDisplay.value = isForeign ? 'extranjero' : personTypeInput.value;
@@ -850,10 +1167,13 @@
                     firstNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
                     lastNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
                     setRegistrationBlocked(false);
+                    setRegistrationDetailsVisible(true);
+                    updateFiscalPresentation();
                     clearFeedback();
                     return;
                 }
 
+                setRegistrationDetailsVisible(Boolean(csfTokenInput.value));
                 applyReadonlyStateForNationalFlow();
             }
 
@@ -872,6 +1192,8 @@
                 taxRegimesDisplay.value = regimeText;
                 parsedRegimesInput.value = regimeText;
                 populateActivities(data.economic_activities);
+                isEditingActivities = false;
+                setRegistrationDetailsVisible(true);
 
                 if (!emailInput.value && data.sat_email) {
                     emailInput.value = data.sat_email;
@@ -899,7 +1221,9 @@
                 csfUploadTrigger.textContent = 'Analizando...';
                 csfTokenInput.value = '';
                 setRegistrationBlocked(false);
+                setRegistrationDetailsVisible(false);
                 clearFeedback();
+                showCsfProcessing();
 
                 try {
                     const response = await fetch('{{ route('supplier.register.parse-csf') }}', {
@@ -936,6 +1260,7 @@
                 } catch (error) {
                     setFeedback('error', 'Ocurrio un error al analizar la constancia fiscal. Intenta de nuevo.');
                 } finally {
+                    hideCsfProcessing();
                     csfUploadTrigger.disabled = false;
                     csfUploadTrigger.textContent = 'Cargar archivos';
                 }
@@ -949,11 +1274,13 @@
                         if (input) {
                             input.value = '';
                         }
+                        updateFiscalPresentation();
                         return;
                     }
 
                     button.closest('.activity-item').remove();
                     syncActivityButtons();
+                    updateFiscalPresentation();
                 });
             }
 
@@ -989,6 +1316,7 @@
                 });
 
                 syncActivityButtons();
+                updateFiscalPresentation();
             }
 
             function updateRepseFields() {
@@ -1019,13 +1347,28 @@
                 clearFeedback();
                 parseCsf();
             });
-            foreignToggle.addEventListener('change', updateFiscalMode);
+            registrationModeInputs.forEach(function (input) {
+                input.addEventListener('change', updateFiscalMode);
+            });
+            acceptedCheckbox.addEventListener('change', function () {
+                setRegistrationDetailsVisible(!registrationDetails.classList.contains('hidden'));
+            });
+            editActivitiesButton.addEventListener('click', function () {
+                isEditingActivities = true;
+                updateFiscalPresentation();
+                activitySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            saveActivitiesButton.addEventListener('click', function () {
+                isEditingActivities = false;
+                updateFiscalPresentation();
+            });
             addActivityButton.addEventListener('click', function () {
                 const fragment = activityTemplate.content.cloneNode(true);
                 const removeButton = fragment.querySelector('.remove-activity');
                 bindRemoveActivity(removeButton);
                 activityList.appendChild(fragment);
                 syncActivityButtons();
+                updateFiscalPresentation();
             });
 
             activityList.querySelectorAll('.remove-activity').forEach(bindRemoveActivity);
@@ -1045,6 +1388,8 @@
                 setFeedback('success', 'Ya cuentas con una constancia fiscal validada en esta sesion. Puedes continuar con el registro.');
                 applyReadonlyStateForNationalFlow();
             }
+
+            setRegistrationDetailsVisible(foreignToggle.checked || Boolean(csfTokenInput.value));
 
             syncActivityButtons();
         });
