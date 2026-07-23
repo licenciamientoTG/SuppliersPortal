@@ -30,8 +30,17 @@ class ContractController extends Controller
             abort(403);
         }
 
+        // Monto ejercido: subtotales (sin IVA) de partidas de OC no canceladas ligadas al contrato
+        $consumedSub = DB::table('purchase_order_items')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
+            ->join('requisition_items', 'requisition_items.id', '=', 'purchase_order_items.requisition_item_id')
+            ->whereColumn('requisition_items.contract_id', 'contracts.id')
+            ->where('purchase_orders.status', '!=', 'CANCELLED')
+            ->selectRaw('COALESCE(SUM(purchase_order_items.subtotal), 0)');
+
         $query = Contract::with(['supplier', 'company', 'creator'])
-            ->select('contracts.*');
+            ->select('contracts.*')
+            ->selectSub($consumedSub, 'consumed_amount');
 
         return DataTables::of($query)
             ->addIndexColumn()
@@ -64,6 +73,21 @@ class ContractController extends Controller
 
                 return $html;
             })
+            ->addColumn('consumption_col', function ($c) {
+                $amount = (float) $c->contract_amount;
+                if ($amount <= 0) {
+                    return '<span class="text-muted" title="Sin monto contratado">—</span>';
+                }
+
+                $consumed = (float) ($c->consumed_amount ?? 0);
+                $pct      = (int) round($consumed / $amount * 100);
+                $ring     = $pct >= 90 ? 'var(--bs-danger)' : ($pct >= 70 ? 'var(--bs-warning)' : 'var(--bs-success)');
+                $tooltip  = 'Ejercido $' . number_format($consumed, 2) . ' de $' . number_format($amount, 2) . " ({$pct}%)";
+
+                return '<div class="contract-consumption" title="' . e($tooltip) . '"'
+                    . ' style="--pct:' . min($pct, 100) . ';--ring:' . $ring . '">'
+                    . '<span>' . $pct . '%</span></div>';
+            })
             ->addColumn('actions', function ($c) {
                 $show = route('contracts.show', $c->id);
                 $btns = '<a href="' . $show . '" class="btn btn-sm btn-outline-primary me-1"><i class="ti ti-eye"></i></a>';
@@ -73,7 +97,7 @@ class ContractController extends Controller
                 }
                 return $btns;
             })
-            ->rawColumns(['folio_col', 'status_col', 'actions'])
+            ->rawColumns(['folio_col', 'status_col', 'consumption_col', 'actions'])
             ->make(true);
     }
 

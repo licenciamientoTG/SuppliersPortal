@@ -8,6 +8,36 @@
     <li class="breadcrumb-item active">Contratos</li>
 @endsection
 
+@push('styles')
+<style>
+    /* Anillo de consumo: conic-gradient controlado por --pct y --ring desde el servidor */
+    .contract-consumption {
+        --pct: 0;
+        --ring: var(--bs-success);
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: conic-gradient(var(--ring) calc(var(--pct) * 1%), var(--bs-secondary-bg, #e9ecef) 0);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: default;
+    }
+    .contract-consumption > span {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--bs-body-bg, #fff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--bs-body-color);
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <div class="row mb-3">
@@ -33,6 +63,7 @@
                         <th>Inicio</th>
                         <th>Fin</th>
                         <th>Estado</th>
+                        <th>Consumo</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -57,6 +88,7 @@ $(document).ready(function () {
             { data: 'start_date_col', name: 'start_date' },
             { data: 'end_date_col', name: 'end_date' },
             { data: 'status_col', name: 'status', orderable: false },
+            { data: 'consumption_col', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false },
         ],
     });
