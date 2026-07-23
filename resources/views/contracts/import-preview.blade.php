@@ -27,7 +27,7 @@
         <div class="card-header text-success"><i class="ti ti-check me-1"></i> Filas válidas ({{ count($result['valid']) }})</div>
         <div class="card-body p-0">
             <table class="table table-sm mb-0">
-                <thead><tr><th>Línea</th><th>Empresa</th><th>Proveedor RFC</th><th>Vigencia</th><th>Producto</th><th>Precio</th></tr></thead>
+                <thead><tr><th>Línea</th><th>Empresa</th><th>Proveedor RFC</th><th>Vigencia</th><th>Producto</th><th>Precio</th><th>U/M</th></tr></thead>
                 <tbody>
                     @foreach($result['valid'] as $row)
                     <tr>
@@ -37,6 +37,7 @@
                         <td>{{ $row['start_date'] }} / {{ $row['end_date'] }}</td>
                         <td>{{ $row['product_code'] }}</td>
                         <td>{{ $row['unit_price'] }} {{ $row['currency_code'] }}</td>
+                        <td>{{ $row['unit_of_measure'] }}</td>
                     </tr>
                     @endforeach
                 </tbody>
