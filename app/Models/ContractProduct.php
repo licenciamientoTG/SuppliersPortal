@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ContractProduct extends Model
 {
@@ -31,5 +32,10 @@ class ContractProduct extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(ProductService::class, 'product_service_id');
+    }
+
+    public function requisitionItems(): HasMany
+    {
+        return $this->hasMany(RequisitionItem::class, 'contract_product_id');
     }
 }
