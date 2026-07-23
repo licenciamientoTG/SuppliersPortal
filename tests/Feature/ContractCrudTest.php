@@ -17,7 +17,9 @@ class ContractCrudTest extends TestCase
 
     private function buyer(): User
     {
-        return User::factory()->create();
+        \Spatie\Permission\Models\Role::findOrCreate('buyer', 'web');
+
+        return User::factory()->create()->assignRole('buyer');
     }
 
     private function validPayload(Company $company, Supplier $supplier, array $overrides = []): array
@@ -42,7 +44,7 @@ class ContractCrudTest extends TestCase
     {
         $user     = $this->buyer();
         $company  = Company::factory()->create(['is_active' => true]);
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
 
         $response = $this->actingAs($user)
             ->post(route('contracts.store'), $this->validPayload($company, $supplier));
@@ -60,7 +62,7 @@ class ContractCrudTest extends TestCase
     {
         $user     = $this->buyer();
         $company  = Company::factory()->create(['is_active' => true]);
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
 
         $this->actingAs($user)
             ->post(route('contracts.store'), $this->validPayload($company, $supplier));
@@ -73,7 +75,7 @@ class ContractCrudTest extends TestCase
     {
         $user     = $this->buyer();
         $company  = Company::factory()->create(['is_active' => true]);
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
 
         $response = $this->actingAs($user)->post(route('contracts.store'),
             $this->validPayload($company, $supplier, [
@@ -116,6 +118,75 @@ class ContractCrudTest extends TestCase
         $response->assertSessionHasErrors('cancellation_reason');
         $contract->refresh();
         $this->assertEquals('active', $contract->getRawOriginal('status'));
+    }
+
+    public function test_store_rejects_duplicate_company_supplier_dates(): void
+    {
+        $user     = $this->buyer();
+        $company  = Company::factory()->create(['is_active' => true]);
+        $supplier = Supplier::factory()->create();
+        $payload  = $this->validPayload($company, $supplier);
+
+        Contract::factory()->create([
+            'company_id'  => $company->id,
+            'supplier_id' => $supplier->id,
+            'start_date'  => $payload['start_date'],
+            'end_date'    => $payload['end_date'],
+        ]);
+
+        $response = $this->actingAs($user)->post(route('contracts.store'), $payload);
+
+        $response->assertSessionHasErrors('supplier_id');
+        $this->assertDatabaseCount('contracts', 1);
+    }
+
+    public function test_store_allows_same_parties_with_different_dates(): void
+    {
+        $user     = $this->buyer();
+        $company  = Company::factory()->create(['is_active' => true]);
+        $supplier = Supplier::factory()->create();
+
+        Contract::factory()->create([
+            'company_id'  => $company->id,
+            'supplier_id' => $supplier->id,
+            'start_date'  => now()->subYear()->toDateString(),
+            'end_date'    => now()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->post(route('contracts.store'), $this->validPayload($company, $supplier));
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('contracts', 2);
+    }
+
+    public function test_update_cannot_remove_product_with_linked_purchases(): void
+    {
+        $user     = $this->buyer();
+        $contract = Contract::factory()->create(['status' => 'active', 'end_date' => now()->addYear()]);
+        $usedProduct  = ContractProduct::factory()->create(['contract_id' => $contract->id]);
+        $newProd      = ProductService::factory()->create();
+
+        \App\Models\RequisitionItem::factory()->create([
+            'contract_id'         => $contract->id,
+            'contract_product_id' => $usedProduct->id,
+        ]);
+
+        $response = $this->actingAs($user)->put(route('contracts.update', $contract), [
+            'start_date'      => $contract->start_date->toDateString(),
+            'end_date'        => $contract->end_date->toDateString(),
+            'contract_amount' => 0,
+            'products'        => [[
+                'product_service_id' => $newProd->id,
+                'unit_price'         => 200,
+                'currency_code'      => 'MXN',
+                'unit_of_measure'    => 'KG',
+                'notes'              => null,
+            ]],
+        ]);
+
+        $response->assertSessionHasErrors('products');
+        $this->assertDatabaseHas('contract_products', ['id' => $usedProduct->id]);
     }
 
     public function test_update_replaces_products(): void

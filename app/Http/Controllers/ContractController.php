@@ -129,7 +129,25 @@ class ContractController extends Controller
     {
         abort_if($contract->effective_status !== 'active', 403);
 
-        DB::transaction(function () use ($request, $contract) {
+        $incomingIds = collect($request->products)->pluck('product_service_id')->filter()->toArray();
+
+        // Los productos con compras registradas no pueden quitarse: las
+        // requisiciones guardan referencia a su precio pactado.
+        $blocked = $contract->products()
+            ->whereNotIn('product_service_id', $incomingIds)
+            ->whereHas('requisitionItems')
+            ->with('product')
+            ->get();
+
+        if ($blocked->isNotEmpty()) {
+            $names = $blocked->map(fn($p) => $p->product->short_name ?? "#{$p->product_service_id}")->implode(', ');
+
+            return back()
+                ->withErrors(['products' => "No se pueden quitar productos con compras asociadas: {$names}."])
+                ->withInput();
+        }
+
+        DB::transaction(function () use ($request, $contract, $incomingIds) {
             $contract->update([
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
@@ -137,7 +155,6 @@ class ContractController extends Controller
                 'updated_by'      => Auth::id(),
             ]);
 
-            $incomingIds = collect($request->products)->pluck('product_service_id')->filter()->toArray();
             $contract->products()->whereNotIn('product_service_id', $incomingIds)->delete();
 
             foreach ($request->products as $p) {

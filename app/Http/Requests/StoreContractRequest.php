@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Contract;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreContractRequest extends FormRequest
 {
@@ -23,6 +25,29 @@ class StoreContractRequest extends FormRequest
             'products.*.unit_of_measure'    => ['required', 'string', 'max:50'],
             'products.*.notes'              => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    // Mismo criterio de duplicado que ContractImportService: empresa+proveedor+fechas
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->hasAny(['company_id', 'supplier_id', 'start_date', 'end_date'])) {
+                return;
+            }
+
+            $exists = Contract::where('company_id', $this->company_id)
+                ->where('supplier_id', $this->supplier_id)
+                ->whereDate('start_date', $this->start_date)
+                ->whereDate('end_date', $this->end_date)
+                ->exists();
+
+            if ($exists) {
+                $validator->errors()->add(
+                    'supplier_id',
+                    'Ya existe un contrato para esta empresa y proveedor con las mismas fechas de vigencia.'
+                );
+            }
+        });
     }
 
     public function messages(): array
