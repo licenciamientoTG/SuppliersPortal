@@ -326,6 +326,43 @@
             padding: 10px 12px;
             background: #fbfdff;
         }
+        .currency-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .currency-option {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            min-height: 74px;
+            padding: 14px 16px;
+            border: 1px solid #d7e2ef;
+            border-radius: 14px;
+            background: #fbfdff;
+            cursor: pointer;
+            transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+        }
+        .currency-option:hover {
+            border-color: #9dbbe0;
+            background: #f5f9fe;
+        }
+        .currency-option:has(input:checked) {
+            border-color: #5b8fca;
+            background: #eef6ff;
+            box-shadow: inset 0 0 0 1px rgba(41, 105, 174, 0.08);
+        }
+        .currency-option input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            margin: 0;
+            padding: 0;
+            accent-color: #1f6eb9;
+        }
+        .currency-option-copy { display: grid; gap: 2px; }
+        .currency-option-name { color: #183e73; font-size: 0.94rem; font-weight: 700; }
+        .currency-option-code { color: #68809a; font-size: 0.78rem; font-weight: 600; }
         .radio-line {
             display: flex;
             flex-wrap: wrap;
@@ -358,7 +395,7 @@
         @media (max-width: 640px) {
             body { padding: 14px; }
             .form-header, .form-body, .footer-bar { padding-left: 18px; padding-right: 18px; }
-            .grid, .check-grid { grid-template-columns: 1fr; }
+            .grid, .check-grid, .currency-options { grid-template-columns: 1fr; }
             .footer-bar { flex-direction: column-reverse; align-items: stretch; }
             .footer-bar .btn { width: 100%; }
             .form-header {
@@ -566,11 +603,14 @@
 
                             <div class="field full">
                                 <label class="required">¿En qué moneda(s) operas y/o cotizas?</label>
-                                <div class="check-grid">
-                                    @foreach (['MXN' => 'Pesos (MXN)', 'USD' => 'Dolares (USD)'] as $value => $label)
-                                        <label class="check-option">
+                                <div class="currency-options">
+                                    @foreach (['MXN' => ['Pesos mexicanos', 'MXN'], 'USD' => ['Dólares estadounidenses', 'USD']] as $value => [$name, $code])
+                                        <label class="currency-option">
                                             <input type="checkbox" name="accepted_currencies[]" value="{{ $value }}" @checked(in_array($value, $selectedCurrencies, true))>
-                                            <span>{{ $label }}</span>
+                                            <span class="currency-option-copy">
+                                                <span class="currency-option-name">{{ $name }}</span>
+                                                <span class="currency-option-code">{{ $code }}</span>
+                                            </span>
                                         </label>
                                     @endforeach
                                 </div>
