@@ -27,3 +27,9 @@ Schedule::command('supplier-documents:notify-renewals')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/supplier-document-renewals.log'));
+
+// Alertas de contratos comerciales a 30, 15 y 1 día del vencimiento
+Schedule::command('contracts:notify-expiring')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/contract-expiry-alerts.log'));
