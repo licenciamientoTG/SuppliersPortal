@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enum\UnitOfMeasure;
 use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ProductService;
@@ -42,8 +43,8 @@ class ContractImportService
         $seenProductsPerContract = []; // clave: contractKey+product_id
 
         foreach ($rows as $i => $row) {
-            [$empresaCode, $supplierRfc, $startDate, $endDate, $contractAmount, $productCode, $unitPrice, $currency]
-                = array_pad($row, 8, null);
+            [$empresaCode, $supplierRfc, $startDate, $endDate, $contractAmount, $productCode, $unitPrice, $currency, $unitOfMeasure]
+                = array_pad($row, 9, null);
 
             $lineNum = $i + 2; // +2: header + 1-based
             $errors  = [];
@@ -53,9 +54,10 @@ class ContractImportService
                 $errors[] = "Empresa '{$empresaCode}' no encontrada o inactiva.";
             }
 
-            $supplier = Supplier::where('rfc', $supplierRfc)->where('status', 'activo')->first();
+            // Mismo criterio que el alta manual (Supplier::approved()): aprobado y activo
+            $supplier = Supplier::approved()->where('rfc', $supplierRfc)->first();
             if (! $supplier) {
-                $errors[] = "Proveedor RFC '{$supplierRfc}' no encontrado o inactivo.";
+                $errors[] = "Proveedor RFC '{$supplierRfc}' no encontrado, no aprobado o inactivo.";
             }
 
             if (! $startDate || ! strtotime($startDate)) {
@@ -81,6 +83,13 @@ class ContractImportService
 
             if (! is_numeric($unitPrice) || $unitPrice <= 0) {
                 $errors[] = "unit_price inválido: '{$unitPrice}'.";
+            }
+
+            $uom = strtoupper(trim((string) $unitOfMeasure));
+            if ($uom === '') {
+                $errors[] = 'unit_of_measure requerida (ej. PZA, KG, L).';
+            } elseif (! UnitOfMeasure::tryFrom($uom)) {
+                $errors[] = "unit_of_measure inválida: '{$unitOfMeasure}'.";
             }
 
             // Fix #4 — use normalized dates in contract key
@@ -117,6 +126,7 @@ class ContractImportService
                 'product_code'       => $productCode,
                 'unit_price'         => $unitPrice,
                 'currency_code'      => $currency ?: 'MXN',
+                'unit_of_measure'    => $uom,
                 'contract_key'       => $contractKey,
             ];
 
@@ -170,7 +180,7 @@ class ContractImportService
                         'product_service_id' => $row['product_service_id'],
                         'unit_price'         => $row['unit_price'],
                         'currency_code'      => $row['currency_code'],
-                        'unit_of_measure'    => 'PZA', // el CSV no tiene U/M; ajustar layout si se requiere
+                        'unit_of_measure'    => $row['unit_of_measure'],
                     ]);
                 }
 

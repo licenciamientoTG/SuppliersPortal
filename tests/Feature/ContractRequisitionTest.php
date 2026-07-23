@@ -34,7 +34,7 @@ class ContractRequisitionTest extends TestCase
         Notification::fake();
 
         $user = User::factory()->create();
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
         $company = Company::factory()->create(['is_active' => true]);
         $contract = Contract::factory()->create([
             'supplier_id' => $supplier->id,
@@ -108,8 +108,8 @@ class ContractRequisitionTest extends TestCase
         $user = User::factory()->create();
         $company = Company::factory()->create(['is_active' => true]);
 
-        $supplier1 = Supplier::factory()->create(['status' => 'activo']);
-        $supplier2 = Supplier::factory()->create(['status' => 'activo']);
+        $supplier1 = Supplier::factory()->create();
+        $supplier2 = Supplier::factory()->create();
 
         $contract1 = Contract::factory()->create([
             'supplier_id' => $supplier1->id,
@@ -175,7 +175,7 @@ class ContractRequisitionTest extends TestCase
         $this->expectExceptionMessage('No se permite mezclar monedas distintas para el mismo proveedor');
 
         $user = User::factory()->create();
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
         $company = Company::factory()->create(['is_active' => true]);
         $contract = Contract::factory()->create([
             'supplier_id' => $supplier->id,
@@ -228,7 +228,7 @@ class ContractRequisitionTest extends TestCase
         $user = User::factory()->create();
         $company = Company::factory()->create(['is_active' => true]);
         $location = ReceivingLocation::factory()->create(['company_id' => $company->id]);
-        $supplier = Supplier::factory()->create(['status' => 'activo']);
+        $supplier = Supplier::factory()->create();
 
         $costCenter = CostCenter::factory()->create([
             'company_id' => $company->id,

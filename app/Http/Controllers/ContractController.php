@@ -228,8 +228,8 @@ class ContractController extends Controller
 
     public function downloadTemplate()
     {
-        $csvContent = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency\n";
-        $csvContent .= "TG001,AAA010101AAA,2026-01-01,2026-12-31,100000,PROD-001,250.5000,MXN\n";
+        $csvContent = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency,unit_of_measure\n";
+        $csvContent .= "TG001,AAA010101AAA,2026-01-01,2026-12-31,100000,PROD-001,250.5000,MXN,PZA\n";
 
         return response($csvContent, 200, [
             'Content-Type'        => 'text/csv',
@@ -257,7 +257,7 @@ class ContractController extends Controller
         $validRows = session('contract_import_valid', []);
 
         if (empty($validRows)) {
-            return redirect()->route('contracts.importForm')
+            return redirect()->route('contracts.import')
                 ->with('error', 'No hay filas válidas en sesión. Vuelva a cargar el archivo.');
         }
 
