@@ -277,6 +277,16 @@ class ContractRequisitionTest extends TestCase
             'created_by' => $user->id,
         ]);
 
+        // Clasificación presupuestal requerida por classificationForProduct()
+        $account = \App\Models\Account::factory()->create([
+            'legacy_expense_category_id' => $expenseCategory->id,
+        ]);
+        $subaccount = \App\Models\Subaccount::factory()->create([
+            'account_id' => $account->id,
+            'legacy_budget_cedula_id' => $budgetCedula->id,
+        ]);
+        $product->subaccounts()->sync([$subaccount->id]);
+
         $contract = Contract::factory()->create([
             'supplier_id' => $supplier->id,
             'company_id' => $company->id,
@@ -300,13 +310,10 @@ class ContractRequisitionTest extends TestCase
             ->set('required_date', now()->addDay()->toDateString())
             ->set('receiving_location_id', $location->id)
             ->set('newItem.contract_id', $contract->id)
-            ->call('updatedNewItemContractId', $contract->id)
             ->set('newItem.contract_product_id', $contractProduct->id)
             ->set('newItem.quantity', 2)
             ->set('newItem.cost_center_id', $costCenter->id)
-            ->call('updatedNewItemCostCenterId')
             ->set('newItem.expense_category_id', $expenseCategory->id)
-            ->call('updatedNewItemExpenseCategoryId')
             ->set('newItem.budget_cedula_id', $budgetCedula->id)
             ->call('addItem')
             ->assertSet('items.0.product_name', 'Bomba industrial')

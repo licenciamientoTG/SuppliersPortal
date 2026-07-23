@@ -21,15 +21,49 @@
 @endpush
 
 @section('content')
+@php($canAuthorize = $purchaseOrder->isPendingApproval() && $purchaseOrder->isApproverFor(Auth::user()))
+
 <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
     <a href="{{ route('purchase-orders.index') }}" class="btn btn-outline-secondary">
         <i class="ti ti-arrow-left me-1"></i>Regresar
     </a>
 
-    <button type="button" onclick="window.print();" class="btn btn-primary">
-        <i class="ti ti-printer me-1"></i>Imprimir OC
-    </button>
+    <div>
+        @if($canAuthorize)
+            <button type="button" class="btn btn-success me-1" onclick="confirmApprovePo()">
+                <i class="ti ti-check me-1"></i>Autorizar OC
+            </button>
+            <button type="button" class="btn btn-danger me-1" onclick="confirmRejectPo()">
+                <i class="ti ti-x me-1"></i>Rechazar OC
+            </button>
+        @endif
+        <button type="button" onclick="window.print();" class="btn btn-primary">
+            <i class="ti ti-printer me-1"></i>Imprimir OC
+        </button>
+    </div>
 </div>
+
+@if($purchaseOrder->isPendingApproval())
+    <div class="alert alert-warning d-print-none">
+        <i class="ti ti-clock me-1"></i>
+        Esta OC proviene de un contrato por <strong>convenio de precios</strong> y está pendiente de autorización de
+        <strong>{{ $purchaseOrder->assignedApprover->name ?? '—' }}</strong>
+        @if($purchaseOrder->authorizerRole)
+            ({{ $purchaseOrder->authorizerRole->name }}, límite
+            ${{ number_format((float) $purchaseOrder->effective_authorization_limit, 2) }})
+        @endif
+        — no se emitirá al proveedor hasta autorizarse.
+    </div>
+@elseif($purchaseOrder->isRejected())
+    <div class="alert alert-danger d-print-none">
+        <i class="ti ti-ban me-1"></i>
+        OC rechazada por {{ $purchaseOrder->approvals->where('action', 'REJECTED')->last()?->approver?->name ?? '—' }}
+        el {{ $purchaseOrder->rejected_at?->format('d/m/Y H:i') ?? '—' }}.
+        @if($reason = $purchaseOrder->approvals->where('action', 'REJECTED')->last()?->comments)
+            <br><strong>Motivo:</strong> {{ $reason }}
+        @endif
+    </div>
+@endif
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4 p-lg-5">
@@ -222,4 +256,59 @@
         </div>
     </div>
 </div>
+
+@if($canAuthorize)
+    <form id="form-approve-po" action="{{ route('purchase-orders.approve', $purchaseOrder) }}" method="POST" class="d-none">@csrf</form>
+    <form id="form-reject-po" action="{{ route('purchase-orders.reject', $purchaseOrder) }}" method="POST" class="d-none">
+        @csrf
+        <input type="hidden" name="comments" id="reject-po-comments">
+    </form>
+@endif
 @endsection
+
+@push('scripts')
+<script>
+    @if(session('success'))
+        Swal.fire({ title: '¡Operación Exitosa!', text: @json(session('success')), icon: 'success', confirmButtonColor: '#28a745' });
+    @endif
+
+    @if($canAuthorize)
+    function confirmApprovePo() {
+        Swal.fire({
+            title: '¿Autorizar esta OC?',
+            text: 'Se emitirá al proveedor y se comprometerá el presupuesto.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Sí, autorizar',
+            cancelButtonText: 'Cancelar',
+        }).then((r) => { if (r.isConfirmed) document.getElementById('form-approve-po').submit(); });
+    }
+
+    function confirmRejectPo() {
+        Swal.fire({
+            title: 'Rechazar OC',
+            input: 'textarea',
+            inputLabel: 'Motivo del rechazo (mínimo 50 caracteres)',
+            inputAttributes: { minlength: 50, maxlength: 500 },
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Rechazar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: (value) => {
+                if (!value || value.trim().length < 50) {
+                    Swal.showValidationMessage('El motivo debe tener al menos 50 caracteres.');
+                    return false;
+                }
+                return value;
+            },
+        }).then((r) => {
+            if (r.isConfirmed) {
+                document.getElementById('reject-po-comments').value = r.value;
+                document.getElementById('form-reject-po').submit();
+            }
+        });
+    }
+    @endif
+</script>
+@endpush

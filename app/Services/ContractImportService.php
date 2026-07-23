@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enum\ContractType;
 use App\Enum\UnitOfMeasure;
 use App\Models\Company;
 use App\Models\Contract;
@@ -43,8 +44,8 @@ class ContractImportService
         $seenProductsPerContract = []; // clave: contractKey+product_id
 
         foreach ($rows as $i => $row) {
-            [$empresaCode, $supplierRfc, $startDate, $endDate, $contractAmount, $productCode, $unitPrice, $currency, $unitOfMeasure]
-                = array_pad($row, 9, null);
+            [$empresaCode, $supplierRfc, $startDate, $endDate, $contractAmount, $productCode, $unitPrice, $currency, $unitOfMeasure, $contractType]
+                = array_pad($row, 10, null);
 
             $lineNum = $i + 2; // +2: header + 1-based
             $errors  = [];
@@ -92,6 +93,14 @@ class ContractImportService
                 $errors[] = "unit_of_measure inválida: '{$unitOfMeasure}'.";
             }
 
+            // Obligatoria: un convenio importado por omisión como iguala brincaría la autorización
+            $type = strtolower(trim((string) $contractType));
+            if ($type === '') {
+                $errors[] = 'contract_type requerido (iguala o convenio).';
+            } elseif (! ContractType::tryFrom($type)) {
+                $errors[] = "contract_type inválido: '{$contractType}' (use iguala o convenio).";
+            }
+
             // Fix #4 — use normalized dates in contract key
             $contractKey = "{$empresaCode}|{$supplierRfc}|{$normalizedStart}|{$normalizedEnd}";
 
@@ -127,6 +136,7 @@ class ContractImportService
                 'unit_price'         => $unitPrice,
                 'currency_code'      => $currency ?: 'MXN',
                 'unit_of_measure'    => $uom,
+                'contract_type'      => $type,
                 'contract_key'       => $contractKey,
             ];
 
@@ -167,6 +177,7 @@ class ContractImportService
                     'folio'           => $folio,
                     'company_id'      => $first['company_id'],
                     'supplier_id'     => $first['supplier_id'],
+                    'contract_type'   => $first['contract_type'] ?? 'iguala',
                     'start_date'      => $first['start_date'],
                     'end_date'        => $first['end_date'],
                     'contract_amount' => $first['contract_amount'],

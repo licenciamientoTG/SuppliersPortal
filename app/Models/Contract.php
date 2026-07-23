@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enum\ContractStatus;
+use App\Enum\ContractType;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class Contract extends Model
         'folio',
         'supplier_id',
         'company_id',
+        'contract_type',
         'start_date',
         'end_date',
         'contract_amount',
@@ -36,7 +38,13 @@ class Contract extends Model
         'cancelled_at'    => 'datetime',
         'contract_amount' => 'decimal:2',
         'status'          => ContractStatus::class,
+        'contract_type'   => ContractType::class,
     ];
+
+    public function isConvenio(): bool
+    {
+        return $this->contract_type === ContractType::CONVENIO;
+    }
 
     // ── Relaciones ────────────────────────────────────────────────────────
 
@@ -158,7 +166,7 @@ class Contract extends Model
     {
         return LogOptions::defaults()
             ->logOnly([
-                'supplier_id', 'company_id', 'start_date',
+                'supplier_id', 'company_id', 'contract_type', 'start_date',
                 'end_date', 'status', 'contract_amount',
             ])
             ->logOnlyDirty()

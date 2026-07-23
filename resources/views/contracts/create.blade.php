@@ -50,6 +50,26 @@
                     @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
+                <div class="col-12">
+                    <label class="form-label">Tipo de contrato <span class="text-danger">*</span></label>
+                    <div class="row g-2">
+                        @foreach(\App\Enum\ContractType::cases() as $type)
+                        <div class="col-md-6">
+                            <div class="form-check border rounded p-3 ps-5 h-100 @error('contract_type') border-danger @enderror">
+                                <input class="form-check-input" type="radio" name="contract_type"
+                                    id="contract_type_{{ $type->value }}" value="{{ $type->value }}"
+                                    {{ old('contract_type') === $type->value ? 'checked' : '' }} required>
+                                <label class="form-check-label d-block" for="contract_type_{{ $type->value }}">
+                                    <strong>{{ $type->label() }}</strong>
+                                    <div class="form-text mt-1">{{ $type->description() }}</div>
+                                </label>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @error('contract_type')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                </div>
+
                 <div class="col-md-3">
                     <label class="form-label">Fecha inicio <span class="text-danger">*</span></label>
                     <input type="date" name="start_date" class="form-control @error('start_date') is-invalid @enderror"

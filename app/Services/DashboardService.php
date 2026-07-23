@@ -455,6 +455,7 @@ class DashboardService
     {
         $quotationApprovals = QuotationSummary::query()->pending()->assignedTo($user->id);
         $directOrders = DirectPurchaseOrder::query()->assignedToApprover($user->id);
+        $contractOrders = PurchaseOrder::query()->assignedToApprover($user->id);
         $criticalBudgets = $this->criticalBudgetCount();
 
         return [
@@ -466,6 +467,7 @@ class DashboardService
             'kpis' => [
                 $this->kpi('authorizer-quotation-pending', 'Cotizaciones asignadas', $quotationApprovals->count(), 'ti-stamp', 'warning', 'Aprobaciones comerciales en tu bandeja.'),
                 $this->kpi('authorizer-direct-orders', 'Compras directas pendientes', $directOrders->count(), 'ti-file-dollar', 'primary', 'OCDs pendientes de aprobacion.'),
+                $this->kpi('authorizer-contract-orders', 'OC de contrato pendientes', $contractOrders->count(), 'ti-file-certificate', 'warning', 'OC de convenios de precios por autorizar.'),
                 $this->kpi('authorizer-budget-pending', 'Movimientos pendientes', BudgetMovement::query()->pending()->count(), 'ti-arrows-transfer-up-down', 'info', 'Movimientos presupuestales por revisar.'),
                 $this->kpi('authorizer-budget-critical', 'Alertas de presupuesto', $criticalBudgets, 'ti-alert-triangle', 'danger', 'Distribuciones criticas o agotadas.'),
             ],
@@ -486,6 +488,18 @@ class DashboardService
                                 'badge_tone' => 'warning',
                                 'route' => route('approvals.quotations.index'),
                                 'route_label' => 'Abrir bandeja',
+                            ];
+                        }))
+                        ->merge($contractOrders->latest()->limit(3)->get()->map(function (PurchaseOrder $order) {
+                            return [
+                                'id' => 'authorizer-contract-po-'.$order->id,
+                                'title' => $order->folio,
+                                'subtitle' => format_money((float) $order->total, $order->currency),
+                                'meta' => 'OC de contrato (convenio) pendiente de autorizacion',
+                                'badge' => $order->getStatusLabel(),
+                                'badge_tone' => strtolower($order->getStatusBadgeClass()),
+                                'route' => route('purchase-orders.show', $order),
+                                'route_label' => 'Revisar OC',
                             ];
                         }))
                         ->merge($directOrders->latest()->limit(3)->get()->map(function (DirectPurchaseOrder $order) {

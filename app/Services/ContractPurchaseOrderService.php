@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PurchaseOrder;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
+use App\Notifications\ContractPurchaseOrderPendingApprovalNotification;
 use App\Notifications\PurchaseOrderIssuedNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +16,8 @@ use RuntimeException;
 class ContractPurchaseOrderService
 {
     public function __construct(
-        private readonly BudgetAllocationService $budgetAllocationService
+        private readonly BudgetAllocationService $budgetAllocationService,
+        private readonly AuthorizerResolutionService $authorizerResolutionService
     ) {
     }
 
@@ -51,7 +53,14 @@ class ContractPurchaseOrderService
                 $iva = round($subtotal * 0.16, 2);
                 $total = round($subtotal + $iva, 2);
 
-                $po = PurchaseOrder::create([
+                // Regla de negocio: las compras contra convenio de precios comprometen
+                // gasto nuevo, así que requieren autorización según la matriz. Las
+                // igualas ya fueron autorizadas al contratar y se emiten directo.
+                $requiresApproval = $items->contains(
+                    fn (RequisitionItem $item) => $item->contract?->isConvenio() ?? false
+                );
+
+                $poData = [
                     'folio' => $this->nextPoFolio(),
                     'requisition_id' => $requisition->id,
                     'supplier_id' => $supplierId,
@@ -64,11 +73,30 @@ class ContractPurchaseOrderService
                     'currency' => $first->currency_code ?? 'MXN',
                     'payment_terms' => $supplier->default_payment_terms,
                     'estimated_delivery_days' => 0,
-                    'status' => 'ISSUED',
-                    'approved_at' => $issuedAt,
-                    'issued_at' => $issuedAt,
                     'created_by' => Auth::id() ?? $requisition->created_by,
-                ]);
+                ];
+
+                if ($requiresApproval) {
+                    $requester = $requisition->requester ?? $requisition->creator;
+                    $resolution = $this->authorizerResolutionService->resolveForRequester($requester, $total);
+
+                    $poData += [
+                        'status' => 'PENDING_APPROVAL',
+                        'assigned_approver_id' => $resolution['approver_user']->id,
+                        'authorizer_role_id' => $resolution['authorizer_role']->id,
+                        'effective_authorization_limit' => $resolution['effective_limit'],
+                        'approval_chain_snapshot' => json_encode($resolution['chain']),
+                        'resolution_notes' => $resolution['resolution_notes'],
+                    ];
+                } else {
+                    $poData += [
+                        'status' => 'ISSUED',
+                        'approved_at' => $issuedAt,
+                        'issued_at' => $issuedAt,
+                    ];
+                }
+
+                $po = PurchaseOrder::create($poData);
 
                 foreach ($items as $item) {
                     $lineSubtotal = round((float) $item->unit_price * (float) $item->quantity, 2);
@@ -85,15 +113,23 @@ class ContractPurchaseOrderService
                     ]);
                 }
 
-                $this->budgetAllocationService->commitOrder($po);
+                // El compromiso presupuestal y el aviso al proveedor se difieren a la
+                // autorización cuando la OC queda pendiente.
+                if (! $requiresApproval) {
+                    $this->budgetAllocationService->commitOrder($po);
+                }
                 $purchaseOrders->push($po);
 
-                DB::afterCommit(function () use ($po) {
+                DB::afterCommit(function () use ($po, $requiresApproval) {
                     try {
-                        $po->loadMissing('supplier', 'creator', 'requisition.requester');
-                        $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
+                        $po->loadMissing('supplier', 'creator', 'requisition.requester', 'assignedApprover');
+                        if ($requiresApproval) {
+                            $po->assignedApprover?->notify(new ContractPurchaseOrderPendingApprovalNotification($po));
+                        } else {
+                            $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
+                        }
                     } catch (\Throwable $exception) {
-                        Log::error('Failed to notify supplier about issued contract purchase order.', [
+                        Log::error('Failed to notify about contract purchase order.', [
                             'purchase_order_id' => $po->id,
                             'folio' => $po->folio,
                             'supplier_id' => $po->supplier_id,
@@ -146,6 +182,12 @@ class ContractPurchaseOrderService
 
     private function assertPurchaseOrderSchemaCompatibility(): void
     {
+        // INFORMATION_SCHEMA/dbo solo existe en SQL Server; en sqlite (tests) el
+        // esquema lo garantizan las migraciones.
+        if (DB::getDriverName() !== 'sqlsrv') {
+            return;
+        }
+
         $schema = DB::selectOne("
             SELECT
                 MAX(CASE WHEN COLUMN_NAME = 'source_type' THEN 1 ELSE 0 END) AS has_source_type,

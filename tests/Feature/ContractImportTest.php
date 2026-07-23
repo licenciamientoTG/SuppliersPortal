@@ -16,7 +16,7 @@ class ContractImportTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const CSV_HEADER = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency,unit_of_measure\n";
+    private const CSV_HEADER = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency,unit_of_measure,contract_type\n";
 
     private function buyer(): User
     {
@@ -39,8 +39,8 @@ class ContractImportTest extends TestCase
         $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
 
         $csv = self::CSV_HEADER
-             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA\n"
-             . "TG001,BADAAA,2026-01-01,2026-12-31,0,PROD-001,100,MXN,PZA\n"; // RFC inválido
+             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA,iguala\n"
+             . "TG001,BADAAA,2026-01-01,2026-12-31,0,PROD-001,100,MXN,PZA,iguala\n"; // RFC inválido
 
         $service = app(ContractImportService::class);
         $result  = $service->preview($this->makeCsvFile($csv));
@@ -57,8 +57,8 @@ class ContractImportTest extends TestCase
         \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
 
         $csv = self::CSV_HEADER
-             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA\n"
-             . "TG001,BBB010101BBB,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA\n";
+             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA,iguala\n"
+             . "TG001,BBB010101BBB,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,PZA,iguala\n";
 
         $service = app(ContractImportService::class);
         $result  = $service->preview($this->makeCsvFile($csv));
@@ -75,8 +75,8 @@ class ContractImportTest extends TestCase
         \App\Models\ProductService::factory()->create(['code' => 'PROD-002', 'is_active' => true, 'status' => 'ACTIVE']);
 
         $csv = self::CSV_HEADER
-             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,\n"
-             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-002,250.00,MXN,NOPE\n";
+             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,,iguala\n"
+             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-002,250.00,MXN,NOPE,iguala\n";
 
         $service = app(ContractImportService::class);
         $result  = $service->preview($this->makeCsvFile($csv));
@@ -93,7 +93,7 @@ class ContractImportTest extends TestCase
         $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
 
         $csv = self::CSV_HEADER
-             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,L\n";
+             . "TG001,AAA010101AAA,2026-01-01,2026-12-31,50000,PROD-001,250.00,MXN,L,iguala\n";
 
         $service = app(ContractImportService::class);
         $preview = $service->preview($this->makeCsvFile($csv));
@@ -111,7 +111,7 @@ class ContractImportTest extends TestCase
 
     public function test_preview_rejects_file_over_500_rows(): void
     {
-        $row = "TG001,AAA010101AAA,2026-01-01,2026-12-31,0,P1,1,MXN,PZA\n";
+        $row = "TG001,AAA010101AAA,2026-01-01,2026-12-31,0,P1,1,MXN,PZA,iguala\n";
         $csv = self::CSV_HEADER . str_repeat($row, 501);
 
         $service = app(ContractImportService::class);
@@ -149,6 +149,7 @@ class ContractImportTest extends TestCase
             'unit_price'         => 250.00,
             'currency_code'      => 'MXN',
             'unit_of_measure'    => 'PZA',
+            'contract_type'      => 'iguala',
             'contract_key'       => 'TG001|AAA010101AAA|2026-01-01|2026-12-31',
         ]];
 
@@ -189,6 +190,7 @@ class ContractImportTest extends TestCase
             'unit_price'         => 250.00,
             'currency_code'      => 'MXN',
             'unit_of_measure'    => 'KG',
+            'contract_type'      => 'iguala',
             'contract_key'       => 'TG001|AAA010101AAA|2026-01-01|2026-12-31',
         ]];
 

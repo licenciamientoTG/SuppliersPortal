@@ -32,6 +32,14 @@ class PurchaseOrder extends Model
         'status',
         'created_by',
         'received_by',
+        'assigned_approver_id',
+        'authorizer_role_id',
+        'effective_authorization_limit',
+        'approval_chain_snapshot',
+        'resolution_notes',
+        'approved_by',
+        'rejected_by',
+        'rejected_at',
         'approved_at',
         'issued_at',
         'received_at',
@@ -46,6 +54,7 @@ class PurchaseOrder extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
         'issued_at' => 'datetime',
         'received_at' => 'datetime',
         'closed_at' => 'datetime',
@@ -80,6 +89,50 @@ class PurchaseOrder extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    // ── Autorización de OC de contrato (convenio de precios) ─────────────
+
+    public function assignedApprover()
+    {
+        return $this->belongsTo(User::class, 'assigned_approver_id');
+    }
+
+    public function authorizerRole()
+    {
+        return $this->belongsTo(AuthorizerRole::class, 'authorizer_role_id');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approvals()
+    {
+        return $this->hasMany(PurchaseOrderApproval::class);
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->status === 'PENDING_APPROVAL';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'REJECTED';
+    }
+
+    public function isApproverFor(User $user): bool
+    {
+        return $this->assigned_approver_id !== null
+            && (int) $this->assigned_approver_id === (int) $user->id;
+    }
+
+    public function scopeAssignedToApprover($query, int $userId)
+    {
+        return $query->where('assigned_approver_id', $userId)
+            ->where('status', 'PENDING_APPROVAL');
     }
 
     // Relación con la requisición origen
@@ -204,6 +257,8 @@ class PurchaseOrder extends Model
     public function getStatusLabel(): string
     {
         return match ($this->status) {
+            'PENDING_APPROVAL' => 'Pendiente de autorización',
+            'REJECTED' => 'Rechazada',
             'OPEN' => 'Abierta',
             'ISSUED' => 'Emitida',
             'PARTIALLY_RECEIVED' => 'Parcialmente Recibida',
@@ -219,6 +274,8 @@ class PurchaseOrder extends Model
     public function getStatusBadgeClass(): string
     {
         return match ($this->status) {
+            'PENDING_APPROVAL' => 'warning',
+            'REJECTED' => 'danger',
             'OPEN' => 'warning',
             'ISSUED' => 'info',
             'PARTIALLY_RECEIVED' => 'primary',

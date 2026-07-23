@@ -52,6 +52,15 @@
                     @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
+                <div class="col-12">
+                    <label class="form-label">Tipo de contrato</label>
+                    <div class="border rounded p-3 bg-light">
+                        <strong>{{ $contract->contract_type->label() }}</strong>
+                        <div class="form-text mt-1">{{ $contract->contract_type->description() }}</div>
+                        <div class="form-text text-muted mt-1"><i class="ti ti-lock me-1"></i>El tipo de contrato no puede modificarse después de creado.</div>
+                    </div>
+                </div>
+
                 <div class="col-md-3">
                     <label class="form-label">Fecha inicio <span class="text-danger">*</span></label>
                     <input type="date" name="start_date" class="form-control @error('start_date') is-invalid @enderror"

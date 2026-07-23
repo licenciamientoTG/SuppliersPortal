@@ -52,6 +52,13 @@
                     @endforeach
                 </select>
                 @error('newItem.contract_id')<div class="text-danger small">{{ $message }}</div>@enderror
+                @php($selectedContract = $newItem['contract_id'] ? $eligibleContracts->firstWhere('id', (int) $newItem['contract_id']) : null)
+                @if($selectedContract?->isConvenio())
+                    <div class="alert alert-warning py-1 px-2 mt-1 small mb-0">
+                        <i class="ti ti-clock me-1"></i>Contrato por convenio de precios: esta compra requerirá
+                        autorización según la matriz antes de emitir la OC.
+                    </div>
+                @endif
             </div>
 
             <div class="col-md-4">

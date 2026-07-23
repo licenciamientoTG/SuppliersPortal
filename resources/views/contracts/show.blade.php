@@ -43,6 +43,9 @@
     {{-- Datos generales --}}
     <div class="card mb-3">
         <div class="card-body row g-3">
+            <div class="col-md-4"><strong>Tipo de contrato:</strong><br>
+                <span title="{{ $contract->contract_type->description() }}">{{ $contract->contract_type->label() }}</span>
+            </div>
             <div class="col-md-4"><strong>Proveedor:</strong><br>{{ $contract->supplier->company_name }}</div>
             <div class="col-md-4"><strong>Empresa:</strong><br>{{ $contract->company->name }}</div>
             <div class="col-md-4"><strong>Monto contrato:</strong><br>{{ format_money($contract->contract_amount) }}</div>

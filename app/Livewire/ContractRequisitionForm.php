@@ -168,6 +168,7 @@ class ContractRequisitionForm extends Component
             return;
         }
 
+        $product = $cp->product;
         $costCenter = CostCenter::find($this->newItem['cost_center_id']);
         $classification = $this->classificationForProduct($product);
         $budgetCedula = BudgetCedula::find($classification['budget_cedula_id']);
@@ -185,7 +186,6 @@ class ContractRequisitionForm extends Component
         }
 
         $daysLeft = Carbon::today()->diffInDays($contract->end_date, false);
-        $product = $cp->product;
 
         $this->items[] = [
             'contract_id' => $contract->id,
@@ -278,11 +278,21 @@ class ContractRequisitionForm extends Component
 
                 $successMessage = "Requisicion {$requisition->folio} generada correctamente.";
 
-                if ($purchaseOrders->isNotEmpty()) {
+                $issued  = $purchaseOrders->reject->isPendingApproval();
+                $pending = $purchaseOrders->filter->isPendingApproval();
+
+                if ($issued->isNotEmpty()) {
                     $successMessage .= ' ';
-                    $successMessage .= $purchaseOrders->count() === 1
-                        ? "Se emitio la OC {$purchaseOrders->first()->folio}."
-                        : "Se emitieron {$purchaseOrders->count()} ordenes de compra.";
+                    $successMessage .= $issued->count() === 1
+                        ? "Se emitio la OC {$issued->first()->folio}."
+                        : "Se emitieron {$issued->count()} ordenes de compra.";
+                }
+
+                if ($pending->isNotEmpty()) {
+                    $successMessage .= ' ';
+                    $successMessage .= $pending->count() === 1
+                        ? "La OC {$pending->first()->folio} quedo pendiente de autorizacion de {$pending->first()->assignedApprover?->name} (contrato por convenio)."
+                        : "{$pending->count()} ordenes de compra quedaron pendientes de autorizacion (contratos por convenio).";
                 }
 
                 session()->flash('status', $successMessage);

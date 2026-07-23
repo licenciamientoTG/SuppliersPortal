@@ -27,6 +27,7 @@ class ContractCrudTest extends TestCase
         return array_merge([
             'company_id'      => $company->id,
             'supplier_id'     => $supplier->id,
+            'contract_type'   => 'iguala',
             'start_date'      => now()->toDateString(),
             'end_date'        => now()->addYear()->toDateString(),
             'contract_amount' => 50000,

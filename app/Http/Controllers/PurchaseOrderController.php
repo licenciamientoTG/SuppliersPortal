@@ -4,7 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\PurchaseOrder;
 use App\Models\DirectPurchaseOrder;
+use App\Models\User;
+use App\Notifications\ContractPurchaseOrderRejectedNotification;
+use App\Notifications\PurchaseOrderIssuedNotification;
+use App\Services\BudgetAllocationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,6 +26,98 @@ class PurchaseOrderController extends Controller
         $directCount = DirectPurchaseOrder::count();
 
         return view('purchase-orders.index', compact('regularCount', 'directCount'));
+    }
+
+    /**
+     * Autoriza una OC de contrato (convenio de precios) — solo el aprobador asignado.
+     */
+    public function approve(PurchaseOrder $purchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
+        abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
+
+        DB::transaction(function () use ($purchaseOrder, $budgetAllocationService) {
+            $now = now();
+
+            $budgetAllocationService->commitOrder($purchaseOrder);
+
+            $purchaseOrder->forceFill([
+                'status'      => 'ISSUED',
+                'approved_by' => Auth::id(),
+                'approved_at' => $now,
+                'issued_at'   => $now,
+            ])->save();
+
+            $purchaseOrder->approvals()->create([
+                'approver_user_id' => Auth::id(),
+                'action'           => 'APPROVED',
+                'approved_at'      => $now,
+            ]);
+
+            DB::afterCommit(function () use ($purchaseOrder) {
+                try {
+                    $purchaseOrder->loadMissing('supplier', 'creator');
+                    $purchaseOrder->supplier?->notify(new PurchaseOrderIssuedNotification($purchaseOrder));
+                } catch (\Throwable $exception) {
+                    Log::error('Failed to notify supplier about approved contract purchase order.', [
+                        'purchase_order_id' => $purchaseOrder->id,
+                        'exception'         => $exception,
+                    ]);
+                }
+            });
+        });
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)
+            ->with('success', "OC {$purchaseOrder->folio} autorizada y emitida al proveedor.");
+    }
+
+    /**
+     * Rechaza una OC de contrato pendiente — solo el aprobador asignado.
+     */
+    public function reject(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
+        abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
+
+        $request->validate([
+            'comments' => ['required', 'string', 'min:50', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($purchaseOrder, $request) {
+            $purchaseOrder->forceFill([
+                'status'               => 'REJECTED',
+                'rejected_by'          => Auth::id(),
+                'rejected_at'          => now(),
+                'assigned_approver_id' => null,
+            ])->save();
+
+            $purchaseOrder->approvals()->create([
+                'approver_user_id' => Auth::id(),
+                'action'           => 'REJECTED',
+                'comments'         => $request->comments,
+                'approved_at'      => now(),
+            ]);
+
+            DB::afterCommit(function () use ($purchaseOrder, $request) {
+                try {
+                    $notification = new ContractPurchaseOrderRejectedNotification($purchaseOrder, $request->comments);
+                    $purchaseOrder->loadMissing('creator');
+                    $purchaseOrder->creator?->notify($notification);
+
+                    User::role('buyer')->get()
+                        ->reject(fn (User $u) => $u->id === Auth::id() || $u->id === $purchaseOrder->created_by)
+                        ->each->notify($notification);
+                } catch (\Throwable $exception) {
+                    Log::error('Failed to notify about rejected contract purchase order.', [
+                        'purchase_order_id' => $purchaseOrder->id,
+                        'exception'         => $exception,
+                    ]);
+                }
+            });
+        });
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)
+            ->with('success', "OC {$purchaseOrder->folio} rechazada.");
     }
 
     /**
@@ -173,6 +271,9 @@ class PurchaseOrderController extends Controller
             'receptions.items.receivableItem',
             'receptions.receiver',
             'receptions.receivingLocation',
+            'assignedApprover',
+            'authorizerRole',
+            'approvals.approver',
         ]);
         return view('purchase-orders.show', compact('purchaseOrder'));
     }

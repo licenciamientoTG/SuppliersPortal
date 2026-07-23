@@ -44,7 +44,9 @@ class ContractController extends Controller
 
         return DataTables::of($query)
             ->addIndexColumn()
-            ->addColumn('folio_col', fn($c) => '<span class="fw-bold">' . e($c->folio) . '</span>')
+            ->addColumn('folio_col', fn($c) => '<span class="fw-bold">' . e($c->folio) . '</span>'
+                . '<br><span class="badge bg-secondary-subtle text-secondary" title="' . e($c->contract_type->description()) . '">'
+                . e($c->contract_type->label()) . '</span>')
             ->addColumn('supplier_name', fn($c) => e($c->supplier->company_name ?? '—'))
             ->addColumn('company_name', fn($c) => e($c->company->name ?? '—'))
             ->addColumn('start_date_col', fn($c) => $c->start_date->format('d/m/Y'))
@@ -117,6 +119,7 @@ class ContractController extends Controller
                 'folio'           => Contract::nextFolio(),
                 'supplier_id'     => $request->supplier_id,
                 'company_id'      => $request->company_id,
+                'contract_type'   => $request->contract_type,
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
                 'contract_amount' => $request->contract_amount ?? 0,
@@ -252,8 +255,8 @@ class ContractController extends Controller
 
     public function downloadTemplate()
     {
-        $csvContent = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency,unit_of_measure\n";
-        $csvContent .= "TG001,AAA010101AAA,2026-01-01,2026-12-31,100000,PROD-001,250.5000,MXN,PZA\n";
+        $csvContent = "empresa_code,supplier_rfc,start_date,end_date,contract_amount,product_code,unit_price,currency,unit_of_measure,contract_type\n";
+        $csvContent .= "TG001,AAA010101AAA,2026-01-01,2026-12-31,100000,PROD-001,250.5000,MXN,PZA,iguala\n";
 
         return response($csvContent, 200, [
             'Content-Type'        => 'text/csv',

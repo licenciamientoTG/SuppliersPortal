@@ -15,6 +15,7 @@ class StoreContractRequest extends FormRequest
         return [
             'supplier_id'                   => ['required', 'integer', 'exists:suppliers,id'],
             'company_id'                    => ['required', 'integer', 'exists:companies,id'],
+            'contract_type'                 => ['required', 'in:iguala,convenio'],
             'start_date'                    => ['required', 'date'],
             'end_date'                      => ['required', 'date', 'after:start_date'],
             'contract_amount'               => ['nullable', 'numeric', 'min:0'],
