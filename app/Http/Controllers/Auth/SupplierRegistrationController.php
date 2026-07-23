@@ -71,9 +71,10 @@ class SupplierRegistrationController extends Controller
             ], 422);
         }
 
-        $rfc = strtoupper(trim((string) ($upload['parsed']['rfc'] ?? '')));
+        $rfc = $this->normalizeRfc($upload['parsed']['rfc'] ?? '');
+        $upload['parsed']['rfc'] = $rfc;
 
-        if ($rfc !== '' && Supplier::where('rfc', $rfc)->exists()) {
+        if ($rfc !== '' && Supplier::whereRaw('UPPER(LTRIM(RTRIM(rfc))) = ?', [$rfc])->exists()) {
             $extractor->forgetTemporaryUpload($upload['token'], $request->session());
 
             return response()->json([
@@ -87,6 +88,11 @@ class SupplierRegistrationController extends Controller
             'token' => $upload['token'],
             'data' => $upload['parsed'],
         ]);
+    }
+
+    private function normalizeRfc(mixed $rfc): string
+    {
+        return preg_replace('/[^A-Z0-9Ñ&]/u', '', strtoupper((string) $rfc)) ?? '';
     }
 
     public function store(RegisterSupplierRequest $request, SupplierCsfExtractorService $extractor, SupplierDocumentRequirementService $requirements, SupplierDocumentAutoAcceptanceService $autoAcceptance)
