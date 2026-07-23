@@ -248,6 +248,27 @@
             color: #173f75;
             border: 1px solid #d0dceb;
         }
+        .upload-guide-dialog {
+            width: min(560px, calc(100vw - 32px));
+            border: 0;
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 22px 60px rgba(7, 21, 45, 0.3);
+        }
+        .upload-guide-dialog::backdrop { background: rgba(8, 30, 65, 0.58); }
+        .upload-guide-dialog-content { padding: 22px; }
+        .upload-guide-dialog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .upload-guide-dialog h3 { margin: 0; color: #173f75; font-size: 1.05rem; }
+        .upload-guide-dialog p { margin: 6px 0 14px; color: #607286; font-size: 0.88rem; }
+        .upload-guide-dialog img {
+            width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto 16px;
+        }
+        .upload-guide-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
         .banner {
             border-radius: 14px;
             padding: 12px 14px;
@@ -394,21 +415,33 @@
                                 <label for="csf_file" class="required">Documento a cargar</label>
                                 <div class="upload-control" id="csf-upload-control">
                                     <input type="file" id="csf_file" accept="application/pdf,image/jpeg,image/png" multiple class="hidden">
-                                    <button type="button" class="upload-trigger" id="csf-upload-trigger">Seleccionar archivo(s)</button>
+                                    <button type="button" class="upload-trigger" id="csf-upload-trigger">Cargar archivos</button>
                                     <span class="upload-name is-empty" id="csf-file-name">Ningun archivo seleccionado</span>
                                 </div>
                                 <span class="hint">Un PDF o hasta cinco fotos JPG/PNG. Se consolidan en un solo PDF. Maximo: 10 MB.</span>
                             </div>
-                            <button type="button" class="btn btn-secondary" id="parse-csf-button">Analizar constancia</button>
                         </div>
                         <div id="csf-feedback" class="banner info hidden" style="margin-top:14px;"></div>
-                        <div class="banner info" style="margin-top:14px;padding:12px;text-align:center;">
-                            <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Guía para cargar una constancia fiscal con todas sus páginas y dos códigos QR legibles" style="width:100%;max-width:440px;height:auto;display:block;margin:0 auto;">
-                        </div>
                         @if ($viewErrors->has('csf_upload_token'))
                             <div class="error" style="margin-top:14px;">{{ $viewErrors->first('csf_upload_token') }}</div>
                         @endif
                     </section>
+
+                    <dialog class="upload-guide-dialog" id="csf-upload-guide" aria-labelledby="csf-upload-guide-title">
+                        <div class="upload-guide-dialog-content">
+                            <div class="upload-guide-dialog-header">
+                                <div>
+                                    <h3 id="csf-upload-guide-title">Antes de cargar tu constancia fiscal</h3>
+                                    <p>Incluye todas las páginas completas y sus dos códigos QR legibles.</p>
+                                </div>
+                                <button type="button" class="btn btn-ghost" id="csf-upload-guide-close" aria-label="Cerrar guía">Cerrar</button>
+                            </div>
+                            <img src="{{ asset('images/document-guides/csf-pages-and-qr.png') }}" alt="Guía para cargar una constancia fiscal con todas sus páginas y dos códigos QR legibles">
+                            <div class="upload-guide-dialog-actions">
+                                <button type="button" class="btn btn-primary" id="csf-file-picker-trigger">Seleccionar archivo(s)</button>
+                            </div>
+                        </div>
+                    </dialog>
 
                     <section class="section">
                         <h2 class="section-title">3. Datos fiscales</h2>
@@ -653,10 +686,12 @@
         document.addEventListener('DOMContentLoaded', function () {
             const foreignToggle = document.getElementById('is_foreign');
             const csfSection = document.getElementById('csf-section');
-            const parseButton = document.getElementById('parse-csf-button');
             const csfFeedback = document.getElementById('csf-feedback');
             const csfFileInput = document.getElementById('csf_file');
             const csfUploadTrigger = document.getElementById('csf-upload-trigger');
+            const csfUploadGuide = document.getElementById('csf-upload-guide');
+            const csfUploadGuideClose = document.getElementById('csf-upload-guide-close');
+            const csfFilePickerTrigger = document.getElementById('csf-file-picker-trigger');
             const csfUploadControl = document.getElementById('csf-upload-control');
             const csfFileName = document.getElementById('csf-file-name');
             const csfTokenInput = document.getElementById('csf_upload_token');
@@ -812,8 +847,8 @@
                 const formData = new FormData();
                 files.forEach((file) => formData.append('csf[]', file));
 
-                parseButton.disabled = true;
-                parseButton.textContent = 'Analizando...';
+                csfUploadTrigger.disabled = true;
+                csfUploadTrigger.textContent = 'Analizando...';
                 clearFeedback();
 
                 try {
@@ -842,8 +877,8 @@
                 } catch (error) {
                     setFeedback('error', 'Ocurrio un error al analizar la constancia fiscal. Intenta de nuevo.');
                 } finally {
-                    parseButton.disabled = false;
-                    parseButton.textContent = 'Analizar constancia';
+                    csfUploadTrigger.disabled = false;
+                    csfUploadTrigger.textContent = 'Cargar archivos';
                 }
             }
 
@@ -886,13 +921,20 @@
                 otrosWrapper.classList.toggle('hidden', !checked || !checked.checked);
             }
 
-            parseButton.addEventListener('click', parseCsf);
             csfUploadTrigger.addEventListener('click', function () {
+                csfUploadGuide.showModal();
+            });
+            csfUploadGuideClose.addEventListener('click', function () {
+                csfUploadGuide.close();
+            });
+            csfFilePickerTrigger.addEventListener('click', function () {
+                csfUploadGuide.close();
                 csfFileInput.click();
             });
             csfFileInput.addEventListener('change', function () {
                 syncSelectedFile();
                 clearFeedback();
+                parseCsf();
             });
             foreignToggle.addEventListener('change', updateFiscalMode);
             addActivityButton.addEventListener('click', function () {
