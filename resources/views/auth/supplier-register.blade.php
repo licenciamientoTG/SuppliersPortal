@@ -624,7 +624,7 @@
 
                     <section class="section">
                         <h2 class="section-title">5. Actividades economicas</h2>
-                        <p class="section-copy">Estas actividades se siguen capturando manualmente.</p>
+                        <p class="section-copy">Se llenan desde la constancia fiscal; puedes corregirlas o agregar más si es necesario.</p>
                         <div class="activity-list" id="activity-list">
                             @foreach ($oldActivities as $index => $activity)
                                 <div class="activity-item">
@@ -871,6 +871,7 @@
                 const regimeText = Array.isArray(data.tax_regime_labels) ? data.tax_regime_labels.join('\n') : '';
                 taxRegimesDisplay.value = regimeText;
                 parsedRegimesInput.value = regimeText;
+                populateActivities(data.economic_activities);
 
                 if (!emailInput.value && data.sat_email) {
                     emailInput.value = data.sat_email;
@@ -964,6 +965,30 @@
                         removeButton.classList.toggle('hidden', items.length === 1 && index === 0);
                     }
                 });
+            }
+
+            function populateActivities(activities) {
+                const parsedActivities = Array.isArray(activities)
+                    ? [...new Set(activities.map((activity) => String(activity).trim()).filter(Boolean))]
+                    : [];
+
+                if (!parsedActivities.length) {
+                    return;
+                }
+
+                activityList.innerHTML = '';
+
+                parsedActivities.forEach(function (activity) {
+                    const fragment = activityTemplate.content.cloneNode(true);
+                    const input = fragment.querySelector('input');
+                    const removeButton = fragment.querySelector('.remove-activity');
+
+                    input.value = activity;
+                    bindRemoveActivity(removeButton);
+                    activityList.appendChild(fragment);
+                });
+
+                syncActivityButtons();
             }
 
             function updateRepseFields() {

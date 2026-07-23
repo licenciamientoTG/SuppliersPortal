@@ -660,6 +660,9 @@ class SupplierCsfExtractorService
                 fn (array $regime) => trim($regime['code'].' - '.$regime['label']),
                 $normalizedRegimes
             )),
+            'economic_activities' => SupplierFiscalCatalog::normalizeActivities(
+                $this->allValues($items, ['Actividad Economica'])
+            ),
             'issued_at' => $issueDate ? $issueDate['issued_at']->toDateString() : null,
             'issue_date_extraction_data' => $issueDate['metadata'] ?? null,
             'raw_sections' => $parsed['sections'] ?? [],

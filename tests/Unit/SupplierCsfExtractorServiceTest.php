@@ -60,6 +60,31 @@ class SupplierCsfExtractorServiceTest extends TestCase
         $this->assertStringContainsString('D1=26', $pair['validation']);
     }
 
+    public function test_it_extracts_economic_activities_from_the_sat_activity_table(): void
+    {
+        $parser = new SatQrDataParser;
+        $parsed = $parser->parse(<<<'HTML'
+<ul>
+  <li data-role="list-divider">Actividades Económicas</li>
+  <li><table><thead><tr><th>Orden</th><th>Actividad Económica</th><th>Porcentaje</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Fabricación de otros productos de cartón</td><td>41</td></tr>
+    <tr><td>2</td><td>Impresión de formas continuas y otros impresos</td><td>39</td></tr>
+  </tbody></table></li>
+</ul>
+HTML, 'https://siat.sat.gob.mx/?D3=123_ACO041014H30');
+
+        $service = new SupplierCsfExtractorService($parser, Mockery::mock(DocumentQrReaderService::class));
+        $method = new \ReflectionMethod($service, 'normalizeParsedResult');
+        $method->setAccessible(true);
+        $result = $method->invoke($service, $parsed);
+
+        $this->assertSame([
+            'Fabricación de otros productos de cartón',
+            'Impresión de formas continuas y otros impresos',
+        ], $result['economic_activities']);
+    }
+
     public function test_it_reads_the_cedula_qr_from_an_image_before_reporting_a_missing_validation_qr(): void
     {
         $reader = Mockery::mock(DocumentQrReaderService::class);

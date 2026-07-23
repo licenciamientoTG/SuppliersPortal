@@ -41,8 +41,7 @@ class SatQrDataParser
                     continue;
                 }
 
-                $label = $this->normalizeLabel($cells->item(0)?->textContent ?? '');
-                $value = $this->cleanText($cells->item(1)?->textContent ?? '');
+                [$label, $value] = $this->labelAndValueForRow($xpath, $row, $cells);
 
                 if ($label === '') {
                     continue;
@@ -100,6 +99,29 @@ class SatQrDataParser
         }
 
         return null;
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function labelAndValueForRow(DOMXPath $xpath, DOMElement $row, \DOMNodeList $cells): array
+    {
+        $headerCells = $xpath->query('./ancestor::table[1]//tr[1]/*', $row);
+
+        if ($headerCells !== false) {
+            foreach ($headerCells as $index => $headerCell) {
+                $header = $this->normalizeLabel($headerCell->textContent ?? '');
+
+                if (str_contains($header, 'Actividad Economica') && $cells->item($index)) {
+                    return ['Actividad Economica', $this->cleanText($cells->item($index)->textContent ?? '')];
+                }
+            }
+        }
+
+        return [
+            $this->normalizeLabel($cells->item(0)?->textContent ?? ''),
+            $this->cleanText($cells->item(1)?->textContent ?? ''),
+        ];
     }
 
     private function buildPhysicalPersonName(array $flatItems): ?string
