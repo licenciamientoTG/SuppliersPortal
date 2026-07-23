@@ -732,7 +732,7 @@ Route::get('/csrf-refresh', function () {
 // ============================================================================
 //  Contratos Comerciales
 // ============================================================================
-Route::middleware(['auth'])
+Route::middleware(['auth', 'lock', 'role:buyer|superadmin'])
     ->controller(\App\Http\Controllers\ContractController::class)
     ->prefix('contracts')
     ->name('contracts.')

@@ -17,7 +17,9 @@ class ContractCrudTest extends TestCase
 
     private function buyer(): User
     {
-        return User::factory()->create();
+        \Spatie\Permission\Models\Role::findOrCreate('buyer', 'web');
+
+        return User::factory()->create()->assignRole('buyer');
     }
 
     private function validPayload(Company $company, Supplier $supplier, array $overrides = []): array

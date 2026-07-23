@@ -16,6 +16,13 @@ class ContractImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function buyer(): User
+    {
+        \Spatie\Permission\Models\Role::findOrCreate('buyer', 'web');
+
+        return User::factory()->create()->assignRole('buyer');
+    }
+
     private function makeCsvFile(string $content): UploadedFile
     {
         $path = tempnam(sys_get_temp_dir(), 'contract_import_') . '.csv';
@@ -42,7 +49,7 @@ class ContractImportTest extends TestCase
 
     public function test_confirm_creates_contracts(): void
     {
-        $user     = User::factory()->create();
+        $user     = $this->buyer();
         $company  = Company::factory()->create(['code' => 'TG001', 'is_active' => true]);
         $supplier = Supplier::factory()->create(['rfc' => 'AAA010101AAA', 'status' => 'activo']);
         $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
@@ -75,7 +82,7 @@ class ContractImportTest extends TestCase
 
     public function test_http_import_preview_stores_valid_rows_in_session(): void
     {
-        $user     = User::factory()->create();
+        $user     = $this->buyer();
         $company  = Company::factory()->create(['code' => 'TG001', 'is_active' => true]);
         $supplier = Supplier::factory()->create(['rfc' => 'AAA010101AAA', 'status' => 'activo']);
         $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);
@@ -113,7 +120,7 @@ class ContractImportTest extends TestCase
 
     public function test_http_import_confirm_creates_contract_and_redirects(): void
     {
-        $user     = User::factory()->create();
+        $user     = $this->buyer();
         $company  = Company::factory()->create(['code' => 'TG001', 'is_active' => true]);
         $supplier = Supplier::factory()->create(['rfc' => 'AAA010101AAA', 'status' => 'activo']);
         $product  = \App\Models\ProductService::factory()->create(['code' => 'PROD-001', 'is_active' => true, 'status' => 'ACTIVE']);

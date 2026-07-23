@@ -231,7 +231,7 @@
 </li>
 @endmoduleAccess
 
-@hasanyrole('superadmin|staff')
+@hasanyrole('superadmin|buyer')
 <li class="side-nav-item">
     <a href="{{ route('contracts.index') }}"
         class="side-nav-link {{ request()->routeIs('contracts.*') ? 'active' : '' }}">
