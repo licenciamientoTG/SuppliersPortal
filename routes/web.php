@@ -71,9 +71,9 @@ Route::get('/storage/{path}', function (string $path) {
 })->where('path', '.*');
 
 // ============================================================================
-//  Default redirect
+//  Default entry point
 // ============================================================================
-Route::get('/', fn () => redirect()->route('login'));
+Route::view('/', 'auth.login')->middleware('guest:web,supplier');
 
 // ============================================================================
 //  Lock Screen (solo requiere autenticación, no lock)

@@ -85,6 +85,33 @@ HTML, 'https://siat.sat.gob.mx/?D3=123_ACO041014H30');
         ], $result['economic_activities']);
     }
 
+    public function test_it_extracts_economic_activities_from_any_pdf_text_page(): void
+    {
+        $service = new SupplierCsfExtractorService(new SatQrDataParser, Mockery::mock(DocumentQrReaderService::class));
+        $method = new \ReflectionMethod($service, 'extractEconomicActivitiesFromText');
+        $method->setAccessible(true);
+
+        $activities = $method->invoke($service, <<<'TEXT'
+Página [1] de [3]
+Actividades Económicas:
+
+Página [2] de [3]
+Orden Actividad Económica Porcentaje Fecha Inicio Fecha Fin
+1 Fabricación de otros productos de papel y cartón 41 15/09/2022
+2 Impresión de formas continuas y otros impresos 39 15/09/2022
+3 Comercio al por menor de artículos de papelería 11 15/09/2022
+4 Comercio al por menor de computadoras y sus accesorios 9 15/09/2022
+Regímenes:
+TEXT);
+
+        $this->assertSame([
+            'Fabricación de otros productos de papel y cartón',
+            'Impresión de formas continuas y otros impresos',
+            'Comercio al por menor de artículos de papelería',
+            'Comercio al por menor de computadoras y sus accesorios',
+        ], $activities);
+    }
+
     public function test_it_reads_the_cedula_qr_from_an_image_before_reporting_a_missing_validation_qr(): void
     {
         $reader = Mockery::mock(DocumentQrReaderService::class);

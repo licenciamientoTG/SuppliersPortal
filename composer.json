@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "livewire/livewire": "^3.7",
         "phpoffice/phpspreadsheet": "^5.8",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.21",
         "yajra/laravel-datatables-oracle": "^12.6"

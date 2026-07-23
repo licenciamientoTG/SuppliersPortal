@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Smalot\PdfParser\Parser as PdfParser;
+use Throwable;
 use Zxing\QrReader;
 
 class SupplierCsfExtractorService
@@ -184,7 +186,11 @@ class SupplierCsfExtractorService
             'csf_qr_rfc_matches' => true,
         ]);
 
-        return $this->normalizeParsedResult($parsed, $issueDate);
+        return $this->normalizeParsedResult(
+            $parsed,
+            $issueDate,
+            $this->extractEconomicActivitiesFromPdf($absolutePath)
+        );
     }
 
     private function extractSatUrlFromPdfContents(string $contents): ?string
@@ -606,7 +612,7 @@ class SupplierCsfExtractorService
         return null;
     }
 
-    private function normalizeParsedResult(array $parsed, ?array $issueDate = null): array
+    private function normalizeParsedResult(array $parsed, ?array $issueDate = null, array $pdfEconomicActivities = []): array
     {
         $rfc = strtoupper((string) ($parsed['rfc'] ?? ''));
 
@@ -661,12 +667,74 @@ class SupplierCsfExtractorService
                 $normalizedRegimes
             )),
             'economic_activities' => SupplierFiscalCatalog::normalizeActivities(
-                $this->allValues($items, ['Actividad Economica'])
+                $pdfEconomicActivities ?: $this->allValues($items, ['Actividad Economica'])
             ),
             'issued_at' => $issueDate ? $issueDate['issued_at']->toDateString() : null,
             'issue_date_extraction_data' => $issueDate['metadata'] ?? null,
             'raw_sections' => $parsed['sections'] ?? [],
         ];
+    }
+
+    private function extractEconomicActivitiesFromPdf(string $absolutePath): array
+    {
+        try {
+            $document = (new PdfParser())->parseFile($absolutePath);
+            $text = $this->reconstructPdfTextWithSpaces($document);
+        } catch (Throwable) {
+            return [];
+        }
+
+        return $this->extractEconomicActivitiesFromText($text);
+    }
+
+    private function reconstructPdfTextWithSpaces(object $document): string
+    {
+        $pages = [];
+
+        foreach ($document->getPages() as $page) {
+            $rows = [];
+
+            foreach ($page->getDataTm() as [$matrix, $fragment]) {
+                $fragment = trim((string) $fragment);
+
+                if ($fragment === '') {
+                    continue;
+                }
+
+                $row = (string) round((float) $matrix[5]);
+                $rows[$row][] = [
+                    'x' => (float) $matrix[4],
+                    'text' => $fragment,
+                ];
+            }
+
+            krsort($rows, SORT_NUMERIC);
+
+            foreach ($rows as $fragments) {
+                usort($fragments, fn (array $left, array $right) => $left['x'] <=> $right['x']);
+                $pages[] = implode(' ', array_column($fragments, 'text'));
+            }
+        }
+
+        return implode("\n", $pages);
+    }
+
+    private function extractEconomicActivitiesFromText(string $text): array
+    {
+        if (preg_match('/Actividades\s+Econ[oó]micas\s*:?\s*(.*?)(?=^\s*(?:Reg[ií]menes|Obligaciones)\s*:?|\z)/imsu', $text, $match) !== 1) {
+            return [];
+        }
+
+        preg_match_all(
+            '/^\s*\d+\s+([\s\S]+?)\s+\d{1,3}\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}\/\d{1,2}\/\d{4})?\s*$/mu',
+            $match[1],
+            $activities
+        );
+
+        return SupplierFiscalCatalog::normalizeActivities(array_map(
+            fn (string $activity) => preg_replace('/\s+/u', ' ', trim($activity)) ?? '',
+            $activities[1] ?? []
+        ));
     }
 
     private function buildAddress(array $items): string

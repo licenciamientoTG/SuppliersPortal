@@ -18,6 +18,13 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_root_renders_login_without_an_extra_redirect(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
