@@ -70,13 +70,13 @@ class SupplierDocumentController extends Controller
         $temporaryPath = $preparedUpload['temporary_path'];
 
         try {
-            $path = $file->store("suppliers/{$supplier->id}/documents", 'public');
+            $path = $file->store("suppliers/{$supplier->id}/documents", 'supplier_documents');
             $issueDateExtraction = $type->validity_source === 'qr'
                 ? $issueDates->extract($file, $type, $supplier)
                 : ['issued_at' => null, 'metadata' => null];
 
             if ($docType === 'constancia_fiscal' && ! $this->hasValidatedCsfQrPair($issueDateExtraction['metadata'] ?? [])) {
-                Storage::disk('public')->delete($path);
+                Storage::disk('supplier_documents')->delete($path);
 
                 return response()->json([
                     'message' => $issueDateExtraction['metadata']['message'] ?? 'La constancia debe incluir y validar el QR de la cedula fiscal y el QR de validacion.',
@@ -121,7 +121,7 @@ class SupplierDocumentController extends Controller
             });
         } catch (\Throwable $exception) {
             if (isset($path)) {
-                Storage::disk('public')->delete($path);
+                Storage::disk('supplier_documents')->delete($path);
             }
 
             throw $exception;
@@ -132,17 +132,20 @@ class SupplierDocumentController extends Controller
         }
 
         foreach ($replacedPaths as $replacedPath) {
-            Storage::disk('public')->delete($replacedPath);
+            Storage::disk('supplier_documents')->delete($replacedPath);
         }
 
         $supplier->recalculateDocumentStatus();
+        $doc->loadMissing('requirement');
 
-        $url = Storage::disk('public')->url($doc->path_file);
+        $url = route('supplier-documents.file', $doc);
 
         return response()->json([
             'id' => $doc->id,
             'doc_type' => $doc->doc_type,
             'status' => $doc->status,
+            'requirement_status' => $doc->requirement?->status,
+            'has_current_document' => $doc->requirement?->current_document_id !== null,
             'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
             'url' => $url,
             'destroy_url' => route($request->user('supplier') ? 'supplier.documents.destroy' : 'documents.suppliers.destroy', [$supplier, $doc->id]),
@@ -172,52 +175,6 @@ class SupplierDocumentController extends Controller
             && ($metadata['csf_qr_rfc_matches'] ?? false) === true;
     }
 
-    public function review(Request $request, Supplier $supplier, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
-    {
-        $this->authorize('review', $document);
-
-        abort_if($request->input('action') === 'accept' && $document->hasFailedAutomaticValidation(), 422, 'La validacion automatica detecto RFC distinto u opinion de cumplimiento no positiva. Rechaza el documento y solicita una version valida.');
-        abort_if(
-            $request->input('action') === 'accept'
-                && $document->doc_type === 'constancia_fiscal'
-                && ! $this->hasValidatedCsfQrPair($document->issue_date_extraction_data ?? []),
-            422,
-            'La constancia debe validar el QR de la cedula fiscal y el QR de validacion antes de aceptarse.'
-        );
-
-        $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
-        $data = $request->validate([
-            'action' => ['required', Rule::in(['accept', 'reject'])],
-            'rejection_reason' => ['nullable', 'string', 'max:2000'],
-            'issued_at' => [$isPeriodic && $request->input('action') === 'accept' ? 'required' : 'nullable', 'nullable', 'date'],
-        ]);
-
-        if ($request->action === 'accept') {
-            $document->update([
-                'status' => 'accepted',
-                'rejection_reason' => null,
-                'reviewed_by' => $request->user('web')?->id,
-                'reviewed_at' => now(),
-            ]);
-        } else {
-            $document->update([
-                'status' => 'rejected',
-                'rejection_reason' => $request->rejection_reason ?: 'Documento no aceptado.',
-                'reviewed_by' => $request->user('web')?->id,
-                'reviewed_at' => now(),
-            ]);
-        }
-
-        if ($request->action === 'accept') {
-            $requirements->accept($document, $data['issued_at'] ?? null, $request->user('web')?->id);
-        } else {
-            $requirements->reject($document);
-        }
-        $supplier->recalculateDocumentStatus();
-
-        return back()->with('success', 'Revisión registrada.');
-    }
-
     public function destroy(Request $request, Supplier $supplier, $documentId, SupplierDocumentRequirementService $requirements)
     {
         $authenticatedSupplier = $request->user('supplier');
@@ -229,8 +186,8 @@ class SupplierDocumentController extends Controller
 
         abort_if($document->requirement?->current_document_id === $document->id, 422, 'No puedes eliminar el documento vigente. Carga una nueva versión para reemplazarlo.');
 
-        if ($document->path_file && Storage::disk('public')->exists($document->path_file)) {
-            Storage::disk('public')->delete($document->path_file);
+        if ($document->path_file && Storage::disk('supplier_documents')->exists($document->path_file)) {
+            Storage::disk('supplier_documents')->delete($document->path_file);
         }
 
         $document->delete();

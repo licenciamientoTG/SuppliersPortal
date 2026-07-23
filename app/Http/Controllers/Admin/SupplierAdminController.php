@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
+use App\Notifications\SupplierAccountReviewedNotification;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -66,14 +68,14 @@ class SupplierAdminController extends Controller
             $rejectUrl = route('admin.suppliers.reject', $supplier);
             $docsUrl = route('admin.review.suppliers.show', $supplier);
 
+            $canApprove = $supplier->document_status === 'approved';
+            $approveButton = $canApprove
+                ? '<button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="'.$approveUrl.'" title="Aprobar"><i class="ti ti-circle-check"></i></button>'
+                : '<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="El expediente documental debe estar completo"><i class="ti ti-circle-check"></i></button>';
             $approvalActions = match ($supplier->approval_status) {
-                'pending' => <<<HTML
-                    <button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="{$approveUrl}" title="Aprobar"><i class="ti ti-circle-check"></i></button>
-                    <button type="button" class="btn btn-sm btn-outline-warning js-reject-supplier" data-url="{$rejectUrl}" title="Rechazar"><i class="ti ti-circle-x"></i></button>
-                HTML,
-                'rejected' => <<<HTML
-                    <button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="{$approveUrl}" title="Aprobar"><i class="ti ti-circle-check"></i></button>
-                HTML,
+                'pending' => $approveButton
+                    .'<button type="button" class="btn btn-sm btn-outline-warning js-reject-supplier" data-url="'.$rejectUrl.'" title="Rechazar"><i class="ti ti-circle-x"></i></button>',
+                'rejected' => $approveButton,
                 default => '',
             };
 
@@ -211,6 +213,12 @@ class SupplierAdminController extends Controller
             return response()->json(['message' => 'El proveedor ya se encuentra aprobado.'], 422);
         }
 
+        if ($supplier->recalculateDocumentStatus() !== 'approved') {
+            return response()->json([
+                'message' => 'El expediente documental debe estar completo antes de aprobar el alta del proveedor.',
+            ], 422);
+        }
+
         $supplier->update([
             'approval_status' => 'approved',
             'approved_by' => $request->user()->id,
@@ -219,6 +227,7 @@ class SupplierAdminController extends Controller
             'rejected_at' => null,
             'approval_notes' => $request->input('approval_notes'),
         ]);
+        $this->notifySupplierApproval($supplier, true, $request->input('approval_notes'));
 
         return response()->json(['message' => 'Proveedor aprobado correctamente.']);
     }
@@ -247,6 +256,7 @@ class SupplierAdminController extends Controller
             'approved_at' => null,
             'approval_notes' => $request->input('approval_notes'),
         ]);
+        $this->notifySupplierApproval($supplier, false, $request->input('approval_notes'));
 
         return response()->json(['message' => 'Proveedor rechazado correctamente.']);
     }
@@ -267,6 +277,18 @@ class SupplierAdminController extends Controller
         return response()->json(['message' => 'Proveedor eliminado correctamente.']);
     }
 
+    private function notifySupplierApproval(Supplier $supplier, bool $approved, ?string $notes): void
+    {
+        try {
+            $supplier->notify(new SupplierAccountReviewedNotification($approved, $notes));
+        } catch (\Throwable $exception) {
+            Log::error('No fue posible notificar el resultado del alta al proveedor.', [
+                'supplier_id' => $supplier->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     private function currencyBadges(?array $currencies): string
     {
         if (empty($currencies)) {
@@ -279,10 +301,10 @@ class SupplierAdminController extends Controller
         ];
 
         $badges = collect($currencies)
-            ->map(fn ($code) => '<span class="badge bg-' . ($palette[$code] ?? 'secondary') . '">' . e($code) . '</span>')
+            ->map(fn ($code) => '<span class="badge bg-'.($palette[$code] ?? 'secondary').'">'.e($code).'</span>')
             ->implode('');
 
-        return '<div class="d-inline-flex flex-column gap-1">' . $badges . '</div>';
+        return '<div class="d-inline-flex flex-column gap-1">'.$badges.'</div>';
     }
 
     private function badge(string $status, array $palette): string
@@ -296,6 +318,6 @@ class SupplierAdminController extends Controller
             default => ucfirst($status),
         };
 
-        return '<span class="badge bg-' . $color . '">' . e($label) . '</span>';
+        return '<span class="badge bg-'.$color.'">'.e($label).'</span>';
     }
 }

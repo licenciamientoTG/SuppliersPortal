@@ -84,6 +84,10 @@ class SupplierDocumentRequirementService
 
     public function markSubmitted(SupplierDocumentRequirement $requirement): void
     {
+        if ($this->hasUsableCurrentDocument($requirement)) {
+            return;
+        }
+
         $requirement->update(['status' => 'submitted']);
     }
 
@@ -119,8 +123,18 @@ class SupplierDocumentRequirementService
     public function reject(SupplierDocument $document): void
     {
         if ($document->requirement) {
-            $document->requirement->update(['status' => 'rejected']);
+            $document->requirement->update([
+                'status' => $this->hasUsableCurrentDocument($document->requirement)
+                    ? 'compliant'
+                    : 'rejected',
+            ]);
         }
+    }
+
+    private function hasUsableCurrentDocument(SupplierDocumentRequirement $requirement): bool
+    {
+        return $requirement->current_document_id !== null
+            && ($requirement->expires_at === null || $requirement->expires_at->isFuture());
     }
 
     public function refreshRequirement(SupplierDocumentRequirement $requirement): void

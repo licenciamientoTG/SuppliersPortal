@@ -26,6 +26,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
 
         Role::create(['name' => 'buyer', 'guard_name' => 'web']);
+        Role::create(['name' => 'superadmin', 'guard_name' => 'web']);
     }
 
     public function test_successful_public_registration_notifies_all_buyers(): void
@@ -33,6 +34,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         Notification::fake();
         Storage::fake('local');
         Storage::fake('public');
+        Storage::fake('supplier_documents');
         Http::fake([
             'https://siat.sat.gob.mx/*' => Http::response($this->fakeSatHtmlFisica(), 200),
         ]);
@@ -43,7 +45,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         }
 
         $parseResponse = $this->postJson(route('supplier.register.parse-csf'), [
-            'csf' => UploadedFile::fake()->createWithContent('csf.pdf', $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=14080261378_AORM681022FY5')),
+            'csf' => [UploadedFile::fake()->createWithContent('csf.pdf', $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=14080261378_AORM681022FY5'))],
         ]);
 
         $parseResponse->assertOk();
@@ -66,7 +68,7 @@ class SupplierRegistrationNotificationTest extends TestCase
             'email' => 'proveedor@example.com',
             'postal_code' => '33078',
             'approval_status' => 'pending',
-            'document_status' => 'in_review',
+            'document_status' => 'pending',
         ]);
 
         $supplier = Supplier::where('rfc', 'AORM681022FY5')->firstOrFail();
@@ -76,15 +78,16 @@ class SupplierRegistrationNotificationTest extends TestCase
         $this->assertDatabaseHas('supplier_documents', [
             'supplier_id' => $supplier->id,
             'doc_type' => 'constancia_fiscal',
-            'status' => 'pending_review',
+            'status' => 'accepted',
         ]);
-        $this->assertTrue(Storage::disk('public')->exists(SupplierDocument::firstOrFail()->path_file));
+        $this->assertTrue(Storage::disk('supplier_documents')->exists(SupplierDocument::firstOrFail()->path_file));
     }
 
     public function test_registration_does_not_notify_when_rfc_is_in_efos(): void
     {
         Notification::fake();
         Storage::fake('local');
+        Storage::fake('supplier_documents');
         Http::fake([
             'https://siat.sat.gob.mx/*' => Http::response(str_replace('AORM681022FY5', 'GHI123456T56', $this->fakeSatHtmlFisica()), 200),
         ]);
@@ -102,7 +105,7 @@ class SupplierRegistrationNotificationTest extends TestCase
         ]);
 
         $parseResponse = $this->postJson(route('supplier.register.parse-csf'), [
-            'csf' => UploadedFile::fake()->createWithContent('csf.pdf', $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=14080261378_GHI123456T56')),
+            'csf' => [UploadedFile::fake()->createWithContent('csf.pdf', $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=14080261378_GHI123456T56'))],
         ]);
 
         $response = $this->from(route('register'))
@@ -150,15 +153,16 @@ class SupplierRegistrationNotificationTest extends TestCase
     public function test_parse_csf_for_moral_person_returns_company_name_from_sat(): void
     {
         Storage::fake('local');
+        Storage::fake('supplier_documents');
         Http::fake([
             'https://siat.sat.gob.mx/*' => Http::response($this->fakeSatHtmlMoral(), 200),
         ]);
 
         $response = $this->postJson(route('supplier.register.parse-csf'), [
-            'csf' => UploadedFile::fake()->createWithContent(
+            'csf' => [UploadedFile::fake()->createWithContent(
                 'csf.pdf',
                 $this->fakePdfWithSatUrl('https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=15010752710_ACO041014H30')
-            ),
+            )],
         ]);
 
         $response->assertOk()
@@ -187,13 +191,20 @@ class SupplierRegistrationNotificationTest extends TestCase
             'provides_specialized_services' => '0',
             'economic_activity' => ['Comercializacion de insumos'],
             'default_payment_terms' => 'NET_30',
+            'accepted_currencies' => ['MXN'],
             'accepted_prefilled_data' => '1',
         ], $overrides);
     }
 
     private function fakePdfWithSatUrl(string $url): string
     {
-        return "%PDF-1.4\n1 0 obj\n<< /Type /Annot /Subtype /Link /A << /S /URI /URI ({$url}) >> >>\nendobj\n%%EOF";
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $parts = explode('_', (string) ($query['D3'] ?? ''));
+        $rfc = end($parts) ?: 'AORM681022FY5';
+        $payload = rawurlencode("||2026/07/20 12:00:00|{$rfc}|CONSTANCIA DE SITUACION FISCAL||");
+        $validationUrl = "https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=26&D2=1&D3={$payload}";
+
+        return "%PDF-1.4\n1 0 obj\n<< /Type /Annot /Subtype /Link /A << /S /URI /URI ({$url}) >> >>\nendobj\n2 0 obj\n<< /Type /Annot /Subtype /Link /A << /S /URI /URI ({$validationUrl}) >> >>\nendobj\n%%EOF";
     }
 
     private function fakeSatHtmlFisica(): string
@@ -237,6 +248,7 @@ class SupplierRegistrationNotificationTest extends TestCase
 </ul>
 HTML;
     }
+
     private function fakeSatHtmlMoral(): string
     {
         return <<<'HTML'

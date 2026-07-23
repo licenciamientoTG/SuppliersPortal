@@ -21,7 +21,7 @@ class SupplierDocumentRenewalNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $type = $this->requirement->documentType;
-        $expired = $this->milestoneDays === 0;
+        $expired = $this->milestoneDays <= 0;
 
         return (new MailMessage)
             ->subject($expired ? 'Acceso limitado por documento vencido' : 'Renovacion documental pendiente')
@@ -33,7 +33,7 @@ class SupplierDocumentRenewalNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        $expired = $this->milestoneDays === 0;
+        $expired = $this->milestoneDays <= 0;
 
         return ['type' => 'supplier_document_renewal', 'requirement_id' => $this->requirement->id, 'document_type' => $this->requirement->documentType->name, 'milestone_days' => $this->milestoneDays, 'url' => route('supplier.documents.index'), 'message' => $expired ? 'Tu acceso fue limitado por un documento vencido.' : "Tu documento vence en {$this->milestoneDays} dia(s)."];
     }

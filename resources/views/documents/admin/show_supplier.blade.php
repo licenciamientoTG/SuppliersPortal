@@ -30,11 +30,10 @@
     }
 
     // KPIs por proveedor
-    $allDocs    = $docsByType->flatten();
-    $kpiTotal   = is_array($requiredTypes) ? count($requiredTypes) : collect($requiredTypes)->count();
-    $kpiSubidos = $docsByType->keys()->count();
-    $kpiAprob   = $allDocs->where('status','accepted')->count();
-    $kpiRech    = $allDocs->where('status','rejected')->count();
+    $kpiTotal   = $supplierRequirements->count();
+    $kpiSubidos = $supplierRequirements->whereIn('status', ['submitted', 'compliant', 'rejected', 'expired'])->count();
+    $kpiAprob   = $supplierRequirements->where('status', 'compliant')->count();
+    $kpiRech    = $supplierRequirements->whereIn('status', ['rejected', 'expired'])->count();
 @endphp
 
 @section('title', 'Proveedor: ' . ($supplier->company_name ?? '—'))
@@ -136,6 +135,7 @@
             <span class="text-muted small">Última versión por documento</span>
         </div>
         <div class="card-body">
+            <div class="table-responsive">
             <table class="table table-sm table-striped align-middle w-100">
                 <thead>
                     <tr>
@@ -161,7 +161,7 @@
                             $uploader = $doc?->uploader?->name ?? '—';
                             $reviewer = $doc?->reviewer?->name ?? '—';
                             $reviewedAt = $doc?->reviewed_at ? $doc->reviewed_at->format('Y-m-d H:i') : '—';
-                            $viewUrl = $doc ? Storage::disk('public')->url($doc->path_file) : null;
+                            $viewUrl = $doc ? route('supplier-documents.file', $doc) : null;
                         @endphp
                         <tr data-doc-type="{{ $type }}">
                             <td class="doc-label">
@@ -188,8 +188,6 @@
                             </td>
                             <td class="text-nowrap doc-actions">
                                 @php
-                                    $canApprove = $doc && in_array($doc->status, ['pending_review','rejected']);
-                                    $canReject  = $doc && in_array($doc->status, ['pending_review','accepted']);
                                     $feedbackUrl = route('documents.suppliers.feedback', [
                                         'supplier' => $supplier->id,
                                         'type'     => $type,
@@ -200,13 +198,11 @@
                                 <div class="d-flex justify-content-end gap-1">
                                         @if($doc)
                                             <a href="{{ $viewUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" title="Abrir"><i class="ti ti-eye"></i></a>
-                                            @if($canApprove)
-                                                <a href="javascript:void(0);" class="btn btn-sm btn-outline-success js-accept-doc"
-                                                    data-url="{{ route('admin.review.documents.accept', $doc) }}" title="Aprobar"><i class="ti ti-check"></i></a>
-                                            @endif
-                                            @if($canReject)
-                                                <a href="javascript:void(0);" class="btn btn-sm btn-outline-danger js-reject-doc"
-                                                    data-url="{{ route('admin.review.documents.reject', $doc) }}" title="Rechazar"><i class="ti ti-x"></i></a>
+                                            @if($doc->status === 'pending_review')
+                                                <a href="{{ route('admin.review.index', ['queue_search' => $supplier->rfc]) }}"
+                                                    class="btn btn-sm btn-outline-primary" title="Revisar en bandeja">
+                                                    <i class="ti ti-clipboard-check"></i>
+                                                </a>
                                             @endif
                                         @endif
                                         {{-- Retroalimentación: SIEMPRE visible --}}
@@ -228,6 +224,7 @@
                     @endif
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 @endsection
@@ -374,7 +371,9 @@ $(document).on('click', '.js-feedback-doc', function (e) {
             })
             .fail(xhr => {
                 let msg = 'No se pudo enviar la retroalimentación.';
-                if (xhr.status === 422 && xhr.responseJSON?.errors?.message) {
+                if (xhr.responseJSON?.message) {
+                    msg = xhr.responseJSON.message;
+                } else if (xhr.status === 422 && xhr.responseJSON?.errors?.message) {
                     msg = xhr.responseJSON.errors.message.join('\n');
                 }
                 Swal.fire({ icon: 'error', title: 'Error', text: msg });

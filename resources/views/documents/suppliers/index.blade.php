@@ -39,13 +39,18 @@
     $countRejected = 0;
     $countUploaded = 0;
 
-    foreach ($rows as $r) {
-        if ($r['doc']) {
-            $countUploaded++;
-            if ($r['doc']->status === 'accepted')  $countApproved++;
-            if ($r['doc']->status === 'rejected')  $countRejected++;
-        }
-    }
+    $countApproved = $supplierRequirements->where('status', 'compliant')->count();
+    $countBlocking = $supplierRequirements->whereIn('status', ['rejected', 'expired'])->count();
+    $latestPendingCount = collect($rows)->filter(fn ($row) => $row['doc']?->status === 'pending_review')->count();
+    $latestRejectedRenewals = collect($rows)->filter(fn ($row) =>
+        $row['doc']?->status === 'rejected'
+        && $row['requirement']->status === 'compliant'
+        && (int) $row['requirement']->current_document_id !== (int) $row['doc']?->id
+    )->count();
+    $countRejected = $countBlocking + $latestRejectedRenewals;
+    $countUploaded = $supplierRequirements->whereIn('status', ['submitted', 'compliant', 'rejected', 'expired'])->count();
+    $countInReview = $latestPendingCount;
+    $countPending = $supplierRequirements->where('status', 'pending')->count();
 
     // Helper visual de nombres amigables
     $labels = [
@@ -71,8 +76,12 @@
     function status_badge($status) {
         return match ($status) {
             'accepted'       => '<span class="badge bg-success">Aprobado</span>',
+            'compliant'      => '<span class="badge bg-success">Aprobado</span>',
             'rejected'       => '<span class="badge bg-danger">Rechazado</span>',
+            'expired'        => '<span class="badge bg-danger">Vencido</span>',
             'pending_review' => '<span class="badge bg-warning text-dark">En revisión</span>',
+            'submitted'      => '<span class="badge bg-warning text-dark">En revisión</span>',
+            'pending'        => '<span class="badge bg-secondary">Sin cargar</span>',
             default          => '<span class="badge bg-secondary">—</span>',
         };
     }
@@ -178,6 +187,24 @@
 @endsection
 
 @section('content')
+    @php
+        $stage = match (true) {
+            $countBlocking > 0 => ['danger', 'Hay documentos rechazados o vencidos', 'Corrige los documentos marcados para continuar con tu alta.'],
+            $latestRejectedRenewals > 0 => ['warning', 'Una nueva versión fue rechazada', 'Tu documento vigente se conserva; corrige y vuelve a cargar la renovación.'],
+            $countPending > 0 => ['warning', 'Tu expediente está incompleto', "Aún debes cargar {$countPending} documento(s)."],
+            $countInReview > 0 => ['info', 'Documentos en revisión', "Compras está revisando {$countInReview} documento(s)."],
+            $supplier->approval_status !== 'approved' => ['primary', 'Expediente documental completo', 'Tu alta final está pendiente de aprobación por Compras.'],
+            default => ['success', 'Proveedor activo', 'Tu expediente está completo y tu cuenta tiene acceso al portal.'],
+        };
+    @endphp
+    <div class="alert alert-{{ $stage[0] }} d-flex align-items-start gap-2" role="status">
+        <i class="ti ti-info-circle fs-4"></i>
+        <div>
+            <div class="fw-semibold">{{ $stage[1] }}</div>
+            <div>{{ $stage[2] }}</div>
+        </div>
+    </div>
+
     {{-- Cabecera / KPIs --}}
     <div class="row g-3 mb-3">
         <div class="col-md-4">
@@ -266,11 +293,12 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <div class="table-responsive">
                     <table class="table-bordered table-hover w-100 table" id="docsTable">
                         <thead class="table-light">
                             <tr>
                                 <th style="width:35%;">Documento</th>
-                                <th style="width:15%;">Status</th>
+                                <th style="width:15%;">Estado</th>
                                 <th style="width:25%;">Última actualización</th>
                                 <th style="width:25%;">Acciones</th>
                             </tr>
@@ -282,11 +310,18 @@
                                     $doc = $r['doc'];
                                     $type = $r['type'];
                                     $label = $r['label'];
-                                    $statusHtml = $doc ? status_badge($doc->status) : '<span class="badge bg-secondary">Sin cargar</span>';
+                                    $statusHtml = status_badge($r['requirement']->status);
+                                    if (
+                                        $doc
+                                        && $r['requirement']->current_document_id
+                                        && (int) $r['requirement']->current_document_id !== (int) $doc->id
+                                    ) {
+                                        $statusHtml .= '<div class="mt-1">'.status_badge($doc->status).'<small class="ms-1 text-muted">nueva versión</small></div>';
+                                    }
                                     $dateHuman = $doc
                                         ? optional($doc->uploaded_at ?? $doc->created_at)->format('Y-m-d H:i')
                                         : '—';
-                                    $fileUrl = $doc ? Storage::url($doc->path_file) : '#';
+                                    $fileUrl = $doc ? route('supplier-documents.file', $doc) : '#';
                                     $isCurrentDocument = $doc && (int) $r['requirement']->current_document_id === (int) $doc->id;
                                 @endphp
 
@@ -300,7 +335,14 @@
                                         @endif
                                     </td>
                                     <td class="doc-status">{!! $statusHtml !!}</td>
-                                    <td class="doc-date">{{ $dateHuman }}</td>
+                                    <td class="doc-date">
+                                        <div>{{ $dateHuman }}</div>
+                                        @if($r['requirement']->expires_at)
+                                            <small class="{{ $r['requirement']->status === 'expired' ? 'text-danger' : 'text-muted' }}">
+                                                Vigencia: {{ $r['requirement']->expires_at->format('Y-m-d') }}
+                                            </small>
+                                        @endif
+                                    </td>
                                     <td class="doc-actions">
                                         @if (!$doc)
                                             <button class="btn btn-sm btn-primary js-open-upload"
@@ -331,6 +373,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    </div>
 
                     <div class="text-muted small mt-2">
                         <i class="ti ti-info-circle me-1"></i>
@@ -1178,7 +1221,7 @@
 
                         <div id="documentReplaceNotice" class="alert alert-info d-flex align-items-center py-2">
                             <i class="ti ti-info-circle me-2"></i>
-                            <div><strong>Nota:</strong> Al actualizar, se reemplaza la versión anterior.</div>
+                            <div><strong>Nota:</strong> Al actualizar, se reemplaza cualquier versión pendiente anterior. El documento vigente se conserva hasta aprobar la nueva versión.</div>
                         </div>
                     </div>
                     <div id="guideFooter" class="modal-footer d-none">
@@ -1467,9 +1510,13 @@ $(function () {
             const docType = res.doc_type; // <- viene del backend
             const $tr = $('#docsTable tbody tr[data-doc-type="'+docType+'"]');
 
-            setRowFromPayload($tr, res);  // 👈 ACTUALIZA botones con id/url reales
+            setRowFromPayload($tr, res);
             recalcCounters();
-            toastOk && toastOk('Documento cargado. Quedó en revisión.');
+            if (res.status === 'accepted') {
+                toastOk('Documento validado y aprobado automáticamente.');
+            } else {
+                toastOk('Documento cargado. Quedó en revisión.');
+            }
         })
         .fail(function (xhr) {
             $('#btnSubmitDoc').prop('disabled', false)
@@ -1583,7 +1630,17 @@ $(function () {
     // Helpers UI
     function setRowFromPayload($tr, payload) {
         // status + fecha
-        $tr.find('.doc-status').html('<span class="badge bg-warning text-dark">En revisión</span>');
+        const accepted = payload.status === 'accepted';
+        const keepsCurrent = !accepted
+            && payload.requirement_status === 'compliant'
+            && payload.has_current_document;
+        $tr.find('.doc-status').html(
+            accepted
+                ? '<span class="badge bg-success">Aprobado</span>'
+                : keepsCurrent
+                    ? '<span class="badge bg-success">Aprobado</span><div class="mt-1"><span class="badge bg-warning text-dark">En revisión</span><small class="ms-1 text-muted">nueva versión</small></div>'
+                    : '<span class="badge bg-warning text-dark">En revisión</span>'
+        );
         $tr.find('.doc-date').text(payload.uploaded_at || nowStr());
 
         // Acciones con datos REALES
@@ -1660,8 +1717,15 @@ $(function () {
 
     // Toast simple reutilizable (si ya lo tienes, omite)
     window.toastOk = window.toastOk || function (msg = 'Operación exitosa') {
-        // Puedes reemplazar esto por tu SweetAlert toasty si ya está global
-        console.log('[OK]', msg);
+        Swal.fire({
+            icon: 'success',
+            title: msg,
+            toast: true,
+            position: 'top-end',
+            timer: 2400,
+            timerProgressBar: true,
+            showConfirmButton: false,
+        });
     };
 });
 

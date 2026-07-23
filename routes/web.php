@@ -47,6 +47,7 @@ use App\Http\Controllers\SupplierBankController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierDeliveryController;
 use App\Http\Controllers\SupplierDocumentController;
+use App\Http\Controllers\SupplierDocumentFileController;
 use App\Http\Controllers\SupplierDocumentTypeController;
 use App\Http\Controllers\SupplierInvoiceController;
 use App\Http\Controllers\SupplierPortalController;
@@ -86,6 +87,9 @@ Route::middleware(['auth:web'])->group(function () {
 });
 
 Route::middleware(['auth:web,supplier'])->group(function () {
+    Route::get('/supplier-documents/{document}/file', [SupplierDocumentFileController::class, 'show'])
+        ->name('supplier-documents.file');
+
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::get('/{notification}/open', [NotificationController::class, 'open'])->name('open');
@@ -196,7 +200,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:document_review')->prefix('documents')->name('documents.')->group(function () {
         Route::get('/', [SupplierDocumentController::class, 'index'])->name('suppliers.index');
         Route::post('/{supplier}', [SupplierDocumentController::class, 'store'])->name('suppliers.store');
-        Route::post('/{supplier}/{document}/review', [SupplierDocumentController::class, 'review'])->name('suppliers.review');
         Route::delete('/suppliers/{supplier}/documents/{document}', [SupplierDocumentController::class, 'destroy'])->name('suppliers.destroy');
         Route::post('/review/feedback', [SupplierDocumentController::class, 'feedback'])->name('suppliers.feedback');
     });
@@ -556,7 +559,6 @@ Route::middleware(['auth:supplier'])->prefix('supplier')->name('supplier.')->gro
         Route::get('/', [SupplierDocumentController::class, 'index'])->name('index');
         Route::post('/{supplier}', [SupplierDocumentController::class, 'store'])->name('store');
         Route::delete('/{supplier}/{document}', [SupplierDocumentController::class, 'destroy'])->name('destroy');
-        Route::post('/{supplier}/{document}/review', [SupplierDocumentController::class, 'review'])->name('review');
     });
 
     Route::patch('/{supplier}/bank', [SupplierBankController::class, 'update'])->name('bank.update');

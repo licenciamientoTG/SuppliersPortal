@@ -6,6 +6,7 @@ use App\Models\ExchangeRate;
 use App\Models\ReceivingLocation;
 use App\Models\SupplierDocument;
 use App\Policies\ReceivingLocationPolicy;
+use App\Policies\SupplierDocumentPolicy;
 use App\Services\ComplianceDocumentQrExtractor;
 use App\Services\DocumentIssueDateExtractionService;
 use App\Services\ModuleAccessService;
@@ -40,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
 
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION
         Gate::policy(ReceivingLocation::class, ReceivingLocationPolicy::class);
+        Gate::policy(SupplierDocument::class, SupplierDocumentPolicy::class);
 
         Blade::if('moduleAccess', function (string $module) {
             return app(ModuleAccessService::class)->userCanAccessModule(request()->user(), $module);

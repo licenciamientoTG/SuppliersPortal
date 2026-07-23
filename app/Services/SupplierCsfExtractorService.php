@@ -108,7 +108,7 @@ class SupplierCsfExtractorService
             strtolower($extension)
         );
 
-        Storage::disk('public')->put($targetPath, Storage::disk('local')->get($sourcePath));
+        Storage::disk('supplier_documents')->put($targetPath, Storage::disk('local')->get($sourcePath));
 
         return $targetPath;
     }
@@ -678,7 +678,7 @@ class SupplierCsfExtractorService
     private function extractEconomicActivitiesFromPdf(string $absolutePath): array
     {
         try {
-            $document = (new PdfParser())->parseFile($absolutePath);
+            $document = (new PdfParser)->parseFile($absolutePath);
             $text = $this->reconstructPdfTextWithSpaces($document);
         } catch (Throwable) {
             return [];

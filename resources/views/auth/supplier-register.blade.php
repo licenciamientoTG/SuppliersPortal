@@ -6,12 +6,14 @@
     $oldActivities = old('economic_activity', ['']);
     $oldActivities = is_array($oldActivities) && $oldActivities !== [] ? $oldActivities : [''];
     $selectedServices = old('specialized_services_types', []);
-    $selectedCurrencies = old('accepted_currencies', []);
+    $selectedCurrencies = old('accepted_currencies', ['MXN']);
     $selectedCurrencies = is_array($selectedCurrencies) ? $selectedCurrencies : [];
     $repseEnabled = filter_var(old('provides_specialized_services', false), FILTER_VALIDATE_BOOLEAN);
     $parsedToken = old('csf_upload_token');
     $parsedRegimes = old('parsed_tax_regimes_display', '');
     $personTypeValue = old('parsed_person_type', '');
+    $hasFormErrors = $viewErrors->any();
+    $hasActivityErrors = $viewErrors->has('economic_activity') || $viewErrors->has('economic_activity.*');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -367,7 +369,7 @@
         }
         .registration-progress {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             padding: 16px 26px 0;
         }
@@ -450,6 +452,29 @@
         .fiscal-summary-activities span { color: #6c7f92; font-size: 0.75rem; font-weight: 700; }
         .fiscal-summary-activities ul { margin: 6px 0 0; padding-left: 18px; color: #29445f; font-size: 0.83rem; line-height: 1.55; }
         .fiscal-summary-edit { flex: 0 0 auto; padding: 9px 12px; font-size: 0.8rem; }
+        .form-error-summary {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 13px 15px;
+            border: 1px solid #fed7d7;
+            border-radius: 14px;
+            background: #fff8f8;
+            color: #a32626;
+            font-size: 0.86rem;
+        }
+        .duplicate-rfc-state {
+            display: grid;
+            gap: 12px;
+            margin-top: 14px;
+            padding: 18px;
+            border: 1px solid #f2cc81;
+            border-radius: 14px;
+            background: #fffaf0;
+        }
+        .duplicate-rfc-state h3 { margin: 0; color: #825312; font-size: 1rem; }
+        .duplicate-rfc-state p { margin: 0; color: #725e3d; font-size: 0.86rem; line-height: 1.45; }
+        .duplicate-rfc-actions { display: flex; flex-wrap: wrap; gap: 10px; }
         .regime-box {
             min-height: 92px;
             white-space: pre-line;
@@ -578,8 +603,7 @@
 
             <div class="registration-progress" aria-label="Progreso del registro">
                 <div class="registration-progress-step is-active" data-registration-step="1" data-step="1">Validar constancia</div>
-                <div class="registration-progress-step" data-registration-step="2" data-step="2">Completar datos</div>
-                <div class="registration-progress-step" data-registration-step="3" data-step="3">Confirmar registro</div>
+                <div class="registration-progress-step" data-registration-step="2" data-step="2">Completar y confirmar</div>
             </div>
 
             <form method="POST" action="{{ route('register') }}" id="supplier-form" novalidate>
@@ -589,6 +613,12 @@
                 <input type="hidden" name="parsed_tax_regimes_display" id="parsed_tax_regimes_display" value="{{ $parsedRegimes }}">
 
                 <div class="form-body">
+                    @if ($hasFormErrors)
+                        <div class="form-error-summary" id="form-error-summary" role="alert">
+                            <span>⚠</span>
+                            <span>Revisa los campos marcados antes de continuar. Te llevamos al primero que requiere atención.</span>
+                        </div>
+                    @endif
                     <section class="section">
                         <h2 class="section-title">¿Cómo deseas registrarte?</h2>
                         <input type="hidden" name="is_foreign" id="is_foreign_value" value="{{ $isForeign ? '1' : '0' }}">
@@ -627,6 +657,14 @@
                             </div>
                         </div>
                         <div id="csf-feedback" class="banner info hidden" style="margin-top:14px;"></div>
+                        <div class="duplicate-rfc-state hidden" id="duplicate-rfc-state" role="alert">
+                            <h3>Este RFC ya cuenta con un registro</h3>
+                            <p id="duplicate-rfc-message"></p>
+                            <div class="duplicate-rfc-actions">
+                                <a href="{{ route('login') }}" class="btn btn-primary">Iniciar sesión</a>
+                                <a href="{{ route('password.request') }}" class="btn btn-ghost">Recuperar contraseña</a>
+                            </div>
+                        </div>
                         <div class="csf-processing hidden" id="csf-processing" role="status" aria-live="polite">
                             <img class="csf-processing-logo" src="{{ asset('images/logos/Logo.png') }}" alt="">
                             <div>
@@ -735,7 +773,7 @@
 
                             <div class="field">
                                 <label for="postal_code" class="required">Codigo postal</label>
-                                <input type="text" id="postal_code" name="postal_code" value="{{ old('postal_code') }}" maxlength="5">
+                                <input type="text" id="postal_code" name="postal_code" value="{{ old('postal_code') }}" maxlength="5" inputmode="numeric" autocomplete="postal-code">
                                 @if ($viewErrors->has('postal_code'))<div class="error">{{ $viewErrors->first('postal_code') }}</div>@endif
                             </div>
 
@@ -781,19 +819,20 @@
 
                             <div class="field">
                                 <label for="phone_number" class="required">Telefono de la empresa</label>
-                                <input type="text" id="phone_number" name="phone_number" value="{{ old('phone_number') }}" maxlength="10">
+                                <input type="tel" id="phone_number" name="phone_number" value="{{ old('phone_number') }}" maxlength="10" inputmode="numeric" autocomplete="tel">
                                 @if ($viewErrors->has('phone_number'))<div class="error">{{ $viewErrors->first('phone_number') }}</div>@endif
                             </div>
 
                             <div class="field">
                                 <label for="contact_person" class="required">Persona de contacto</label>
                                 <input type="text" id="contact_person" name="contact_person" value="{{ old('contact_person') }}">
+                                <span class="hint" id="contact-person-hint">Indica a quién podemos contactar para este registro.</span>
                                 @if ($viewErrors->has('contact_person'))<div class="error">{{ $viewErrors->first('contact_person') }}</div>@endif
                             </div>
 
                             <div class="field">
                                 <label for="contact_phone">Telefono de contacto</label>
-                                <input type="text" id="contact_phone" name="contact_phone" value="{{ old('contact_phone') }}" maxlength="10">
+                                <input type="tel" id="contact_phone" name="contact_phone" value="{{ old('contact_phone') }}" maxlength="10" inputmode="numeric" autocomplete="tel">
                                 @if ($viewErrors->has('contact_phone'))<div class="error">{{ $viewErrors->first('contact_phone') }}</div>@endif
                             </div>
 
@@ -831,7 +870,7 @@
 
                     <section class="section" id="activity-section">
                         <h2 class="section-title">Editar actividades económicas</h2>
-                        <p class="section-copy">Agrega, modifica o quita actividades según corresponda.</p>
+                        <p class="section-copy" id="activity-editor-copy">Agrega, modifica o quita actividades según corresponda.</p>
                         <div class="activity-list" id="activity-list">
                             @foreach ($oldActivities as $index => $activity)
                                 <div class="activity-item">
@@ -842,7 +881,7 @@
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
                             <button type="button" class="btn btn-ghost" id="add-activity">Agregar actividad</button>
-                            <button type="button" class="btn btn-primary hidden" id="save-activities">Listo</button>
+                            <button type="button" class="btn btn-primary hidden" id="save-activities">Guardar actividades</button>
                         </div>
                         @if ($viewErrors->has('economic_activity') || $viewErrors->has('economic_activity.*'))
                             <div class="error" style="margin-top:12px;">
@@ -945,6 +984,8 @@
             const registrationModeInputs = document.querySelectorAll('input[name="registration_mode"]');
             const csfSection = document.getElementById('csf-section');
             const csfFeedback = document.getElementById('csf-feedback');
+            const duplicateRfcState = document.getElementById('duplicate-rfc-state');
+            const duplicateRfcMessage = document.getElementById('duplicate-rfc-message');
             const csfProcessing = document.getElementById('csf-processing');
             const csfProcessingCopy = document.getElementById('csf-processing-copy');
             const csfProgressValue = document.getElementById('csf-progress-value');
@@ -988,6 +1029,7 @@
             const addActivityButton = document.getElementById('add-activity');
             const saveActivitiesButton = document.getElementById('save-activities');
             const activitySection = document.getElementById('activity-section');
+            const activityEditorCopy = document.getElementById('activity-editor-copy');
             const repseFields = document.getElementById('repse-fields');
             const repseRadios = document.querySelectorAll('input[name="provides_specialized_services"]');
             const otrosWrapper = document.getElementById('otros-wrapper');
@@ -995,6 +1037,7 @@
             let csfProgressTimer = null;
             let csfProgress = 7;
             let isEditingActivities = false;
+            const hasActivityErrors = @json($hasActivityErrors);
 
             function setFeedback(type, message) {
                 csfFeedback.className = 'banner ' + type;
@@ -1041,13 +1084,24 @@
                 registrationDetails.classList.toggle('hidden', !visible);
                 registrationFooter.classList.toggle('hidden', !visible);
 
-                const currentStep = !visible ? 1 : (acceptedCheckbox.checked ? 3 : 2);
+                const currentStep = visible ? 2 : 1;
                 registrationProgressSteps.forEach(function (step) {
                     const stepNumber = Number(step.dataset.registrationStep);
                     step.classList.toggle('is-complete', stepNumber < currentStep);
                     step.classList.toggle('is-active', stepNumber === currentStep);
                     step.toggleAttribute('aria-current', stepNumber === currentStep);
                 });
+            }
+
+            function showDuplicateRfcState(message) {
+                duplicateRfcMessage.textContent = message;
+                duplicateRfcState.classList.remove('hidden');
+                setRegistrationDetailsVisible(false);
+            }
+
+            function hideDuplicateRfcState() {
+                duplicateRfcState.classList.add('hidden');
+                duplicateRfcMessage.textContent = '';
             }
 
             function setInputEditableState(input, editable) {
@@ -1114,6 +1168,12 @@
                     .map((input) => input.value.trim())
                     .filter(Boolean);
 
+                activityEditorCopy.textContent = activities.length
+                    ? 'Agrega, modifica o quita actividades según corresponda.'
+                    : (foreignToggle.checked
+                        ? 'Agrega al menos una actividad económica para continuar.'
+                        : 'No pudimos identificar actividades en el documento. Agrégalas manualmente para continuar.');
+
                 fiscalSummaryActivities.replaceChildren(...activities.map(function (activity) {
                     const item = document.createElement('li');
                     item.textContent = activity;
@@ -1121,7 +1181,7 @@
                 }));
 
                 const activitySummary = fiscalSummaryActivities.closest('.fiscal-summary-activities');
-                const showActivitySummary = showFiscalSummary && !isEditingActivities;
+                const showActivitySummary = showFiscalSummary && !isEditingActivities && activities.length > 0;
                 activitySummary.classList.toggle('hidden', !showActivitySummary);
                 activitySection.classList.toggle('hidden', showActivitySummary);
                 saveActivitiesButton.classList.toggle('hidden', !isEditingActivities || !showFiscalSummary);
@@ -1146,6 +1206,7 @@
 
             function updateFiscalMode() {
                 const isForeign = foreignToggle.checked;
+                const wasForeign = personTypeInput.value === 'extranjero';
                 isForeignInput.value = isForeign ? '1' : '0';
                 csfSection.classList.toggle('hidden', isForeign);
 
@@ -1175,6 +1236,10 @@
 
                 setRegistrationDetailsVisible(Boolean(csfTokenInput.value));
                 applyReadonlyStateForNationalFlow();
+
+                if (wasForeign) {
+                    setFeedback('info', 'Al cargar una constancia fiscal, los datos manuales se reemplazarán con la información validada por SAT.');
+                }
             }
 
             function applyParsedData(data) {
@@ -1199,10 +1264,6 @@
                     emailInput.value = data.sat_email;
                 }
 
-                if (!contactPersonInput.value) {
-                    contactPersonInput.value = data.company_name || [data.first_name, data.last_name].filter(Boolean).join(' ');
-                }
-
                 applyReadonlyStateForNationalFlow();
                 acceptedCheckbox.checked = false;
             }
@@ -1222,6 +1283,7 @@
                 csfTokenInput.value = '';
                 setRegistrationBlocked(false);
                 setRegistrationDetailsVisible(false);
+                hideDuplicateRfcState();
                 clearFeedback();
                 showCsfProcessing();
 
@@ -1239,12 +1301,14 @@
                     const payload = await response.json();
 
                     if (!response.ok) {
-                        if (payload.data) {
-                            applyParsedData(payload.data);
-                        }
-
                         if (payload.duplicate_rfc) {
                             setRegistrationBlocked(true);
+                            showDuplicateRfcState(payload.message || 'Este RFC ya cuenta con un registro.');
+                            return;
+                        }
+
+                        if (payload.data) {
+                            applyParsedData(payload.data);
                         }
 
                         setFeedback('error', payload.message || 'No fue posible procesar la constancia fiscal.');
@@ -1255,6 +1319,7 @@
                         token: payload.token,
                         ...payload.data,
                     });
+                    hideDuplicateRfcState();
                     setRegistrationBlocked(false);
                     setFeedback('success', 'Constancia analizada correctamente. Revisa y confirma tus datos antes de enviar.');
                 } catch (error) {
@@ -1350,9 +1415,6 @@
             registrationModeInputs.forEach(function (input) {
                 input.addEventListener('change', updateFiscalMode);
             });
-            acceptedCheckbox.addEventListener('change', function () {
-                setRegistrationDetailsVisible(!registrationDetails.classList.contains('hidden'));
-            });
             editActivitiesButton.addEventListener('click', function () {
                 isEditingActivities = true;
                 updateFiscalPresentation();
@@ -1390,6 +1452,19 @@
             }
 
             setRegistrationDetailsVisible(foreignToggle.checked || Boolean(csfTokenInput.value));
+
+            if (hasActivityErrors) {
+                isEditingActivities = true;
+                updateFiscalPresentation();
+            }
+
+            const firstErrorField = document.querySelector('.error')?.closest('.field');
+            if (firstErrorField) {
+                window.setTimeout(function () {
+                    firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstErrorField.querySelector('input, select, textarea')?.focus();
+                }, 100);
+            }
 
             syncActivityButtons();
         });

@@ -37,6 +37,7 @@ class SupplierDocumentCatalogTest extends TestCase
     {
         $supplier = Supplier::factory()->create(['person_type' => 'fisica', 'approval_status' => 'approved', 'is_active' => true]);
         $type = SupplierDocumentType::query()->where('code', 'opinion_sat')->firstOrFail();
+        SupplierDocumentType::query()->whereKeyNot($type->id)->update(['is_required' => false]);
         $type->update(['renewal_mode' => 'periodic', 'renewal_interval_value' => 3, 'renewal_interval_unit' => 'months']);
         $service = app(SupplierDocumentRequirementService::class);
         $requirement = $service->requirementForUpload($supplier, $type);

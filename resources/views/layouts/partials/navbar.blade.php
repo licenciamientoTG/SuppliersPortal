@@ -92,6 +92,13 @@
                     'financial_provision_pending_invoice' => ['icon' => 'ti ti-receipt', 'color' => 'warning', 'title' => 'Factura pendiente'],
                     'financial_provision_discrepancy' => ['icon' => 'ti ti-alert-hexagon', 'color' => 'danger', 'title' => 'Diferencia financiera'],
                     'new_supplier_registration' => ['icon' => 'ti ti-user-plus', 'color' => 'info', 'title' => 'Nuevo proveedor registrado'],
+                    'supplier_document_accepted' => ['icon' => 'ti ti-file-check', 'color' => 'success', 'title' => 'Documento aprobado'],
+                    'supplier_document_rejected' => ['icon' => 'ti ti-file-x', 'color' => 'danger', 'title' => 'Documento rechazado'],
+                    'supplier_document_file_completed' => ['icon' => 'ti ti-checklist', 'color' => 'success', 'title' => 'Expediente completo'],
+                    'supplier_document_renewal' => ['icon' => 'ti ti-calendar-exclamation', 'color' => 'warning', 'title' => 'Renovación documental'],
+                    'supplier_document_auto_accepted' => ['icon' => 'ti ti-file-check', 'color' => 'success', 'title' => 'Documento validado'],
+                    'supplier_account_approved' => ['icon' => 'ti ti-user-check', 'color' => 'success', 'title' => 'Alta aprobada'],
+                    'supplier_account_rejected' => ['icon' => 'ti ti-user-x', 'color' => 'danger', 'title' => 'Alta rechazada'],
                     'staff_welcome' => ['icon' => 'ti ti-user-check', 'color' => 'success', 'title' => 'Bienvenida al portal'],
                     'new_product_requested' => ['icon' => 'ti ti-package-import', 'color' => 'primary', 'title' => 'Producto solicitado'],
                 ];

@@ -137,6 +137,7 @@
                     </form>
                 </div>
                 <div class="card-body">
+                    <div class="table-responsive">
                     <table class="table-bordered table-hover w-100 table">
                         <thead class="table-light">
                             <tr>
@@ -157,7 +158,7 @@
                                     $uploader = $doc->uploader;
                                     $type        = $doc->doc_type;
                                     $label = $labels[$doc->doc_type] ?? ucfirst(str_replace('_',' ',$doc->doc_type));
-                                    $url = Storage::disk('public')->url($doc->path_file);
+                                    $url = route('supplier-documents.file', $doc);
                                     // Construimos la URL de retroalimentación para este documento
                                     $feedbackUrl = $prov ? route('documents.suppliers.feedback', [
                                         'supplier' => $prov->id,
@@ -244,7 +245,7 @@
                                                 data-validation-method="{{ $validation['validation_method'] ?? '' }}"
                                                 data-validation-rfc-match="{{ array_key_exists('rfc_matches_supplier', $validation) ? ($validation['rfc_matches_supplier'] ? '1' : '0') : '' }}"
                                                 data-validation-positive="{{ array_key_exists('compliance_is_positive', $validation) ? ($validation['compliance_is_positive'] ? '1' : '0') : '' }}"
-                                                data-revalidate-url=""
+                                                data-revalidate-url="{{ $doc->doc_type === 'opinion_infonavit' ? route('admin.review.documents.revalidate', $doc) : '' }}"
                                                 title="Revisar">
                                                 <i class="ti ti-eye me-1"></i> Revisar
                                             </button>
@@ -264,6 +265,12 @@
                             @endforelse
                         </tbody>
                     </table>
+                    </div>
+                    @if($pendingDocs->hasPages())
+                        <div class="mt-3">
+                            {{ $pendingDocs->links() }}
+                        </div>
+                    @endif
                     <div class="text-muted small mt-2">
                         <i class="ti ti-info-circle me-1"></i>
                         En esta bandeja puedes <strong>aprobar o rechazar</strong> documentos cargados por los proveedores.
@@ -290,6 +297,7 @@
                     </form>
                 </div>
                 <div class="card-body">
+                    <div class="table-responsive">
                     <table class="table-bordered table-hover w-100 table">
                         <thead class="table-light">
                             <tr>
@@ -297,7 +305,9 @@
                                 <th>RFC</th>
                                 <th>Avance</th>
                                 <th>Aprobados</th>
+                                <th>En revisión</th>
                                 <th>Rechazados</th>
+                                <th>Vencidos</th>
                                 <th>Pendientes</th>
                                 <th>Última actividad</th>
                                 <th>Acciones</th>
@@ -319,7 +329,9 @@
                                         </div>
                                     </td>
                                     <td><span class="chip ok">{{ $row['accepted'] ?? 0 }}</span></td>
+                                    <td><span class="chip wait">{{ $row['in_review'] ?? 0 }}</span></td>
                                     <td><span class="chip bad">{{ $row['rejected'] ?? 0 }}</span></td>
+                                    <td><span class="chip bad">{{ $row['expired'] ?? 0 }}</span></td>
                                     <td><span class="chip wait">{{ $row['pending'] ?? 0 }}</span></td>
                                     <td>{{ !empty($row['last_activity_at']) ? \Illuminate\Support\Carbon::parse($row['last_activity_at'])->format('Y-m-d H:i') : '—' }}</td>
                                     <td>
@@ -333,10 +345,11 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="text-center text-muted py-4">Sin proveedores en seguimiento.</td></tr>
+                                <tr><td colspan="10" class="text-center text-muted py-4">Sin proveedores en seguimiento.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
+                    </div>
                     @if(($activeTab ?? 'bandeja') === 'proveedores')
                         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-3">
                             <span class="text-muted small">
@@ -621,6 +634,16 @@ $(function () {
                 toast('warning', 'Consulta pendiente', response.message);
                 return;
             }
+            if (response.status === 'accepted') {
+                if ($activeRow) {
+                    $activeRow.remove();
+                }
+                bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+                $('#kpiPendientes').text(Math.max(0, parseInt($('#kpiPendientes').text()) - 1));
+                $('#kpiAprobadosHoy').text(parseInt($('#kpiAprobadosHoy').text()) + 1);
+                toast('success', 'Documento validado y aprobado automáticamente');
+                return;
+            }
             $('#reviewModal').data('issued-at', response.issued_at);
             $('#documentIssuedAt').val(response.issued_at);
             $('#qrValidationSummary').html(
@@ -708,11 +731,10 @@ $(function () {
             validated_rfc: validatedRfc,
             compliance_status: complianceStatus,
         }).done(() => {
-            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
             if ($activeRow) {
-                $activeRow.find('td:nth-child(6)').html('<span class="badge bg-success">Aprobado</span>');
-                $activeRow.find('td:nth-child(7)').html('<span class="badge bg-success">Aprobado</span>');
+                $activeRow.remove();
             }
+            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
             $('#kpiPendientes').text(Math.max(0, parseInt($('#kpiPendientes').text()) - 1));
             $('#kpiAprobadosHoy').text(parseInt($('#kpiAprobadosHoy').text()) + 1);
             toast('success', 'Aprobado');
@@ -742,8 +764,10 @@ $(function () {
         const $btn = $(this).prop('disabled', true).text('Rechazando…');
 
         $.post(url, { reason }).done(() => {
+            if ($activeRow) {
+                $activeRow.remove();
+            }
             bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
-            if ($activeRow) $activeRow.find('td:nth-child(6)').html('<span class="badge bg-danger">Rechazado</span>');
             $('#kpiPendientes').text(Math.max(0, parseInt($('#kpiPendientes').text()) - 1));
             $('#kpiRechazadosHoy').text(parseInt($('#kpiRechazadosHoy').text()) + 1);
             toast('success', 'Rechazado');
@@ -778,6 +802,7 @@ $(function () {
         }).fail(xhr => {
             $btn.prop('disabled', false).html('<i class="ti ti-send me-1"></i> Enviar retroalimentación');
             let msg = 'No se pudo enviar.';
+            if (xhr.responseJSON?.message) msg = xhr.responseJSON.message;
             if (xhr.status === 422 && xhr.responseJSON?.errors?.message) msg = xhr.responseJSON.errors.message.join('\n');
             toast('error', 'Error', msg);
             console.error(xhr?.responseText || xhr);

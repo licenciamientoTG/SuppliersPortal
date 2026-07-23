@@ -18,18 +18,29 @@ class NotifySupplierDocumentRenewals extends Command
         $today = now()->startOfDay();
         SupplierDocumentRequirement::query()->with(['supplier', 'documentType'])->where('is_enforced', true)->whereNotNull('expires_at')->whereHas('documentType', fn ($query) => $query->where('is_active', true)->where('is_required', true))->orderBy('id')->each(function (SupplierDocumentRequirement $requirement) use ($today): void {
             $days = $today->diffInDays($requirement->expires_at->copy()->startOfDay(), false);
-            if (! in_array($days, [7, 5, 3, 1, 0], true)) {
+            if ($days > 7) {
                 return;
             }
-            $notice = SupplierDocumentRequirementNotification::firstOrCreate(['supplier_document_requirement_id' => $requirement->id, 'milestone_days' => $days]);
+
+            $milestone = collect([0, 1, 3, 5, 7])
+                ->first(fn (int $threshold) => $days <= $threshold);
+
+            if ($milestone === null) {
+                return;
+            }
+
+            $notice = SupplierDocumentRequirementNotification::firstOrCreate([
+                'supplier_document_requirement_id' => $requirement->id,
+                'milestone_days' => $milestone,
+            ]);
             if (! $notice->wasRecentlyCreated) {
                 return;
             }
-            if ($days === 0) {
+            if ($days <= 0) {
                 $requirement->update(['status' => 'expired']);
                 $requirement->supplier->recalculateDocumentStatus();
             }
-            $requirement->supplier->notify(new SupplierDocumentRenewalNotification($requirement, $days));
+            $requirement->supplier->notify(new SupplierDocumentRenewalNotification($requirement, max($days, 0)));
         });
 
         return self::SUCCESS;

@@ -8,11 +8,11 @@ use App\Models\SupplierDocumentType;
 use App\Services\InfonavitQrValidationService;
 use App\Services\SupplierDocumentAutoAcceptanceService;
 use App\Services\SupplierDocumentRequirementService;
+use App\Services\SupplierDocumentReviewService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -44,8 +44,8 @@ class DocumentReviewController extends Controller
                 });
             })
             ->orderByDesc('uploaded_at')
-            ->limit(50)
-            ->get();
+            ->paginate(50)
+            ->withQueryString();
 
         // KPIs (consultas independientes)
         $start = now()->startOfDay();
@@ -99,12 +99,15 @@ class DocumentReviewController extends Controller
                 'applies_to_legal',
                 'requires_repse',
             ]);
-        $documentTypeCodes = $documentTypes->pluck('code');
+        $documentTypeIds = $documentTypes->pluck('id');
 
         $suppliers = Supplier::query()
-            ->with(['documents' => function ($query) use ($documentTypeCodes) {
-                $query->whereIn('doc_type', $documentTypeCodes)
-                    ->select('supplier_id', 'doc_type', 'status', 'uploaded_at');
+            ->with(['documentRequirements' => function ($query) use ($documentTypeIds) {
+                $query->whereIn('supplier_document_type_id', $documentTypeIds)
+                    ->with([
+                        'documentType',
+                        'currentDocument:id,supplier_id,uploaded_at',
+                    ]);
             }])
             ->select('id', 'company_name', 'rfc', 'person_type', 'provides_specialized_services')
             ->when($search !== '', function ($query) use ($search) {
@@ -132,13 +135,17 @@ class DocumentReviewController extends Controller
             ->filter(fn (SupplierDocumentType $type) => $type->appliesTo($supplier))
             ->pluck('code')
             ->all();
-        $requiredDocs = $supplier->documents->whereIn('doc_type', $requiredTypes);
-        $totalRequired = count($requiredTypes);
-        $uploaded = $requiredDocs->pluck('doc_type')->unique()->count();
-        $accepted = $requiredDocs->where('status', 'accepted')->count();
-        $rejected = $requiredDocs->where('status', 'rejected')->count();
-        $pending = max($totalRequired - $accepted - $rejected, 0);
-        $progress = $totalRequired > 0 ? round(($uploaded / $totalRequired) * 100) : 0;
+        $requiredRequirements = $supplier->documentRequirements
+            ->where('is_enforced', true)
+            ->filter(fn ($requirement) => in_array($requirement->documentType?->code, $requiredTypes, true));
+        $totalRequired = $requiredRequirements->count();
+        $uploaded = $requiredRequirements->whereIn('status', ['submitted', 'compliant', 'rejected', 'expired'])->count();
+        $accepted = $requiredRequirements->where('status', 'compliant')->count();
+        $rejected = $requiredRequirements->where('status', 'rejected')->count();
+        $inReview = $requiredRequirements->where('status', 'submitted')->count();
+        $expired = $requiredRequirements->where('status', 'expired')->count();
+        $pending = $requiredRequirements->where('status', 'pending')->count();
+        $progress = $totalRequired > 0 ? round(($accepted / $totalRequired) * 100) : 0;
 
         return [
             'supplier' => $supplier,
@@ -146,34 +153,42 @@ class DocumentReviewController extends Controller
             'uploaded' => $uploaded,
             'accepted' => $accepted,
             'rejected' => $rejected,
+            'in_review' => $inReview,
+            'expired' => $expired,
             'pending' => $pending,
             'progress_percent' => max(0, min(100, $progress)),
-            'last_activity_at' => optional($requiredDocs->max('uploaded_at'))?->toDateTimeString(),
+            'last_activity_at' => optional(
+                $requiredRequirements->pluck('currentDocument.uploaded_at')->filter()->max()
+            )?->toDateTimeString(),
         ];
     }
 
     /**
      * Ficha simple por proveedor (solo display).
      */
-    public function showSupplier(Supplier $supplier)
+    public function showSupplier(Supplier $supplier, SupplierDocumentRequirementService $requirements)
     {
         // Documentos agrupados por tipo (con eager loading para evitar N+1)
         $docs = $supplier->documents()
-            ->select('id', 'supplier_id', 'doc_type', 'status', 'uploaded_at', 'path_file', 'rejection_reason', 'reviewed_by', 'reviewed_at')
+            ->with(['uploader:id,name', 'reviewer:id,name', 'documentType'])
+            ->select('id', 'supplier_id', 'doc_type', 'status', 'uploaded_at', 'path_file', 'rejection_reason', 'uploaded_by', 'reviewed_by', 'reviewed_at', 'supplier_document_type_id')
             ->orderByDesc('uploaded_at')
             ->get()
             ->groupBy('doc_type');
 
         $requiredTypes = SupplierDocument::requiredTypesFor($supplier);
+        $supplierRequirements = $requirements->ensureForSupplier($supplier)
+            ->where('is_enforced', true);
 
         return view('documents.admin.show_supplier', [
             'supplier' => $supplier,
             'docsByType' => $docs,
             'requiredTypes' => $requiredTypes,
+            'supplierRequirements' => $supplierRequirements,
         ]);
     }
 
-    public function accept(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
+    public function accept(Request $request, SupplierDocument $document, SupplierDocumentReviewService $reviews)
     {
         $document->loadMissing('supplier', 'documentType');
         $isPeriodic = $document->documentType?->renewal_mode === 'periodic';
@@ -185,19 +200,13 @@ class DocumentReviewController extends Controller
 
         $this->validateReviewerConfirmation($document, $data);
 
-        DB::transaction(function () use ($request, $document, $requirements, $data) {
-            $metadata = $this->confirmedValidationMetadata($document, $data, $request->user()->id);
-
-            $document->update([
-                'status' => 'accepted',
-                'rejection_reason' => null,
-                'reviewed_by' => $request->user()->id,
-                'reviewed_at' => now(),
-                'issue_date_extraction_data' => $metadata,
-            ]);
-            $requirements->accept($document, $data['issued_at'] ?? null, $request->user()->id);
-            $document->supplier?->recalculateDocumentStatus();
-        });
+        $metadata = $this->confirmedValidationMetadata($document, $data, $request->user()->id);
+        $document = $reviews->accept(
+            $document,
+            $data['issued_at'] ?? null,
+            $request->user(),
+            $metadata,
+        );
 
         // Respuesta JSON para AJAX
         if ($request->wantsJson()) {
@@ -312,22 +321,13 @@ class DocumentReviewController extends Controller
         ]);
     }
 
-    public function reject(Request $request, SupplierDocument $document, SupplierDocumentRequirementService $requirements)
+    public function reject(Request $request, SupplierDocument $document, SupplierDocumentReviewService $reviews)
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ], [], ['reason' => 'motivo de rechazo']);
 
-        DB::transaction(function () use ($request, $document, $data, $requirements) {
-            $document->update([
-                'status' => 'rejected',
-                'rejection_reason' => $data['reason'],
-                'reviewed_by' => $request->user()->id,
-                'reviewed_at' => now(),
-            ]);
-            $requirements->reject($document);
-            $document->supplier?->recalculateDocumentStatus();
-        });
+        $document = $reviews->reject($document, $data['reason'], $request->user());
 
         if ($request->wantsJson()) {
             return response()->json([

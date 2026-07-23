@@ -47,6 +47,14 @@ return [
             'report' => false,
         ],
 
+        'supplier_documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/supplier-documents'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
@@ -61,8 +69,8 @@ return [
         ],
         'tress' => [
             'driver' => 'local',
-            'root'   => '/mnt/tress',
-            'throw'  => true,
+            'root' => '/mnt/tress',
+            'throw' => true,
         ],
     ],
 

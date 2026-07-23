@@ -23,7 +23,10 @@ class SupplierDocumentAutoAcceptanceService
         'opinion_infonavit',
     ];
 
-    public function __construct(private readonly BuyerNotificationService $buyerNotifications) {}
+    public function __construct(
+        private readonly BuyerNotificationService $buyerNotifications,
+        private readonly SupplierDocumentReviewService $reviews,
+    ) {}
 
     public function acceptIfEligible(SupplierDocument $document, SupplierDocumentRequirementService $requirements): bool
     {
@@ -68,13 +71,13 @@ class SupplierDocumentAutoAcceptanceService
             return false;
         }
 
-        $document->update([
-            'status' => 'accepted',
-            'rejection_reason' => null,
-            'reviewed_by' => null,
-            'reviewed_at' => now(),
-        ]);
-        $requirements->accept($document, $issuedAt->toDateString(), null);
+        $document = $this->reviews->accept(
+            $document,
+            $issuedAt->toDateString(),
+            reviewer: null,
+            validationMetadata: $metadata,
+            automatic: true,
+        );
         $this->notifyBuyers($document, $issuedAt);
 
         return true;
