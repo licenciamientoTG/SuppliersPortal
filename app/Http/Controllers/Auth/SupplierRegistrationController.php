@@ -71,6 +71,18 @@ class SupplierRegistrationController extends Controller
             ], 422);
         }
 
+        $rfc = strtoupper(trim((string) ($upload['parsed']['rfc'] ?? '')));
+
+        if ($rfc !== '' && Supplier::where('rfc', $rfc)->exists()) {
+            $extractor->forgetTemporaryUpload($upload['token'], $request->session());
+
+            return response()->json([
+                'message' => "Ya existe un usuario registrado con el RFC {$rfc}.",
+                'duplicate_rfc' => true,
+                'data' => $upload['parsed'],
+            ], 422);
+        }
+
         return response()->json([
             'token' => $upload['token'],
             'data' => $upload['parsed'],

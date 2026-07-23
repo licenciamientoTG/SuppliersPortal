@@ -107,7 +107,7 @@
             gap: 16px;
         }
         .grid .full { grid-column: 1 / -1; }
-        .field { display: grid; gap: 6px; }
+        .field { display: grid; gap: 6px; align-content: start; }
         .field label {
             font-size: 0.86rem;
             font-weight: 600;
@@ -684,6 +684,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const supplierForm = document.getElementById('supplier-form');
+            const submitButton = supplierForm.querySelector('button[type="submit"]');
             const foreignToggle = document.getElementById('is_foreign');
             const csfSection = document.getElementById('csf-section');
             const csfFeedback = document.getElementById('csf-feedback');
@@ -729,6 +731,10 @@
             function clearFeedback() {
                 csfFeedback.className = 'banner info hidden';
                 csfFeedback.textContent = '';
+            }
+
+            function setRegistrationBlocked(blocked) {
+                submitButton.disabled = blocked;
             }
 
             function setInputEditableState(input, editable) {
@@ -803,6 +809,7 @@
                     personTypeInput.value = 'extranjero';
                     firstNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
                     lastNameHint.textContent = 'Capturalo manualmente para proveedores extranjeros.';
+                    setRegistrationBlocked(false);
                     clearFeedback();
                     return;
                 }
@@ -811,7 +818,7 @@
             }
 
             function applyParsedData(data) {
-                csfTokenInput.value = data.token;
+                csfTokenInput.value = data.token || '';
                 personTypeInput.value = data.person_type || '';
                 personTypeDisplay.value = data.person_type || '';
                 firstNameInput.value = data.first_name || '';
@@ -849,6 +856,8 @@
 
                 csfUploadTrigger.disabled = true;
                 csfUploadTrigger.textContent = 'Analizando...';
+                csfTokenInput.value = '';
+                setRegistrationBlocked(false);
                 clearFeedback();
 
                 try {
@@ -865,6 +874,14 @@
                     const payload = await response.json();
 
                     if (!response.ok) {
+                        if (payload.data) {
+                            applyParsedData(payload.data);
+                        }
+
+                        if (payload.duplicate_rfc) {
+                            setRegistrationBlocked(true);
+                        }
+
                         setFeedback('error', payload.message || 'No fue posible procesar la constancia fiscal.');
                         return;
                     }
@@ -873,6 +890,7 @@
                         token: payload.token,
                         ...payload.data,
                     });
+                    setRegistrationBlocked(false);
                     setFeedback('success', 'Constancia analizada correctamente. Revisa y confirma tus datos antes de enviar.');
                 } catch (error) {
                     setFeedback('error', 'Ocurrio un error al analizar la constancia fiscal. Intenta de nuevo.');
