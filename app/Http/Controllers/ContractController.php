@@ -46,9 +46,23 @@ class ContractController extends Controller
                     'expired'   => 'clock-x',
                     default     => 'file-x',
                 };
-                return '<span class="badge bg-' . $c->effective_status_badge . '">'
+                $html = '<span class="badge bg-' . $c->effective_status_badge . '">'
                     . '<i class="ti ti-' . $icon . ' me-1"></i>'
                     . e($c->effective_status_label) . '</span>';
+
+                if ($c->effective_status === 'active' && $c->days_to_expiry !== null) {
+                    $days    = $c->days_to_expiry;
+                    $color   = $days > 30 ? 'success' : ($days > 15 ? 'warning' : 'danger');
+                    $tooltip = match (true) {
+                        $days === 0 => 'Vence hoy',
+                        $days === 1 => 'Falta 1 día para el vencimiento',
+                        default     => "Faltan {$days} días para el vencimiento",
+                    };
+                    $html .= ' <span class="badge bg-' . $color . ' ms-1" title="' . e($tooltip) . '">'
+                        . '<i class="ti ti-clock me-1"></i>' . $days . ' d</span>';
+                }
+
+                return $html;
             })
             ->addColumn('actions', function ($c) {
                 $show = route('contracts.show', $c->id);

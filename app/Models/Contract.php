@@ -108,6 +108,15 @@ class Contract extends Model
         return 'active';
     }
 
+    public function getDaysToExpiryAttribute(): ?int
+    {
+        if (! $this->end_date) {
+            return null;
+        }
+
+        return (int) Carbon::today()->diffInDays($this->end_date->startOfDay(), false);
+    }
+
     public function getEffectiveStatusLabelAttribute(): string
     {
         return match($this->effective_status) {
