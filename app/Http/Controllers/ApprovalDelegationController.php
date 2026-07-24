@@ -8,6 +8,8 @@ use App\Notifications\ApprovalDelegationSummaryNotification;
 use App\Services\ApprovalDelegationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ApprovalDelegationController extends Controller
 {
@@ -69,9 +71,7 @@ class ApprovalDelegationController extends Controller
         });
 
         $counts = $service->pendingCounts($user->id);
-        $delegation->activeMembers->each(
-            fn ($member) => $member->delegate?->notify(new ApprovalDelegationSummaryNotification($delegation, $counts))
-        );
+        $this->sendActivationSummaries($delegation, $counts);
 
         return back()->with('success', 'Modo Delegar activado. Tus pendientes ya están disponibles para los delegados seleccionados.');
     }
@@ -105,11 +105,10 @@ class ApprovalDelegationController extends Controller
 
         if ($delegation->isEffective() && $changes['added']) {
             $counts = $service->pendingCounts($user->id);
-            User::whereIn('id', $changes['added'])->get()->each(
-                fn (User $delegate) => $delegate->notify(new ApprovalDelegationSummaryNotification(
-                    $delegation->fresh('delegator'),
-                    $counts
-                ))
+            $this->sendActivationSummaries(
+                $delegation->fresh(['delegator', 'activeMembers.delegate']),
+                $counts,
+                $changes['added']
             );
         }
 
@@ -126,5 +125,27 @@ class ApprovalDelegationController extends Controller
         $service->deactivate($delegation, $request->user(), 'Desactivada por el titular.');
 
         return back()->with('success', 'Modo Delegar desactivado. Solo tú conservas acceso a tus pendientes.');
+    }
+
+    /**
+     * @param  array<int>|null  $delegateIds
+     */
+    private function sendActivationSummaries(ApprovalDelegation $delegation, array $counts, ?array $delegateIds = null): void
+    {
+        $delegates = $delegateIds === null
+            ? $delegation->activeMembers->pluck('delegate')->filter()
+            : User::query()->whereIn('id', $delegateIds)->get();
+
+        $delegates->each(function (User $delegate) use ($delegation, $counts): void {
+            try {
+                $delegate->notify(new ApprovalDelegationSummaryNotification($delegation, $counts));
+            } catch (Throwable $exception) {
+                Log::warning('No fue posible enviar el resumen de activación de delegación.', [
+                    'approval_delegation_id' => $delegation->id,
+                    'delegate_user_id' => $delegate->id,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 }
