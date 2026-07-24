@@ -18,23 +18,57 @@
     <div class="alert alert-success">{{ session('success') }}</div>
 @endif
 
-@if($activeDelegation)
-    <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div>
-            <div class="fw-bold"><i class="ti ti-plane-departure me-1"></i>Modo Delegar activo</div>
+<div class="card border-0 shadow-sm mb-3 {{ $activeDelegation ? 'bg-warning-subtle' : 'bg-success-subtle' }}">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3 py-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="avatar-md rounded-circle {{ $activeDelegation ? 'bg-warning text-dark' : 'bg-success text-white' }} d-flex align-items-center justify-content-center">
+                <i class="ti ti-plane-departure fs-3"></i>
+            </div>
             <div>
-                {{ $activeDelegation->activeMembers->count() }} delegado(s)
-                · {{ $activeDelegation->ends_at ? 'hasta '.$activeDelegation->ends_at->format('d/m/Y H:i') : 'sin fecha de término' }}
+                <h5 class="mb-1">Modo Delegar</h5>
+                @if($activeDelegation)
+                    <div class="text-dark">
+                        Activo para {{ $activeDelegation->activeMembers->count() }} delegado(s)
+                        · {{ $activeDelegation->ends_at ? 'hasta '.$activeDelegation->ends_at->format('d/m/Y H:i') : 'sin fecha de término' }}
+                    </div>
+                @elseif($draftDelegation && $draftDelegation->activeMembers->isNotEmpty())
+                    <div class="text-muted">Configuración lista para activarse con {{ $draftDelegation->activeMembers->count() }} delegado(s).</div>
+                @else
+                    <div class="text-muted">Selecciona y guarda al menos un delegado para poder activarlo.</div>
+                @endif
             </div>
         </div>
-        <form method="POST" action="{{ route('approval-delegations.deactivate') }}">
-            @csrf
-            <button class="btn btn-danger" onclick="return confirm('¿Desactivar el modo Delegar?')">
-                Desactivar ahora
-            </button>
-        </form>
+
+        @if($activeDelegation)
+            <form method="POST" action="{{ route('approval-delegations.deactivate') }}" class="delegation-switch">
+                @csrf
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" style="width:3.5rem;height:1.75rem" type="checkbox" role="switch" id="delegation-toggle" checked
+                           onchange="if (confirm('¿Desactivar el modo Delegar?')) { this.form.submit(); } else { this.checked = true; }">
+                    <label class="form-check-label fw-bold ms-2" for="delegation-toggle">Encendido</label>
+                </div>
+            </form>
+        @elseif($draftDelegation && $draftDelegation->activeMembers->isNotEmpty())
+            <form method="POST" action="{{ route('approval-delegations.activate') }}" class="delegation-switch">
+                @csrf
+                @foreach($draftDelegation->activeMembers as $member)
+                    <input type="hidden" name="delegate_ids[]" value="{{ $member->delegate_user_id }}">
+                @endforeach
+                <input type="hidden" name="ends_at" value="{{ $draftDelegation->ends_at?->format('Y-m-d H:i:s') }}">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" style="width:3.5rem;height:1.75rem" type="checkbox" role="switch" id="delegation-toggle"
+                           onchange="if (confirm('¿Activar el modo Delegar ahora?')) { this.form.submit(); } else { this.checked = false; }">
+                    <label class="form-check-label fw-bold ms-2" for="delegation-toggle">Apagado</label>
+                </div>
+            </form>
+        @else
+            <div class="form-check form-switch mb-0" title="Primero guarda al menos un delegado">
+                <input class="form-check-input" style="width:3.5rem;height:1.75rem" type="checkbox" role="switch" id="delegation-toggle" disabled>
+                <label class="form-check-label text-muted ms-2" for="delegation-toggle">Apagado</label>
+            </div>
+        @endif
     </div>
-@endif
+</div>
 
 <div class="row g-3">
     <div class="col-xl-8">
@@ -93,14 +127,6 @@
                     </div>
                 </form>
 
-                @if($draftDelegation && !$activeDelegation)
-                    <form method="POST" action="{{ route('approval-delegations.activate') }}" class="mt-3 text-end">
-                        @csrf
-                        @foreach($selectedIds as $id)<input type="hidden" name="delegate_ids[]" value="{{ $id }}">@endforeach
-                        <input type="hidden" name="ends_at" value="{{ $draftDelegation->ends_at?->format('Y-m-d H:i:s') }}">
-                        <button class="btn btn-success"><i class="ti ti-plane-departure me-1"></i>Activar configuración guardada</button>
-                    </form>
-                @endif
             </div>
         </div>
     </div>
