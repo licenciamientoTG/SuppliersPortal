@@ -435,6 +435,13 @@ Capacidades identificadas:
 | RF-034 | Integraciones | El sistema debe sincronizar empleados desde archivos TRESS y opcionalmente crear usuarios si el CSV incluye correo. | Media | superadmin | Implementado |
 | RF-035 | Integraciones | El sistema debe sincronizar tipo de cambio USD/MXN mediante un proceso programado. | Media | system | Implementado |
 | RF-036 | Reportes | El sistema debe ofrecer informacion operativa y presupuestal en dashboards y tablas exportables. | Media | superadmin | Implementado parcialmente |
+| RF-037 | Aprobaciones | Un autorizador debe poder configurar uno o mas autorizadores delegados y activar el modo `Delegar` con fecha de termino opcional. | Alta | authorizer | Implementado |
+| RF-038 | Aprobaciones | Los delegados vigentes deben visualizar los pendientes existentes y nuevos del titular para compra regular, OCD y OC por convenio. | Alta | authorizer | Implementado |
+| RF-039 | Aprobaciones | El titular y sus delegados deben compartir el pendiente; la primera decision valida debe cerrarlo para todos. | Alta | authorizer | Implementado |
+| RF-040 | Aprobaciones | Toda decision delegada debe registrar al usuario que actuo, al titular representado y el periodo de delegacion. | Alta | system | Implementado |
+| RF-041 | Aprobaciones | El sistema debe mostrar una bandeja unificada con filtros para autorizaciones propias y delegadas. | Alta | authorizer | Implementado |
+| RF-042 | Aprobaciones | Superadmin debe poder consultar y desactivar delegaciones activas registrando un motivo. | Media | superadmin | Implementado |
+| RF-043 | Aprobaciones | Direccion General debe operar sin limite superior de autorizacion y Consejo de Administracion no debe existir como rol autorizador. | Alta | general_director | Implementado |
 
 ## 8. Requisitos no funcionales
 
@@ -507,6 +514,11 @@ Capacidades identificadas:
 | RN-016 | El tipo de cambio USD/MXN se actualiza por scheduler en horario laboral entre semana. | Integracion tipo de cambio | Implementado |
 | RN-017 | El consumo presupuestal final se materializa cuando la orden pasa a `DELIVERED_PENDING_RECEPTION`. | Presupuesto / Ordenes | Implementado |
 | RN-018 | La definicion exacta del flujo de aprobacion de cotizaciones regulares requiere confirmacion funcional adicional. | RFQ / Ordenes | Pendiente de confirmacion |
+| RN-019 | Una delegacion solo puede incluir usuarios activos con facultad autorizadora y acceso a cotizaciones y Ordenes de Compra. | Aprobaciones | Implementado |
+| RN-020 | La delegacion tiene un solo salto; un delegado no puede propagar pendientes recibidos a sus propios delegados. | Aprobaciones | Implementado |
+| RN-021 | El delegado utiliza la facultad efectiva registrada para el titular en el pendiente, no su limite personal. | Aprobaciones | Implementado |
+| RN-022 | El acceso delegado termina inmediatamente al retirar al miembro, desactivar el periodo o alcanzar su fecha de termino. | Aprobaciones | Implementado |
+| RN-023 | Direccion General es el unico rol autorizador configurable sin limite de monto. | Aprobaciones | Implementado |
 
 ## 10. Flujos principales
 
@@ -541,6 +553,10 @@ Capacidades identificadas:
 3. En OCD, el sistema calcula nivel de aprobacion requerido por monto.
 4. El aprobador asignado puede aprobar, rechazar o devolver para correccion.
 5. Al aprobarse la OCD, se compromete presupuesto.
+6. El autorizador puede configurar delegados antes de activar el modo `Delegar`.
+7. Al activarlo, los pendientes del titular se incorporan a la bandeja de cada delegado sin cambiar la asignacion original.
+8. Titular y delegados pueden actuar; la decision se bloquea transaccionalmente y registra actor y titular.
+9. Al vencer o desactivar el periodo, los delegados pierden acceso y el titular conserva los pendientes no resueltos.
 
 ### 10.5 RFQ y cotizacion
 

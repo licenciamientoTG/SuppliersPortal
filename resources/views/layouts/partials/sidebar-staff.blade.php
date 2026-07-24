@@ -50,6 +50,7 @@
         || request()->routeIs('approval-levels.*')
         || request()->routeIs('sat-retenciones.*')
         || request()->routeIs('roles.catalog');
+    $openConfiguration = $openConfiguration || request()->routeIs('admin.approval-delegations.*');
 
     try {
         $activeRequisitionsCount = \App\Models\Requisition::whereNotIn('status', ['DRAFT', 'CANCELLED', 'COMPLETED'])->count();
@@ -59,9 +60,7 @@
 
     try {
         $pendingApprovalsCount = auth()->check()
-            ? \App\Models\QuotationSummary::where('approval_status', 'pending')
-                ->where('current_approver_user_id', auth()->id())
-                ->count()
+            ? app(\App\Services\AuthorizationInboxService::class)->countFor(auth()->user())
             : 0;
     } catch (\Throwable $e) {
         $pendingApprovalsCount = 0;
@@ -128,6 +127,19 @@
 @if ($showPurchasingSection)
 <li class="side-nav-title">COMPRAS</li>
 
+@if($user?->authorizerAssignment()->exists() || $user?->hasRole('superadmin'))
+<li class="side-nav-item">
+    <a href="{{ route('authorizations.index') }}"
+        class="side-nav-link {{ request()->routeIs('authorizations.*') || request()->routeIs('approval-delegations.*') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-stamp"></i></span>
+        <span class="menu-text">Mis autorizaciones</span>
+        @if ($pendingApprovalsCount > 0)
+            <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingApprovalsCount }}</span>
+        @endif
+    </a>
+</li>
+@endif
+
 @moduleAccess('requisitions')
 <li class="side-nav-item">
     <a href="{{ route('requisitions.index') }}"
@@ -172,9 +184,6 @@
                 <a href="{{ route('approvals.quotations.index') }}"
                     class="side-nav-link {{ request()->routeIs('approvals.quotations.*') ? 'active' : '' }}">
                     <span class="menu-text">Aprobar cotizacion</span>
-                    @if ($pendingApprovalsCount > 0)
-                        <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingApprovalsCount }}</span>
-                    @endif
                 </a>
             </li>
 
@@ -486,6 +495,12 @@
                 <a href="{{ route('authorizer-roles.index') }}"
                     class="side-nav-link {{ request()->routeIs('authorizer-roles.*') ? 'active' : '' }}">
                     <span class="menu-text">Roles Autorizadores</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ route('admin.approval-delegations.index') }}"
+                    class="side-nav-link {{ request()->routeIs('admin.approval-delegations.*') ? 'active' : '' }}">
+                    <span class="menu-text">Delegaciones activas</span>
                 </a>
             </li>
             <li class="side-nav-item">

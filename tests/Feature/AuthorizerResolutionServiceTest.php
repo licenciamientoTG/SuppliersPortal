@@ -55,4 +55,39 @@ class AuthorizerResolutionServiceTest extends TestCase
         $this->assertSame($leader->id, $resolution['approver_employee']->id);
         $this->assertSame('eligible', $resolution['chain'][0]['status']);
     }
+
+    public function test_general_director_with_null_limit_can_authorize_any_amount(): void
+    {
+        $requester = User::factory()->create();
+        $directorUser = User::factory()->create(['is_active' => true]);
+        $directorRole = AuthorizerRole::create([
+            'name' => 'Dirección General',
+            'approval_limit' => null,
+            'display_order' => 1,
+            'is_active' => true,
+        ]);
+        UserAuthorizerRole::create([
+            'user_id' => $directorUser->id,
+            'authorizer_role_id' => $directorRole->id,
+        ]);
+        $director = Employee::factory()->create([
+            'user_id' => $directorUser->id,
+            'employee_number' => 'DG-1',
+            'is_active' => 'SI',
+        ]);
+        Employee::factory()->create([
+            'user_id' => $requester->id,
+            'employee_number' => 'REQ-1',
+            'leader_id' => $director->id,
+            'leader' => $director->employee_number,
+            'is_active' => 'SI',
+        ]);
+
+        $resolution = app(AuthorizerResolutionService::class)
+            ->resolveForRequester($requester, 999999999.99);
+
+        $this->assertSame($directorUser->id, $resolution['approver_user']->id);
+        $this->assertNull($resolution['effective_limit']);
+        $this->assertSame('eligible', $resolution['chain'][0]['status']);
+    }
 }

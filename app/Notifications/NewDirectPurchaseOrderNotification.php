@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\DirectPurchaseOrder;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,7 +18,7 @@ class NewDirectPurchaseOrderNotification extends Notification
     /**
      * Create a new notification instance.
      */
-    public function __construct(DirectPurchaseOrder $ocd)
+    public function __construct(DirectPurchaseOrder $ocd, public ?User $delegatedFor = null)
     {
         $this->ocd = $ocd;
     }
@@ -54,6 +55,7 @@ class NewDirectPurchaseOrderNotification extends Notification
                 'requester'      => $this->ocd->creator->name ?? 'N/A',
                 'justification'  => $this->ocd->justification ?: 'Sin justificación',
                 'url'            => $url,
+                'delegatedFor'   => $this->delegatedFor?->name,
             ]);
     }
 
@@ -69,8 +71,10 @@ class NewDirectPurchaseOrderNotification extends Notification
             'ocd_id' => $this->ocd->id,
             'ocd_folio' => $this->ocd->folio,
             'total' => $this->ocd->total,
+            'delegated_for_user_id' => $this->delegatedFor?->id,
             'url' => route('direct-purchase-orders.show', $this->ocd->id),
-            'message' => 'Nueva OC Directa ' . $this->ocd->folio . ' pendiente de aprobación.',
+            'message' => ($this->delegatedFor ? 'Delegada por '.$this->delegatedFor->name.': ' : '')
+                .'Nueva OC Directa '.$this->ocd->folio.' pendiente de aprobación.',
         ];
     }
 }

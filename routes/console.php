@@ -33,3 +33,7 @@ Schedule::command('contracts:notify-expiring')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/contract-expiry-alerts.log'));
+
+Schedule::command('approval-delegations:expire')
+    ->everyMinute()
+    ->withoutOverlapping();

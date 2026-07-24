@@ -14,6 +14,7 @@ use App\Services\BuyerNotificationService;
 use App\Services\BudgetAllocationService;
 use App\Services\QuotationSummaryItemService;
 use App\Services\QuotationRejectionWorkflowService;
+use App\Services\ApprovalDelegationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,8 @@ class RfqComparisonController extends Controller
         protected AuthorizerResolutionService $authorizerResolutionService,
         protected BuyerNotificationService $buyerNotificationService,
         protected QuotationSummaryItemService $quotationSummaryItemService,
-        protected QuotationRejectionWorkflowService $quotationRejectionWorkflowService
+        protected QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
+        protected ApprovalDelegationService $approvalDelegations
     ) {}
 
     public function index(Rfq $rfq)
@@ -141,8 +143,8 @@ class RfqComparisonController extends Controller
             });
 
             $escalated = collect($summary->approval_chain_snapshot)->contains(fn ($step) => ($step['status'] ?? null) !== 'eligible');
-            $summary->currentApprover?->notify(new QuotationApprovalRequestNotification($summary, $escalated));
             $this->notifyBuyersQuotationPendingApproval($summary, false);
+            $this->notifyApprovalRecipients($summary, $escalated);
 
             return redirect()
                 ->route('rfq.index')
@@ -177,8 +179,8 @@ class RfqComparisonController extends Controller
             );
 
             $escalated = collect($summary->approval_chain_snapshot)->contains(fn ($step) => ($step['status'] ?? null) !== 'eligible');
-            $summary->currentApprover?->notify(new QuotationApprovalRequestNotification($summary, $escalated));
             $this->notifyBuyersQuotationPendingApproval($summary, true);
+            $this->notifyApprovalRecipients($summary, $escalated);
 
             return redirect()
                 ->route('rfq.comparison.index', $summary->rfq_id)
@@ -401,5 +403,23 @@ class RfqComparisonController extends Controller
                 ],
             ),
         );
+    }
+
+    private function notifyApprovalRecipients(QuotationSummary $summary, bool $escalated): void
+    {
+        $principal = $summary->currentApprover;
+
+        if (! $principal) {
+            return;
+        }
+
+        $this->approvalDelegations->recipientsForPrincipal($principal)
+            ->each(fn ($recipient) => $recipient->notify(
+                new QuotationApprovalRequestNotification(
+                    $summary,
+                    $escalated,
+                    (int) $recipient->id === (int) $principal->id ? null : $principal
+                )
+            ));
     }
 }

@@ -362,7 +362,14 @@ Modelos:
 Servicios:
 
 - `ApprovalService`
+- `ApprovalDelegationService`
+- `ApprovalDecisionService`
+- `AuthorizationInboxService`
 - `PricingService`
+
+La delegacion temporal conserva el aprobador titular en las entidades existentes y calcula el acceso de los delegados mediante `approval_delegations` y `approval_delegation_members`. Las decisiones de los tres flujos se normalizan adicionalmente en `approval_decisions`, con bloqueo de fila para evitar resoluciones simultaneas.
+
+Direccion General se representa con `approval_limit = null` como facultad ilimitada. El rol Consejo de Administracion fue retirado del seeder y de la resolucion de autorizadores.
 
 ### 7.9 Ordenes de compra
 
@@ -791,6 +798,7 @@ Casos de uso de archivos:
 
 - `purchase-orders:close-inactive` diario a las `00:30`
 - `exchange-rates:sync` cada hora, lunes a viernes, entre `08:00` y `18:00`
+- `approval-delegations:expire` cada minuto para cerrar periodos programados; las consultas tambien validan `ends_at` directamente para revocar acceso sin depender del scheduler.
 
 Observacion relevante:
 
@@ -806,6 +814,9 @@ Las notificaciones cubren eventos funcionales clave:
 - avance a cotizacion;
 - RFQ nueva o cancelada;
 - alta y aprobacion de OCD;
+- activacion de delegacion con resumen de pendientes;
+- avisos individuales de pendientes nuevos a titular y delegados;
+- aviso al titular cuando un delegado actua en su representacion;
 - alertas y cierres por inactividad;
 - recepcion completada;
 - nuevos productos solicitados.
@@ -829,6 +840,10 @@ Vistas representativas:
 - dashboard interno;
 - portal de proveedor;
 - bandejas de requisiciones, RFQ, ordenes y recepciones;
+- bandeja unificada de autorizaciones propias y delegadas;
+- control persistente `Delegar` en la barra superior;
+- modulo de configuracion personal e historial de delegaciones;
+- supervision de delegaciones activas para Superadmin;
 - formularios presupuestales;
 - revisiones administrativas.
 

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\AuthorizerRole;
+use App\Models\ApprovalDelegation;
+use App\Models\ApprovalDelegationMember;
 use App\Models\BudgetCedula;
 use App\Models\Company;
 use App\Models\Contract;
@@ -227,5 +229,41 @@ class ContractConvenioAuthorizationTest extends TestCase
         ]);
 
         Notification::assertSentTo($this->requester, ContractPurchaseOrderRejectedNotification::class);
+    }
+
+    public function test_delegate_can_approve_for_principal_and_decision_is_audited(): void
+    {
+        Notification::fake();
+        $delegate = User::factory()->create(['is_active' => true]);
+        $delegate->assignRole('authorizer');
+        $delegation = ApprovalDelegation::create([
+            'delegator_user_id' => $this->approver->id,
+            'status' => 'ACTIVE',
+            'starts_at' => now()->subMinute(),
+            'ends_at' => now()->addWeek(),
+        ]);
+        ApprovalDelegationMember::create([
+            'approval_delegation_id' => $delegation->id,
+            'delegate_user_id' => $delegate->id,
+            'added_at' => now()->subMinute(),
+        ]);
+
+        [$po] = $this->makePendingPo();
+
+        Notification::assertSentTo($delegate, ContractPurchaseOrderPendingApprovalNotification::class);
+
+        $this->actingAs($delegate)
+            ->post(route('purchase-orders.approve', $po))
+            ->assertRedirect();
+
+        $this->assertSame('ISSUED', $po->fresh()->status);
+        $this->assertDatabaseHas('approval_decisions', [
+            'approvable_type' => PurchaseOrder::class,
+            'approvable_id' => $po->id,
+            'assigned_principal_user_id' => $this->approver->id,
+            'acted_by_user_id' => $delegate->id,
+            'approval_delegation_id' => $delegation->id,
+            'action' => 'APPROVED',
+        ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\QuotationSummary;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -13,7 +14,8 @@ class QuotationApprovalRequestNotification extends Notification
 
     public function __construct(
         public QuotationSummary $summary,
-        public bool $escalated = false
+        public bool $escalated = false,
+        public ?User $delegatedFor = null
     ) {}
 
     public function via(object $notifiable): array
@@ -36,6 +38,7 @@ class QuotationApprovalRequestNotification extends Notification
                 'supplier'         => $this->summary->selectedSupplier?->company_name ?? 'N/A',
                 'total'            => '$'.number_format((float) $this->summary->total, 2),
                 'url'              => $url,
+                'delegatedFor'     => $this->delegatedFor?->name,
             ]);
     }
 
@@ -49,8 +52,10 @@ class QuotationApprovalRequestNotification extends Notification
             'requisition_folio' => $this->summary->requisition?->folio,
             'total' => (float) $this->summary->total,
             'escalated' => $this->escalated,
+            'delegated_for_user_id' => $this->delegatedFor?->id,
             'url' => route('approvals.quotations.index'),
-            'message' => 'Cotización pendiente de aprobación para la RFQ '.($this->summary->rfq?->folio ?? 'N/A').'.',
+            'message' => ($this->delegatedFor ? 'Delegada por '.$this->delegatedFor->name.': ' : '')
+                .'Cotización pendiente de aprobación para la RFQ '.($this->summary->rfq?->folio ?? 'N/A').'.',
         ];
     }
 }

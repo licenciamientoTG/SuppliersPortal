@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Notifications\ContractPurchaseOrderRejectedNotification;
 use App\Notifications\PurchaseOrderIssuedNotification;
 use App\Services\BudgetAllocationService;
+use App\Services\ApprovalDelegationService;
+use App\Services\ApprovalDecisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,12 +33,22 @@ class PurchaseOrderController extends Controller
     /**
      * Autoriza una OC de contrato (convenio de precios) — solo el aprobador asignado.
      */
-    public function approve(PurchaseOrder $purchaseOrder, BudgetAllocationService $budgetAllocationService)
+    public function approve(
+        PurchaseOrder $purchaseOrder,
+        BudgetAllocationService $budgetAllocationService,
+        ApprovalDelegationService $approvalDelegations,
+        ApprovalDecisionService $approvalDecisions
+    )
     {
         abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
         abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
 
-        DB::transaction(function () use ($purchaseOrder, $budgetAllocationService) {
+        $principalId = (int) $purchaseOrder->assigned_approver_id;
+
+        DB::transaction(function () use (&$purchaseOrder, $budgetAllocationService, $approvalDelegations, $approvalDecisions, $principalId) {
+            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+            abort_unless($purchaseOrder->isPendingApproval(), 422, 'Esta autorización ya fue resuelta por otro integrante.');
+            abort_unless($approvalDelegations->canAct(Auth::user(), $principalId), 403);
             $now = now();
 
             $budgetAllocationService->commitOrder($purchaseOrder);
@@ -53,6 +65,7 @@ class PurchaseOrderController extends Controller
                 'action'           => 'APPROVED',
                 'approved_at'      => $now,
             ]);
+            $approvalDecisions->record($purchaseOrder, $principalId, Auth::user(), 'APPROVED');
 
             DB::afterCommit(function () use ($purchaseOrder) {
                 try {
@@ -74,16 +87,26 @@ class PurchaseOrderController extends Controller
     /**
      * Rechaza una OC de contrato pendiente — solo el aprobador asignado.
      */
-    public function reject(Request $request, PurchaseOrder $purchaseOrder)
+    public function reject(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+        ApprovalDelegationService $approvalDelegations,
+        ApprovalDecisionService $approvalDecisions
+    )
     {
         abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
         abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
+
+        $principalId = (int) $purchaseOrder->assigned_approver_id;
 
         $request->validate([
             'comments' => ['required', 'string', 'min:50', 'max:500'],
         ]);
 
-        DB::transaction(function () use ($purchaseOrder, $request) {
+        DB::transaction(function () use (&$purchaseOrder, $request, $approvalDelegations, $approvalDecisions, $principalId) {
+            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+            abort_unless($purchaseOrder->isPendingApproval(), 422, 'Esta autorización ya fue resuelta por otro integrante.');
+            abort_unless($approvalDelegations->canAct(Auth::user(), $principalId), 403);
             $purchaseOrder->forceFill([
                 'status'               => 'REJECTED',
                 'rejected_by'          => Auth::id(),
@@ -97,6 +120,13 @@ class PurchaseOrderController extends Controller
                 'comments'         => $request->comments,
                 'approved_at'      => now(),
             ]);
+            $approvalDecisions->record(
+                $purchaseOrder,
+                $principalId,
+                Auth::user(),
+                'REJECTED',
+                $request->comments
+            );
 
             DB::afterCommit(function () use ($purchaseOrder, $request) {
                 try {
@@ -274,6 +304,8 @@ class PurchaseOrderController extends Controller
             'assignedApprover',
             'authorizerRole',
             'approvals.approver',
+            'approvalDecisions.actor',
+            'approvalDecisions.principal',
         ]);
         return view('purchase-orders.show', compact('purchaseOrder'));
     }
@@ -294,6 +326,8 @@ class PurchaseOrderController extends Controller
             'approver',
             'rejector',
             'approvals.approver',
+            'approvalDecisions.actor',
+            'approvalDecisions.principal',
             'documents',
             'receptions.items.receivableItem',
             'receptions.receiver',

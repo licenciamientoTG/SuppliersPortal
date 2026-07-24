@@ -33,6 +33,24 @@
 @endpush
 
 @section('content')
+@if($directPurchaseOrder->isPendingApproval() && (int) $directPurchaseOrder->assigned_approver_id !== (int) auth()->id() && $directPurchaseOrder->isApproverFor(auth()->user()))
+    <div class="alert alert-info border-0 shadow-sm">
+        <i class="ti ti-user-share me-1"></i>
+        <strong>Autorización delegada por {{ $directPurchaseOrder->assignedApprover?->name }}.</strong>
+        Si actúas, quedará registrado que lo hiciste en su representación.
+    </div>
+@endif
+@php($delegatedDecision = $directPurchaseOrder->approvalDecisions->whereNotNull('approval_delegation_id')->sortByDesc('acted_at')->first())
+@if($delegatedDecision)
+    @php($delegatedActionLabel = match($delegatedDecision->action) { 'APPROVED' => 'Autorizado', 'REJECTED' => 'Rechazado', 'RETURNED' => 'Devuelto', default => $delegatedDecision->action })
+    <div class="alert alert-light border">
+        <i class="ti ti-history me-1"></i>
+        {{ $delegatedActionLabel }} por
+        <strong>{{ $delegatedDecision->actor?->name }}</strong>,
+        en representación de <strong>{{ $delegatedDecision->principal?->name }}</strong>
+        el {{ $delegatedDecision->acted_at?->format('d/m/Y H:i') }}.
+    </div>
+@endif
 
 @php
     $ocd = $directPurchaseOrder;

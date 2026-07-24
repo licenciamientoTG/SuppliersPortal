@@ -175,7 +175,7 @@ class SupplierDocumentWorkflowTest extends TestCase
         Storage::disk('public')->assertMissing($document->path_file);
     }
 
-    public function test_supplier_cannot_be_finally_approved_until_document_file_is_complete(): void
+    public function test_supplier_can_be_finally_approved_with_an_incomplete_document_file(): void
     {
         Notification::fake();
         $buyer = User::factory()->create();
@@ -188,18 +188,10 @@ class SupplierDocumentWorkflowTest extends TestCase
 
         $this->actingAs($buyer)
             ->postJson(route('admin.suppliers.approve', $supplier))
-            ->assertUnprocessable()
-            ->assertJsonPath('message', 'El expediente documental debe estar completo antes de aprobar el alta del proveedor.');
-
-        SupplierDocumentType::query()->update(['is_required' => false]);
-        $supplier->documentRequirements()->update(['is_enforced' => false]);
-        $supplier->recalculateDocumentStatus();
-
-        $this->actingAs($buyer)
-            ->postJson(route('admin.suppliers.approve', $supplier))
             ->assertOk();
 
         $this->assertSame('approved', $supplier->fresh()->approval_status);
+        $this->assertSame('pending', $supplier->fresh()->document_status);
         Notification::assertSentTo($supplier, SupplierAccountReviewedNotification::class);
     }
 

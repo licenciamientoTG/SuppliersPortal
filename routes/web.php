@@ -4,6 +4,9 @@ use App\Http\Controllers\AccountCatalogController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AnnualBudgetController;
 use App\Http\Controllers\ApprovalLevelController;
+use App\Http\Controllers\ApprovalDelegationController;
+use App\Http\Controllers\AdminApprovalDelegationController;
+use App\Http\Controllers\AuthorizationInboxController;
 use App\Http\Controllers\AuthorizerRoleController;
 use App\Http\Controllers\BudgetMonthlyDistributionController;
 use App\Http\Controllers\BudgetMovementController;
@@ -643,6 +646,30 @@ Route::middleware(['auth', 'lock', 'module.access:quotations'])->group(function 
     Route::get('/approvals/quotations', [QuotationApprovalController::class, 'index'])->name('approvals.quotations.index');
     Route::post('/approvals/quotations/{summary}/handle', [QuotationApprovalController::class, 'handle'])->name('approvals.quotations.handle');
 });
+
+Route::middleware(['auth', 'lock'])->group(function () {
+    Route::get('/authorizations', [AuthorizationInboxController::class, 'index'])
+        ->name('authorizations.index');
+
+    Route::get('/my-delegation', [ApprovalDelegationController::class, 'index'])
+        ->name('approval-delegations.index');
+    Route::post('/my-delegation/activate', [ApprovalDelegationController::class, 'activate'])
+        ->name('approval-delegations.activate');
+    Route::put('/my-delegation', [ApprovalDelegationController::class, 'update'])
+        ->name('approval-delegations.update');
+    Route::post('/my-delegation/deactivate', [ApprovalDelegationController::class, 'deactivate'])
+        ->name('approval-delegations.deactivate');
+});
+
+Route::middleware(['auth', 'lock', 'role:superadmin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/approval-delegations', [AdminApprovalDelegationController::class, 'index'])
+            ->name('approval-delegations.index');
+        Route::post('/approval-delegations/{delegation}/deactivate', [AdminApprovalDelegationController::class, 'deactivate'])
+            ->name('approval-delegations.deactivate');
+    });
 
 Route::middleware(['auth', 'lock', 'module.access:payments_billing'])->group(function () {
     Route::get('/invoices', [FinanceInvoiceController::class, 'index'])->name('invoices.index');

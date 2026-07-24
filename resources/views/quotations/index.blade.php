@@ -57,6 +57,11 @@
                                         <span class="badge bg-soft-primary text-primary">
                                             {{ $summary->authorizerRole?->name ?? 'Sin rol' }}
                                         </span>
+                                        @if((int) $summary->current_approver_user_id !== (int) auth()->id())
+                                            <span class="badge bg-info-subtle text-info-emphasis d-block mt-1">
+                                                <i class="ti ti-user-share me-1"></i>Delegada por {{ $summary->currentApprover?->name }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td>
                                         <button class="btn btn-sm btn-primary btn-review"

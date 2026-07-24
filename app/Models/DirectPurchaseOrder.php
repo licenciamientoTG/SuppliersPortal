@@ -219,6 +219,11 @@ class DirectPurchaseOrder extends Model
         return $this->hasMany(DirectPurchaseOrderApproval::class);
     }
 
+    public function approvalDecisions(): MorphMany
+    {
+        return $this->morphMany(ApprovalDecision::class, 'approvable');
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(DirectPurchaseOrderDocument::class);
@@ -399,7 +404,8 @@ class DirectPurchaseOrder extends Model
 
     public function isApproverFor(User $user): bool
     {
-        return $this->assigned_approver_id === $user->id;
+        return app(\App\Services\ApprovalDelegationService::class)
+            ->canAct($user, $this->assigned_approver_id);
     }
 
     public function canBeEdited(): bool

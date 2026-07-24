@@ -18,6 +18,8 @@ use App\Notifications\NewDirectPurchaseOrderNotification;
 use App\Services\AuthorizerResolutionService;
 use App\Services\BudgetAllocationService;
 use App\Services\PricingService;
+use App\Services\ApprovalDelegationService;
+use App\Services\ApprovalDecisionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +31,9 @@ class DirectPurchaseOrderController extends Controller
     public function __construct(
         private PricingService $pricingService,
         private BudgetAllocationService $budgetAllocationService,
-        private AuthorizerResolutionService $authorizerResolutionService
+        private AuthorizerResolutionService $authorizerResolutionService,
+        private ApprovalDelegationService $approvalDelegations,
+        private ApprovalDecisionService $approvalDecisions
     ) {}
 
     public function create()
@@ -168,6 +172,7 @@ class DirectPurchaseOrderController extends Controller
     public function approve(Request $request, DirectPurchaseOrder $directPurchaseOrder)
     {
         abort_unless($directPurchaseOrder->isApproverFor(Auth::user()), 403);
+        $principalId = (int) $directPurchaseOrder->assigned_approver_id;
 
         if (! $directPurchaseOrder->canBeApproved()) {
             return back()->withErrors(['error' => 'Esta OCD no puede ser aprobada. Estado actual: '.$directPurchaseOrder->getStatusLabel()]);
@@ -175,6 +180,15 @@ class DirectPurchaseOrderController extends Controller
 
         try {
             DB::beginTransaction();
+            $directPurchaseOrder = DirectPurchaseOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($directPurchaseOrder->id);
+
+            if (! $directPurchaseOrder->canBeApproved()) {
+                throw new \RuntimeException('Esta autorización ya fue resuelta por otro integrante.');
+            }
+
+            abort_unless($this->approvalDelegations->canAct(Auth::user(), $principalId), 403);
 
             if (! $this->hasActiveBudgetReservation($directPurchaseOrder)) {
                 $this->ensureBudgetAvailability($directPurchaseOrder);
@@ -196,6 +210,13 @@ class DirectPurchaseOrderController extends Controller
                 'comments' => $request->input('comments'),
                 'approved_at' => now(),
             ]);
+            $this->approvalDecisions->record(
+                $directPurchaseOrder,
+                $principalId,
+                Auth::user(),
+                'APPROVED',
+                $request->input('comments')
+            );
 
             if ($directPurchaseOrder->supplier) {
                 $directPurchaseOrder->supplier->notify(new DirectPurchaseOrderApprovedNotification($directPurchaseOrder));
@@ -216,6 +237,7 @@ class DirectPurchaseOrderController extends Controller
     public function reject(Request $request, DirectPurchaseOrder $directPurchaseOrder)
     {
         abort_unless($directPurchaseOrder->isApproverFor(Auth::user()), 403);
+        $principalId = (int) $directPurchaseOrder->assigned_approver_id;
 
         if (! $directPurchaseOrder->isPendingApproval()) {
             return back()->withErrors(['error' => 'Solo se pueden rechazar OCD pendientes de aprobación.']);
@@ -227,6 +249,15 @@ class DirectPurchaseOrderController extends Controller
 
         try {
             DB::beginTransaction();
+            $directPurchaseOrder = DirectPurchaseOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($directPurchaseOrder->id);
+
+            if (! $directPurchaseOrder->isPendingApproval()) {
+                throw new \RuntimeException('Esta autorización ya fue resuelta por otro integrante.');
+            }
+
+            abort_unless($this->approvalDelegations->canAct(Auth::user(), $principalId), 403);
 
             $this->budgetAllocationService->releaseDirectPurchaseOrder($directPurchaseOrder);
 
@@ -244,6 +275,13 @@ class DirectPurchaseOrderController extends Controller
                 'comments' => $request->comments,
                 'approved_at' => now(),
             ]);
+            $this->approvalDecisions->record(
+                $directPurchaseOrder,
+                $principalId,
+                Auth::user(),
+                'REJECTED',
+                $request->comments
+            );
 
             $creator = $directPurchaseOrder->creator;
             if ($creator) {
@@ -563,7 +601,13 @@ class DirectPurchaseOrderController extends Controller
         $approver = $directPurchaseOrder->assignedApprover;
 
         if ($approver) {
-            $approver->notify(new NewDirectPurchaseOrderNotification($directPurchaseOrder));
+            $this->approvalDelegations->recipientsForPrincipal($approver)
+                ->each(fn (User $recipient) => $recipient->notify(
+                    new NewDirectPurchaseOrderNotification(
+                        $directPurchaseOrder,
+                        (int) $recipient->id === (int) $approver->id ? null : $approver
+                    )
+                ));
         }
     }
 

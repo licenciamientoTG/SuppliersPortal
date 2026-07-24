@@ -68,10 +68,11 @@ class SupplierAdminController extends Controller
             $rejectUrl = route('admin.suppliers.reject', $supplier);
             $docsUrl = route('admin.review.suppliers.show', $supplier);
 
-            $canApprove = $supplier->document_status === 'approved';
-            $approveButton = $canApprove
-                ? '<button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="'.$approveUrl.'" title="Aprobar"><i class="ti ti-circle-check"></i></button>'
-                : '<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="El expediente documental debe estar completo"><i class="ti ti-circle-check"></i></button>';
+            $documentFileComplete = $supplier->document_status === 'approved';
+            $approveTitle = $documentFileComplete
+                ? 'Aprobar'
+                : 'Aprobar aunque el expediente documental esté incompleto';
+            $approveButton = '<button type="button" class="btn btn-sm btn-outline-success js-approve-supplier" data-url="'.$approveUrl.'" data-document-file-complete="'.($documentFileComplete ? '1' : '0').'" title="'.$approveTitle.'"><i class="ti ti-circle-check"></i></button>';
             $approvalActions = match ($supplier->approval_status) {
                 'pending' => $approveButton
                     .'<button type="button" class="btn btn-sm btn-outline-warning js-reject-supplier" data-url="'.$rejectUrl.'" title="Rechazar"><i class="ti ti-circle-x"></i></button>',
@@ -211,12 +212,6 @@ class SupplierAdminController extends Controller
     {
         if ($supplier->approval_status === 'approved') {
             return response()->json(['message' => 'El proveedor ya se encuentra aprobado.'], 422);
-        }
-
-        if ($supplier->recalculateDocumentStatus() !== 'approved') {
-            return response()->json([
-                'message' => 'El expediente documental debe estar completo antes de aprobar el alta del proveedor.',
-            ], 422);
         }
 
         $supplier->update([

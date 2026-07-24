@@ -9,6 +9,12 @@
         en el <strong>Portal de Proveedores de TotalGas</strong>.
     </p>
 
+    @if (!empty($delegatedFor))
+        <x-emails.callout type="info">
+            Esta autorización fue delegada por <strong>{{ $delegatedFor }}</strong>. Actuarás en su representación.
+        </x-emails.callout>
+    @endif
+
     @if ($escalated)
         <x-emails.callout type="warning">
             Esta solicitud fue <strong>escalada</strong> para tu autorización.

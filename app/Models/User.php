@@ -106,6 +106,16 @@ class User extends Authenticatable
         return $this->hasOne(AuthorizerException::class)->active()->latestOfMany();
     }
 
+    public function approvalDelegations(): HasMany
+    {
+        return $this->hasMany(ApprovalDelegation::class, 'delegator_user_id');
+    }
+
+    public function approvalDelegationMemberships(): HasMany
+    {
+        return $this->hasMany(ApprovalDelegationMember::class, 'delegate_user_id');
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim(($this->first_name ?? '').' '.($this->last_name ?? '')) ?: ($this->name ?? '');

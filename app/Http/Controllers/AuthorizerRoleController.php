@@ -116,11 +116,11 @@ class AuthorizerRoleController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $isCouncilRole = mb_strtolower(trim((string) $data['name'])) === mb_strtolower('Consejo de Administración');
+        $isGeneralDirectorRole = mb_strtolower(trim((string) $data['name'])) === mb_strtolower('Dirección General');
 
-        if (($data['approval_limit'] ?? null) === null && ! $isCouncilRole) {
+        if (($data['approval_limit'] ?? null) === null && ! $isGeneralDirectorRole) {
             throw ValidationException::withMessages([
-                'approval_limit' => 'Solo el Consejo de Administración puede quedar sin límite de autorización.',
+                'approval_limit' => 'Solo Dirección General puede quedar sin límite de autorización.',
             ]);
         }
 

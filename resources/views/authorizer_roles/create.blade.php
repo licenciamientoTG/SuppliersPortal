@@ -29,6 +29,7 @@
                         <label class="form-label">Límite con IVA</label>
                         <input type="number" step="0.01" min="0" name="approval_limit" class="form-control"
                             value="{{ old('approval_limit', $authorizerRole->approval_limit) }}">
+                        <small class="text-muted">Solo Dirección General puede dejar este campo vacío para operar sin límite.</small>
                         <div class="form-text">Déjalo vacío solo si este rol debe autorizar cualquier monto.</div>
                     </div>
 

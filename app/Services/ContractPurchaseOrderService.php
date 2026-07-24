@@ -17,7 +17,8 @@ class ContractPurchaseOrderService
 {
     public function __construct(
         private readonly BudgetAllocationService $budgetAllocationService,
-        private readonly AuthorizerResolutionService $authorizerResolutionService
+        private readonly AuthorizerResolutionService $authorizerResolutionService,
+        private readonly ApprovalDelegationService $approvalDelegations
     ) {
     }
 
@@ -124,7 +125,16 @@ class ContractPurchaseOrderService
                     try {
                         $po->loadMissing('supplier', 'creator', 'requisition.requester', 'assignedApprover');
                         if ($requiresApproval) {
-                            $po->assignedApprover?->notify(new ContractPurchaseOrderPendingApprovalNotification($po));
+                            $principal = $po->assignedApprover;
+                            if ($principal) {
+                                $this->approvalDelegations->recipientsForPrincipal($principal)
+                                    ->each(fn ($recipient) => $recipient->notify(
+                                        new ContractPurchaseOrderPendingApprovalNotification(
+                                            $po,
+                                            (int) $recipient->id === (int) $principal->id ? null : $principal
+                                        )
+                                    ));
+                            }
                         } else {
                             $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
                         }

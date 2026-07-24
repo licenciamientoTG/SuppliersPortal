@@ -12,6 +12,8 @@ use App\Services\BuyerNotificationService;
 use App\Services\BudgetAllocationService;
 use App\Services\QuotationRejectionWorkflowService;
 use App\Services\QuotationSummaryItemService;
+use App\Services\ApprovalDelegationService;
+use App\Services\ApprovalDecisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,9 +28,11 @@ class QuotationApprovalController extends Controller
         private BuyerNotificationService $buyerNotificationService,
         private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
         private QuotationSummaryItemService $quotationSummaryItemService,
+        private ApprovalDelegationService $approvalDelegations,
+        private ApprovalDecisionService $approvalDecisions,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
         $query = QuotationSummary::with([
             'requisition',
@@ -42,12 +46,20 @@ class QuotationApprovalController extends Controller
             'selectedSupplier',
             'authorizerRole',
             'requester',
+            'currentApprover',
         ])
             ->pending();
 
+        if ($request->filled('summary')) {
+            $query->whereKey($request->integer('summary'));
+        }
+
         // superadmin visualiza todas las selecciones pendientes, sin importar a quien esten asignadas.
         if (! Auth::user()->hasRole('superadmin')) {
-            $query->assignedTo(Auth::id());
+            $query->whereIn(
+                'current_approver_user_id',
+                $this->approvalDelegations->accessiblePrincipalIds(Auth::user())
+            );
         }
 
         $pendingApprovals = $query
@@ -159,9 +171,12 @@ class QuotationApprovalController extends Controller
                 ->with('warning', 'La seleccion ya habia sido rechazada previamente.');
         }
 
-        // superadmin puede autorizar/rechazar cualquier seleccion pendiente, no solo las asignadas a el.
+        $principalId = (int) $summary->current_approver_user_id;
+
+        // superadmin puede autorizar/rechazar cualquier seleccion pendiente.
         abort_unless(
-            Auth::user()->hasRole('superadmin') || (int) $summary->current_approver_user_id === (int) Auth::id(),
+            Auth::user()->hasRole('superadmin')
+                || $this->approvalDelegations->canAct(Auth::user(), $principalId),
             403
         );
 
@@ -198,7 +213,30 @@ class QuotationApprovalController extends Controller
         );
 
         try {
-            DB::transaction(function () use ($request, $summary) {
+            DB::transaction(function () use ($request, &$summary, $principalId) {
+                $summary = QuotationSummary::query()->lockForUpdate()->findOrFail($summary->id);
+
+                if (! $summary->isPending()) {
+                    throw ValidationException::withMessages([
+                        'authorization' => 'Esta autorización ya fue resuelta por otro integrante.',
+                    ]);
+                }
+
+                abort_unless(
+                    Auth::user()->hasRole('superadmin')
+                        || $this->approvalDelegations->canAct(Auth::user(), $principalId),
+                    403
+                );
+
+                $summary->loadMissing(
+                    'rfq.rfqResponses.requisitionItem',
+                    'requisition.requester',
+                    'selector',
+                    'selectedSupplier',
+                    'currentApprover',
+                    'items.requisitionItem',
+                    'items.rfqResponse'
+                );
                 $rfq = $summary->rfq;
 
                 if ($request->status === 'approved') {
@@ -209,6 +247,7 @@ class QuotationApprovalController extends Controller
                     if ((float) $summary->total <= 0) {
                         $reason = $this->buildZeroApprovalReason($summary);
                         $this->quotationRejectionWorkflowService->handleApprovalRejection($summary, Auth::id(), $reason);
+                        $this->approvalDecisions->record($summary, $principalId, Auth::user(), 'REJECTED', $reason);
 
                         return;
                     }
@@ -246,12 +285,21 @@ class QuotationApprovalController extends Controller
                     $this->budgetAllocationService->transferQuotationSummaryToPurchaseOrder($summary, $purchaseOrder);
 
                     $this->quotationRejectionWorkflowService->refreshRequisitionStatus($summary->requisition_id);
+                    $this->approvalDecisions->record(
+                        $summary,
+                        $principalId,
+                        Auth::user(),
+                        'APPROVED',
+                        $summary->notes
+                    );
                 } else {
+                    $reason = $request->string('reason')->toString();
                     $this->quotationRejectionWorkflowService->handleApprovalRejection(
                         $summary,
                         Auth::id(),
-                        $request->string('reason')->toString()
+                        $reason
                     );
+                    $this->approvalDecisions->record($summary, $principalId, Auth::user(), 'REJECTED', $reason);
                 }
             });
 

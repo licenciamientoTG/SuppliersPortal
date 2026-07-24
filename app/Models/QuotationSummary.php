@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class QuotationSummary extends Model
@@ -121,6 +122,11 @@ class QuotationSummary extends Model
     public function items(): HasMany
     {
         return $this->hasMany(QuotationSummaryItem::class);
+    }
+
+    public function approvalDecisions(): MorphMany
+    {
+        return $this->morphMany(ApprovalDecision::class, 'approvable');
     }
 
     public function approve(int $userId, ?string $notes = null): void

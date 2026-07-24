@@ -5,6 +5,10 @@
         $isSupplierGuard = auth('supplier')->check();
         $homeRoute = $isSupplierGuard ? route('supplier.documents.index') : route('dashboard');
         $displayName = $isSupplierGuard ? ($authUser?->company_name ?? $authUser?->name) : ($authUser?->name);
+        $canDelegateApprovals = !$isSupplierGuard && $authUser?->authorizerAssignment()->exists();
+        $activeApprovalDelegation = $canDelegateApprovals
+            ? app(\App\Services\ApprovalDelegationService::class)->currentFor($authUser)
+            : null;
     @endphp
     <div class="page-container topbar-menu">
         <div class="d-flex align-items-center gap-2">
@@ -321,6 +325,25 @@
                     <i class="ti ti-moon fs-22"></i>
                 </button>
             </div>
+
+            @if($canDelegateApprovals)
+                <div class="topbar-item">
+                    <a href="{{ route('approval-delegations.index') }}"
+                       class="btn btn-sm {{ $activeApprovalDelegation ? 'btn-warning' : 'btn-outline-secondary' }} d-flex align-items-center gap-1"
+                       title="{{ $activeApprovalDelegation ? 'Modo Delegar activo' : 'Configurar delegación de autorizaciones' }}">
+                        <i class="ti ti-plane-departure"></i>
+                        <span class="d-none d-md-inline">
+                            {{ $activeApprovalDelegation ? 'Delegando' : 'Delegar' }}
+                        </span>
+                        @if($activeApprovalDelegation)
+                            <span class="badge bg-dark rounded-pill">{{ $activeApprovalDelegation->activeMembers->count() }}</span>
+                            @if($activeApprovalDelegation->ends_at)
+                                <small class="d-none d-xl-inline">hasta {{ $activeApprovalDelegation->ends_at->format('d/m') }}</small>
+                            @endif
+                        @endif
+                    </a>
+                </div>
+            @endif
 
             <!-- User Dropdown -->
             <div class="topbar-item nav-user">

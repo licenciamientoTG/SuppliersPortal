@@ -97,7 +97,7 @@ class AuthorizerResolutionService
                 && $bossUser->is_active
                 && $role
                 && (
-                    $this->isUnlimitedCouncilRole($role)
+                    $this->isUnlimitedRole($role)
                     || (
                         $effectiveLimit !== null
                         && (float) $effectiveLimit + 0.000001 >= $amount
@@ -109,7 +109,7 @@ class AuthorizerResolutionService
                     'approver_employee' => $selectedEmployee,
                     'approver_user' => $bossUser,
                     'authorizer_role' => $role,
-                    'effective_limit' => (float) $effectiveLimit,
+                    'effective_limit' => $this->isUnlimitedRole($role) ? null : (float) $effectiveLimit,
                     'chain' => $chain,
                     'resolution_notes' => $candidates->count() > 1
                         ? 'Se detectaron múltiples empleados para el mismo employee_number y se aplicó desempate determinístico.'
@@ -191,7 +191,7 @@ class AuthorizerResolutionService
             return 'no_authorizer_role';
         }
 
-        if ($this->isUnlimitedCouncilRole($role)) {
+        if ($this->isUnlimitedRole($role)) {
             return 'eligible';
         }
 
@@ -206,8 +206,9 @@ class AuthorizerResolutionService
         return 'eligible';
     }
 
-    private function isUnlimitedCouncilRole($role): bool
+    private function isUnlimitedRole($role): bool
     {
-        return mb_strtolower((string) $role?->name) === mb_strtolower('Consejo de Administración');
+        return mb_strtolower((string) $role?->name) === mb_strtolower('Dirección General')
+            && $role?->approval_limit === null;
     }
 }

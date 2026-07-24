@@ -10,8 +10,7 @@ class AuthorizerRoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            ['name' => 'Consejo de Administración', 'approval_limit' => null, 'is_active' => true],
-            ['name' => 'Dirección General', 'approval_limit' => 556925.28, 'is_active' => true],
+            ['name' => 'Dirección General', 'approval_limit' => null, 'is_active' => true],
             ['name' => 'Dirección de Administración y Finanzas', 'approval_limit' => 144336.48, 'is_active' => true],
             ['name' => 'Dirección de Operaciones', 'approval_limit' => 144336.48, 'is_active' => true],
             ['name' => 'Gerencia de Finanzas y Normatividad', 'approval_limit' => 36084.12, 'is_active' => true],

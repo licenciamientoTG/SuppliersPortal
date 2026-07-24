@@ -8,6 +8,11 @@
         Se ha generado una <strong>nueva Orden de Compra Directa</strong> que requiere tu aprobación
         en el <strong>Portal de Proveedores de TotalGas</strong>.
     </p>
+    @if (!empty($delegatedFor))
+        <x-emails.callout type="info">
+            Esta autorización fue delegada por <strong>{{ $delegatedFor }}</strong>. Actuarás en su representación.
+        </x-emails.callout>
+    @endif
     <p style="font-size:14px;color:#444444;line-height:1.7;margin:0 0 24px;">
         A continuación encontrará los detalles:
     </p>

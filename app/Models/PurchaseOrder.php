@@ -113,6 +113,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderApproval::class);
     }
 
+    public function approvalDecisions(): MorphMany
+    {
+        return $this->morphMany(ApprovalDecision::class, 'approvable');
+    }
+
     public function isPendingApproval(): bool
     {
         return $this->status === 'PENDING_APPROVAL';
@@ -125,8 +130,8 @@ class PurchaseOrder extends Model
 
     public function isApproverFor(User $user): bool
     {
-        return $this->assigned_approver_id !== null
-            && (int) $this->assigned_approver_id === (int) $user->id;
+        return app(\App\Services\ApprovalDelegationService::class)
+            ->canAct($user, $this->assigned_approver_id);
     }
 
     public function scopeAssignedToApprover($query, int $userId)

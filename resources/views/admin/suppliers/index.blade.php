@@ -116,8 +116,25 @@ $(function () {
     });
 
     $(document).on('click', '.js-approve-supplier', function () {
-        $.post($(this).data('url'))
-            .done(res => { table.ajax.reload(null, false); toastOk(res.message); });
+        const url = $(this).data('url');
+        const documentFileComplete = Number($(this).data('document-file-complete')) === 1;
+
+        Swal.fire({
+            title: 'Aprobar proveedor',
+            text: documentFileComplete
+                ? 'Se aprobará el alta del proveedor.'
+                : 'El expediente documental está incompleto. La aprobación final no cambiará el estado ni los pendientes de sus documentos.',
+            icon: documentFileComplete ? 'question' : 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Aprobar',
+            cancelButtonText: 'Cancelar',
+            customClass: { confirmButton: 'btn btn-success', cancelButton: 'btn btn-secondary' },
+            buttonsStyling: false,
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            $.post(url)
+                .done(res => { table.ajax.reload(null, false); toastOk(res.message); });
+        });
     });
 
     $(document).on('click', '.js-reject-supplier', function () {
