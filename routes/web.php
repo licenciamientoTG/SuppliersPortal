@@ -297,6 +297,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
             ->prefix('accounts')
             ->group(function () {
                 Route::get('/', [AccountCatalogController::class, 'index'])->name('accounts.index');
+                Route::get('/export', [AccountCatalogController::class, 'export'])->name('accounts.export');
                 Route::post('/sync', [AccountCatalogController::class, 'sync'])
                     ->middleware('can:catalogo_cuentas.editar')
                     ->name('accounts.sync');

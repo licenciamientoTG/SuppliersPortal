@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AccountCatalogController extends Controller
 {
@@ -28,6 +31,62 @@ class AccountCatalogController extends Controller
             ->get();
 
         return view('account_catalog.index', compact('accounts'));
+    }
+
+    public function export(): StreamedResponse
+    {
+        $accounts = Account::query()
+            ->with(['subaccounts' => fn ($query) => $query->orderBy('name')])
+            ->orderBy('code')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Cuentas y subcuentas');
+
+        $headers = ['No. Cuenta', 'Cuenta', 'No. Subcuenta', 'Subcuenta', 'Activo fijo', 'Activa'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($accounts as $account) {
+            if ($account->subaccounts->isEmpty()) {
+                $sheet->fromArray([
+                    $account->code,
+                    $account->name,
+                    '',
+                    '',
+                    $account->is_fixed_asset ? 'Sí' : 'No',
+                    $account->is_active ? 'Sí' : 'No',
+                ], null, "A{$row}");
+                $row++;
+                continue;
+            }
+
+            foreach ($account->subaccounts as $subaccount) {
+                $sheet->fromArray([
+                    $account->code,
+                    $account->name,
+                    $subaccount->code,
+                    $subaccount->name,
+                    $subaccount->is_fixed_asset ? 'Sí' : 'No',
+                    $subaccount->is_active ? 'Sí' : 'No',
+                ], null, "A{$row}");
+                $row++;
+            }
+        }
+
+        foreach (range('A', 'F') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $filename = 'cuentas_subcuentas_' . now()->format('Y-m-d') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function sync(): RedirectResponse

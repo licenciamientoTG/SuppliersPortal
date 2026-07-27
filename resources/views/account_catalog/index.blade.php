@@ -40,11 +40,14 @@
     @endif
 
     <div class="card">
-        <div class="card-header">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
                 <h5 class="mb-0"><i class="ti ti-abacus me-1"></i>Catálogo de cuentas y subcuentas</h5>
                 <small class="text-muted">Los números de cuenta y subcuenta son la clasificación presupuestal ligada a productos y partidas.</small>
             </div>
+            <a href="{{ route('accounts.export') }}" class="btn btn-sm btn-success">
+                <i class="ti ti-file-spreadsheet me-1"></i>Descargar Excel
+            </a>
         </div>
         <div class="card-body">
             <div class="accordion" id="accountsAccordion">
