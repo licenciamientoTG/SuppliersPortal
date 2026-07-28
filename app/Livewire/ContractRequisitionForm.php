@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Enum\RequisitionStatus;
 use App\Models\BudgetCedula;
-use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
@@ -12,6 +11,7 @@ use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
+use App\Services\BudgetAccessService;
 use App\Services\BudgetAllocationService;
 use App\Services\BudgetCedulaCatalogService;
 use App\Services\ContractPurchaseOrderService;
@@ -20,27 +20,37 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
-use Throwable;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use RuntimeException;
+use Throwable;
 
 class ContractRequisitionForm extends Component
 {
     public $company_id;
+
     public $required_date;
+
     public $receiving_location_id;
+
     public $notes = '';
 
     public array $items = [];
 
     public $companies = [];
+
     public $locations = [];
+
     public $eligibleContracts = [];
+
     public $availableCostCenters = [];
+
     public $expenseCategories = [];
+
     public $availableBudgetCedulas = [];
+
     public ?array $newItemBudgetClassification = null;
+
     public int $fiscalYear;
 
     public $newItem = [
@@ -54,14 +64,23 @@ class ContractRequisitionForm extends Component
     ];
 
     public $newItemContractProducts = [];
+
     public $newItemSnapshotPrice = null;
+
     public $newItemCurrency = 'MXN';
 
     public function mount(): void
     {
+        $user = Auth::user();
+
         $this->fiscalYear = (int) now()->year;
         $this->required_date = now()->toDateString();
-        $this->companies = Company::where('is_active', true)->orderBy('name')->get();
+        $this->companies = $user
+            ? $user->companies()
+                ->where('companies.is_active', true)
+                ->orderBy('companies.name')
+                ->get()
+            : collect();
         $this->locations = collect();
         $this->expenseCategories = ExpenseCategory::orderBy('name')->get();
     }
@@ -69,15 +88,31 @@ class ContractRequisitionForm extends Component
     public function updatedCompanyId(): void
     {
         $user = Auth::user();
+        $companyId = (int) $this->company_id;
+
+        if (! $companyId || ! $this->userHasCompany($companyId)) {
+            $this->company_id = null;
+            $this->eligibleContracts = [];
+            $this->availableCostCenters = [];
+            $this->refreshLocations();
+            $this->resetNewItemState();
+
+            return;
+        }
+
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
 
         $this->eligibleContracts = Contract::eligible()
-            ->byCompany((int) $this->company_id)
+            ->byCompany($companyId)
+            ->whereHas('products.product', fn ($query) => $query
+                ->active()
+                ->withAllowedSubaccounts($allowedSubaccounts))
             ->with('supplier')
             ->get();
 
         $this->availableCostCenters = $user
             ? $user->costCenters()
-                ->where('cost_centers.company_id', (int) $this->company_id)
+                ->where('cost_centers.company_id', $companyId)
                 ->where('cost_centers.status', 'ACTIVO')
                 ->whereNull('cost_centers.deleted_at')
                 ->wherePivot('is_active', true)
@@ -104,7 +139,15 @@ class ContractRequisitionForm extends Component
             return;
         }
 
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
+
         $this->newItemContractProducts = ContractProduct::where('contract_id', $value)
+            ->whereHas('contract', fn ($query) => $query
+                ->eligible()
+                ->where('company_id', (int) $this->company_id))
+            ->whereHas('product', fn ($query) => $query
+                ->active()
+                ->withAllowedSubaccounts($allowedSubaccounts))
             ->with('product')
             ->get();
 
@@ -150,15 +193,21 @@ class ContractRequisitionForm extends Component
             'newItem.cost_center_id.required' => 'Selecciona un centro de costo.',
         ]);
 
-        $contract = Contract::find($this->newItem['contract_id']);
+        $contract = Contract::eligible()
+            ->whereKey((int) $this->newItem['contract_id'])
+            ->where('company_id', (int) $this->company_id)
+            ->first();
         if (! $contract || ! $contract->isEligible()) {
-            $this->addError('newItem.contract_id', 'El contrato seleccionado ya no esta activo o el proveedor fue inactivado.');
+            $this->addError('newItem.contract_id', 'El contrato seleccionado no es valido para la empresa elegida.');
 
             return;
         }
 
         $cp = ContractProduct::where('id', $this->newItem['contract_product_id'])
             ->where('contract_id', $this->newItem['contract_id'])
+            ->whereHas('product', fn ($query) => $query
+                ->active()
+                ->withAllowedSubaccounts(app(BudgetAccessService::class)->subaccountIdsFor(Auth::user())))
             ->with('product')
             ->first();
 
@@ -170,14 +219,21 @@ class ContractRequisitionForm extends Component
 
         $product = $cp->product;
         $costCenter = CostCenter::find($this->newItem['cost_center_id']);
-        $classification = $this->classificationForProduct($product);
-        $budgetCedula = BudgetCedula::find($classification['budget_cedula_id']);
 
         if (! $costCenter) {
             $this->addError('newItem.cost_center_id', 'El centro de costo seleccionado no existe.');
 
             return;
         }
+
+        if (! $this->userHasAssignedCostCenter($costCenter)) {
+            $this->addError('newItem.cost_center_id', 'El centro de costo no esta asignado a tu usuario.');
+
+            return;
+        }
+
+        $classification = $this->classificationForProduct($product);
+        $budgetCedula = BudgetCedula::find($classification['budget_cedula_id']);
 
         if (! $budgetCedula) {
             $this->addError('newItem.contract_product_id', 'El producto no tiene subcuenta presupuestal asignada.');
@@ -231,6 +287,12 @@ class ContractRequisitionForm extends Component
             'items' => ['required', 'array', 'min:1'],
         ]);
 
+        if (! $this->userHasCompany((int) $this->company_id)) {
+            throw ValidationException::withMessages([
+                'company_id' => 'No tienes permiso para usar esta empresa.',
+            ]);
+        }
+
         if (! $this->receivingLocationBelongsToCompany()) {
             throw ValidationException::withMessages([
                 'receiving_location_id' => 'La ubicación de recepción no pertenece a la empresa seleccionada.',
@@ -278,7 +340,7 @@ class ContractRequisitionForm extends Component
 
                 $successMessage = "Requisicion {$requisition->folio} generada correctamente.";
 
-                $issued  = $purchaseOrders->reject->isPendingApproval();
+                $issued = $purchaseOrders->reject->isPendingApproval();
                 $pending = $purchaseOrders->filter->isPendingApproval();
 
                 if ($issued->isNotEmpty()) {
@@ -358,13 +420,14 @@ class ContractRequisitionForm extends Component
 
         $validatedItems = [];
         $month = (int) now()->month;
+        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
 
         foreach ($this->items as $index => $item) {
             $contract = Contract::with('supplier')->find($item['contract_id']);
             $contractProduct = ContractProduct::with('product')->find($item['contract_product_id']);
             $costCenter = CostCenter::find($item['cost_center_id']);
             $budgetCedula = BudgetCedula::find($item['budget_cedula_id']);
-            $product = ProductService::find($item['product_service_id']);
+            $product = ProductService::active()->find($item['product_service_id']);
             $classification = $this->classificationForProduct($product);
 
             if (! $contract || ! $contract->isEligible()) {
@@ -373,15 +436,24 @@ class ContractRequisitionForm extends Component
                 ]);
             }
 
-            if (! $contractProduct || (int) $contractProduct->contract_id !== (int) $contract->id) {
+            if (! $contractProduct
+                || (int) $contractProduct->contract_id !== (int) $contract->id
+                || (int) $contract->company_id !== (int) $this->company_id) {
                 throw ValidationException::withMessages([
-                    'items' => 'La partida '.($index + 1).' ya no tiene un producto de contrato valido.',
+                    'items' => 'La partida '.($index + 1).' ya no tiene un producto de contrato valido para la empresa seleccionada.',
                 ]);
             }
 
             if (! $product) {
                 throw ValidationException::withMessages([
                     'items' => 'La partida '.($index + 1).' no tiene un producto valido en el catalogo.',
+                ]);
+            }
+
+            if ($allowedSubaccounts->isEmpty()
+                || ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
+                throw ValidationException::withMessages([
+                    'items' => 'La partida '.($index + 1).' usa un producto fuera de tu perfil presupuestal.',
                 ]);
             }
 
@@ -518,6 +590,29 @@ class ContractRequisitionForm extends Component
             ->whereKey((int) $this->receiving_location_id)
             ->where('company_id', (int) $this->company_id)
             ->exists();
+    }
+
+    protected function userHasCompany(int $companyId): bool
+    {
+        return (bool) Auth::user()?->companies()
+            ->where('companies.id', $companyId)
+            ->where('companies.is_active', true)
+            ->exists();
+    }
+
+    protected function userHasAssignedCostCenter(?CostCenter $costCenter): bool
+    {
+        if (! $costCenter || ! $this->company_id) {
+            return false;
+        }
+
+        return Auth::user()?->costCenters()
+            ->where('cost_centers.id', $costCenter->id)
+            ->where('cost_centers.company_id', (int) $this->company_id)
+            ->where('cost_centers.status', 'ACTIVO')
+            ->whereNull('cost_centers.deleted_at')
+            ->wherePivot('is_active', true)
+            ->exists() ?? false;
     }
 
     protected function resolveProductDisplayName(?ProductService $product, ContractProduct $contractProduct): string

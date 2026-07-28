@@ -6,10 +6,12 @@ use App\Livewire\ContractRequisitionForm;
 use App\Models\AnnualBudget;
 use App\Models\BudgetCedula;
 use App\Models\BudgetMonthlyDistribution;
+use App\Models\BudgetProfile;
 use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
+use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\PurchaseOrder;
@@ -286,6 +288,7 @@ class ContractRequisitionTest extends TestCase
             'legacy_budget_cedula_id' => $budgetCedula->id,
         ]);
         $product->subaccounts()->sync([$subaccount->id]);
+        $user->subaccounts()->sync([$subaccount->id]);
 
         $contract = Contract::factory()->create([
             'supplier_id' => $supplier->id,
@@ -340,5 +343,103 @@ class ContractRequisitionTest extends TestCase
             'source_type' => 'contract',
         ]);
         Notification::assertSentTo($supplier, PurchaseOrderIssuedNotification::class);
+    }
+
+    public function test_livewire_contract_catalog_is_scoped_to_user_access(): void
+    {
+        $user = User::factory()->create();
+        $department = Department::create([
+            'name' => 'Compras por contrato',
+            'abbreviated' => 'CPC',
+            'is_active' => true,
+        ]);
+        $user->update(['department_id' => $department->id]);
+
+        $profile = BudgetProfile::factory()->create([
+            'department_id' => $department->id,
+        ]);
+        $allowedSubaccount = \App\Models\Subaccount::factory()->create();
+        $blockedSubaccount = \App\Models\Subaccount::factory()->create();
+        $profile->subaccounts()->sync([$allowedSubaccount->id]);
+        $user->budgetProfiles()->sync([$profile->id]);
+
+        $assignedCompany = Company::factory()->create();
+        $unassignedCompany = Company::factory()->create();
+        $user->companies()->attach($assignedCompany->id);
+
+        $assignedCostCenter = CostCenter::factory()->create([
+            'company_id' => $assignedCompany->id,
+        ]);
+        $unassignedCostCenter = CostCenter::factory()->create([
+            'company_id' => $assignedCompany->id,
+        ]);
+        $user->costCenters()->attach($assignedCostCenter->id, [
+            'is_active' => true,
+        ]);
+
+        $allowedProduct = ProductService::factory()->create();
+        $allowedProduct->subaccounts()->sync([$allowedSubaccount->id]);
+        $blockedProduct = ProductService::factory()->create();
+        $blockedProduct->subaccounts()->sync([$blockedSubaccount->id]);
+
+        $supplier = Supplier::factory()->create();
+        $allowedContract = Contract::factory()->create([
+            'company_id' => $assignedCompany->id,
+            'supplier_id' => $supplier->id,
+        ]);
+        ContractProduct::factory()->create([
+            'contract_id' => $allowedContract->id,
+            'product_service_id' => $allowedProduct->id,
+        ]);
+
+        $blockedContract = Contract::factory()->create([
+            'company_id' => $assignedCompany->id,
+            'supplier_id' => $supplier->id,
+        ]);
+        ContractProduct::factory()->create([
+            'contract_id' => $blockedContract->id,
+            'product_service_id' => $blockedProduct->id,
+        ]);
+
+        $otherCompanyContract = Contract::factory()->create([
+            'company_id' => $unassignedCompany->id,
+            'supplier_id' => $supplier->id,
+        ]);
+        ContractProduct::factory()->create([
+            'contract_id' => $otherCompanyContract->id,
+            'product_service_id' => $allowedProduct->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $component = Livewire::test(ContractRequisitionForm::class);
+
+        $this->assertSame(
+            [$assignedCompany->id],
+            $component->instance()->companies->pluck('id')->all()
+        );
+
+        $component
+            ->set('company_id', $assignedCompany->id)
+            ->assertSet('eligibleContracts', function ($contracts) use ($allowedContract, $blockedContract, $otherCompanyContract) {
+                $ids = collect($contracts)->pluck('id')->all();
+
+                return in_array($allowedContract->id, $ids, true)
+                    && ! in_array($blockedContract->id, $ids, true)
+                    && ! in_array($otherCompanyContract->id, $ids, true);
+            });
+
+        $this->assertSame(
+            [$assignedCostCenter->id],
+            $component->instance()->availableCostCenters->pluck('id')->all()
+        );
+
+        $component->set('newItem.contract_id', $allowedContract->id);
+
+        $this->assertSame(
+            [$allowedProduct->id],
+            $component->instance()->newItemContractProducts->pluck('product_service_id')->all()
+        );
+        $this->assertNotContains($unassignedCostCenter->id, $component->instance()->availableCostCenters->pluck('id')->all());
     }
 }

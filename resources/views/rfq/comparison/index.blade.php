@@ -279,15 +279,10 @@
                                     $maxDays = $rfq->rfqResponses->where('supplier_id', $supplier->id)->whereNotNull('delivery_days')->max('delivery_days');
                                 @endphp
                                 <td class="text-center">
-                                    @if($maxDays)
-                                        <span class="{{ $onTime ? 'text-success' : 'text-danger' }} fw-bold">
+                                    @if($maxDays !== null)
+                                        <span class="text-info fw-bold">
                                             {{ $maxDays }} días
                                         </span>
-                                        @if(!$onTime)
-                                            <br><small class="text-danger">
-                                                <i class="ti ti-alert-triangle me-1"></i>No cumple fecha
-                                            </small>
-                                        @endif
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
