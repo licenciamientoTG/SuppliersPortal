@@ -198,6 +198,32 @@ class ApprovalDelegationTest extends TestCase
         $this->assertSame('Finalización automática por fecha programada.', $delegation->deactivation_reason);
     }
 
+    public function test_deactivating_keeps_the_delegate_selection_ready_for_reactivation(): void
+    {
+        [$principal, $firstDelegate, $secondDelegate] = $this->authorizers(3);
+        $activeDelegation = $this->activeDelegation($principal, $firstDelegate);
+        ApprovalDelegationMember::create([
+            'approval_delegation_id' => $activeDelegation->id,
+            'delegate_user_id' => $secondDelegate->id,
+            'added_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($principal)
+            ->post(route('approval-delegations.deactivate'))
+            ->assertRedirect();
+
+        $this->assertSame('ENDED', $activeDelegation->fresh()->status);
+        $draft = ApprovalDelegation::query()
+            ->where('delegator_user_id', $principal->id)
+            ->where('status', 'DRAFT')
+            ->firstOrFail();
+
+        $this->assertEqualsCanonicalizing(
+            [$firstDelegate->id, $secondDelegate->id],
+            $draft->activeMembers()->pluck('delegate_user_id')->all()
+        );
+    }
+
     private function authorizers(int $count = 2): array
     {
         $portalRole = Role::findOrCreate('authorizer', 'web');

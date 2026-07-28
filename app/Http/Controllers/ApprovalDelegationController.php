@@ -119,10 +119,26 @@ class ApprovalDelegationController extends Controller
 
     public function deactivate(Request $request, ApprovalDelegationService $service)
     {
-        $delegation = $service->currentFor($request->user());
+        $user = $request->user();
+        $delegation = $service->currentFor($user);
         abort_unless($delegation, 422, 'No tienes una delegación activa.');
 
-        $service->deactivate($delegation, $request->user(), 'Desactivada por el titular.');
+        $delegateIds = $delegation->activeMembers
+            ->pluck('delegate_user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        DB::transaction(function () use ($delegation, $user, $delegateIds, $service): void {
+            $service->deactivate($delegation, $user, 'Desactivada por el titular.');
+
+            // El periodo terminado permanece como historial, pero la selección
+            // queda lista para que el titular pueda reactivar el modo después.
+            $draft = $service->draftFor($user) ?? ApprovalDelegation::create([
+                'delegator_user_id' => $user->id,
+                'status' => 'DRAFT',
+            ]);
+            $service->syncMembers($draft, $delegateIds);
+        });
 
         return back()->with('success', 'Modo Delegar desactivado. Solo tú conservas acceso a tus pendientes.');
     }
