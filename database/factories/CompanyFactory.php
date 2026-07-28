@@ -9,7 +9,7 @@ class CompanyFactory extends Factory
     public function definition(): array
     {
         return [
-            'code'          => strtoupper($this->faker->lexify('???')),
+            'code'          => strtoupper($this->faker->unique()->lexify('?????')),
             'name'          => $this->faker->company(),
             'legal_name'    => $this->faker->company() . ' SA de CV',
             'rfc'           => strtoupper($this->faker->regexify('[A-Z]{3}[0-9]{6}[A-Z0-9]{3}')),
