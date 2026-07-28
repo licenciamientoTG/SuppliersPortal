@@ -485,6 +485,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
         return view('rfq.wizard', compact('requisition'));
     })->name('rfq.wizard.steps');
 
+    // Tablero de cotización (beta) — alternativa al wizard, misma requisición
+    Route::middleware('module.access:quotations')->get('/rfq/board/{requisition}', function (Requisition $requisition) {
+        return view('rfq.board', compact('requisition'));
+    })->name('rfq.board');
+
     // ========================================================================
     //  Products & Services Catalog
     // ========================================================================

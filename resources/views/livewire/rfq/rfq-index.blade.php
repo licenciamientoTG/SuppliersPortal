@@ -77,10 +77,17 @@
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('rfq.wizard.steps', $requisition->id) }}" 
-                                           class="btn btn-primary btn-sm">
-                                            <i class="ti ti-file-invoice me-1"></i> Cotizar
-                                        </a>
+                                        <div class="btn-group">
+                                            <a href="{{ route('rfq.wizard.steps', $requisition->id) }}"
+                                               class="btn btn-primary btn-sm">
+                                                <i class="ti ti-file-invoice me-1"></i> Cotizar
+                                            </a>
+                                            <a href="{{ route('rfq.board', $requisition->id) }}"
+                                               class="btn btn-outline-primary btn-sm"
+                                               title="Tablero de cotización (beta)">
+                                                <i class="ti ti-layout-kanban me-1"></i> Tablero <span class="badge bg-warning text-dark">beta</span>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
