@@ -3,15 +3,17 @@
 namespace App\Livewire\Rfq;
 
 use App\Enum\RequisitionStatus;
+use App\Exceptions\Rfq\DuplicateSupplierRfcException;
+use App\Exceptions\Rfq\IncompleteValidationException;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
-use App\Models\Rfq;
-use App\Models\RfqResponse;
 use App\Models\Supplier;
+use App\Services\Rfq\ManualQuoteService;
+use App\Services\Rfq\RequisitionValidationService;
+use App\Services\Rfq\RfqDraftService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -185,44 +187,17 @@ class QuotationWizard extends Component
      */
     public function completeStep1()
     {
-        // Validar que todos los checkboxes estén marcados
-        if (
-            ! ($this->validationData['specs_clear'] ?? false) ||
-            ! ($this->validationData['time_feasible'] ?? false) ||
-            ! ($this->validationData['alternatives_evaluated'] ?? false)
-        ) {
-
-            session()->flash('error', 'Debes completar todas las validaciones antes de continuar.');
-
-            return;
-        }
-
         try {
-            // Cambiar estado a IN_QUOTATION y guardar validaciones
-            $this->requisition->update([
-                'status' => RequisitionStatus::IN_QUOTATION,
-                'updated_by' => Auth::id(),
-
-                // Limpiar campos de pausa
-                'pause_reason' => null,
-                'paused_by' => null,
-                'paused_at' => null,
-
-                // ======= NUEVO: Guardar validaciones =======
-                'validation_specs_clear' => $this->validationData['specs_clear'] ?? false,
-                'validation_time_feasible' => $this->validationData['time_feasible'] ?? false,
-                'validation_alternatives_evaluated' => $this->validationData['alternatives_evaluated'] ?? false,
-                'validated_at' => now(),
-                'validated_by' => Auth::id(),
-
-                // Guardar notas si existen
-                'purchasing_validation_notes' => $this->validationData['purchasing_notes'] ?? null,
-            ]);
-
-            // Enviar notificación al requisitor
-            if ($this->requisition->requester) {
-                $this->requisition->requester->notify(new \App\Notifications\RequisitionInQuotationNotification($this->requisition));
-            }
+            app(RequisitionValidationService::class)->sign(
+                $this->requisition,
+                [
+                    'specs_clear' => (bool) ($this->validationData['specs_clear'] ?? false),
+                    'time_feasible' => (bool) ($this->validationData['time_feasible'] ?? false),
+                    'alternatives_evaluated' => (bool) ($this->validationData['alternatives_evaluated'] ?? false),
+                ],
+                $this->validationData['purchasing_notes'] ?? null,
+                Auth::id()
+            );
 
             // Recargar la requisición con el nuevo estado
             $this->requisition->refresh();
@@ -231,6 +206,8 @@ class QuotationWizard extends Component
 
             // Avanzar al siguiente paso
             $this->currentStep = 2;
+        } catch (IncompleteValidationException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Error al validar la requisición: '.$e->getMessage());
         }
@@ -341,53 +318,17 @@ class QuotationWizard extends Component
         DB::beginTransaction();
 
         try {
+            $draftService = app(RfqDraftService::class);
+
             foreach ($groupsData as $groupData) {
-                $existingRfq = Rfq::where('requisition_id', $this->requisition->id)
-                    ->where('quotation_group_id', $groupData['group_id'])
-                    ->active()
-                    ->first();
-
-                if ($existingRfq) {
-                    // 🔍 COMPARACIÓN DE CAMBIOS
-                    // Sacamos los IDs actuales de la DB
-                    $currentSuppliers = $existingRfq->suppliers->pluck('id')->sort()->values()->toArray();
-                    // Sacamos los IDs que vienen del JS
-                    $newSuppliers = collect($groupData['supplier_ids'])->map(fn ($id) => (int) $id)->sort()->values()->toArray();
-
-                    $hasChanges = (
-                        $currentSuppliers !== $newSuppliers ||
-                        $existingRfq->response_deadline->format('Y-m-d') !== $groupData['response_deadline'] ||
-                        $existingRfq->message !== ($groupData['notes'] ?? null)
-                    );
-
-                    // Si NO hay cambios, saltamos este grupo (No lo tocamos)
-                    if (! $hasChanges) {
-                        Log::info("⏭️ Sin cambios en RFQ {$existingRfq->folio}, ignorando.");
-
-                        continue;
-                    }
-
-                    // Si hay cambios y es DRAFT, actualizamos
-                    if ($existingRfq->status === 'DRAFT') {
-                        $existingRfq->update([
-                            'response_deadline' => $groupData['response_deadline'],
-                            'message' => $groupData['notes'] ?? null,
-                        ]);
-                        $existingRfq->suppliers()->sync($this->prepareSupplierPivotData($groupData['supplier_ids']));
-                    }
-                    // Si hay cambios y ya fue ENVIADA, entonces sí cancelamos y creamos nueva
-                    else {
-                        $existingRfq->update([
-                            'status' => 'CANCELLED',
-                            'cancelled_at' => now(),
-                            'cancelled_by' => Auth::id(),
-                            'cancellation_reason' => 'Actualización manual de proveedores tras envío.',
-                        ]);
-                        $this->createNewRfq($groupData);
-                    }
-                } else {
-                    $this->createNewRfq($groupData);
-                }
+                $draftService->syncGroupRfq(
+                    $this->requisition,
+                    (int) $groupData['group_id'],
+                    $groupData['supplier_ids'],
+                    $groupData['response_deadline'],
+                    $groupData['notes'] ?? null,
+                    Auth::id()
+                );
             }
 
             DB::commit();
@@ -400,85 +341,22 @@ class QuotationWizard extends Component
     }
 
     /**
-     * Función auxiliar para crear un nuevo registro de RFQ limpio
-     */
-    private function createNewRfq($groupData)
-    {
-        $rfq = Rfq::create([
-            'folio' => $this->generateRFQFolio(),
-            'requisition_id' => $this->requisition->id,
-            'quotation_group_id' => $groupData['group_id'],
-            'status' => 'DRAFT',
-            'response_deadline' => $groupData['response_deadline'],
-            'message' => $groupData['notes'] ?? null,
-            'created_by' => Auth::id(),
-            'updated_by' => Auth::id(),
-        ]);
-
-        $rfq->suppliers()->attach($this->prepareSupplierPivotData($groupData['supplier_ids']));
-
-        return $rfq;
-    }
-
-    /**
-     * Formatea los IDs de proveedores para el método sync/attach
-     */
-    private function prepareSupplierPivotData($supplierIds)
-    {
-        $pivotData = [];
-        foreach ($supplierIds as $id) {
-            $pivotData[$id] = [
-                'invited_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        return $pivotData;
-    }
-
-    /**
      * Resuelve el proveedor para una cotización manual: reusa el seleccionado por id,
      * o crea uno externo nuevo si no hay id. Si el RFC ya existe, no crea duplicado:
      * agrega un error sugiriendo seleccionar el proveedor existente y retorna null.
      */
     public function resolveManualQuoteSupplier(): ?Supplier
     {
-        if ($this->manualQuoteSupplierId) {
-            return Supplier::findOrFail($this->manualQuoteSupplierId);
-        }
-
-        $rfc = strtoupper(trim($this->manualQuoteNewSupplier['rfc']));
-        $existing = Supplier::where('rfc', $rfc)->first();
-
-        if ($existing) {
-            $this->addError(
-                'manualQuoteNewSupplier.rfc',
-                "Ya existe un proveedor con este RFC: {$existing->company_name}. Selecciónalo de la lista en vez de crear uno nuevo."
+        try {
+            return app(ManualQuoteService::class)->resolveSupplier(
+                $this->manualQuoteSupplierId ? (int) $this->manualQuoteSupplierId : null,
+                $this->manualQuoteNewSupplier
             );
+        } catch (DuplicateSupplierRfcException $e) {
+            $this->addError('manualQuoteNewSupplier.rfc', $e->getMessage());
 
             return null;
         }
-
-        $companyName = $this->manualQuoteNewSupplier['company_name'];
-
-        return Supplier::create([
-            'first_name' => $companyName,
-            'last_name' => '',
-            'email' => $this->manualQuoteNewSupplier['email'] ?: Str::uuid().'@externo.invalido',
-            'password' => Str::random(40),
-            'is_active' => false,
-            'company_name' => $companyName,
-            'rfc' => $rfc,
-            'address' => '',
-            'phone_number' => $this->manualQuoteNewSupplier['phone_number'] ?: '0000000000',
-            'contact_person' => $this->manualQuoteNewSupplier['contact_person'] ?: $companyName,
-            'supplier_type' => 'product_service',
-            'postal_code' => $this->manualQuoteNewSupplier['postal_code'],
-            'approval_status' => 'approved',
-            'document_status' => 'approved',
-            'is_external' => true,
-        ]);
     }
 
     public function openManualQuoteModal($quotationGroupId): void
@@ -544,29 +422,14 @@ class QuotationWizard extends Component
 
     public function saveManualQuote(): void
     {
-        $rules = [
+        $rules = array_merge([
             'manualQuoteQuotationDate' => 'required|date',
             'manualQuoteValidityDays' => 'required|integer|min:1|max:365',
-            'manualQuoteItems' => 'required|array|min:1',
-            'manualQuoteItems.*.not_available' => 'boolean',
-            'manualQuoteItems.*.unit_price' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'numeric', 'min:0'],
-            'manualQuoteItems.*.iva_rate' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'numeric', 'in:0,8,16'],
-            'manualQuoteItems.*.currency' => 'nullable|string|in:MXN,USD,EUR',
-            'manualQuoteItems.*.delivery_days' => ['exclude_if:manualQuoteItems.*.not_available,true', 'required', 'integer', 'min:0'],
-            'manualQuoteItems.*.payment_terms' => 'nullable|string|max:255',
-            'manualQuoteItems.*.warranty_terms' => 'nullable|string|max:500',
-            'manualQuoteItems.*.brand' => 'nullable|string|max:100',
-            'manualQuoteItems.*.model' => 'nullable|string|max:100',
-            'manualQuoteItems.*.specifications' => 'nullable|string',
             'manualQuoteAttachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ];
+        ], ManualQuoteService::itemRules());
 
         if (! $this->manualQuoteSupplierId) {
-            $rules['manualQuoteNewSupplier.company_name'] = 'required|string|max:150';
-            $rules['manualQuoteNewSupplier.rfc'] = 'required|string|regex:/^[A-ZÑ\&]{3,4}[0-9]{6}[A-Z0-9]{3}$/i';
-            $rules['manualQuoteNewSupplier.postal_code'] = 'required|digits:5';
-            $rules['manualQuoteNewSupplier.email'] = 'nullable|email|max:150|unique:suppliers,email';
-            $rules['manualQuoteNewSupplier.phone_number'] = 'nullable|string|max:15';
+            $rules = array_merge($rules, ManualQuoteService::newSupplierRules());
         }
 
         $messages = [
@@ -582,78 +445,18 @@ class QuotationWizard extends Component
 
         $group = QuotationGroup::with('items')->findOrFail($this->manualQuoteGroupId);
 
-        DB::beginTransaction();
         try {
-            $rfq = Rfq::where('requisition_id', $this->requisition->id)
-                ->where('quotation_group_id', $group->id)
-                ->active()
-                ->first();
-
-            if (! $rfq) {
-                $rfq = Rfq::create([
-                    'folio' => $this->generateRFQFolio(),
-                    'requisition_id' => $this->requisition->id,
-                    'quotation_group_id' => $group->id,
-                    'status' => 'DRAFT',
-                    'response_deadline' => now()->addDays(7),
-                    'created_by' => Auth::id(),
-                    'updated_by' => Auth::id(),
-                ]);
-            }
-
-            $rfq->suppliers()->syncWithoutDetaching([
-                $supplier->id => ['invited_at' => now(), 'responded_at' => now()],
-            ]);
-
-            $attachmentPath = $this->manualQuoteAttachment
-                ? $this->manualQuoteAttachment->store("rfq_responses/manual/{$this->requisition->id}", 'public')
-                : null;
-
-            foreach ($this->manualQuoteItems as $itemId => $itemData) {
-                $notAvailable = (bool) ($itemData['not_available'] ?? false);
-                $unitPrice = $notAvailable ? 0 : (float) $itemData['unit_price'];
-                $ivaRate = $notAvailable ? 0 : (float) $itemData['iva_rate'];
-                $quantity = (float) ($group->items->firstWhere('id', (int) $itemId)->quantity ?? 1);
-                $subtotal = $unitPrice * $quantity;
-                $ivaAmount = $subtotal * ($ivaRate / 100);
-
-                RfqResponse::updateOrCreate(
-                    [
-                        'rfq_id' => $rfq->id,
-                        'supplier_id' => $supplier->id,
-                        'requisition_item_id' => $itemId,
-                    ],
-                    [
-                        'quotation_date' => $this->manualQuoteQuotationDate,
-                        'validity_days' => $this->manualQuoteValidityDays,
-                        'unit_price' => $unitPrice,
-                        'quantity' => $quantity,
-                        'subtotal' => $subtotal,
-                        'iva_rate' => $ivaRate,
-                        'iva_amount' => $ivaAmount,
-                        'total' => $subtotal + $ivaAmount,
-                        'currency' => $itemData['currency'] ?? 'MXN',
-                        'delivery_days' => $notAvailable ? null : ($itemData['delivery_days'] ?? null),
-                        'payment_terms' => $itemData['payment_terms'] ?? null,
-                        'warranty_terms' => $itemData['warranty_terms'] ?? null,
-                        'brand' => $itemData['brand'] ?? null,
-                        'model' => $itemData['model'] ?? null,
-                        'specifications' => $itemData['specifications'] ?? null,
-                        'not_available' => $notAvailable,
-                        'attachment_path' => $attachmentPath,
-                        'status' => 'SUBMITTED',
-                        'submitted_at' => now(),
-                        'entry_source' => 'buyer_manual',
-                        'entered_by' => Auth::id(),
-                    ]
-                );
-            }
-
-            $rfq->refreshCompletionStatus();
-
-            DB::commit();
+            app(ManualQuoteService::class)->save(
+                $this->requisition,
+                $group,
+                $supplier,
+                $this->manualQuoteItems,
+                $this->manualQuoteQuotationDate,
+                (int) $this->manualQuoteValidityDays,
+                $this->manualQuoteAttachment,
+                Auth::id()
+            );
         } catch (\Exception $e) {
-            DB::rollBack();
             session()->flash('error', 'No se pudo guardar la cotización manual: '.$e->getMessage());
 
             return;
@@ -663,16 +466,6 @@ class QuotationWizard extends Component
         $this->currentStep = $this->determineCurrentStep();
         $this->loadStepData();
         session()->flash('success', "✅ Cotización de {$supplier->company_name} capturada para el grupo {$group->name}.");
-    }
-
-    /**
-     * Generar folio único de RFQ
-     */
-    private function generateRFQFolio(): string
-    {
-        $count = Rfq::whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])->count() + 1;
-
-        return 'RFQ-'.now()->format('Ymd').'-'.str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**

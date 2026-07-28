@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
+use App\Exceptions\Rfq\GroupDoesNotBelongToRequisitionException;
+use App\Exceptions\Rfq\ItemsNotInRequisitionException;
 use App\Models\Requisition;
 use App\Models\QuotationGroup;
+use App\Services\Rfq\QuotationGroupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +17,8 @@ use Illuminate\View\View;
 
 class QuotationPlannerController extends Controller
 {
+    public function __construct(private QuotationGroupService $groupService) {}
+
     /**
      * Muestra el planificador de cotización para una requisición.
      * 
@@ -167,18 +172,13 @@ class QuotationPlannerController extends Controller
         ]);
 
         try {
-            $group = QuotationGroup::create([
-                'requisition_id' => $requisition->id,
-                'name' => $validated['name'],
-                'notes' => $validated['notes'] ?? null,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
-            ]);
-
-            // Asociar partidas si se proporcionaron
-            if (!empty($validated['item_ids'])) {
-                $group->items()->attach($validated['item_ids']);
-            }
+            $group = $this->groupService->create(
+                $requisition,
+                $validated['name'],
+                $validated['notes'] ?? null,
+                $validated['item_ids'] ?? [],
+                Auth::id()
+            );
 
             // Cargar relaciones con eager loading para evitar N+1
             $group->loadMissing('items.product.category');
@@ -211,21 +211,18 @@ class QuotationPlannerController extends Controller
      */
     public function deleteGroup(Requisition $requisition, QuotationGroup $group): JsonResponse
     {
-        // Verificar que el grupo pertenece a la requisición
-        if ((int)$group->requisition_id !== (int)$requisition->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Grupo inválido.'
-            ], 403);
-        }
-
         try {
-            $group->cancel('Grupo cancelado desde el planificador.', Auth::id());
+            $this->groupService->cancel($requisition, $group, 'Grupo cancelado desde el planificador.', Auth::id());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Grupo cancelado exitosamente.'
             ]);
+        } catch (GroupDoesNotBelongToRequisitionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 403);
         } catch (\Exception $e) {
             Log::error('Error al eliminar grupo', [
                 'group_id' => $group->id,
@@ -249,35 +246,13 @@ class QuotationPlannerController extends Controller
      */
     public function addItemsToGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
-        // ⚠️ CRÍTICO: Verificar que el grupo pertenece a la requisición
-        if ((int)$group->requisition_id !== (int)$requisition->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Grupo inválido.'
-            ], 403);
-        }
-
         $validated = $request->validate([
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'integer|exists:requisition_items,id',
         ]);
 
         try {
-            // Verificar que las partidas pertenecen a la requisición
-            $validItems = $requisition->items()
-                ->whereIn('id', $validated['item_ids'])
-                ->pluck('id')
-                ->toArray();
-
-            if (count($validItems) !== count($validated['item_ids'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Algunas partidas no pertenecen a esta requisición.'
-                ], 400);
-            }
-
-            // Agregar partidas al grupo (sin duplicar)
-            $group->items()->syncWithoutDetaching($validated['item_ids']);
+            $this->groupService->addItems($requisition, $group, $validated['item_ids']);
 
             // Cargar relaciones con eager loading para evitar N+1
             $group->loadMissing('items.productService');
@@ -289,6 +264,16 @@ class QuotationPlannerController extends Controller
                     'group' => $group,
                 ]
             ]);
+        } catch (GroupDoesNotBelongToRequisitionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 403);
+        } catch (ItemsNotInRequisitionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
             Log::error('Error al agregar partidas al grupo', [
                 'error' => $e->getMessage(),
@@ -312,20 +297,13 @@ class QuotationPlannerController extends Controller
      */
     public function removeItemsFromGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
-        if ((int)$group->requisition_id !== (int)$requisition->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Grupo inválido.'
-            ], 403);
-        }
-
         $validated = $request->validate([
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'integer|exists:requisition_items,id',
         ]);
 
         try {
-            $group->items()->detach($validated['item_ids']);
+            $this->groupService->removeItems($requisition, $group, $validated['item_ids']);
 
             // Cargar relaciones con eager loading para evitar N+1
             $group->loadMissing('items.product.category');
@@ -337,6 +315,11 @@ class QuotationPlannerController extends Controller
                     'group' => $group,
                 ]
             ]);
+        } catch (GroupDoesNotBelongToRequisitionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 403);
         } catch (\Exception $e) {
             Log::error('Error al remover partidas del grupo', [
                 'error' => $e->getMessage(),

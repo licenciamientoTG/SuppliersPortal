@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Supplier;
-use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\RfqSentToSuppliersNotification;
 use App\Notifications\NewRfqForSupplierNotification;
 use App\Services\BuyerNotificationService;
@@ -24,7 +23,6 @@ class RfqController extends Controller
 {
     public function __construct(
         private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
-        private BuyerNotificationService $buyerNotificationService,
     ) {}
 
     /**
@@ -638,7 +636,7 @@ class RfqController extends Controller
                 $group = \App\Models\QuotationGroup::findOrFail($groupData['group_id']);
 
                 // Generar folio único
-                $folio = $this->generateRFQFolio();
+                $folio = app(\App\Services\Rfq\RfqFolioService::class)->next();
 
                 // ✅ CORREGIDO: Usar 'folio' en lugar de 'rfq_number'
                 $rfq = Rfq::create([
@@ -698,18 +696,6 @@ class RfqController extends Controller
                 ->withInput()
                 ->with('error', 'Error al crear las solicitudes: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Generar folio único de RFQ
-     *
-     * @return string
-     */
-    private function generateRFQFolio(): string
-    {
-        $count = Rfq::whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])->count() + 1;
-
-        return 'RFQ-' . now()->format('Ymd') . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -921,59 +907,20 @@ class RfqController extends Controller
      * @param Rfq $rfq
      * @return JsonResponse
      */
-    public function sendSingle(Rfq $rfq): JsonResponse
+    public function sendSingle(Rfq $rfq, \App\Services\Rfq\RfqSendService $sendService): JsonResponse
     {
         try {
-            // 1. RECONOCIMIENTO: Validar estado de la RFQ (Debe ser borrador para proceder)
-            if ($rfq->status !== 'DRAFT') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Negativo, soldado. Solo se pueden enviar RFQs en estado borrador.'
-                ], 400);
-            }
-
-            // 2. INTELIGENCIA: Verificar que existan proveedores asignados
-            if ($rfq->suppliers->isEmpty()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Operación abortada. La RFQ no tiene proveedores asignados.'
-                ], 400);
-            }
-
-            // 3. ACTUALIZACIÓN DEL CAMPO: Cambiar estado a SENT
-            $rfq->update([
-                'status' => 'SENT',
-                'sent_at' => now(),
-            ]);
-
-            // 4. COMUNICACIÓN INTERNA: Notificar al requisitor (quien solicitó la compra)
-            if ($rfq->requisition && $rfq->requisition->requester) {
-                $rfq->requisition->requester->notify(new RfqSentToSuppliersNotification($rfq));
-            }
-
-            // 5. DESPLIEGUE EXTERIOR: Bucle único para notificar a cada proveedor
-            foreach ($rfq->suppliers as $supplier) {
-
-                // Actualizar tabla pivot (rfq_supplier) con la marca de tiempo de invitación
-                $rfq->suppliers()->updateExistingPivot($supplier->id, [
-                    'invited_at' => now(),
-                ]);
-
-                $supplier->notify(new NewRfqForSupplierNotification($rfq));
-
-                Log::info('RFQ notification sent to supplier account', [
-                    'rfq_id' => $rfq->id,
-                    'supplier_id' => $supplier->id,
-                    'supplier_email' => strtolower(trim((string) $supplier->email)),
-                ]);
-            }
-
-            $this->notifyBuyersRfqWasSent($rfq->fresh(['requisition.requester', 'suppliers']));
+            $sent = $sendService->send($rfq);
 
             return response()->json([
                 'success' => true,
-                'message' => 'RFQ enviada exitosamente a ' . $rfq->suppliers->count() . ' proveedor(es).',
+                'message' => 'RFQ enviada exitosamente a ' . $sent->suppliers->count() . ' proveedor(es).',
             ]);
+        } catch (\App\Exceptions\Rfq\InvalidRfqStateException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
             // INFORME DE DAÑOS EN LOGS
             Log::error('❌ Falla crítica al enviar RFQ', [
@@ -987,34 +934,6 @@ class RfqController extends Controller
                 'message' => 'Error en el frente de batalla: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    private function notifyBuyersRfqWasSent(Rfq $rfq): void
-    {
-        $this->buyerNotificationService->notify(
-            new BuyerWorkflowNotification(
-                type: 'buyer_rfq_sent',
-                subject: 'RFQ enviada a proveedores - '.$rfq->folio,
-                heading: 'RFQ enviada',
-                intro: 'la solicitud de cotización ya fue enviada a los proveedores seleccionados.',
-                details: [
-                    'RFQ' => $rfq->folio,
-                    'Requisición' => $rfq->requisition?->folio ?? 'N/A',
-                    'Solicitante' => $rfq->requisition?->requester?->name ?? 'N/A',
-                    'Proveedores notificados' => (string) $rfq->suppliers->count(),
-                    'Fecha límite' => $rfq->response_deadline?->format('d/m/Y') ?? 'No especificada',
-                ],
-                url: route('rfq.show', $rfq),
-                buttonLabel: 'Ver RFQ',
-                message: 'La RFQ '.$rfq->folio.' fue enviada a '.$rfq->suppliers->count().' proveedor(es).',
-                context: [
-                    'rfq_id' => $rfq->id,
-                    'rfq_folio' => $rfq->folio,
-                    'requisition_id' => $rfq->requisition_id,
-                    'requisition_folio' => $rfq->requisition?->folio,
-                ],
-            ),
-        );
     }
 }
 
