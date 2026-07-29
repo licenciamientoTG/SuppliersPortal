@@ -117,7 +117,7 @@ class RequisitionForm extends Component
             $this->items = $requisition->items->map(function ($item) {
                 return [
                     'product_id' => $item->product_service_id,
-                    'product_name' => "[{$item->product_code}] ".($item->productService->short_name ?? $item->description),
+                    'product_name' => $item->productService->short_name ?? $item->description,
                     'description' => $item->description,
                     'quantity' => $item->quantity,
                     'unit' => $item->unit,

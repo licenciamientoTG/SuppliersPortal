@@ -49,13 +49,20 @@ class RequisitionController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'city']);
 
-        return response()->json($locations->map(fn (ReceivingLocation $location) => [
-            'id' => $location->id,
-            'code' => $location->code,
-            'name' => $location->name,
-            'city' => $location->city,
-            'label' => trim(($location->code ? '['.$location->code.'] ' : '').$location->name.($location->city ? ' - '.$location->city : '')),
-        ]));
+        return response()->json($locations->map(function (ReceivingLocation $location) {
+            $name = trim($location->name);
+            $code = trim((string) $location->code);
+            $nameAlreadyIncludesCode = $code !== ''
+                && str_contains(mb_strtoupper($name), mb_strtoupper($code));
+
+            return [
+                'id' => $location->id,
+                'code' => $location->code,
+                'name' => $location->name,
+                'city' => $location->city,
+                'label' => trim((! $nameAlreadyIncludesCode && $code ? '['.$code.'] ' : '').$name.($location->city ? ' - '.$location->city : '')),
+            ];
+        }));
     }
 
     /**

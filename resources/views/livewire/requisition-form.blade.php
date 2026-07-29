@@ -17,24 +17,32 @@
     <input type="hidden" id="requisition_livewire_id" value="{{ $this->getId() }}">
 
     {{-- El guardado se realiza mediante Livewire; evitamos formularios anidados. --}}
-    <div>
+    <div class="requisition-workflow">
+
+        <div class="requisition-page-intro">
+            <img src="{{ asset('images/logos/Logo.png') }}" alt="TotalGas" class="requisition-logo-spinner">
+            <div>
+                <h4 class="requisition-page-title mb-1">Crea una requisición</h4>
+                <p class="mb-0">Primero define el destino de la compra; después agrega los productos o servicios.</p>
+            </div>
+        </div>
 
         {{-- Información General --}}
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="ti ti-info-circle me-2"></i>
-                    {{ $isEditMode ? 'Editar Requisición' : 'Nueva Requisición' }}
-                    @if (!empty($folio))
-                        <span class="ms-2 text-primary fw-bold">| Folio: {{ $folio }}</span>
-                    @endif
-                </h5>
+        <section class="requisition-surface requisition-general-card">
+            <div class="requisition-surface-heading">
+                <span class="requisition-heading-icon"><i class="ti ti-map-pin"></i></span>
+                <div>
+                    <h5 class="mb-1">¿Para dónde es esta compra?</h5>
+                    <p class="mb-0">Selecciona la compañía y la ubicación de entrega.</p>
+                </div>
+                @if (!empty($folio))
+                    <span class="requisition-folio">{{ $folio }}</span>
+                @endif
             </div>
-            <div class="card-body">
-                <div class="row g-3">
-
+            <div class="requisition-general-body">
+                <div class="row g-4">
                     {{-- Compañía --}}
-                    <div class="col-md-2" wire:ignore>
+                    <div class="col-md-6" wire:ignore>
                         <label for="company_id" class="form-label">Compañía <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -44,7 +52,7 @@
                                     class="form-select @error('company_id') is-invalid @enderror"
                                     data-url-receiving-locations="{{ route('requisitions.receiving-locations.by-company', ['company' => '__CID__']) }}"
                                     required>
-                                <option value="">Seleccionar...</option>
+                                <option value="">Elige una compañía</option>
                                 @foreach ($companies as $c)
                                     <option value="{{ $c->id }}" @selected((string) $company_id === (string) $c->id)>{{ $c->name }}</option>
                                 @endforeach
@@ -55,9 +63,8 @@
                         @enderror
                     </div>
 
-
                     {{-- Ubicación de recepción --}}
-                    <div class="col-md-3" wire:ignore>
+                    <div class="col-md-6" wire:ignore>
                         <label for="receiving_location_id" class="form-label">Ubicación de recepción <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">
@@ -66,7 +73,7 @@
                             <select id="receiving_location_id"
                                     class="form-select @error('receiving_location_id') is-invalid @enderror"
                                     required>
-                                <option value="">Seleccionar...</option>
+                                <option value="">Elige una ubicación</option>
                                 @foreach ($receivingLocations as $loc)
                                     <option value="{{ $loc->id }}" @selected((string) $receiving_location_id === (string) $loc->id)>
                                         {{ $loc->name }}{{ $loc->city ? ' — ' . $loc->city : '' }}
@@ -80,50 +87,50 @@
                     </div>
 
                     {{-- Descripción con contador de caracteres --}}
-                    <div class="col-md-3">
-                        <label for="description" class="form-label">
-                            Descripción
-                            <span class="ms-2 badge {{ $descriptionRemainingChars < 50 ? 'bg-danger' : 'bg-secondary' }}">
-                                {{ $descriptionRemainingChars }} / {{ $descriptionMaxLength }}
+                    <div class="col-12">
+                        <label for="description" class="form-label d-flex justify-content-between align-items-center">
+                            <span>Título de la requisición</span>
+                            <span class="requisition-character-count {{ $descriptionRemainingChars < 50 ? 'is-low' : '' }}">
+                                {{ $descriptionRemainingChars }} caracteres disponibles
                             </span>
                         </label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-file-text"></i>
-                            </span>
-                            <input type="text"
-                                   id="description"
-                                   class="form-control @error('description') is-invalid @enderror"
-                                   value="{{ $description }}"
-                                   placeholder="Ej: Compra de equipo..."
-                                   maxlength="{{ $descriptionMaxLength }}">
-                        </div>
+                        <input type="text"
+                               id="description"
+                               class="form-control @error('description') is-invalid @enderror"
+                               value="{{ $description }}"
+                               placeholder="Ej. Equipo de seguridad para la planta Bajío"
+                               maxlength="{{ $descriptionMaxLength }}">
                         @error('description')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
         {{-- TABLA DE PARTIDAS --}}
-        <div class="card mt-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="ti ti-list me-2"></i>Productos/Servicios
-                    <span id="itemsCountBadge"
-                          class="badge bg-primary ms-2 {{ count($items) > 0 ? '' : 'd-none' }}">
-                        {{ count($items) }} partida(s)
-                    </span>
-                </h5>
+        <section class="requisition-surface requisition-items-card mt-4">
+            <div class="requisition-surface-heading">
+                <span class="requisition-heading-icon requisition-heading-icon-primary"><i class="ti ti-shopping-cart-plus"></i></span>
+                <div>
+                    <h5 class="mb-1">Agrega las partidas</h5>
+                    <p class="mb-0">Incluye cada producto o servicio que necesites comprar.</p>
+                </div>
+                <span id="itemsCountBadge"
+                      class="requisition-items-badge {{ count($items) > 0 ? '' : 'd-none' }}">
+                    {{ count($items) }} partida(s)
+                </span>
             </div>
-            <div class="card-body">
+            <div class="requisition-items-body">
                 <div id="itemFormPanel"
                      class="border rounded p-3 mb-3 requisition-item-form-panel"
                      wire:ignore
                      wire:key="requisition-item-form-panel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0" id="itemModalTitle">Agregar Partida</h6>
+                        <div>
+                            <h6 class="mb-1" id="itemModalTitle">Agregar partida</h6>
+                            <p class="text-muted mb-0 small">Completa la información de la compra que deseas solicitar.</p>
+                        </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddItem">
                             <i class="ti ti-refresh me-1"></i>Limpiar
                         </button>
@@ -216,8 +223,6 @@
                                 <th>Cantidad</th>
                                 <th>Unidad</th>
                                 <th>Centro de Costo</th>
-                                <th>Cuenta</th>
-                                <th>Subcuenta</th>
                                 <th>Notas</th>
                                 <th width="100">Acciones</th>
                             </tr>
@@ -234,13 +239,6 @@
                                             {{ Str::limit($item['cost_center_name'] ?? '—', 25) }}
                                         </span>
                                         <small class="d-block text-muted">{{ $item['purchase_type'] ?? '' }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ $item['expense_category_name'] }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="fw-semibold text-body">{{ $item['budget_cedula_name'] ?? '—' }}</div>
-                                        <small class="text-muted">Subcuenta</small>
                                     </td>
                                     <td>
                                         @if(!empty($item['notes']))
@@ -271,7 +269,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">
+                                    <td colspan="7" class="text-center text-muted py-4">
                                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                                         No hay partidas agregadas. Usa el formulario superior para agregar una partida.
                                     </td>
@@ -280,11 +278,12 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="itemAddedFeedback" class="requisition-item-feedback" aria-live="polite"></div>
             </div>
-        </div>
+        </section>
 
         {{-- Botones --}}
-        <div class="d-flex justify-content-between mt-3">
+        <div class="requisition-actions d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mt-4">
             <a href="{{ route('requisitions.index') }}" class="btn btn-outline-secondary">
                 <i class="ti ti-x me-1"></i>Cancelar
             </a>
@@ -299,6 +298,7 @@
                 </button>
 
                 <button type="button"
+                        id="btnSubmitRequisition"
                         onclick="confirmSubmit()"
                         class="btn btn-primary">
                     <span>
@@ -314,8 +314,218 @@
 
 @push('styles')
 <style>
+    .requisition-workflow {
+        max-width: 1120px;
+        margin: 0 auto;
+        color: #29384a;
+    }
+
+    .requisition-page-intro,
+    .requisition-surface-heading,
+    .requisition-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .requisition-page-intro {
+        gap: 1.5rem;
+        margin: 0.5rem 0 1.5rem;
+        justify-content: flex-start;
+    }
+
+    .requisition-page-title {
+        color: #188ae2;
+        font-size: 1.45rem;
+    }
+
+    .requisition-page-intro p,
+    .requisition-surface-heading p {
+        color: #738196;
+        font-size: 0.85rem;
+    }
+
+    .requisition-folio,
+    .requisition-items-badge,
+    .requisition-character-count {
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .requisition-logo-spinner {
+        width: 2.5rem;
+        height: 2.5rem;
+        flex: 0 0 auto;
+        object-fit: contain;
+        animation: requisition-logo-spin 8s linear infinite;
+    }
+
+    .requisition-surface {
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e2e9f0;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.2rem 0.8rem rgba(32, 61, 92, 0.04);
+        animation: requisition-surface-in 0.45s ease both;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .requisition-surface:nth-of-type(2) {
+        animation-delay: 0.1s;
+    }
+
+    .requisition-surface:hover {
+        border-color: #d4e3ef;
+        box-shadow: 0 0.6rem 1.5rem rgba(32, 61, 92, 0.09);
+        transform: translateY(-2px);
+    }
+
+    .requisition-surface-heading {
+        gap: 0.9rem;
+        min-height: 5rem;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #edf1f5;
+    }
+
+    .requisition-surface-heading > div {
+        flex: 1;
+    }
+
+    .requisition-surface-heading h5 {
+        color: #29384a;
+        font-size: 0.95rem;
+    }
+
+    .requisition-heading-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        flex: 0 0 auto;
+        color: #63758a;
+        background: #f1f4f7;
+        border-radius: 0.6rem;
+        font-size: 1.2rem;
+    }
+
+    .requisition-heading-icon-primary {
+        color: #188ae2;
+        background: #e8f4fd;
+    }
+
+    .requisition-folio,
+    .requisition-items-badge {
+        padding: 0.4rem 0.65rem;
+        color: #3973a3;
+        background: #f0f7fd;
+        border: 1px solid #d5eaf9;
+        white-space: nowrap;
+    }
+
+    .requisition-general-body,
+    .requisition-items-body {
+        padding: 1.5rem;
+    }
+
+    .requisition-general-card .form-label,
+    .requisition-item-form-panel .form-label {
+        color: #42566c;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .requisition-general-card .form-control,
+    .requisition-general-card .form-select {
+        min-height: 2.7rem;
+        background-color: #fff;
+    }
+
+    .requisition-general-card .input-group .form-select {
+        border-color: #dbeaf5;
+    }
+
+    .requisition-character-count {
+        padding: 0.25rem 0.55rem;
+        color: #748296;
+        background: #f3f5f7;
+    }
+
+    .requisition-character-count.is-low {
+        color: #b54708;
+        background: #fff3e0;
+    }
+
+    .requisition-actions {
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        border: 1px solid #e2e9f0;
+        border-radius: 0.75rem;
+    }
+
+    .requisition-actions .btn {
+        min-height: 2.55rem;
+        padding-inline: 1rem;
+    }
+
+    .requisition-submit-popup {
+        overflow: hidden;
+        border: 0;
+        border-radius: 1rem;
+    }
+
+    .requisition-submit-progress {
+        padding: 0.5rem 0.5rem 0.25rem;
+        text-align: center;
+    }
+
+    .requisition-submit-progress-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 1rem;
+        background: #edf8f2;
+        border-radius: 50%;
+    }
+
+    .requisition-submit-progress-icon img {
+        width: 2.7rem;
+        height: 2.7rem;
+        object-fit: contain;
+        animation: requisition-logo-spin 2.5s linear infinite;
+    }
+
+    .requisition-submit-progress p {
+        margin-bottom: 1rem;
+        color: #6b7c8f;
+        font-size: 0.85rem;
+    }
+
+    .requisition-submit-progress-bar {
+        height: 0.45rem;
+        overflow: hidden;
+        background: #e8eef3;
+        border-radius: 999px;
+    }
+
+    .requisition-submit-progress-bar span {
+        display: block;
+        width: 42%;
+        height: 100%;
+        background: linear-gradient(90deg, #188ae2, #4bd396, #188ae2);
+        background-size: 200% 100%;
+        border-radius: inherit;
+        animation: requisition-progress-slide 1.35s ease-in-out infinite;
+    }
+
     .input-group-text {
-        background-color: #f8f9fa;
+        color: #188ae2;
+        background-color: #f0f7fd;
+        border-color: #dbeaf5;
         border-right: 0;
     }
 
@@ -326,6 +536,7 @@
 
     .input-group > .select2-container .select2-selection--single {
         height: calc(1.5em + 0.75rem + 2px) !important;
+        border-color: #dbeaf5 !important;
         border-top-left-radius: 0 !important;
         border-bottom-left-radius: 0 !important;
         border-left: 0 !important;
@@ -338,6 +549,36 @@
 
     .input-group > .select2-container .select2-selection__arrow {
         height: calc(1.5em + 0.75rem) !important;
+    }
+
+    #modal_product_id + .select2-container {
+        width: 100% !important;
+    }
+
+    #modal_product_id + .select2-container .select2-selection--single {
+        height: calc(1.5em + 0.75rem + 2px) !important;
+        border-color: #ced4da;
+        border-radius: 0.25rem;
+    }
+
+    #modal_product_id + .select2-container .select2-selection__rendered {
+        padding-left: 0.75rem;
+        color: #4c4c5c;
+        line-height: calc(1.5em + 0.75rem) !important;
+    }
+
+    #modal_product_id + .select2-container .select2-selection__arrow {
+        height: calc(1.5em + 0.75rem) !important;
+    }
+
+    #modal_product_id + .select2-container--focus .select2-selection--single,
+    #modal_product_id + .select2-container--open .select2-selection--single {
+        border-color: #188ae2;
+        box-shadow: 0 0 0 0.2rem rgba(24, 138, 226, 0.15);
+    }
+
+    .select2-container--open {
+        z-index: 1080;
     }
 
     .form-control:focus+.input-group-text,
@@ -355,14 +596,16 @@
         visibility: visible !important;
         opacity: 1 !important;
         height: auto !important;
-        background: #fafcff;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-        transition: box-shadow 0.2s ease;
+        padding: 1.25rem !important;
+        background: #f8fafc;
+        border: 1px solid #e1e8ef !important;
+        box-shadow: none;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
     }
 
     #itemFormPanel.requisition-item-form-panel:hover {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        background: #f5f9fd;
+        border-color: #cfe2f1 !important;
     }
 
     #modal_description {
@@ -388,6 +631,54 @@
         background-color: #f8faff;
     }
 
+    .table tbody tr.requisition-item-added td {
+        background: linear-gradient(90deg, rgba(24, 138, 226, 0.15), rgba(75, 211, 150, 0.08), transparent);
+        background-size: 220% 100%;
+        animation: requisition-item-added 1.1s ease-out both;
+    }
+
+    .requisition-item-feedback {
+        position: relative;
+        height: 0;
+        margin-top: 0;
+        overflow: hidden;
+        color: #167847;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: height 0.25s ease, margin-top 0.25s ease;
+    }
+
+    .requisition-item-feedback.is-visible {
+        height: 2.1rem;
+        margin-top: 0.75rem;
+    }
+
+    .requisition-item-feedback::before {
+        position: absolute;
+        inset: 0;
+        content: '';
+        background: linear-gradient(90deg, transparent, rgba(24, 138, 226, 0.6), #4bd396, transparent);
+        transform: translateX(-100%);
+    }
+
+    .requisition-item-feedback.is-visible::before {
+        animation: requisition-laser-sweep 1.1s ease-out both;
+    }
+
+    .requisition-item-feedback span {
+        position: relative;
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        height: 100%;
+        padding: 0 0.65rem;
+        opacity: 0;
+    }
+
+    .requisition-item-feedback.is-visible span {
+        animation: requisition-feedback-text 0.45s 0.2s ease both;
+    }
+
     #itemsTable input.form-control-sm,
     #itemsTable select.form-select-sm {
         font-size: 0.85rem;
@@ -402,6 +693,85 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
+
+    @keyframes requisition-logo-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes requisition-surface-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes requisition-item-added {
+        from { background-position: 100% 0; }
+        to { background-position: 0 0; }
+    }
+
+    @keyframes requisition-laser-sweep {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(100%); }
+    }
+
+    @keyframes requisition-feedback-text {
+        from { opacity: 0; transform: translateX(-8px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes requisition-progress-slide {
+        0% { transform: translateX(-100%); background-position: 100% 0; }
+        50% { background-position: 0 0; }
+        100% { transform: translateX(240%); background-position: 100% 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .requisition-logo-spinner,
+        .requisition-submit-progress-icon img,
+        .requisition-submit-progress-bar span,
+        .requisition-surface,
+        .table tbody tr.requisition-item-added td,
+        .requisition-item-feedback.is-visible::before,
+        .requisition-item-feedback.is-visible span {
+            animation: none;
+        }
+
+        .requisition-surface,
+        #itemFormPanel.requisition-item-form-panel {
+            transition: none;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .requisition-page-intro,
+        .requisition-surface-heading {
+            align-items: flex-start;
+        }
+
+        .requisition-page-intro {
+            flex-direction: column;
+        }
+
+        .requisition-surface-heading {
+            padding: 1rem;
+        }
+
+        .requisition-folio {
+            display: none;
+        }
+
+        .requisition-general-body,
+        .requisition-items-body {
+            padding: 1rem;
+        }
+
+        .requisition-actions > div {
+            width: 100%;
+        }
+
+        .requisition-actions > div .btn {
+            flex: 1 1 0;
+        }
+    }
 </style>
 @endpush
 
@@ -409,6 +779,7 @@
 <script>
 
 let itemModalInitialState = null;
+let itemAddedFeedbackTimer = null;
 
 // =====================================================
 // FUNCIÓN PARA CONFIRMAR ELIMINACIÓN DE PARTIDA
@@ -559,9 +930,47 @@ function confirmSubmit() {
                 return;
             }
 
-            wire?.$call('submit');
+            showRequisitionSubmitProgress();
+
+            wire.$call('submit').catch(() => {
+                hideRequisitionSubmitProgress();
+                Swal.fire('Error', 'No se pudo enviar la requisición. Intenta nuevamente.', 'error');
+            });
         }
     });
+}
+
+function showRequisitionSubmitProgress() {
+    $('#btnSubmitRequisition').prop('disabled', true);
+
+    Swal.fire({
+        title: 'Enviando a Compras',
+        html: `
+            <div class="requisition-submit-progress">
+                <div class="requisition-submit-progress-icon">
+                    <img src="{{ asset('images/logos/Logo.png') }}" alt="TotalGas">
+                </div>
+                <p>Estamos registrando tu requisición y notificando al equipo de Compras.</p>
+                <div class="requisition-submit-progress-bar" aria-label="Envío en proceso"><span></span></div>
+            </div>
+        `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        customClass: {
+            popup: 'requisition-submit-popup'
+        }
+    });
+}
+
+function hideRequisitionSubmitProgress() {
+    const popup = Swal.getPopup();
+
+    if (popup?.classList.contains('requisition-submit-popup')) {
+        Swal.close();
+    }
+
+    $('#btnSubmitRequisition').prop('disabled', false);
 }
 
 $(function() {
@@ -627,7 +1036,7 @@ $(function() {
     }
     window.ensureItemFormVisible = ensureItemFormVisible;
 
-    function renderRequisitionItems() {
+    function renderRequisitionItems(animateLastItem = false) {
         ensureItemFormVisible();
 
         const wire = getRequisitionWire();
@@ -644,7 +1053,7 @@ $(function() {
         if (items.length === 0) {
             $body.html(`
                 <tr>
-                    <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="7" class="text-center text-muted py-4">
                         <i class="ti ti-inbox fs-1 d-block mb-2"></i>
                         No hay partidas agregadas. Usa el formulario superior para agregar una partida.
                     </td>
@@ -653,12 +1062,12 @@ $(function() {
             return;
         }
 
+        const newItemIndex = animateLastItem ? items.length - 1 : -1;
+
         $body.html(items.map((item, index) => {
             const productName = escapeHtml(item.product_name);
             const costCenterName = escapeHtml(item.cost_center_name || '—');
             const purchaseType = escapeHtml(item.purchase_type || '');
-            const expenseCategory = escapeHtml(item.expense_category_name || '—');
-            const budgetCedula = escapeHtml(item.budget_cedula_name || '—');
             const notes = escapeHtml(item.notes || '');
             const notesCell = notes
                 ? `<span class="text-primary cursor-help" title="${notes}">
@@ -667,7 +1076,7 @@ $(function() {
                 : '<span class="text-muted">—</span>';
 
             return `
-                <tr>
+                <tr class="${index === newItemIndex ? 'requisition-item-added' : ''}">
                     <td>${index + 1}</td>
                     <td><strong>${productName}</strong></td>
                     <td>${escapeHtml(item.quantity)}</td>
@@ -677,11 +1086,6 @@ $(function() {
                             ${escapeHtml(truncate(item.cost_center_name || '—', 25))}
                         </span>
                         <small class="d-block text-muted">${purchaseType}</small>
-                    </td>
-                    <td><span class="badge bg-info">${expenseCategory}</span></td>
-                    <td>
-                        <div class="fw-semibold text-body">${budgetCedula}</div>
-                        <small class="text-muted">Subcuenta</small>
                     </td>
                     <td>${notesCell}</td>
                     <td class="text-nowrap">
@@ -699,6 +1103,23 @@ $(function() {
         }).join(''));
     }
     window.renderRequisitionItems = renderRequisitionItems;
+
+    function showItemAddedFeedback(productName) {
+        const $feedback = $('#itemAddedFeedback');
+
+        if (!$feedback.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+
+        clearTimeout(itemAddedFeedbackTimer);
+        $feedback.removeClass('is-visible').html(`<span><i class="ti ti-sparkles me-1"></i>${escapeHtml(productName)} se agregó a las partidas</span>`);
+        void $feedback[0].offsetWidth;
+        $feedback.addClass('is-visible');
+
+        itemAddedFeedbackTimer = setTimeout(() => {
+            $feedback.removeClass('is-visible');
+        }, 3200);
+    }
 
     function syncFormValuesToWire() {
         const wire = getRequisitionWire();
@@ -731,7 +1152,7 @@ $(function() {
                .append('<option value="">Selecciona primero una compañía...</option>');
             $('#modal_cost_center_help').text('');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-                dropdownParent: $('#itemFormPanel')
+                dropdownParent: $(document.body)
             });
             return;
         }
@@ -745,7 +1166,7 @@ $(function() {
                .append('<option value="">Sin centros de costo para esta compañía</option>');
             $('#modal_cost_center_help').text('No tienes centros de costo asignados en esta compañía.');
             initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-                dropdownParent: $('#itemFormPanel')
+                dropdownParent: $(document.body)
             });
             return;
         }
@@ -772,7 +1193,7 @@ $(function() {
         }
 
         initializeSearchableSelect($cc, 'Seleccionar centro de costo...', {
-            dropdownParent: $('#itemFormPanel')
+            dropdownParent: $(document.body)
         });
 
         if ($cc.val()) {
@@ -806,7 +1227,7 @@ $(function() {
 
     function initializeExpenseCategorySelect() {
         initializeSearchableSelect($('#modal_expense_category'), 'Buscar cuenta...', {
-            dropdownParent: $('#itemFormPanel'),
+            dropdownParent: $(document.body),
             allowClear: false
         });
     }
@@ -818,7 +1239,7 @@ $(function() {
 
     function initializeModalBaseSelects() {
         initializeSearchableSelect($('#modal_cost_center_id'), 'Seleccionar centro de costo...', {
-            dropdownParent: $('#itemFormPanel')
+            dropdownParent: $(document.body)
         });
     }
 
@@ -1194,7 +1615,7 @@ $(function() {
                     response.products.forEach(function(product) {
                         const $option = $('<option>', {
                             value: product.id,
-                            text: `[${product.code}] ${product.short_name || product.description.substring(0, 50)}`,
+                            text: product.short_name || product.description.substring(0, 50),
                             'data-code': product.code,
                             'data-description': product.description,
                             'data-unit': product.unit_of_measure || 'PZA',
@@ -1261,18 +1682,16 @@ $(function() {
     function initializeProductSelect2() {
         hideManualBudgetSelectors();
 
-        if ($('#modal_product_id').data('select2')) {
-            $('#modal_product_id').select2('destroy');
-        }
+        const $product = $('#modal_product_id');
 
-        $('#modal_product_id').select2({
-            dropdownParent: $('#itemFormPanel'),
-            placeholder: 'Buscar producto...',
-            allowClear: true,
-            width: '100%'
+        initializeSearchableSelect($product, 'Buscar producto...', {
+            dropdownParent: $(document.body),
+            allowClear: true
         });
 
-        $('#modal_product_id').on('select2:select', function(e) {
+        $product.off('.requisitionProduct');
+
+        $product.on('select2:select.requisitionProduct', function(e) {
             const $option = $(e.params.data.element);
 
             $('#modal_description').val($option.data('description') || '');
@@ -1296,7 +1715,7 @@ $(function() {
             applySelectedProductClassification();
         });
 
-        $('#modal_product_id').on('select2:clear', function() {
+        $product.on('select2:clear.requisitionProduct', function() {
             $('#modal_expense_category').empty().append('<option value=""></option>').val('');
             $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
         });
@@ -1509,7 +1928,7 @@ $(function() {
     // =====================================================
     function initializeBudgetCedulaSelect() {
         initializeSearchableSelect($('#modal_budget_cedula'), 'Buscar subcuenta...', {
-            dropdownParent: $('#itemFormPanel'),
+            dropdownParent: $(document.body),
             allowClear: false
         });
     }
@@ -1735,6 +2154,7 @@ $(function() {
         };
 
         const editIndex = $('#item_index').val();
+        const isNewItem = editIndex === '' || editIndex === null;
         const wire = getRequisitionWire();
 
         if (!wire) {
@@ -1751,7 +2171,10 @@ $(function() {
                 await wire.$call('addItem', itemData);
             }
 
-            renderRequisitionItems();
+            renderRequisitionItems(isNewItem);
+            if (isNewItem) {
+                showItemAddedFeedback(itemData.product_name);
+            }
             resetItemFormForNextItem(true);
         } catch (error) {
             console.error('Error al guardar partida:', error);
@@ -1868,6 +2291,7 @@ $(function() {
     // 8. LISTENERS ADICIONALES DE VALIDACIÓN Y GUARDADO
     // =====================================================
     Livewire.on('validation-error', (event) => {
+        hideRequisitionSubmitProgress();
         Swal.fire({
             icon: 'error',
             title: 'Validación',
@@ -1876,6 +2300,7 @@ $(function() {
     });
 
     Livewire.on('save-error', (event) => {
+        hideRequisitionSubmitProgress();
         Swal.fire({
             icon: 'error',
             title: 'Error al guardar',
