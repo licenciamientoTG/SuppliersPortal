@@ -9,16 +9,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('product_department_subaccount', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('product_service_id')->constrained('products_services')->cascadeOnDelete();
-            $table->foreignId('department_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('subaccount_id')->constrained('subaccounts')->cascadeOnDelete();
-            $table->timestamps();
+        if (! Schema::hasTable('product_department_subaccount')) {
+            Schema::create('product_department_subaccount', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('product_service_id')->constrained('products_services')->cascadeOnDelete();
+                $table->foreignId('department_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('subaccount_id')->constrained('subaccounts')->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->unique(['product_service_id', 'department_id'], 'product_department_unique');
-            $table->index(['product_service_id', 'subaccount_id'], 'product_subaccount_mapping_index');
-        });
+                $table->unique(['product_service_id', 'department_id'], 'product_department_unique');
+                $table->index(['product_service_id', 'subaccount_id'], 'product_subaccount_mapping_index');
+            });
+        }
 
         $this->seedPapereraRubbermaidRule();
     }
@@ -46,10 +48,11 @@ return new class extends Migration
             throw new RuntimeException('No se encontraron las subcuentas requeridas para PAPELERA RUBBERMAID 28 QTS.');
         }
 
-        $departmentIds = [3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23];
-        if (DB::table('departments')->whereIn('id', $departmentIds)->count() !== count($departmentIds)) {
-            throw new RuntimeException('Faltan departamentos requeridos para la regla inicial de PAPELERA RUBBERMAID 28 QTS.');
+        if (! DB::table('departments')->whereKey(3)->exists()) {
+            throw new RuntimeException('No se encontró el departamento de Operaciones para la regla inicial de PAPELERA RUBBERMAID 28 QTS.');
         }
+
+        $departmentIds = DB::table('departments')->pluck('id')->map(fn ($id) => (int) $id);
 
         $subaccountIds = $subaccounts->values()->all();
         DB::table('product_service_subaccount')->insertOrIgnore(
@@ -68,7 +71,7 @@ return new class extends Migration
         );
 
         $now = now();
-        $rules = collect($departmentIds)->map(fn (int $departmentId) => [
+        $rules = $departmentIds->map(fn (int $departmentId) => [
             'product_service_id' => $productId,
             'department_id' => $departmentId,
             'subaccount_id' => $departmentId === 3 ? $subaccounts['Mantenimiento General'] : $subaccounts['Limpieza'],
