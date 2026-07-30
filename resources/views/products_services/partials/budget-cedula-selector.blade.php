@@ -115,6 +115,13 @@
                 border-radius: .35rem;
             }
 
+            .budget-cedula-selector .js-category-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                text-align: left !important;
+            }
+
             .budget-cedula-selector .js-category-chevron {
                 transition: transform .18s ease;
             }
