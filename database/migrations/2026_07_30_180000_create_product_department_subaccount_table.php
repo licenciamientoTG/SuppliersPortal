@@ -48,7 +48,7 @@ return new class extends Migration
             throw new RuntimeException('No se encontraron las subcuentas requeridas para PAPELERA RUBBERMAID 28 QTS.');
         }
 
-        if (! DB::table('departments')->whereKey(3)->exists()) {
+        if (! DB::table('departments')->where('id', 3)->exists()) {
             throw new RuntimeException('No se encontró el departamento de Operaciones para la regla inicial de PAPELERA RUBBERMAID 28 QTS.');
         }
 
