@@ -1,6 +1,8 @@
 @php
     $selectorId = $selectorId ?? 'budget-cedula-selector';
     $collapseGroups = $collapseGroups ?? false;
+    $departments = $departments ?? collect();
+    $departmentAssignments = $departmentAssignments ?? [];
     $selectedIds = collect($selectedIds ?? [])->map(fn ($id) => (int) $id);
     $groupedCedulas = $budgetCedulas
         ->groupBy(fn ($cedula) => $cedula->expenseCategory?->id ?? 0)
@@ -96,6 +98,44 @@
             </div>
         @endforeach
     </div>
+
+    <div class="p-3 border-top bg-light d-none js-department-assignment-section">
+        <div class="d-flex gap-2 align-items-start mb-3">
+            <i class="ti ti-building-community text-primary mt-1"></i>
+            <div>
+                <strong class="d-block">Asignación por departamento</strong>
+                <small class="text-muted">Cada departamento debe pertenecer a una sola subcuenta de este producto.</small>
+            </div>
+        </div>
+
+        @foreach ($groupedCedulas as $group)
+            @foreach ($group['cedulas'] as $cedula)
+                @php
+                    $assignedDepartmentIds = collect($departmentAssignments[$cedula->id] ?? [])
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                @endphp
+                <section class="border rounded bg-white p-3 mb-2 d-none js-department-assignment-card"
+                         data-cedula-id="{{ $cedula->id }}">
+                    <div class="fw-semibold mb-2">{{ $group['category']?->name ?? 'Sin cuenta' }} · {{ $cedula->name }}</div>
+                    <div class="row g-2">
+                        @foreach ($departments as $department)
+                            <div class="col-md-6">
+                                <label class="form-check small mb-0">
+                                    <input class="form-check-input js-department-assignment-check"
+                                           type="checkbox"
+                                           name="department_subaccount_assignments[{{ $cedula->id }}][]"
+                                           value="{{ $department->id }}"
+                                           @checked(in_array((int) $department->id, $assignedDepartmentIds, true))>
+                                    <span class="form-check-label">{{ $department->name }}</span>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endforeach
+        @endforeach
+    </div>
 </div>
 
 @once
@@ -128,6 +168,10 @@
 
             .budget-cedula-selector .js-category-toggle[aria-expanded="true"] .js-category-chevron {
                 transform: rotate(180deg);
+            }
+
+            .budget-cedula-selector .js-department-assignment-card {
+                border-color: #e2e9f0 !important;
             }
 
             @media (prefers-reduced-motion: reduce) {
@@ -179,6 +223,34 @@
 
                     categories.forEach(syncCategoryState);
                     syncHiddenInputs();
+                    syncDepartmentAssignments();
+                }
+
+                function syncDepartmentAssignments() {
+                    const selectedCedulaIds = selectedValues();
+                    const $section = $root.find('.js-department-assignment-section');
+                    const requiresAssignments = selectedCedulaIds.length > 1;
+
+                    $section.toggleClass('d-none', !requiresAssignments);
+                    $root.find('.js-department-assignment-card').each(function() {
+                        const $card = $(this);
+                        const isSelected = selectedCedulaIds.includes(String($card.data('cedula-id')));
+                        $card.toggleClass('d-none', !requiresAssignments || !isSelected);
+
+                        if (!isSelected) {
+                            $card.find('.js-department-assignment-check').prop('checked', false);
+                        }
+                    });
+
+                    const assignments = new Map();
+                    $root.find('.js-department-assignment-card:not(.d-none) .js-department-assignment-check:checked').each(function() {
+                        assignments.set(String($(this).val()), this);
+                    });
+
+                    $root.find('.js-department-assignment-card:not(.d-none) .js-department-assignment-check').each(function() {
+                        const isAssignedElsewhere = assignments.get(String($(this).val()));
+                        $(this).prop('disabled', Boolean(isAssignedElsewhere && isAssignedElsewhere !== this));
+                    });
                 }
 
                 $root.on('change', '.js-category-check', function() {
@@ -187,7 +259,7 @@
                     syncAll();
                 });
 
-                $root.on('change', '.js-cedula-check', syncAll);
+                $root.on('change', '.js-cedula-check, .js-department-assignment-check', syncAll);
 
                 $root.on('input', '.js-budget-search', function() {
                     const term = $(this).val().toLowerCase().trim();

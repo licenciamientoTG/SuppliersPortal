@@ -12,20 +12,38 @@ use RuntimeException;
 
 class ProductBudgetClassificationService
 {
-    public function resolveForProduct(ProductService|int $product): array
+    public function resolveForProduct(ProductService|int $product, ?int $departmentId): array
     {
         $product = $product instanceof ProductService
             ? $product
             : ProductService::query()->findOrFail($product);
 
-        $subaccount = $product->subaccounts()
+        if (! $departmentId) {
+            throw new RuntimeException('El solicitante debe tener un departamento asignado.');
+        }
+
+        $subaccounts = $product->subaccounts()
             ->with('account')
             ->whereNotNull('legacy_budget_cedula_id')
             ->orderBy('subaccounts.id')
-            ->first();
+            ->get();
 
-        if (! $subaccount) {
+        if ($subaccounts->isEmpty()) {
             throw new RuntimeException('El producto no tiene subcuenta presupuestal asignada.');
+        }
+
+        if ($subaccounts->count() === 1) {
+            $subaccount = $subaccounts->sole();
+        } else {
+            $subaccount = $product->departmentSubaccountMappings()
+                ->where('department_id', $departmentId)
+                ->whereIn('subaccount_id', $subaccounts->pluck('id'))
+                ->with('subaccount.account')
+                ->first()?->subaccount;
+
+            if (! $subaccount) {
+                throw new RuntimeException('Este producto no tiene una subcuenta configurada para el departamento del solicitante.');
+            }
         }
 
         $account = $subaccount->account;
@@ -54,6 +72,17 @@ class ProductBudgetClassificationService
             'budget_cedula_name' => $budgetCedula->name,
             'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $account->is_fixed_asset),
         ];
+    }
+
+    public function isAvailableForDepartment(ProductService|int $product, ?int $departmentId): bool
+    {
+        try {
+            $this->resolveForProduct($product, $departmentId);
+
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
     }
 
     public function backfillIncompleteProducts(): array

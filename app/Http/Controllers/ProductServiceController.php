@@ -8,6 +8,7 @@ use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Account;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
+use App\Models\Department;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
 use App\Models\Subaccount;
@@ -168,13 +169,17 @@ class ProductServiceController extends Controller
             ->get()
             ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
             ->values();
+        $departments = Department::active()->orderBy('name')->get(['id', 'name', 'abbreviated']);
+        $departmentAssignments = [];
 
         return view('products_services.create', compact(
             'productService',
             'suppliers',
             'statusOpts',
             'unitsOfMeasure',
-            'budgetCedulas'
+            'budgetCedulas',
+            'departments',
+            'departmentAssignments'
         ));
     }
 
@@ -224,23 +229,7 @@ class ProductServiceController extends Controller
             ]);
             $productService->save();
 
-            $budgetCedulaIds = $data['budget_cedula_ids'] ?? [];
-            $productService->budgetCedulas()->sync($budgetCedulaIds);
-
-            $expenseCategoryIds = \App\Models\BudgetCedula::whereIn('id', $budgetCedulaIds)
-                ->pluck('expense_category_id')
-                ->unique();
-            $productService->expenseCategories()->sync($expenseCategoryIds);
-
-            $subaccountIds = Subaccount::query()
-                ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
-                ->pluck('id');
-            $productService->subaccounts()->sync($subaccountIds);
-
-            $accountIds = Account::query()
-                ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
-                ->pluck('id');
-            $productService->accounts()->sync($accountIds);
+            $this->syncBudgetRelations($productService, $data);
 
             app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
 
@@ -294,6 +283,13 @@ class ProductServiceController extends Controller
             ->values();
 
         $selectedBudgetCedulaIds = $productService->budgetCedulas->pluck('id')->all();
+        $departments = Department::active()->orderBy('name')->get(['id', 'name', 'abbreviated']);
+        $departmentAssignments = $productService->departmentSubaccountMappings()
+            ->with('subaccount:id,legacy_budget_cedula_id')
+            ->get()
+            ->groupBy(fn ($mapping) => (int) $mapping->subaccount->legacy_budget_cedula_id)
+            ->map(fn ($mappings) => $mappings->pluck('department_id')->map(fn ($id) => (int) $id)->all())
+            ->all();
 
         return view('products_services.edit', compact(
             'productService',
@@ -301,7 +297,9 @@ class ProductServiceController extends Controller
             'statusOpts',
             'unitsOfMeasure',
             'budgetCedulas',
-            'selectedBudgetCedulaIds'
+            'selectedBudgetCedulaIds',
+            'departments',
+            'departmentAssignments'
         ));
     }
 
@@ -353,23 +351,7 @@ class ProductServiceController extends Controller
 
             $productService->save();
 
-            $budgetCedulaIds = $data['budget_cedula_ids'] ?? [];
-            $productService->budgetCedulas()->sync($budgetCedulaIds);
-
-            $expenseCategoryIds = \App\Models\BudgetCedula::whereIn('id', $budgetCedulaIds)
-                ->pluck('expense_category_id')
-                ->unique();
-            $productService->expenseCategories()->sync($expenseCategoryIds);
-
-            $subaccountIds = Subaccount::query()
-                ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
-                ->pluck('id');
-            $productService->subaccounts()->sync($subaccountIds);
-
-            $accountIds = Account::query()
-                ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
-                ->pluck('id');
-            $productService->accounts()->sync($accountIds);
+            $this->syncBudgetRelations($productService, $data);
 
             app(ProductBudgetClassificationService::class)->ensureProductHasBudgetClassification($productService);
 
@@ -377,6 +359,44 @@ class ProductServiceController extends Controller
                 ->route('products-services.show', $productService)
                 ->with('success', 'Producto/Servicio actualizado correctamente.');
         });
+    }
+
+    private function syncBudgetRelations(ProductService $productService, array $data): void
+    {
+        $budgetCedulaIds = collect($data['budget_cedula_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+        $productService->budgetCedulas()->sync($budgetCedulaIds);
+
+        $expenseCategoryIds = \App\Models\BudgetCedula::whereIn('id', $budgetCedulaIds)
+            ->pluck('expense_category_id')
+            ->unique();
+        $productService->expenseCategories()->sync($expenseCategoryIds);
+
+        $subaccounts = Subaccount::query()
+            ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
+            ->get(['id', 'legacy_budget_cedula_id']);
+        $productService->subaccounts()->sync($subaccounts->pluck('id'));
+
+        $accountIds = Account::query()
+            ->whereIn('legacy_expense_category_id', $expenseCategoryIds)
+            ->pluck('id');
+        $productService->accounts()->sync($accountIds);
+
+        $productService->departmentSubaccountMappings()->delete();
+        if ($budgetCedulaIds->count() <= 1) {
+            return;
+        }
+
+        $subaccountsByCedula = $subaccounts->keyBy('legacy_budget_cedula_id');
+        $assignments = $data['department_subaccount_assignments'] ?? [];
+        foreach ($budgetCedulaIds as $budgetCedulaId) {
+            $subaccount = $subaccountsByCedula->get((int) $budgetCedulaId);
+            foreach ($assignments[$budgetCedulaId] ?? [] as $departmentId) {
+                $productService->departmentSubaccountMappings()->create([
+                    'department_id' => (int) $departmentId,
+                    'subaccount_id' => $subaccount->id,
+                ]);
+            }
+        }
     }
 
     /**
@@ -634,11 +654,14 @@ class ProductServiceController extends Controller
         }
 
         $classificationService = app(ProductBudgetClassificationService::class);
+        $departmentId = $user->department_id;
 
         return response()->json([
-            'products' => $products->map(function ($p) use ($classificationService) {
+            'products' => $products->filter(function ($p) use ($classificationService, $departmentId) {
+                return $classificationService->isAvailableForDepartment($p, $departmentId);
+            })->map(function ($p) use ($classificationService, $departmentId) {
                 try {
-                    $budgetClassification = $classificationService->resolveForProduct($p);
+                    $budgetClassification = $classificationService->resolveForProduct($p, $departmentId);
                 } catch (\RuntimeException $exception) {
                     $budgetClassification = null;
                 }

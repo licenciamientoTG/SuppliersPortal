@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\ProductService;
 use App\Models\ReceivingLocation;
+use App\Services\BudgetAccessService;
 use App\Services\ProductBudgetClassificationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -34,9 +35,15 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             }
 
             try {
-                $classification = $service->resolveForProduct($product);
+                $classification = $service->resolveForProduct($product, Auth::user()?->department_id);
             } catch (\RuntimeException $exception) {
                 $this->classificationErrors["items.{$index}.product_service_id"] = $exception->getMessage();
+
+                return $item;
+            }
+
+            if (! app(BudgetAccessService::class)->subaccountIdsFor(Auth::user())->contains($classification['subaccount_id'])) {
+                $this->classificationErrors["items.{$index}.product_service_id"] = 'El producto no corresponde a una subcuenta permitida para tu perfil presupuestal.';
 
                 return $item;
             }

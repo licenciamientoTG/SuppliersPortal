@@ -10,7 +10,6 @@ use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Services\BudgetAccessService;
-use App\Services\BudgetCedulaCatalogService;
 use App\Services\ProductBudgetClassificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -518,8 +517,15 @@ class RequisitionForm extends Component
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
 
+        try {
+            $classification = app(ProductBudgetClassificationService::class)
+                ->resolveForProduct($product, Auth::user()?->department_id);
+        } catch (\RuntimeException) {
+            return false;
+        }
+
         if ($allowedSubaccounts->isEmpty()
-            || ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
+            || ! $allowedSubaccounts->contains($classification['subaccount_id'])) {
             return false;
         }
 
@@ -553,6 +559,7 @@ class RequisitionForm extends Component
 
         if ($missingTargets->isNotEmpty()) {
             $this->dispatch('item-error', message: 'Sin presupuesto asignado en: '.$missingTargets->map(fn ($center) => $center->code.' '.$center->name)->implode(', '));
+
             return false;
         }
 
@@ -567,7 +574,7 @@ class RequisitionForm extends Component
 
         try {
             $classification = app(ProductBudgetClassificationService::class)
-                ->resolveForProduct((int) $itemData['product_id']);
+                ->resolveForProduct((int) $itemData['product_id'], Auth::user()?->department_id);
         } catch (\RuntimeException $exception) {
             return $itemData;
         }

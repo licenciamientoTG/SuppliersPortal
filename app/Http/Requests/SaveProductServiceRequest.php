@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Subaccount;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class SaveProductServiceRequest extends FormRequest
 {
@@ -28,6 +30,9 @@ class SaveProductServiceRequest extends FormRequest
             // Clasificación
             'budget_cedula_ids' => 'nullable|array',
             'budget_cedula_ids.*' => 'integer|exists:budget_cedulas,id',
+            'department_subaccount_assignments' => 'nullable|array',
+            'department_subaccount_assignments.*' => 'array',
+            'department_subaccount_assignments.*.*' => 'integer|exists:departments,id',
             'is_inventoriable' => 'boolean',
 
             // Organización
@@ -52,6 +57,64 @@ class SaveProductServiceRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $budgetCedulaIds = collect($this->input('budget_cedula_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($budgetCedulaIds->count() <= 1) {
+                return;
+            }
+
+            $assignments = collect($this->input('department_subaccount_assignments', []));
+            $seenDepartments = [];
+
+            $unexpectedCedulaIds = $assignments->keys()
+                ->map(fn ($id) => (int) $id)
+                ->diff($budgetCedulaIds);
+
+            if ($unexpectedCedulaIds->isNotEmpty()) {
+                $validator->errors()->add(
+                    'department_subaccount_assignments',
+                    'Solo puedes asignar departamentos a las subcuentas seleccionadas.'
+                );
+            }
+
+            foreach ($budgetCedulaIds as $budgetCedulaId) {
+                $departmentIds = collect($assignments->get($budgetCedulaId, []))
+                    ->map(fn ($id) => (int) $id)
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                if ($departmentIds->isEmpty()) {
+                    $validator->errors()->add(
+                        "department_subaccount_assignments.{$budgetCedulaId}",
+                        'Asigna al menos un departamento para cada subcuenta seleccionada.'
+                    );
+                }
+
+                foreach ($departmentIds as $departmentId) {
+                    if (isset($seenDepartments[$departmentId])) {
+                        $validator->errors()->add(
+                            'department_subaccount_assignments',
+                            'Un departamento solo puede asignarse a una subcuenta por producto.'
+                        );
+                    }
+                    $seenDepartments[$departmentId] = true;
+                }
+            }
+
+            if (Subaccount::query()->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)->count() !== $budgetCedulaIds->count()) {
+                $validator->errors()->add('budget_cedula_ids', 'Una subcuenta seleccionada no tiene una equivalencia de subcuenta configurada.');
+            }
+        });
+    }
+
     /**
      * Get custom attributes for validator errors.
      */
@@ -63,6 +126,7 @@ class SaveProductServiceRequest extends FormRequest
             'product_type' => 'tipo de producto',
             'budget_cedula_ids' => 'subcuentas',
             'budget_cedula_ids.*' => 'subcuenta',
+            'department_subaccount_assignments' => 'asignación por departamento',
             'is_inventoriable' => 'inventariable',
             'brand' => 'marca',
             'model' => 'modelo',

@@ -49,11 +49,16 @@
                     </div>
 
                         @include('products_services.partials.budget-cedula-selector', [
-                            'selectorId' => 'budget-cedula-selector-create',
-                            'budgetCedulas' => $budgetCedulas,
-                            'selectedIds' => collect(old('budget_cedula_ids', [])),
+                                'selectorId' => 'budget-cedula-selector-create',
+                                'budgetCedulas' => $budgetCedulas,
+                                'selectedIds' => collect(old('budget_cedula_ids', [])),
+                                'departments' => $departments,
+                                'departmentAssignments' => old('department_subaccount_assignments', $departmentAssignments),
                         ])
                         @error('budget_cedula_ids')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        @error('department_subaccount_assignments')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     <div class="form-check form-switch mb-3">

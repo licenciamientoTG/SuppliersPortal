@@ -233,6 +233,11 @@ class ContractRequisitionForm extends Component
         }
 
         $classification = $this->classificationForProduct($product);
+        if (! app(BudgetAccessService::class)->subaccountIdsFor(Auth::user())->contains($classification['subaccount_id'])) {
+            $this->addError('newItem.contract_product_id', 'El producto no corresponde a una subcuenta permitida para tu perfil presupuestal.');
+
+            return;
+        }
         $budgetCedula = BudgetCedula::find($classification['budget_cedula_id']);
 
         if (! $budgetCedula) {
@@ -451,7 +456,7 @@ class ContractRequisitionForm extends Component
             }
 
             if ($allowedSubaccounts->isEmpty()
-                || ! $product->subaccounts()->whereIn('subaccounts.id', $allowedSubaccounts)->exists()) {
+                || ! $allowedSubaccounts->contains($classification['subaccount_id'])) {
                 throw ValidationException::withMessages([
                     'items' => 'La partida '.($index + 1).' usa un producto fuera de tu perfil presupuestal.',
                 ]);
@@ -642,7 +647,7 @@ class ContractRequisitionForm extends Component
         }
 
         try {
-            return app(ProductBudgetClassificationService::class)->resolveForProduct($product);
+            return app(ProductBudgetClassificationService::class)->resolveForProduct($product, Auth::user()?->department_id);
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
                 'newItem.contract_product_id' => $exception->getMessage(),
@@ -661,7 +666,7 @@ class ContractRequisitionForm extends Component
         }
 
         try {
-            $classification = app(ProductBudgetClassificationService::class)->resolveForProduct($product);
+            $classification = app(ProductBudgetClassificationService::class)->resolveForProduct($product, Auth::user()?->department_id);
             $this->newItem['expense_category_id'] = $classification['expense_category_id'];
             $this->newItem['budget_cedula_id'] = $classification['budget_cedula_id'];
             $this->newItemBudgetClassification = $classification;
