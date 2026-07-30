@@ -1,0 +1,332 @@
+description,expense_category,budget_subcategory,product_type
+SERVICIO DE GASTOS DE ENTREGA DIESEL,Costo de Venta,FLETE DIESEL,SERVICIO
+EQUIPO DE COMPUTO (ACTIVOFIJO),Depreciaciones y Amortizaciones,Depreciación de equipo de cómputo,PRODUCTO
+MOBILIARIO Y EQUIPO,Depreciaciones y Amortizaciones,Depreciación de mobiliario y eq de ofic,PRODUCTO
+OTROS EQUIPOS Y MOB,Depreciaciones y Amortizaciones,Depreciación de mobiliario y eq de ofic,PRODUCTO
+TRASLADO,Gastos de Operacion,Traslado de Valores,SERVICIO
+TRASLADO DE VALORES,Gastos de Operacion,Traslado de Valores,SERVICIO
+TARJETAS DE PRESENTACION,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+SELLOS,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+COSTO MARKETING,Gastos de Operacion,Propaganda y publicidad,PRODUCTO
+ASESORIA LEGAL PM,Gastos de Operacion,Honorarios Legales P.M.,SERVICIO
+ASESORIA LEGAL PF,Gastos de Operacion,Honorarios Legales P.F.,SERVICIO
+HONORARIOS ADMINISTRATIVOS PM,Gastos de Operacion,Honorarios Administrativos P.M.,SERVICIO
+HONORARIOS ADMINISTRATIVOS PF,Gastos de Operacion,Honorarios Administrativos P.F.,SERVICIO
+ASESORIA FISCAL PM,Gastos de Operacion,Honorarios Legales P.M.,SERVICIO
+GASTOS ADMINISTRATIVOS Y NOTARIALES,Gastos de Operacion,Honorarios Administrativos P.M.,PRODUCTO
+SERVICIOS MEDICOS,Gastos de Operacion,Seguros y fianzas,SERVICIO
+SERVICIOS ADMINISTRATIVOS,Gastos de Operacion,Servicios Administrativos,SERVICIO
+TARJETAS PVC ZEBRA MAGNETICA,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+ROLLO TERMICO,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+SERVICIO DE PUBLICIDAD,Gastos de Operacion,Propaganda y publicidad,SERVICIO
+TINTA HP,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+PLANOS,Gastos de Operacion,Honorarios de Consultoria,PRODUCTO
+CURSOS,Gastos de Operacion,Capacitación al personal,PRODUCTO
+PAQUETERIA Y MENSAJERIA,Gastos de Operacion,Fletes Mensajeria,PRODUCTO
+ASESORIA P.F.,Gastos de Operacion,Honorarios Administrativos P.F.,SERVICIO
+CONVIVIOS,Gastos de Operacion,Eventos,PRODUCTO
+SERVICIOS WEB,Gastos de Operacion,Asesoría en sistemas,SERVICIO
+MISTERY,Gastos de Operacion,Servicios Administrativos,PRODUCTO
+SUSCRIPCIONES,Gastos de Operacion,"Licencias, Software, Antivirus",PRODUCTO
+TIMBRADO CFDI,Gastos de Operacion,Timbrado Facturas,SERVICIO
+LICENCIAS Y PERMISOS,Gastos de Operacion,Licencias y Permisos,SERVICIO
+SEGUROS PERSONAL,Gastos de Operacion,Seguros y fianzas,SERVICIO
+GASTOS DE VIAJE,Gastos de Operacion,Viáticos y gastos de viaje,PRODUCTO
+OTROS SERVICIOS,Gastos de Operacion,Otros Gastos,SERVICIO
+SERVICIO DE SEGURIDAD,Gastos de Operacion,Vigilancia y seguridad,SERVICIO
+OTROS GASTOS,Gastos de Operacion,Otros Gastos,PRODUCTO
+LICENCIAMIENTOS SOFTWARES,Gastos de Operacion,"Licencias, Software, Antivirus",PRODUCTO
+HONORARIOS AL CONSEJO DE ADMON,Gastos de Operacion,Honorarios de Consultoria,SERVICIO
+HONORARIOS LEGALES PF,Gastos de Operacion,Honorarios Legales P.F.,SERVICIO
+HONORARIOS FISCALES P.F.,Gastos de Operacion,Honorarios Legales P.F.,SERVICIO
+HONORARIOS LEGALES PM,Gastos de Operacion,Honorarios Legales P.M.,SERVICIO
+HONORARIOS FISCALES PM,Gastos de Operacion,Honorarios Legales P.M.,SERVICIO
+HONORARIOS DE CONSULTORIA PF,Gastos de Operacion,Honorarios de Consultoria,SERVICIO
+ESTUDIO SOCIOECONOMICO,Gastos de Operacion,Contratacion Empleados,PRODUCTO
+EVENTOS,Gastos de Operacion,Eventos,SERVICIO
+FLETE INTERNACIONAL,Gastos de Operacion,Fletes Combustible,SERVICIO
+AROMATIZANTE REPUESTO AUTOMATICO,Gastos de Operacion,Limpieza,PRODUCTO
+DETERGENTE EN POLVO 9KG,Gastos de Operacion,Limpieza,PRODUCTO
+"BOLSA P/BASURA 24""X24"" C/1000",Gastos de Operacion,Limpieza,PRODUCTO
+"BOLSA P/BASURA 38""X60"" C/200",Gastos de Operacion,Limpieza,PRODUCTO
+BOMBA DESTAPACAÑO TIPO INDUSTRIAL,Gastos de Operacion,Limpieza,PRODUCTO
+"CEPILLO CUERDAS CAFES 24""",Gastos de Operacion,Limpieza,PRODUCTO
+SARRICIDA P/WC 3.8 L,Gastos de Operacion,Limpieza,PRODUCTO
+"FIBRA VERDE 6""X9""",Gastos de Operacion,Limpieza,PRODUCTO
+"JALADOR DE PISOS 24"" INDUSTRIAL C/MANGO",Gastos de Operacion,Limpieza,PRODUCTO
+TOALLA P/MANOS C/6 ROLLOS,Gastos de Operacion,Limpieza,PRODUCTO
+TRAPEADOR 700 GRAMOS ALGODÓN,Gastos de Operacion,Limpieza,PRODUCTO
+BOTE DE BASURA RUBBERMAID 2956,Gastos de Operacion,Limpieza,PRODUCTO
+TAPA PARA BOTE DE BASURA RUBBERMAID 3066,Gastos de Operacion,Limpieza,PRODUCTO
+ATOMIZADOR LT COMPLETO,Gastos de Operacion,Limpieza,PRODUCTO
+SERVICIO DE LIMPIEZA,Gastos de Operacion,Limpieza,SERVICIO
+CUBETA GALVANIZADA,Gastos de Operacion,Limpieza,PRODUCTO
+ACIDO MURIATICO LT,Gastos de Operacion,Limpieza,PRODUCTO
+BOLSA NEGRA 60*90 KG,Gastos de Operacion,Limpieza,PRODUCTO
+BOLSA NEGRA 90*120 KG,Gastos de Operacion,Limpieza,PRODUCTO
+BOLSA NEGRA 60*60 KG,Gastos de Operacion,Limpieza,PRODUCTO
+BOLSA PARA MORRALLA 18*25 KG,Gastos de Operacion,Limpieza,PRODUCTO
+CLORO 20 L,Gastos de Operacion,Limpieza,PRODUCTO
+LIGA DE AGUA,Gastos de Operacion,Limpieza,PRODUCTO
+LIMPIADOR DE PINO 20 L,Gastos de Operacion,Limpieza,PRODUCTO
+TAPETE P/MINGITORIO,Gastos de Operacion,Limpieza,PRODUCTO
+"CARPETA BLANCA 2""",Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+"CARPETA BLANCA 4""",Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+"DESPACHADOR TAPE 1"" CENTRO NEGRO",Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+"TIJERA 6"" ACERO TROQUELEADO",Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+BOLSA DE PLASTICO 12X25 CAL. 150 C/400 PZ,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+BOLSA PLASTICO 12X25 CAL. 150 KG,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+GRAPADORA METALICA NEGRO,Gastos de Operacion,Papelería y artículos de oficina,PRODUCTO
+RESPONSABILIDAD SOCIAL,Gastos de Operacion,Otros Gastos,PRODUCTO
+CONTRATACIÓN EMPLEADOS,Gastos de Operacion,Contratacion Empleados,SERVICIO
+RECLUTAMIENTO Y SELECCIÓN DE PERSONAL,Gastos de Operacion,Contratacion Empleados,PRODUCTO
+SERVICIOS ALAINZA COMERCIAL,Gastos de Operacion,Otros Gastos,SERVICIO
+SERVICIO PARA FLETE DE TRASLADO,Gastos de Operacion,Fletes Combustible,SERVICIO
+FLETE DE TRASLADO DIESEL,Gastos de Operacion,Fletes Combustible,SERVICIO
+FLETE DE TRASLADO MÁXIMA,Gastos de Operacion,Fletes Combustible,SERVICIO
+FLETE DE TRASLADO PREMIUM,Gastos de Operacion,Fletes Combustible,SERVICIO
+SERVICIO ENERGIA ELECTRICA,Gastos Fijos,Energía eléctrica,SERVICIO
+SERVICIO TELEFONO,Gastos Fijos,"Teléfono, internet",SERVICIO
+SERVICIO AGUA,Gastos Fijos,Agua Servicio,SERVICIO
+ARRENDAMIENTO LOCAL PM,Gastos Fijos,Arrendamiento a personas morales resid nal,SERVICIO
+TELEFONO CELULAR,Gastos Fijos,"Teléfono, internet",SERVICIO
+DIESEL IMPORTACION,Ingresos,DIESEL AUTOMOTRIZ,PRODUCTO
+PAPELERA RUBBERMAID 28 QTS,Mantenimiento,Mantenimiento General,PRODUCTO
+TAPA P/PAPELERA 28 QTS RUBBERMAID,Mantenimiento,Mantenimiento General,PRODUCTO
+DESPACHADOR PAPEL CANELA PLASTICO,Mantenimiento,Mantenimiento General,PRODUCTO
+DESPACHADOR PAPEL HIG. ACERO INOX. JR,Mantenimiento,Mantenimiento General,PRODUCTO
+JABONERA ACERO INOX.,Mantenimiento,Mantenimiento General,PRODUCTO
+JABONERA PLASTICO,Mantenimiento,Mantenimiento General,PRODUCTO
+VINIL SOBRE IMAN,Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+ADAPTADOR RECUPERADOR DE VAPORES,Mantenimiento,Mantenimiento General,PRODUCTO
+BOTE HEXAGONAL GRIS C/TAPA,Mantenimiento,Mantenimiento General,PRODUCTO
+BOTE HEXAGONAL ROJO C/TAPA,Mantenimiento,Mantenimiento General,PRODUCTO
+CAJA CONTROL RED JACKET,Mantenimiento,Mantenimiento General,PRODUCTO
+CAMPANA 4X3,Mantenimiento,Mantenimiento General,PRODUCTO
+CAMPANA DESCARGA 6X4,Mantenimiento,Mantenimiento General,PRODUCTO
+CAPACITOR 25 MICROFARADIOS,Mantenimiento,Mantenimiento General,PRODUCTO
+CAPACITOR 40 MICROFARADIOS,Mantenimiento,Mantenimiento General,PRODUCTO
+CARTUCHERA FLAP ENCORE 500S GILBARCO (GASOLINA),Mantenimiento,Mantenimiento General,PRODUCTO
+CHAPA P/DISPENSIO BENNETT,Mantenimiento,Mantenimiento General,PRODUCTO
+CONSOLA TLS-450 PLUS VEEDER ROOT C/IMPRESORA,Mantenimiento,Mantenimiento General,PRODUCTO
+CONTENEDOR DE LLENADO 5 GAL. OPW C/VALV.,Mantenimiento,Mantenimiento General,PRODUCTO
+EMPAQUE CAMPANA 6X4,Mantenimiento,Mantenimiento General,PRODUCTO
+FILTROS 10 MICRONES (BENNETT 70010),Mantenimiento,Mantenimiento General,PRODUCTO
+FILTROS 10 MICRONES (GILBARCO 70015),Mantenimiento,Mantenimiento General,PRODUCTO
+FUNDA AZUL OPW 11BP,Mantenimiento,Mantenimiento General,PRODUCTO
+FUNDA NEGRA OPW 11BP,Mantenimiento,Mantenimiento General,PRODUCTO
+FUNDA NEGRA OPW 7HB,Mantenimiento,Mantenimiento General,PRODUCTO
+FUNDA VERDE LIMON OPW 11BP,Mantenimiento,Mantenimiento General,PRODUCTO
+FUSIBLE PARA SHUTT-OFF,Mantenimiento,Mantenimiento General,PRODUCTO
+GASOILA,Mantenimiento,Mantenimiento General,PRODUCTO
+INFLADOR CABEZA DE BUZO,Mantenimiento,Mantenimiento General,PRODUCTO
+LAMPARA LSI CROWWOVER,Mantenimiento,Mantenimiento General,PRODUCTO
+LLAVE DISPENSARIO GILBARCO,Mantenimiento,Mantenimiento General,PRODUCTO
+MODULO DE SONDA/SENSORES,Mantenimiento,Mantenimiento General,PRODUCTO
+MOTOBOMBA 1.5 HP,Mantenimiento,Mantenimiento General,PRODUCTO
+REGLA DE MEDICION TANK STICK,Mantenimiento,Mantenimiento General,PRODUCTO
+SENSOR P/CONTENEDOR VEEDER ROOT,Mantenimiento,Mantenimiento General,PRODUCTO
+SONDA PARA INVENTARIOS 11,Mantenimiento,Mantenimiento General,PRODUCTO
+SWITCH DE PALANCA DISPENSARIO BANNETT,Mantenimiento,Mantenimiento General,PRODUCTO
+TAPA NARANJA REC. VAPORES,Mantenimiento,Mantenimiento General,PRODUCTO
+TECLADO PRESET BENNETT,Mantenimiento,Mantenimiento General,PRODUCTO
+VALVULA PROPORCIONAL E500S GILBARCO,Mantenimiento,Mantenimiento General,PRODUCTO
+VALVULA SKINNER E500S GILBARCO,Mantenimiento,Mantenimiento General,PRODUCTO
+PUNTA P/MANGUERA AGUA,Mantenimiento,Mantenimiento General,PRODUCTO
+VINIL SOBRE LAMINA,Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+ACRILICO,Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+ETIQUETAS VARIAS,Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+ROTULACION,Mantenimiento,Mantenimiento General,PRODUCTO
+VINIL,Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+PINTURA VINILICA BLANCA,Mantenimiento,Pinturas y Acabados,PRODUCTO
+PINTURA DE ACEITE,Mantenimiento,Pinturas y Acabados,PRODUCTO
+THINNER,Mantenimiento,Pinturas y Acabados,PRODUCTO
+RODILLO,Mantenimiento,Pinturas y Acabados,PRODUCTO
+MASKING TAPE 1 PULGADA,Mantenimiento,Pinturas y Acabados,PRODUCTO
+REPARACION ANUNCIOS LED,Mantenimiento,Mantenimiento eléctrico,SERVICIO
+VERIFICACION DE INSTRUMENTOS,Mantenimiento,Calibraciones,SERVICIO
+MANTENIMIENTO EDIFICIOS,Mantenimiento,Mantenimiento General,SERVICIO
+LIMPIEZA JARDINES,Mantenimiento,Jardineria,SERVICIO
+HERRAMIENTAS Y MATERIALES,Mantenimiento,Mantenimiento General,PRODUCTO
+VERIFICACIONES ESTACIONES,Mantenimiento,Calibraciones,SERVICIO
+MANTENIMIENTO EQUIPO,Mantenimiento,Mantenimiento General,SERVICIO
+MANTENIMIENTO EXTINTORES,Mantenimiento,Extintores,SERVICIO
+LIMPIEZA ECOLOGICA,Mantenimiento,Limpieza ecológica,SERVICIO
+RECOLECCION RESIDUOS,Mantenimiento,Recolección de residuos,SERVICIO
+PRUEBA DE HERMETICIDAD,Mantenimiento,Pruebas hermeticidad,PRODUCTO
+BROCHAS,Mantenimiento,Pinturas y Acabados,PRODUCTO
+REMODELACIONES,Mantenimiento,Gastos de administración de construcción,PRODUCTO
+PROBETA GRADUADA 1000 ML,Mantenimiento,Mantenimiento General,PRODUCTO
+PINTURA EPOXICA,Mantenimiento,Pinturas y Acabados,PRODUCTO
+FELPA,Mantenimiento,Pinturas y Acabados,PRODUCTO
+MANTENIMIENTO AUTOS,Mantenimiento,Mantenimiento de Vehiculos,SERVICIO
+MANO DE OBRA,Mantenimiento,Mantenimiento General,PRODUCTO
+SERVICIO DE GRUA,Mantenimiento,Mantenimiento de Vehiculos,SERVICIO
+EQUIPOS DE SEGURIDAD,Mantenimiento,Seguridad e Higiene Ambiental,PRODUCTO
+ANALISIS DE CALIDAD DE COMBUSTIBLES,Mantenimiento,Analisis calidad de combustible,SERVICIO
+PROBETA DE VIDRIO 1000 ML,Mantenimiento,Mantenimiento General,PRODUCTO
+ACCESORIOS DE COMPUTO Y HARDWARE,Mantenimiento,Accesorios,PRODUCTO
+DISPENSARIO DIESEL,Mantenimiento,Mantenimiento General,PRODUCTO
+RECARGA EXTINTOR DE 9 KG DE PQS,Mantenimiento,Extintores,PRODUCTO
+CAMBIO DE MANOMETRO P/EXTINTOR,Mantenimiento,Extintores,PRODUCTO
+CINCHO SUJETAMANGUERA P/EXTINTOR,Mantenimiento,Extintores,PRODUCTO
+CAMBIO DE VALVULA P/EXTINTOR,Mantenimiento,Extintores,PRODUCTO
+GREEN DEF,Mantenimiento,Mantenimiento de Vehiculos,PRODUCTO
+PLAN DE CONTINGENCIA,Mantenimiento,"Protección Civil, Bomberos y Municipales",PRODUCTO
+"BOTA BIPARTIDA 4"" A 1.5""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"CODO DESCARGA 4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"CODO REC. VAPORES 3""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"DESTORCEDOR 1"" OPW",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"DESTORCEDOR 3/4"" OPW",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"EMPAQUE 4"" TAPA GRIS",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"EMPAQUE 4"" TAPA NARANJA",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"EMPAQUE CODO DESCARGA 4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"EMPAQUE CODO REC. VAPORES 3""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"EMPAQUE COPLE DESCARGA 4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"KIT FLOTADORES 4"" P/SONDA",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"MANGUERA 1""X12' (DIESEL)",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"MANGUERA 3/4""X10' (GASOLINA)",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"MANGUERA AZUL ESPIRAL 1/4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"MANGUERA DESCARGA 4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"MANGUERA RECUPERACION DE VAPORES 3""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"NIPLE 1"" X 10""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"NIPLE 3/4"" X 9""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"PICO 3/4"" 11BP",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"PISTOLA 1"" OPW",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"PISTOLA 3/4"" OPW",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"PISTOLA PARA AGUA 1/4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"TAPA GRIS DESCARGA 4""",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"VALVULA CORTE RAPIDO 1"" RECONECTABLE",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"VALVULA CORTE RAPIDO 3/4"" RECONECTABLE",Mantenimiento,Refacciones dispensarios,PRODUCTO
+"VALVULA PREVENTORA DE SOBRELLENADO 4"" OPW",Mantenimiento,Refacciones dispensarios,PRODUCTO
+BIOMBO COMPLETO (ESTRUCTURA Y SEÑALETICAS),Mantenimiento,Calcamonias y senalamientos,PRODUCTO
+ORDEN ABIERTA,Mantenimiento,Mantenimiento General,PRODUCTO
+Rotulación de gajos,Mantenimiento,Mantenimiento en general,PRODUCTO
+Rotulación de tabletas de producto,Mantenimiento,Mantenimiento en general,PRODUCTO
+Rotulacion de tapas de dispensario Bennet,Mantenimiento,Mantenimiento en general,PRODUCTO
+Rotulacion de tapas de dispensario Gilbarco,Mantenimiento,Mantenimiento en general,PRODUCTO
+Rotulacion de tapas de dispensario Wayne,Mantenimiento,Mantenimiento en general,PRODUCTO
+Rotulacion de tapas de dispensario Supramax,Mantenimiento,Mantenimiento en general,PRODUCTO
+Identificadora de productos PPU (Precio por unidad),Mantenimiento,Mantenimiento en general,PRODUCTO
+Matenimiento a equipos de refrigeración y Aire acondicionado,Mantenimiento,Mantenimiento en general,PRODUCTO
+Reemplazo de cerámica,Mantenimiento,Mantenimiento en general,PRODUCTO
+Servicio de hipermeabilización,Mantenimiento,Mantenimiento en general,SERVICIO
+Panel de aluminio - Media caña,Mantenimiento,Mantenimiento en general,PRODUCTO
+Panel de aluminio - Faldón,Mantenimiento,Mantenimiento en general,PRODUCTO
+Panel de aluminio - Totem,Mantenimiento,Mantenimiento en general,PRODUCTO
+Clip T,Mantenimiento,Mantenimiento en general,PRODUCTO
+Clip C,Mantenimiento,Mantenimiento en general,PRODUCTO
+Clip L,Mantenimiento,Mantenimiento en general,PRODUCTO
+Exhibidores de productos,Mantenimiento,Mantenimiento en general,PRODUCTO
+Fullservice,Mantenimiento,Mantenimiento en general,PRODUCTO
+Gabinete de aditivos,Mantenimiento,Mantenimiento en general,PRODUCTO
+Muebles de oficina,Mantenimiento,Mantenimiento en general,PRODUCTO
+Pintura vinílica,Mantenimiento,Mantenimiento en general,PRODUCTO
+Pintura Epóxica E50,Mantenimiento,Mantenimiento en general,PRODUCTO
+Pintura Epóxica UFC20,Mantenimiento,Mantenimiento en general,PRODUCTO
+Endurecedor E50,Mantenimiento,Mantenimiento en general,PRODUCTO
+Endurecedor UFC20,Mantenimiento,Mantenimiento en general,PRODUCTO
+Pintura de secado rápido,Mantenimiento,Mantenimiento en general,PRODUCTO
+Pintura en aerosol,Mantenimiento,Mantenimiento en general,PRODUCTO
+Mantenimiento a Lavadoras,Mantenimiento,Mantenimiento en general,SERVICIO
+Cancelería y ventanería,Mantenimiento,Mantenimiento en general,PRODUCTO
+Tapas de registros,Mantenimiento,Mantenimiento en general,PRODUCTO
+Iluminación,Mantenimiento,Mantenimiento en general,PRODUCTO
+Renta de gruas,Mantenimiento,Mantenimiento en general,SERVICIO
+Renta de planta de energia,Mantenimiento,Mantenimiento en general,SERVICIO
+Tinacos y cisternas,Mantenimiento,Mantenimiento en general,PRODUCTO
+Calentadores de agua,Mantenimiento,Mantenimiento en general,PRODUCTO
+Reparación de tableros eléctricos,Mantenimiento,Mantenimiento en general,SERVICIO
+Iluminación de tótem/anuncio,Mantenimiento,Mantenimiento en general,PRODUCTO
+Reparación de piso de islas (concreto/epóxico),Mantenimiento,Mantenimiento en general,SERVICIO
+Reparación de banquetas,Mantenimiento,Mantenimiento en general,SERVICIO
+Puertas (automáticas/manuales),Mantenimiento,Mantenimiento en general,PRODUCTO
+Poda y mantenimiento de áreas verdes,Mantenimiento,Jardineria,SERVICIO
+Mantenimiento de canopy,Mantenimiento,Mantenimiento en general,SERVICIO
+SERVICIO DE GASTOS DE ENTREGA,Operaciones,Fletes Mensajeria,SERVICIO
+AROMATIZANTE AUTOMATICO,Operaciones,Limpieza,PRODUCTO
+AROMATIZANTE EN AEROSOL,Operaciones,Limpieza,PRODUCTO
+AROMATIZANTE CHERRY,Operaciones,Limpieza,PRODUCTO
+ARTICULOS DE LIMPIEZA VARIOS,Operaciones,Limpieza,SERVICIO
+JABON EN POLVO 9KG,Operaciones,Limpieza,PRODUCTO
+CEPILLO CERDAS AZULES CON MANGO,Operaciones,Limpieza,PRODUCTO
+CEPILLO P/SANITARIO CON BASE,Operaciones,Limpieza,PRODUCTO
+CEPILLO REDONDO CON MANGO,Operaciones,Limpieza,PRODUCTO
+CEPILLO TIPO PLANCHA,Operaciones,Limpieza,PRODUCTO
+CLORO 3.8 L,Operaciones,Limpieza,PRODUCTO
+CUBETA C/EXPRIMIDOR (CARRITO P/TRAPEADOR),Operaciones,Limpieza,PRODUCTO
+DESENGRASANTE 20 L,Operaciones,Limpieza,PRODUCTO
+DESENGRASANTE 3.8 L,Operaciones,Limpieza,PRODUCTO
+DESINFECTANTE LYSOL AEROSOL,Operaciones,Limpieza,PRODUCTO
+ESCOBA DE PLASTICO,Operaciones,Limpieza,PRODUCTO
+ESCOBA MEDIANA ESPIGA 6 HILOS,Operaciones,Limpieza,PRODUCTO
+FIBRA VERDE CON ESPONJA P/TRASTES,Operaciones,Limpieza,PRODUCTO
+MICROFIBRA COLORES 40X40CM,Operaciones,Limpieza,PRODUCTO
+FRANELA GRIS MT,Operaciones,Limpieza,PRODUCTO
+ARMOR ALL 3.8 L,Operaciones,Limpieza,PRODUCTO
+JABON AXION 2.8 L,Operaciones,Limpieza,PRODUCTO
+JABON LIQUIDO P/MANOS,Operaciones,Limpieza,PRODUCTO
+JALADOR DE VIDRIOS C/ESPONJA,Operaciones,Limpieza,PRODUCTO
+LIMPIADOR DE PINO 3.8 L,Operaciones,Limpieza,PRODUCTO
+LIMPIADOR DE VIDRIOS,Operaciones,Limpieza,PRODUCTO
+LIMPIADOR MULTIUSOS,Operaciones,Limpieza,PRODUCTO
+MANGO DE MADERA CON ROSCA METALICA,Operaciones,Limpieza,PRODUCTO
+PAPEL HIGIENICO JR C/12 ROLLOS H DOBLE,Operaciones,Limpieza,PRODUCTO
+PAR DE GUANTES DE HULE (NO. 10),Operaciones,Limpieza,PRODUCTO
+PASTILLAS PARA SANITARIO C/GANCHO,Operaciones,Limpieza,PRODUCTO
+BOTE P/ATOMIZADOR,Operaciones,Limpieza,PRODUCTO
+PISTOLA P/ ATOMIZADOR,Operaciones,Limpieza,PRODUCTO
+LUSTRADOR DE MUEBLES,Operaciones,Limpieza,PRODUCTO
+POLICLEAN REPUESTO TRAPEADOR,Operaciones,Limpieza,PRODUCTO
+RECOGEDOR LAMINA MANGO MADERA,Operaciones,Limpieza,PRODUCTO
+TOALLA INTERDOBLADA P/MANOS,Operaciones,Limpieza,PRODUCTO
+TRAPEADOR CHICO INFANTIL,Operaciones,Limpieza,PRODUCTO
+ARTICULOS VARIOS DE PAPELERIA,Operaciones,Papelería y artículos de oficina,PRODUCTO
+BOLIGRAFO BIC P/MED AZUL,Operaciones,Papelería y artículos de oficina,PRODUCTO
+BOLIGRAFO BIC P/MED NEGRO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+BOLSA CALIBRE 150 12X26 C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+BROCHE P/ARCHIVO 8CM,Operaciones,Papelería y artículos de oficina,PRODUCTO
+BROCHE P/GAFETE,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CAJA P/ARCHIVO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CALCULADORA 10 DIGITOS,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CHAROLA ESCRITORIO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CHINCHETA P/PIZARRON COLORES C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CINTA DE EMPAQUE,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CINTA INVISIBLE HIGHLAND 19MMX33M 3/4,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CLIP #1 STANDAR C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CLIP JUMBO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CLIP MARIPOSA NO 2 C/50,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CORRECTOR LIQUID PAPER BOTELLA,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CUENTA FACIL,Operaciones,Papelería y artículos de oficina,PRODUCTO
+CUENTAFACIL BLISTER C/2,Operaciones,Papelería y artículos de oficina,PRODUCTO
+QUITAGRAPAS,Operaciones,Papelería y artículos de oficina,PRODUCTO
+FOLDER MANILA T/CARTA C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+FOLDER MANILA T/OFICIO C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+GRAPA STANDAR MARVEL 26/6 C/5000,Operaciones,Papelería y artículos de oficina,PRODUCTO
+GRAPADORA METALICA BOSTICH NEGRO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+LIGA ESPECIAL FINA NO 18 C/100GR,Operaciones,Papelería y artículos de oficina,PRODUCTO
+LIMPIADOR P/PIZARRON,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR DETECTOR BILLETES FALSOS,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PERMANENTE AZUL,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PERMANENTE NEGRO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PIZARRON EXPO CINCEL AZUL,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PIZARRON EXPO CINCEL NEGRO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PIZARRON EXPO CINCEL ROJO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCADOR PIZARRON EXPO CINCEL VERDE,Operaciones,Papelería y artículos de oficina,PRODUCTO
+MARCATEXTOS FLUORECENTE AMARILLO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+NOTAS ADHESIVAS 3X3 AMARILLAS BLOCK,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PAPEL BOND T/CARTA C/500,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PAPEL BOND T/CARTA C/5000,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PAPEL BOND T/OFICIO C/500,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PERFORADORA 2 ORIFICIOS,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PERFORADORA 3 ORIFICIOS,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PIZARRON BLANCO 40X60CM,Operaciones,Papelería y artículos de oficina,PRODUCTO
+ROLLO TERMICO 57X40MM C/10,Operaciones,Papelería y artículos de oficina,PRODUCTO
+SOBRE AMARILLO T/OFICIO C/100,Operaciones,Papelería y artículos de oficina,PRODUCTO
+SOBRE DE PLASTICO HORIZONTAL T/CARTA,Operaciones,Papelería y artículos de oficina,PRODUCTO
+SOBRE DE PLASTICO VERTICAL T/CARTA,Operaciones,Papelería y artículos de oficina,PRODUCTO
+TABLA DE APOYO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+TINTA P/SELLOS ROLAPLICA NEGRO,Operaciones,Papelería y artículos de oficina,PRODUCTO
+PAPELERIA,Operaciones,Papelería y artículos de oficina,PRODUCTO
+RECOLECCION DE BASURA,Operaciones,Recoleccion de Basura,SERVICIO
+CARTUCHO ZEBRA,Operaciones,Papelería y artículos de oficina,PRODUCTO
