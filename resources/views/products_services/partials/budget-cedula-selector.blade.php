@@ -1,5 +1,6 @@
 @php
     $selectorId = $selectorId ?? 'budget-cedula-selector';
+    $collapseGroups = $collapseGroups ?? false;
     $selectedIds = collect($selectedIds ?? [])->map(fn ($id) => (int) $id);
     $groupedCedulas = $budgetCedulas
         ->groupBy(fn ($cedula) => $cedula->expenseCategory?->id ?? 0)
@@ -39,18 +40,32 @@
             @endphp
             <div class="border rounded mb-2 js-category-card"
                  data-search="{{ Str::lower(($category?->code ?? '') . ' ' . ($category?->name ?? '') . ' ' . $cedulas->pluck('name')->join(' ')) }}">
-                <div class="d-flex gap-2 align-items-start p-2 bg-white border-bottom">
+                <div class="d-flex gap-2 align-items-center p-2 bg-white {{ $collapseGroups ? '' : 'border-bottom' }}">
                     <input class="form-check-input mt-1 js-category-check"
                            type="checkbox"
                            id="{{ $selectorId }}-cat-{{ $categoryKey }}"
                            data-category="{{ $categoryKey }}">
-                    <label class="form-check-label flex-grow-1" for="{{ $selectorId }}-cat-{{ $categoryKey }}">
+                    <label class="form-check-label" for="{{ $selectorId }}-cat-{{ $categoryKey }}">
+                        <span class="visually-hidden">Seleccionar todas las subcuentas de {{ $category?->name ?? 'esta cuenta' }}</span>
+                    </label>
+                    <button type="button"
+                            class="btn btn-link text-start text-decoration-none text-reset flex-grow-1 p-0 js-category-toggle"
+                            @if ($collapseGroups)
+                                data-bs-toggle="collapse"
+                                data-bs-target="#{{ $selectorId }}-category-{{ $categoryKey }}"
+                                aria-expanded="false"
+                                aria-controls="{{ $selectorId }}-category-{{ $categoryKey }}"
+                            @endif>
                         <span class="fw-semibold">{{ $category?->code ?? 'S/C' }} - {{ $category?->name ?? 'Sin cuenta' }}</span>
                         <span class="badge bg-light text-dark border ms-1">{{ $cedulas->count() }} subcuentas</span>
                         <span class="badge bg-success ms-1 js-category-selected-count" data-category="{{ $categoryKey }}">{{ $categorySelectedCount }}</span>
-                    </label>
+                        @if ($collapseGroups)
+                            <i class="ti ti-chevron-down ms-2 js-category-chevron" aria-hidden="true"></i>
+                        @endif
+                    </button>
                 </div>
-                <div class="row g-0">
+                <div id="{{ $selectorId }}-category-{{ $categoryKey }}" class="{{ $collapseGroups ? 'collapse' : '' }} js-category-panel">
+                    <div class="row g-0">
                     @foreach ($cedulas as $cedula)
                         @php
                             $isSelected = $selectedIds->contains((int) $cedula->id);
@@ -76,6 +91,7 @@
                             </label>
                         </div>
                     @endforeach
+                    </div>
                 </div>
             </div>
         @endforeach
@@ -91,6 +107,26 @@
 
             .budget-cedula-selector .js-cedula-row:hover {
                 background: #f8f9fa;
+            }
+
+            .budget-cedula-selector .js-category-toggle:focus-visible {
+                outline: 2px solid #188ae2;
+                outline-offset: 3px;
+                border-radius: .35rem;
+            }
+
+            .budget-cedula-selector .js-category-chevron {
+                transition: transform .18s ease;
+            }
+
+            .budget-cedula-selector .js-category-toggle[aria-expanded="true"] .js-category-chevron {
+                transform: rotate(180deg);
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .budget-cedula-selector .js-category-chevron {
+                    transition: none;
+                }
             }
         </style>
     @endpush
@@ -163,6 +199,13 @@
                         });
 
                         $card.toggle(cardMatches || visibleRows > 0);
+
+                        if (term && (cardMatches || visibleRows > 0)) {
+                            const panel = $card.find('.js-category-panel').get(0);
+                            if (panel && window.bootstrap?.Collapse) {
+                                bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).show();
+                            }
+                        }
                     });
                 });
 

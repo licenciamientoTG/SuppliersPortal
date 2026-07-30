@@ -55,6 +55,7 @@
                                 'selectorId' => 'budget-cedula-selector-edit',
                                 'budgetCedulas' => $budgetCedulas,
                                 'selectedIds' => collect(old('budget_cedula_ids', $selectedBudgetCedulaIds)),
+                                'collapseGroups' => true,
                             ])
                             @error('budget_cedula_ids')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
