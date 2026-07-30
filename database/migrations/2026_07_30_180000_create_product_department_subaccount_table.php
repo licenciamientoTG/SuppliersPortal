@@ -55,19 +55,23 @@ return new class extends Migration
         $departmentIds = DB::table('departments')->pluck('id')->map(fn ($id) => (int) $id);
 
         $subaccountIds = $subaccounts->values()->all();
-        DB::table('product_service_subaccount')->insertOrIgnore(
+        DB::table('product_service_subaccount')->upsert(
             collect($subaccountIds)->map(fn (int $subaccountId) => [
                 'product_service_id' => $productId,
                 'subaccount_id' => $subaccountId,
-            ])->all()
+            ])->all(),
+            ['product_service_id', 'subaccount_id'],
+            ['product_service_id']
         );
 
         $legacyBudgetCedulaIds = DB::table('subaccounts')->whereIn('id', $subaccountIds)->pluck('legacy_budget_cedula_id')->filter()->all();
-        DB::table('budget_cedula_product_service')->insertOrIgnore(
+        DB::table('budget_cedula_product_service')->upsert(
             collect($legacyBudgetCedulaIds)->map(fn (int $budgetCedulaId) => [
                 'product_service_id' => $productId,
                 'budget_cedula_id' => $budgetCedulaId,
-            ])->all()
+            ])->all(),
+            ['product_service_id', 'budget_cedula_id'],
+            ['product_service_id']
         );
 
         $now = now();
