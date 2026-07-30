@@ -38,6 +38,8 @@ class QuotationWizard extends Component
 
     public $comparisonData = [];
 
+    public $isReadOnlyAfterSend = false;
+
     // ======= NUEVO: Datos para el paso 2 =======
     public $unassignedItems = [];
 
@@ -84,6 +86,8 @@ class QuotationWizard extends Component
             'rfqs.suppliers',
             'rfqs.rfqResponses',
         ]);
+
+        $this->refreshReadOnlyAfterSend();
 
         // Si la URL trae ?step=X, respetar ese valor (ej: al recargar desde paso 2 tras crear grupos)
         $urlStep = request()->integer('step', 0);
@@ -150,7 +154,7 @@ class QuotationWizard extends Component
         }
 
         // Si tiene grupos de cotización, ir al paso 3
-        if ($this->requisition->quotationGroups()->exists()) {
+        if ($this->requisition->quotationGroups()->active()->exists()) {
             return 3;
         }
 
@@ -177,6 +181,7 @@ class QuotationWizard extends Component
 
         // Obtener grupos existentes con sus partidas
         $this->groups = $this->requisition->quotationGroups()
+            ->active()
             ->with('items.productService')
             ->get()
             ->toArray();
@@ -187,6 +192,10 @@ class QuotationWizard extends Component
      */
     public function completeStep1()
     {
+        if (! $this->ensureEditableBeforeSend()) {
+            return;
+        }
+
         try {
             app(RequisitionValidationService::class)->sign(
                 $this->requisition,
@@ -218,6 +227,14 @@ class QuotationWizard extends Component
      */
     public function nextStep()
     {
+        $this->refreshReadOnlyAfterSend();
+
+        if ($this->currentStep === 2 && ! $this->requisition->quotationGroups()->active()->exists()) {
+            session()->flash('error', 'Crea al menos un grupo con partidas antes de configurar invitaciones.');
+
+            return;
+        }
+
         if ($this->currentStep < 5) {
             $this->currentStep++;
 
@@ -231,6 +248,8 @@ class QuotationWizard extends Component
      */
     public function previousStep()
     {
+        $this->refreshReadOnlyAfterSend();
+
         if ($this->currentStep > 1) {
             $this->currentStep--;
 
@@ -244,6 +263,8 @@ class QuotationWizard extends Component
      */
     public function goToStep($step)
     {
+        $this->refreshReadOnlyAfterSend();
+
         if ($step >= 1 && $step <= 5) {
             $this->currentStep = $step;
 
@@ -286,6 +307,10 @@ class QuotationWizard extends Component
      */
     public function rejectRequisition($reason)
     {
+        if (! $this->ensureEditableBeforeSend()) {
+            return;
+        }
+
         // Validar longitud mínima del motivo
         if (strlen($reason) < 20) {
             session()->flash('error', 'El motivo debe tener al menos 20 caracteres.');
@@ -314,6 +339,10 @@ class QuotationWizard extends Component
      */
     public function completeStep3($groupsData)
     {
+        if (! $this->ensureEditableBeforeSend()) {
+            return;
+        }
+
         $groupsData = collect($groupsData)->toArray();
         DB::beginTransaction();
 
@@ -361,6 +390,10 @@ class QuotationWizard extends Component
 
     public function openManualQuoteModal($quotationGroupId): void
     {
+        if (! $this->ensureEditableBeforeSend()) {
+            return;
+        }
+
         $group = QuotationGroup::with('items')->findOrFail($quotationGroupId);
 
         $this->manualQuoteGroupId = $group->id;
@@ -422,6 +455,10 @@ class QuotationWizard extends Component
 
     public function saveManualQuote(): void
     {
+        if (! $this->ensureEditableBeforeSend()) {
+            return;
+        }
+
         $rules = array_merge([
             'manualQuoteQuotationDate' => 'required|date',
             'manualQuoteValidityDays' => 'required|integer|min:1|max:365',
@@ -501,6 +538,26 @@ class QuotationWizard extends Component
             'count' => count($this->suppliersData),
             'data' => $this->suppliersData,
         ]);
+    }
+
+    private function refreshReadOnlyAfterSend(): void
+    {
+        $this->isReadOnlyAfterSend = $this->requisition->rfqs()
+            ->whereIn('status', ['SENT', 'RESPONSES_RECEIVED', 'RECEIVED', 'EVALUATED'])
+            ->exists();
+    }
+
+    private function ensureEditableBeforeSend(): bool
+    {
+        $this->refreshReadOnlyAfterSend();
+
+        if (! $this->isReadOnlyAfterSend) {
+            return true;
+        }
+
+        session()->flash('error', 'Esta requisición ya tiene solicitudes enviadas y las etapas anteriores están disponibles solo para consulta.');
+
+        return false;
     }
 
     /**

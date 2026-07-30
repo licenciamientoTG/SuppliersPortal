@@ -28,6 +28,9 @@ return [
         'budget_control' => [
             'roles' => ['authorizer', 'superadmin', 'general_director', 'accounting', 'department_head'],
         ],
+        'budget_profiles' => [
+            'roles' => ['superadmin', 'catalog_admin', 'department_head'],
+        ],
         'payments_billing' => [
             'roles' => ['buyer', 'superadmin', 'accounting', 'department_head'],
         ],

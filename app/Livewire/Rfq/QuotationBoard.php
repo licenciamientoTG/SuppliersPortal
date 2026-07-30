@@ -204,7 +204,7 @@ class QuotationBoard extends Component
         $group = $this->requisition->quotationGroups()->active()->findOrFail($groupId);
 
         try {
-            app(QuotationGroupService::class)->removeItems($this->requisition, $group, [$itemId]);
+            app(QuotationGroupService::class)->removeItems($this->requisition, $group, [$itemId], Auth::id());
 
             $this->dispatch('board-refresh');
         } catch (\Exception $e) {

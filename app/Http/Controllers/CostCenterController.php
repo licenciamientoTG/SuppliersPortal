@@ -7,6 +7,8 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\User;
+use App\Services\CostCenterDistributionService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -83,6 +85,7 @@ class CostCenterController extends Controller
         $costCenter = new CostCenter([
             'status' => 'ACTIVO',
             'budget_type' => 'ANNUAL',
+            'cost_center_type' => 'STANDARD',
         ]);
 
         $categories = Category::where('is_active', true)
@@ -92,14 +95,14 @@ class CostCenterController extends Controller
         $companies = Company::orderBy('name')
             ->get(['id', 'name']);
 
-        $users = User::orderBy('name')
-            ->get(['id', 'name']);
+        $users = $this->eligibleResponsibleUsers();
+        $destinationCenters = CostCenter::active()->where('cost_center_type', 'STANDARD')->orderBy('name')->get(['id', 'code', 'name', 'company_id']);
 
         return view('cost_centers.create', compact(
             'costCenter',
             'categories',
             'companies',
-            'users'
+            'users', 'destinationCenters'
         ));
     }
 
@@ -109,7 +112,12 @@ class CostCenterController extends Controller
         $data['created_by'] = auth()->id();
         $data['updated_by'] = null;
 
-        CostCenter::create($data);
+        DB::transaction(function () use ($data, $request) {
+            unset($data['destinations']);
+            $center = CostCenter::create($data);
+            app(CostCenterDistributionService::class)->validateConfiguration($center, $request->input('destinations', []));
+            $center->distributionTargets()->createMany($request->input('destinations', []));
+        });
 
         return redirect()
             ->route('cost-centers.index')
@@ -125,8 +133,9 @@ class CostCenterController extends Controller
         $companies = Company::orderBy('name')
             ->get(['id', 'name']);
 
-        $users = User::orderBy('name')
-            ->get(['id', 'name']);
+        $users = $this->eligibleResponsibleUsers();
+        $destinationCenters = CostCenter::active()->where('cost_center_type', 'STANDARD')->whereKeyNot($cost_center->id)->orderBy('name')->get(['id', 'code', 'name', 'company_id']);
+        $cost_center->load('distributionTargets');
 
         return view('cost_centers.edit', [
             'cost_center' => $cost_center,
@@ -134,6 +143,7 @@ class CostCenterController extends Controller
             'categories' => $categories,
             'companies' => $companies,
             'users' => $users,
+            'destinationCenters' => $destinationCenters,
         ]);
     }
 
@@ -142,7 +152,13 @@ class CostCenterController extends Controller
         $data = $request->validated();
         $data['updated_by'] = auth()->id();
 
-        $cost_center->update($data);
+        DB::transaction(function () use ($cost_center, $data, $request) {
+            unset($data['destinations']);
+            $cost_center->update($data);
+            app(CostCenterDistributionService::class)->validateConfiguration($cost_center, $request->input('destinations', []));
+            $cost_center->distributionTargets()->delete();
+            $cost_center->distributionTargets()->createMany($request->input('destinations', []));
+        });
 
         return redirect()
             ->route('cost-centers.index')
@@ -174,5 +190,13 @@ class CostCenterController extends Controller
             ->get(['cost_centers.id', 'cost_centers.name', 'cost_centers.code', 'cost_centers.purchase_type']);
 
         return response()->json($centers);
+    }
+
+    private function eligibleResponsibleUsers()
+    {
+        return User::query()->where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'authorizer'))
+            ->whereHas('roles', fn ($query) => $query->where('name', 'department_head'))
+            ->orderBy('name')->get(['id', 'name']);
     }
 }

@@ -16,6 +16,7 @@ class Department extends Model
         'is_active',
         'notes',
         'created_by',
+        'manager_user_id',
     ];
 
     protected $casts = [
@@ -31,6 +32,11 @@ class Department extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_user_id');
     }
 
     public function subaccounts()

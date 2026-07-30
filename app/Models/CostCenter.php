@@ -27,6 +27,7 @@ class CostCenter extends Model
         'category_id',
         'company_id',
         'responsible_user_id',
+        'cost_center_type',
         'budget_type',
         'global_amount',
         'free_consumption_justification',
@@ -136,6 +137,16 @@ class CostCenter extends Model
     public function activeUsers()
     {
         return $this->users()->wherePivot('is_active', true);
+    }
+
+    public function distributionTargets()
+    {
+        return $this->hasMany(CostCenterDistribution::class, 'distribution_cost_center_id');
+    }
+
+    public function isDistribution(): bool
+    {
+        return $this->cost_center_type === 'DISTRIBUTION';
     }
 
     /**

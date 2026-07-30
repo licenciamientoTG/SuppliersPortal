@@ -9,6 +9,7 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
+use App\Services\CostCenterDistributionService;
 use App\Models\QuotationSummaryItem;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -238,7 +239,7 @@ class BudgetAllocationService
                         ->addDays((int) $response->delivery_days)
                         ->format('Y-m');
 
-                    return [
+                    return $this->expandDistributionLine([
                         'cost_center_id' => (int) $requisitionItem->cost_center_id,
                         'expense_category_id' => (int) $requisitionItem->expense_category_id,
                         'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
@@ -247,8 +248,9 @@ class BudgetAllocationService
                         'month' => (int) substr($applicationMonth, 5, 2),
                         'application_month' => $applicationMonth,
                         'budget_type' => $requisitionItem->costCenter?->budget_type ?? 'ANNUAL',
-                    ];
+                    ]);
                 })
+                ->flatten(1)
                 ->groupBy(fn (array $line) => implode('|', [
                     $line['cost_center_id'],
                     $line['expense_category_id'],
@@ -284,7 +286,7 @@ class BudgetAllocationService
                     ->addDays((int) $response->delivery_days)
                     ->format('Y-m');
 
-                return [
+                return $this->expandDistributionLine([
                     'cost_center_id' => (int) $requisitionItem->cost_center_id,
                     'expense_category_id' => (int) $requisitionItem->expense_category_id,
                     'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
@@ -293,8 +295,9 @@ class BudgetAllocationService
                     'month' => (int) substr($applicationMonth, 5, 2),
                     'application_month' => $applicationMonth,
                     'budget_type' => $requisitionItem->costCenter?->budget_type ?? 'ANNUAL',
-                ];
+                ]);
             })
+            ->flatten(1)
             ->groupBy(fn (array $line) => implode('|', [
                 $line['cost_center_id'],
                 $line['expense_category_id'],
@@ -589,17 +592,22 @@ class BudgetAllocationService
                 ->map(function ($items) use ($order) {
                     $first = $items->first();
 
-                    return [
-                        'cost_center_id' => (int) $first->cost_center_id,
-                        'expense_category_id' => (int) $first->expense_category_id,
-                        'budget_cedula_id' => $first->budget_cedula_id ? (int) $first->budget_cedula_id : null,
-                        'amount' => (float) $items->sum('total'),
-                        'year' => (int) substr((string) $order->application_month, 0, 4),
-                        'month' => (int) substr((string) $order->application_month, 5, 2),
-                        'application_month' => $order->application_month,
-                        'budget_type' => $first->costCenter?->budget_type ?? 'ANNUAL',
-                    ];
+                    return collect($items)->flatMap(function ($item) use ($order) {
+                        return $this->expandDistributionLine([
+                            'cost_center_id' => (int) $item->cost_center_id,
+                            'expense_category_id' => (int) $item->expense_category_id,
+                            'budget_cedula_id' => $item->budget_cedula_id ? (int) $item->budget_cedula_id : null,
+                            'amount' => (float) $item->total,
+                            'year' => (int) substr((string) $order->application_month, 0, 4),
+                            'month' => (int) substr((string) $order->application_month, 5, 2),
+                            'application_month' => $order->application_month,
+                            'budget_type' => $item->costCenter?->budget_type ?? 'ANNUAL',
+                        ]);
+                    })->all();
                 })
+                ->flatten(1)
+                ->groupBy(fn ($line) => implode('|', [$line['cost_center_id'], $line['expense_category_id'], $line['budget_cedula_id'], $line['application_month']]))
+                ->map(function ($lines) { $first = $lines->first(); $first['amount'] = (float) $lines->sum('amount'); return $first; })
                 ->values()
                 ->all();
         }
@@ -627,20 +635,22 @@ class BudgetAllocationService
                     $item->requisitionItem?->budget_cedula_id,
                     $applicationMonth,
                 ]))
-                ->map(function ($items) use ($applicationMonth) {
-                    $firstItem = $items->first();
-
-                    return [
-                        'cost_center_id' => (int) $firstItem->requisitionItem?->cost_center_id,
-                        'expense_category_id' => (int) $firstItem->requisitionItem?->expense_category_id,
-                        'budget_cedula_id' => $firstItem->requisitionItem?->budget_cedula_id ? (int) $firstItem->requisitionItem->budget_cedula_id : null,
-                        'amount' => (float) $items->sum('total'),
-                        'year' => (int) substr($applicationMonth, 0, 4),
-                        'month' => (int) substr($applicationMonth, 5, 2),
-                        'application_month' => $applicationMonth,
-                        'budget_type' => $firstItem->requisitionItem?->costCenter?->budget_type ?? 'ANNUAL',
-                    ];
+                ->flatMap(function ($items) use ($applicationMonth) {
+                    return $items->flatMap(function ($item) use ($applicationMonth) {
+                        return $this->expandDistributionLine([
+                            'cost_center_id' => (int) $item->requisitionItem?->cost_center_id,
+                            'expense_category_id' => (int) $item->requisitionItem?->expense_category_id,
+                            'budget_cedula_id' => $item->requisitionItem?->budget_cedula_id ? (int) $item->requisitionItem->budget_cedula_id : null,
+                            'amount' => (float) $item->total,
+                            'year' => (int) substr($applicationMonth, 0, 4),
+                            'month' => (int) substr($applicationMonth, 5, 2),
+                            'application_month' => $applicationMonth,
+                            'budget_type' => $item->requisitionItem?->costCenter?->budget_type ?? 'ANNUAL',
+                        ]);
+                    });
                 })
+                ->groupBy(fn ($line) => implode('|', [$line['cost_center_id'], $line['expense_category_id'], $line['budget_cedula_id'], $line['application_month']]))
+                ->map(function ($lines) { $first = $lines->first(); $first['amount'] = (float) $lines->sum('amount'); return $first; })
                 ->filter(fn (array $line) => ! empty($line['expense_category_id']))
                 ->values()
                 ->all();
@@ -674,6 +684,17 @@ class BudgetAllocationService
             })
             ->values()
             ->all();
+    }
+
+    private function expandDistributionLine(array $line): array
+    {
+        return collect(app(CostCenterDistributionService::class)->expand((int) $line['cost_center_id'], (float) $line['amount']))
+            ->map(function (array $allocation) use ($line) {
+                $line['cost_center_id'] = $allocation['cost_center_id'];
+                $line['amount'] = $allocation['amount'];
+                $line['budget_type'] = $allocation['budget_type'];
+                return $line;
+            })->all();
     }
 
     private function findCommitmentsForLine(Model $order, array $line): Collection

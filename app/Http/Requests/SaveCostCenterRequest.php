@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enum\PurchaseType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
+use App\Models\User;
 
 class SaveCostCenterRequest extends FormRequest
 {
@@ -23,6 +24,10 @@ class SaveCostCenterRequest extends FormRequest
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'company_id' => ['required', 'integer', 'exists:companies,id'],
             'responsible_user_id' => ['required', 'integer', 'exists:users,id'],
+            'cost_center_type' => ['required', 'in:STANDARD,DISTRIBUTION'],
+            'destinations' => ['nullable', 'array'],
+            'destinations.*.target_cost_center_id' => ['required_if:cost_center_type,DISTRIBUTION', 'integer', 'exists:cost_centers,id'],
+            'destinations.*.percentage' => ['required_if:cost_center_type,DISTRIBUTION', 'numeric', 'gt:0', 'lte:100'],
             'budget_type' => ['required', 'string', 'in:ANNUAL,FREE_CONSUMPTION'],
             'global_amount' => [
                 'nullable',
@@ -58,6 +63,8 @@ class SaveCostCenterRequest extends FormRequest
             'category_id' => 'categoria',
             'company_id' => 'empresa',
             'responsible_user_id' => 'responsable',
+            'cost_center_type' => 'tipo de centro',
+            'destinations' => 'distribución',
             'budget_type' => 'tipo de presupuesto',
             'global_amount' => 'monto global',
             'validity_date' => 'fecha de vigencia',
@@ -87,5 +94,18 @@ class SaveCostCenterRequest extends FormRequest
             'status.required' => 'El estado es obligatorio.',
             'status.in' => 'El estado debe ser ACTIVO o INACTIVO.',
         ];
+    }
+
+    public function after(): array
+    {
+        return [function ($validator) {
+            $userId = $this->integer('responsible_user_id');
+            if ($userId && ! User::query()->whereKey($userId)->where('is_active', true)
+                ->whereHas('roles', fn ($query) => $query->where('name', 'authorizer'))
+                ->whereHas('roles', fn ($query) => $query->where('name', 'department_head'))
+                ->exists()) {
+                $validator->errors()->add('responsible_user_id', 'El responsable debe estar activo y tener los roles autorizador y jefe de departamento.');
+            }
+        }];
     }
 }

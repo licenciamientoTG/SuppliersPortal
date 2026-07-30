@@ -128,6 +128,7 @@ class QuotationSummary extends Model
     {
         return $this->morphMany(ApprovalDecision::class, 'approvable');
     }
+    public function approvalSteps(): MorphMany { return $this->morphMany(CostCenterApprovalStep::class, 'approvable'); }
 
     public function approve(int $userId, ?string $notes = null): void
     {

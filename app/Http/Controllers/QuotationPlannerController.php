@@ -34,7 +34,8 @@ class QuotationPlannerController extends Controller
 
         // Cargar relaciones necesarias
         $requisition->load([
-            'items.product.category',
+            'items.productService',
+            'items.expenseCategory',
             'quotationGroups.items',
             'costCenter',
             'department',
@@ -43,14 +44,14 @@ class QuotationPlannerController extends Controller
 
         // Obtener partidas que NO están en ningún grupo
         $unassignedItems = $requisition->items()
-            ->whereDoesntHave('quotationGroups')
-            ->with('product.category')
+            ->whereDoesntHave('quotationGroups', fn ($query) => $query->active())
+            ->with(['productService', 'expenseCategory'])
             ->get();
 
         // Obtener grupos existentes con sus partidas
         $groups = $requisition->quotationGroups()
             ->active()
-            ->with('items.product.category')
+            ->with(['items.productService', 'items.expenseCategory'])
             ->get();
         return view('requisitions.quotation-planner.show', compact(
             'requisition',
@@ -68,6 +69,10 @@ class QuotationPlannerController extends Controller
      */
     public function saveStrategy(Request $request, Requisition $requisition)
     {
+        if ($response = $this->readOnlyAfterSendResponse($requisition)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'groups' => 'nullable|array',
             'groups.*.id' => 'nullable|exists:quotation_groups,id',
@@ -164,6 +169,10 @@ class QuotationPlannerController extends Controller
      */
     public function createGroup(Request $request, Requisition $requisition): JsonResponse
     {
+        if ($response = $this->readOnlyAfterSendResponse($requisition)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'notes' => 'nullable|string',
@@ -181,7 +190,7 @@ class QuotationPlannerController extends Controller
             );
 
             // Cargar relaciones con eager loading para evitar N+1
-            $group->loadMissing('items.product.category');
+            $group->loadMissing(['items.productService', 'items.expenseCategory']);
 
             return response()->json([
                 'success' => true,
@@ -211,6 +220,10 @@ class QuotationPlannerController extends Controller
      */
     public function deleteGroup(Requisition $requisition, QuotationGroup $group): JsonResponse
     {
+        if ($response = $this->readOnlyAfterSendResponse($requisition)) {
+            return $response;
+        }
+
         try {
             $this->groupService->cancel($requisition, $group, 'Grupo cancelado desde el planificador.', Auth::id());
 
@@ -246,6 +259,10 @@ class QuotationPlannerController extends Controller
      */
     public function addItemsToGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
+        if ($response = $this->readOnlyAfterSendResponse($requisition)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'integer|exists:requisition_items,id',
@@ -297,20 +314,26 @@ class QuotationPlannerController extends Controller
      */
     public function removeItemsFromGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
+        if ($response = $this->readOnlyAfterSendResponse($requisition)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'integer|exists:requisition_items,id',
         ]);
 
         try {
-            $this->groupService->removeItems($requisition, $group, $validated['item_ids']);
+            $this->groupService->removeItems($requisition, $group, $validated['item_ids'], Auth::id());
 
             // Cargar relaciones con eager loading para evitar N+1
-            $group->loadMissing('items.product.category');
+            $group->loadMissing(['items.productService', 'items.expenseCategory']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partidas removidas del grupo.',
+                'message' => $group->isCancelled()
+                    ? 'Se retiró la última partida y el grupo fue eliminado.'
+                    : 'Partidas removidas del grupo.',
                 'data' => [
                     'group' => $group,
                 ]
@@ -332,6 +355,22 @@ class QuotationPlannerController extends Controller
         }
     }
 
+    private function readOnlyAfterSendResponse(Requisition $requisition): ?JsonResponse
+    {
+        $hasSentRfq = $requisition->rfqs()
+            ->whereIn('status', ['SENT', 'RESPONSES_RECEIVED', 'RECEIVED', 'EVALUATED'])
+            ->exists();
+
+        if (! $hasSentRfq) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Ya existen solicitudes enviadas para esta requisición. La configuración de paquetes está disponible solo para consulta.',
+        ], 409);
+    }
+
     /**
      * Obtiene sugerencias de proveedores para un grupo.
      * 
@@ -351,9 +390,9 @@ class QuotationPlannerController extends Controller
         try {
             // Obtener categorías del grupo
             $categories = $group->items()
-                ->with('product.category')
+                ->with(['productService', 'expenseCategory'])
                 ->get()
-                ->pluck('product.category.id')
+                ->pluck('expenseCategory.id')
                 ->unique();
 
             // Buscar proveedores que manejen estas categorías
@@ -385,4 +424,3 @@ class QuotationPlannerController extends Controller
         }
     }
 }
-

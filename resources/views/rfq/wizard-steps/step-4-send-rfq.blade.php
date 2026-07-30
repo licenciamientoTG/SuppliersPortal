@@ -1,74 +1,18 @@
-{{-- ID único para detectar el paso --}}
-<div id="sendRfqStep">
-    {{-- Información de la Requisición --}}
-    <div class="alert alert-primary mb-3">
-        <div class="row">
-            <div class="col-md-3">
-                <small class="text-muted d-block">Folio</small>
-                <strong>{{ $requisition->folio }}</strong>
-            </div>
-            <div class="col-md-3">
-                <small class="text-muted d-block">RFQs Creadas</small>
-                <span class="badge bg-primary">{{ $requisition->rfqs->count() }}</span>
-            </div>
-            <div class="col-md-3">
-                <small class="text-muted d-block">Borradores</small>
-                <span class="badge bg-warning" id="draftCountBadge">{{ $requisition->rfqs->where('status', 'DRAFT')->count() }}</span>
-            </div>
-            <div class="col-md-3">
-                <small class="text-muted d-block">Enviadas</small>
-                <span class="badge bg-success" id="sentCountBadge">{{ $requisition->rfqs->where('status', 'SENT')->count() }}</span>
-            </div>
-        </div>
-    </div>
+<section id="sendRfqStep" class="tg-launch-flow" aria-labelledby="launch-title">
+    <header class="tg-launch-header">
+        <div><span class="tg-section-kicker">Última revisión</span><h3 id="launch-title">Lanza las solicitudes cuando estén listas</h3><p>Revisa cada borrador, confirma sus destinatarios y envía sólo los que estén preparados.</p></div>
+        <div class="tg-launch-status"><div><span>Solicitudes</span><strong>{{ $requisition->rfqs->count() }}</strong></div><div><span>Borradores</span><strong class="text-warning" id="draftCountBadge">{{ $requisition->rfqs->where('status', 'DRAFT')->count() }}</strong></div><div><span>Enviadas</span><strong class="text-success" id="sentCountBadge">{{ $requisition->rfqs->where('status', 'SENT')->count() }}</strong></div></div>
+    </header>
+    <div class="tg-launch-guidance"><i class="ti ti-shield-check"></i><div><strong>Antes de enviar</strong><span>Confirma fecha límite, proveedores y notas. Las solicitudes se pueden enviar de forma individual o en conjunto.</span></div></div>
+    @if($requisition->rfqs->isNotEmpty() && $requisition->rfqs->where('status', 'DRAFT')->isEmpty())
+        <div class="tg-launch-complete" role="status"><span><i class="ti ti-circle-check"></i></span><div><strong>Todos los paquetes ya fueron enviados</strong><small>El expediente quedó protegido para consulta. Continúa el seguimiento desde las respuestas.</small></div><a href="{{ route('rfq.wizard.steps', $requisition) }}?step=5" class="btn btn-sm btn-success">Ir a seguimiento <i class="ti ti-arrow-right ms-1"></i></a></div>
+    @endif
+    <div class="tg-table-shell"><div class="tg-table-heading"><div><span class="tg-section-kicker">Bandeja de salida</span><h4>Solicitudes preparadas</h4></div><span class="tg-table-hint"><i class="ti ti-click me-1"></i>Usa las acciones de cada fila para revisar o enviar.</span></div><div class="table-responsive"><table class="table align-middle mb-0" id="rfqsWizardTable" style="width:100%"><thead><tr><th>Folio</th><th>Grupo</th><th>Proveedores</th><th>Estado</th><th>Fecha límite</th><th>Tiempo</th><th class="text-end">Acciones</th></tr></thead><tbody></tbody></table></div></div>
+</section>
 
-    {{-- Instrucciones --}}
-    <div class="alert alert-info mb-3">
-        <i class="ti ti-info-circle me-2"></i>
-        <strong>Instrucciones:</strong> Revisa las solicitudes creadas y envíalas a los proveedores. 
-        Puedes enviarlas individualmente o todas a la vez.
-    </div>
-
-    {{-- Tabla de RFQs --}}
-    <div class="card">
-        <div class="card-header bg-light">
-            <h6 class="mb-0">
-                <i class="ti ti-list me-2"></i>Solicitudes de Cotización
-            </h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover table-bordered" id="rfqsWizardTable" style="width:100%">
-                    <thead class="table-light">
-                        <tr>
-                            <th width="12%">Folio</th>
-                            <th width="18%">Grupo/Partida</th>
-                            <th width="15%">Proveedores</th>
-                            <th width="12%">Estado</th>
-                            <th width="12%">Fecha Límite</th>
-                            <th width="12%">Días Restantes</th>
-                            <th width="19%">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{-- DataTables carga aquí --}}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-@push('styles')
 <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 <style>
-.status-badge {
-    font-size: 0.85rem;
-    padding: 0.35rem 0.65rem;
-    font-weight: 500;
-}
-.days-remaining {
-    font-weight: 600;
-}
+    .tg-launch-header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; margin-bottom:1rem; }.tg-launch-header h3 { margin:.2rem 0; font-size:1.1rem; }.tg-launch-header p { margin:0; color:#718096; font-size:.85rem; }.tg-launch-status { display:flex; border:1px solid #e2e9f0; border-radius:.7rem; background:#fff; }.tg-launch-status > div { min-width:78px; padding:.6rem .8rem; border-right:1px solid #e2e9f0; text-align:center; }.tg-launch-status > div:last-child { border:0; }.tg-launch-status span,.tg-launch-status strong { display:block; }.tg-launch-status span { color:#718096; font-size:.68rem; }.tg-launch-status strong { font-size:1.05rem; }.tg-launch-guidance { display:flex; gap:.6rem; align-items:flex-start; padding:.8rem 1rem; margin-bottom:1rem; border:1px solid #dcecf8; border-radius:.65rem; color:#526274; background:#f7fbff; }.tg-launch-guidance i { color:#188ae2; font-size:1.2rem; }.tg-launch-guidance strong,.tg-launch-guidance span { display:block; }.tg-launch-guidance strong { font-size:.82rem; }.tg-launch-guidance span { margin-top:.1rem; font-size:.78rem; }.tg-launch-complete { display:flex; align-items:center; gap:.65rem; padding:.8rem 1rem; margin-bottom:1rem; border:1px solid #bdebd2; border-radius:.7rem; color:#276b50; background:#f3fcf7; }.tg-launch-complete > span { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; border-radius:50%; color:#fff; background:#4bd396; box-shadow:0 0 0 5px rgba(75,211,150,.13); }.tg-launch-complete strong,.tg-launch-complete small { display:block; }.tg-launch-complete strong { font-size:.82rem; }.tg-launch-complete small { margin-top:.1rem; color:#5c8873; font-size:.75rem; }.tg-launch-complete .btn { margin-left:auto; }.tg-table-shell { overflow:hidden; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-table-heading { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1rem; border-bottom:1px solid #e2e9f0; }.tg-table-heading h4 { margin:.15rem 0 0; font-size:.95rem; }.tg-table-hint { color:#718096; font-size:.74rem; }.tg-launch-flow #rfqsWizardTable thead th { padding:.8rem 1rem; background:#f7fbff; }.tg-launch-flow #rfqsWizardTable tbody td { padding:.8rem 1rem; }.tg-launch-flow .dataTables_wrapper > .row { margin-right:0; margin-left:0; }.tg-launch-flow .dataTables_wrapper > .row:first-child { padding:.7rem 1rem .55rem; border-bottom:1px solid #edf1f5; }.tg-launch-flow .dataTables_wrapper > .row:last-child { align-items:center; padding:.7rem 1rem; }.tg-launch-flow .dataTables_length,.tg-launch-flow .dataTables_filter,.tg-launch-flow .dataTables_info,.tg-launch-flow .dataTables_paginate { margin:0 !important; }.tg-launch-flow .dataTables_length label,.tg-launch-flow .dataTables_filter label { display:flex; align-items:center; gap:.4rem; margin:0; color:#526274; font-size:.76rem; }.tg-launch-flow .dataTables_length select { min-width:4.7rem; margin:0 !important; border-color:#d7e0e9; border-radius:.55rem; }.tg-launch-flow .dataTables_filter { display:flex; justify-content:flex-end; }.tg-launch-flow .dataTables_filter input { min-width:11rem; margin:0 !important; border-color:#d7e0e9; border-radius:.55rem; }.tg-launch-flow .dataTables_info { padding-top:0 !important; color:#718096; font-size:.74rem; text-align:left; }.rfq-row-actions { display:flex; align-items:center; justify-content:flex-end; gap:.35rem; }.rfq-action-send { display:inline-flex; align-items:center; gap:.3rem; }.rfq-action-view { display:inline-flex; align-items:center; justify-content:center; }.rfq-delivery-confirmed { display:inline-flex; align-items:center; gap:.3rem; padding:.35rem .55rem; border:1px solid #bdebd2; border-radius:.45rem; color:#23704f; background:#f3fcf7; font-size:.72rem; font-weight:700; white-space:nowrap; }.rfq-status-badge { display:inline-flex; align-items:center; gap:.25rem; }.rfq-status-time { display:block; margin-top:.25rem; color:#718096; font-size:.67rem; white-space:nowrap; }
+    @media (max-width:767.98px) { .tg-launch-header { flex-direction:column; }.tg-launch-status { width:100%; }.tg-launch-status > div { flex:1; }.tg-table-heading { align-items:flex-start; flex-direction:column; }.tg-launch-complete { align-items:flex-start; flex-wrap:wrap; }.tg-launch-complete .btn { width:100%; margin-left:0; }.tg-launch-flow .dataTables_wrapper > .row:first-child,.tg-launch-flow .dataTables_wrapper > .row:last-child { gap:.65rem; }.tg-launch-flow .dataTables_filter { justify-content:flex-start; }.tg-launch-flow .dataTables_filter input { min-width:0; width:100%; } }
+    @media (prefers-reduced-motion:reduce) { .tg-launch-flow *, .tg-launch-flow *::before, .tg-launch-flow *::after { transition:none !important; animation:none !important; } }
 </style>
-@endpush

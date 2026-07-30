@@ -1,85 +1,43 @@
-<div>
-    {{-- Indicador de Progreso (Steps) --}}
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                {{-- Paso 1: Validación --}}
-                <div class="text-center flex-fill {{ $currentStep >= 1 ? 'text-primary' : 'text-muted' }}">
-                    <div class="mb-2">
-                        <span class="avatar avatar-sm rounded-circle {{ $currentStep >= 1 ? 'bg-primary text-white' : 'bg-light' }}">
-                            @if($currentStep > 1)
-                                <i class="ti ti-check"></i>
-                            @else
-                                1
-                            @endif
-                        </span>
-                    </div>
-                    <small class="fw-bold">Validación</small>
-                </div>
-
-                <div class="flex-fill border-top {{ $currentStep >= 2 ? 'border-primary' : '' }}" style="margin: 0 -1rem; margin-top: -2rem;"></div>
-
-                {{-- Paso 2: Planificar --}}
-                <div class="text-center flex-fill {{ $currentStep >= 2 ? 'text-primary' : 'text-muted' }}">
-                    <div class="mb-2">
-                        <span class="avatar avatar-sm rounded-circle {{ $currentStep >= 2 ? 'bg-primary text-white' : 'bg-light' }}">
-                            @if($currentStep > 2)
-                                <i class="ti ti-check"></i>
-                            @else
-                                2
-                            @endif
-                        </span>
-                    </div>
-                    <small class="fw-bold">Planificar</small>
-                </div>
-
-                <div class="flex-fill border-top {{ $currentStep >= 3 ? 'border-primary' : '' }}" style="margin: 0 -1rem; margin-top: -2rem;"></div>
-
-                {{-- Paso 3: Selección Proveedores --}}
-                <div class="text-center flex-fill {{ $currentStep >= 3 ? 'text-primary' : 'text-muted' }}">
-                    <div class="mb-2">
-                        <span class="avatar avatar-sm rounded-circle {{ $currentStep >= 3 ? 'bg-primary text-white' : 'bg-light' }}">
-                            @if($currentStep > 3)
-                                <i class="ti ti-check"></i>
-                            @else
-                                3
-                            @endif
-                        </span>
-                    </div>
-                    <small class="fw-bold">Proveedores</small>
-                </div>
-
-                <div class="flex-fill border-top {{ $currentStep >= 4 ? 'border-primary' : '' }}" style="margin: 0 -1rem; margin-top: -2rem;"></div>
-
-                {{-- Paso 4: Enviar RFQ --}}
-                <div class="text-center flex-fill {{ $currentStep >= 4 ? 'text-primary' : 'text-muted' }}">
-                    <div class="mb-2">
-                        <span class="avatar avatar-sm rounded-circle {{ $currentStep >= 4 ? 'bg-primary text-white' : 'bg-light' }}">
-                            @if($currentStep > 4)
-                                <i class="ti ti-check"></i>
-                            @else
-                                4
-                            @endif
-                        </span>
-                    </div>
-                    <small class="fw-bold">Enviar RFQ</small>
-                </div>
-
-                <div class="flex-fill border-top {{ $currentStep >= 5 ? 'border-primary' : '' }}" style="margin: 0 -1rem; margin-top: -2rem;"></div>
-
-                {{-- Paso 5: Análisis --}}
-                <div class="text-center flex-fill {{ $currentStep >= 5 ? 'text-primary' : 'text-muted' }}">
-                    <div class="mb-2">
-                        <span class="avatar avatar-sm rounded-circle {{ $currentStep >= 5 ? 'bg-primary text-white' : 'bg-light' }}">
-                            5
-                        </span>
-                    </div>
-                    <small class="fw-bold">Análisis</small>
-                </div>
-            </div>
+<div class="tg-wizard" wire:loading.class="is-loading">
+    @php
+        $stepMeta = [
+            1 => ['label' => 'Revisar', 'title' => 'Confirma la solicitud', 'icon' => 'ti-checklist', 'hint' => 'Valida que la compra tenga información suficiente para pedir precios.'],
+            2 => ['label' => 'Preparar', 'title' => 'Prepara paquetes de cotización', 'icon' => 'ti-layout-grid', 'hint' => 'Organiza las partidas que deben cotizarse juntas.'],
+            3 => ['label' => 'Invitar', 'title' => 'Configura las invitaciones', 'icon' => 'ti-users', 'hint' => 'Elige proveedores, fechas límite e instrucciones por paquete.'],
+            4 => ['label' => 'Lanzar', 'title' => 'Lanza las solicitudes', 'icon' => 'ti-send', 'hint' => 'Revisa los borradores y envíalos a los proveedores.'],
+            5 => ['label' => 'Decidir', 'title' => 'Da seguimiento y decide', 'icon' => 'ti-chart-bar', 'hint' => 'Consulta respuestas y compara las cotizaciones recibidas.'],
+        ];
+        $activeStep = $stepMeta[$currentStep];
+    @endphp
+    <header class="tg-rfq-page-intro" aria-labelledby="tg-wizard-title">
+        <img src="{{ asset('images/logos/Logo.png') }}" alt="TotalGas" class="tg-rfq-logo">
+        <div class="tg-rfq-intro-copy">
+            <span class="tg-rfq-kicker">Gestión de cotizaciones</span>
+            <h1 id="tg-wizard-title">Expediente de cotización</h1>
+            <p>{{ $activeStep['hint'] }}</p>
         </div>
-    </div>
-
+        <div class="tg-rfq-meta" aria-label="Contexto de la requisición">
+            <div><span>Requisición</span><strong>{{ $requisition->folio }}</strong></div>
+            <div><span>Solicitante</span><strong>{{ $requisition->requester?->name ?? 'Sin solicitante' }}</strong></div>
+            <div><span>Partidas</span><strong>{{ $requisition->items->count() }}</strong></div>
+        </div>
+    </header>
+    <nav class="tg-workbench-nav" aria-label="Módulos del expediente RFQ">
+        <div class="tg-workbench-label"><i class="ti ti-briefcase"></i><span>Expediente RFQ</span></div>
+        <div class="tg-workbench-modules">
+            @foreach($stepMeta as $number => $meta)
+                @if($number === $currentStep)
+                    <span class="tg-module is-current" aria-current="page"><i class="ti {{ $meta['icon'] }}"></i><span>{{ $meta['label'] }}</span></span>
+                @elseif($isReadOnlyAfterSend)
+                    <a href="{{ route('rfq.wizard.steps', $requisition) }}?step={{ $number }}" class="tg-module is-reviewable" aria-label="Consultar {{ $meta['label'] }}"><i class="ti ti-eye"></i><span>{{ $meta['label'] }}</span></a>
+                @elseif($number < $currentStep)
+                    <a href="{{ route('rfq.wizard.steps', $requisition) }}?step={{ $number }}" class="tg-module is-done" aria-label="Volver a {{ $meta['label'] }}"><i class="ti ti-circle-check"></i><span>{{ $meta['label'] }}</span></a>
+                @else
+                    <span class="tg-module is-locked" aria-disabled="true"><i class="ti ti-lock"></i><span>{{ $meta['label'] }}</span></span>
+                @endif
+            @endforeach
+        </div>
+    </nav>
     {{-- NUEVO: Mensajes Flash --}}
     @if (session()->has('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -98,24 +56,19 @@
     @endif
 
     {{-- Contenido del Paso Actual --}}
-    <div class="card">
+    <main class="card tg-content-card">
         <div class="card-header">
-            <h5 class="mb-0">
-                @if($currentStep === 1)
-                    <i class="ti ti-checklist me-2"></i>Paso 1: Validación Técnica
-                @elseif($currentStep === 2)
-                    <i class="ti ti-calendar me-2"></i>Paso 2: Planificación de Cotización
-                @elseif($currentStep === 3)
-                    <i class="ti ti-users me-2"></i>Paso 3: Selección de Proveedores
-                @elseif($currentStep === 4)
-                    <i class="ti ti-send me-2"></i>Paso 4: Enviar RFQ
-                @elseif($currentStep === 5)
-                    <i class="ti ti-chart-bar me-2"></i>Paso 5: Análisis Comparativo
-                @endif
-                <span class="badge bg-primary ms-2">{{ $requisition->folio }}</span>
-            </h5>
+            <div class="d-flex align-items-center gap-2"><span class="tg-content-icon"><i class="ti {{ $activeStep['icon'] }}"></i></span><div><span class="tg-content-kicker">Etapa {{ $currentStep }} de 5</span><h2 class="mb-0 tg-content-title">{{ $activeStep['title'] }}</h2></div></div>
         </div>
-        <div class="card-body">
+        <div class="card-body tg-content-body">
+            @if($isReadOnlyAfterSend && $currentStep < 4)
+                <div class="tg-readonly-notice" role="status">
+                    <span class="tg-readonly-notice-icon"><i class="ti ti-lock-check"></i></span>
+                    <div><strong>Consulta protegida</strong><span>Esta requisición ya tiene solicitudes enviadas. Puedes revisar cada etapa, pero ya no se pueden cambiar paquetes, proveedores ni condiciones.</span></div>
+                    <a href="{{ route('rfq.wizard.steps', $requisition) }}?step=4" class="btn btn-sm btn-outline-primary">Ver envíos</a>
+                </div>
+            @endif
+            <div @if($isReadOnlyAfterSend && $currentStep < 4) inert aria-label="Contenido disponible solo para consulta" @endif>
             {{-- Contenido según el paso --}}
             @if($currentStep === 1)
                 @include('rfq.wizard-steps.step-1-validation')
@@ -128,23 +81,28 @@
             @elseif($currentStep === 5)
                 @include('rfq.wizard-steps.step-5-analysis')
             @endif
+            </div>
         </div>
-    </div>
+    </main>
 
     {{-- Botones de Navegación --}}
-    <div class="d-flex justify-content-between mt-4">
+    <div class="d-flex justify-content-between mt-4 tg-action-bar">
         {{-- Botón Devolver (solo en paso 1) --}}
-        @if($currentStep === 1)
+        @if($isReadOnlyAfterSend && $currentStep < 4)
+            <a href="{{ route('rfq.wizard.steps', $requisition) }}?step=4" class="btn btn-light tg-secondary-action">
+                <i class="ti ti-send me-1"></i> Volver a lanzamiento
+            </a>
+        @elseif($currentStep === 1)
             <button type="button" 
-                    class="btn btn-danger" 
+                    class="btn btn-outline-danger"
                     onclick="confirmReject()">
                 <i class="ti ti-arrow-back-up me-1"></i> Devolver al Usuario
             </button>
         @else
             <button type="button" 
-                    class="btn btn-outline-secondary" 
+                    class="btn btn-light tg-secondary-action"
                     wire:click="previousStep">
-                <i class="ti ti-arrow-left me-1"></i> Anterior
+                <i class="ti ti-arrow-left me-1"></i> Volver a {{ $stepMeta[$currentStep - 1]['label'] }}
             </button>
         @endif
 
@@ -154,7 +112,9 @@
                 <i class="ti ti-x me-1"></i> Cancelar
             </a>
             
-            @if($currentStep === 1)
+            @if($isReadOnlyAfterSend && $currentStep < 4)
+                <span class="tg-readonly-action"><i class="ti ti-lock-check"></i> Modo consulta</span>
+            @elseif($currentStep === 1)
                 {{-- Botón Validar y Continuar --}}
                 <button type="button" 
                         class="btn btn-primary btn-lg" 
@@ -172,7 +132,7 @@
                             !($validationData['alternatives_evaluated'] ?? false))
                             <i class="ti ti-lock me-1"></i> Complete todas las validaciones
                         @else
-                            <i class="ti ti-check-double me-1"></i> Validar y Continuar con Cotización
+                            <i class="ti ti-check-double me-1"></i> Guardar revisión y preparar paquetes
                         @endif
                     </span>
                     <span wire:loading wire:target="completeStep1">
@@ -184,23 +144,28 @@
                     <button type="button" 
                             class="btn btn-primary" 
                             onclick="validateAndProceedStep3({{ $requisition->id }})">
-                        Siguiente <i class="ti ti-arrow-right ms-1"></i>
+                        Crear borradores <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                @elseif($currentStep === 2 && ! $requisition->quotationGroups()->active()->exists())
+                    <button type="button" class="btn btn-primary" disabled title="Crea al menos un grupo antes de continuar">
+                        <i class="ti ti-folder-plus me-1"></i> Crea un grupo para continuar
                     </button>
                 @else
                     <button type="button" 
                             class="btn btn-primary" 
                             wire:click="nextStep">
-                        Siguiente <i class="ti ti-arrow-right ms-1"></i>
+                        Abrir {{ $stepMeta[$currentStep + 1]['label'] }} <i class="ti ti-arrow-right ms-1"></i>
                     </button>
                 @endif
             @else
                 <button type="button" 
                         class="btn btn-success">
-                    <i class="ti ti-check me-1"></i> Finalizar
+                    <i class="ti ti-circle-check me-1"></i> Proceso en seguimiento
                 </button>
             @endif
         </div>
     </div>
+    <div class="tg-livewire-progress" wire:loading wire:target="completeStep1,nextStep,previousStep,goToStep,completeStep3,saveManualQuote" role="status" aria-live="polite"><span class="tg-spinner" aria-hidden="true"></span><span>Guardando cambios...</span></div>
 </div>
 
 @push('styles')
@@ -223,6 +188,16 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
+
+    .tg-wizard { --tg-blue:#188ae2; --tg-ink:#1b2a41; --tg-muted:#66758a; --tg-border:#e2e9f0; color:var(--tg-ink); }
+    .tg-rfq-page-intro { display:flex; align-items:center; gap:1rem; margin:.5rem 0 1.35rem; padding:.2rem .1rem; }.tg-rfq-logo { width:2.75rem; height:2.75rem; flex:0 0 auto; object-fit:contain; animation:tg-rfq-logo-spin 8s linear infinite; }.tg-rfq-intro-copy { min-width:0; }.tg-rfq-kicker,.tg-content-kicker { display:block; color:#718096; font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }.tg-rfq-intro-copy h1 { margin:.15rem 0; color:#188ae2; font-size:1.45rem; font-weight:700; }.tg-rfq-intro-copy p { margin:0; color:#738196; font-size:.84rem; }.tg-rfq-meta { display:flex; align-items:stretch; margin-left:auto; border:1px solid #e2e9f0; border-radius:.65rem; background:#fff; }.tg-rfq-meta > div { min-width:116px; padding:.55rem .8rem; border-right:1px solid #e2e9f0; }.tg-rfq-meta > div:last-child { border-right:0; }.tg-rfq-meta span,.tg-rfq-meta strong { display:block; }.tg-rfq-meta span { color:#718096; font-size:.67rem; }.tg-rfq-meta strong { overflow:hidden; max-width:180px; margin-top:.15rem; color:#34465a; font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }.tg-rfq-meta > div:last-child strong { color:#1269ac; font-size:1rem; }
+    @keyframes tg-rfq-logo-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    .tg-workbench-nav { display:flex; align-items:center; gap:1rem; margin:0 0 1rem; padding:.65rem .85rem; border:1px solid var(--tg-border); border-radius:.75rem; background:#fff; }.tg-workbench-label { display:flex; align-items:center; gap:.45rem; min-width:max-content; color:#34465a; font-size:.8rem; font-weight:700; }.tg-workbench-label i { color:var(--tg-blue); font-size:1rem; }.tg-workbench-modules { display:flex; flex:1; gap:.35rem; overflow-x:auto; }.tg-module { display:flex; align-items:center; gap:.35rem; flex:1 0 auto; justify-content:center; min-width:108px; padding:.55rem .65rem; border:1px solid transparent; border-radius:.55rem; color:#7b8899; background:transparent; font-size:.74rem; font-weight:700; text-decoration:none; }.tg-module.is-done { color:#218b64; cursor:pointer; }.tg-module.is-done:hover { border-color:#a9e7c8; color:#16724f; background:#f4fcf8; }.tg-module.is-reviewable { color:#527b9d; border-color:#e0ebf4; background:#fbfdff; cursor:pointer; }.tg-module.is-reviewable:hover { border-color:#b9dcf6; color:#1269ac; background:#f3faff; }.tg-module.is-current { border-color:#b9dcf6; color:#1269ac; background:#eaf6ff; }.tg-module.is-done i { color:#4bd396; }.tg-module.is-reviewable i { color:#188ae2; }.tg-module.is-locked { opacity:.55; cursor:not-allowed; }
+    .tg-content-card { overflow:hidden; border:1px solid var(--tg-border); border-radius:.85rem; background:#fff; box-shadow:0 8px 24px rgba(28,80,120,.05); }.tg-content-card .card-header { border-bottom-color:var(--tg-border); background:#fbfdff; }.tg-content-icon { display:inline-flex; align-items:center; justify-content:center; width:2.15rem; height:2.15rem; border-radius:.6rem; color:#188ae2; background:#eaf6ff; }.tg-content-title { font-size:1rem; }.tg-content-body { padding:1.35rem; }.tg-livewire-progress { display:flex; align-items:center; gap:.5rem; margin-top:.75rem; color:var(--tg-muted); font-size:.78rem; }.tg-spinner { width:1rem; height:1rem; border:2px solid #cfe7f8; border-top-color:var(--tg-blue); border-radius:50%; animation:rotate 1s linear infinite; }
+    .tg-wizard .card { border-color:var(--tg-border); border-radius:.7rem; box-shadow:0 3px 12px rgba(28,80,120,.04); }.tg-wizard .form-control,.tg-wizard .form-select { border-color:#d7e0e9; border-radius:.55rem; }.tg-wizard .form-control:focus,.tg-wizard .form-select:focus { border-color:var(--tg-blue); box-shadow:0 0 0 .2rem rgba(24,138,226,.12); }.tg-wizard .btn { border-radius:.55rem; transition:transform .18s ease,box-shadow .18s ease; }.tg-wizard .btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 5px 12px rgba(28,80,120,.12); }.tg-wizard .table thead th { color:#53647a; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; }.tg-wizard .table tbody tr { transition:background-color .18s ease; }.tg-wizard .table tbody tr:hover { background:#f7fbff; }
+    .tg-readonly-notice { display:flex; align-items:center; gap:.7rem; padding:.75rem .9rem; margin:0 0 1rem; border:1px solid #b9dcf6; border-radius:.7rem; color:#36516e; background:#f7fbff; }.tg-readonly-notice-icon { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; flex:0 0 auto; border-radius:50%; color:#1269ac; background:#eaf6ff; }.tg-readonly-notice strong,.tg-readonly-notice span { display:block; }.tg-readonly-notice strong { font-size:.8rem; }.tg-readonly-notice div span { margin-top:.1rem; color:#66758a; font-size:.76rem; }.tg-readonly-notice .btn { margin-left:auto; flex:0 0 auto; }.tg-readonly-action { display:inline-flex; align-items:center; gap:.35rem; padding:.55rem .7rem; border:1px solid #dcecf8; border-radius:.55rem; color:#526f8d; background:#f7fbff; font-size:.78rem; font-weight:700; }
+    @media (max-width:767.98px) { .tg-rfq-page-intro { align-items:flex-start; flex-wrap:wrap; }.tg-rfq-meta { order:3; width:100%; margin-left:0; }.tg-rfq-meta > div { flex:1; min-width:0; }.tg-workbench-nav { align-items:flex-start; flex-direction:column; }.tg-workbench-modules { width:100%; }.tg-module { min-width:44px; }.tg-module span { display:none; }.tg-content-body { padding:.9rem; }.tg-action-bar { align-items:stretch; flex-direction:column; }.tg-action-bar > *, .tg-action-bar .d-flex { width:100%; }.tg-action-bar .btn { flex:1; }.tg-action-bar .d-flex { display:flex; }.tg-readonly-notice { align-items:flex-start; flex-wrap:wrap; }.tg-readonly-notice .btn { width:100%; margin-left:0; } }
+    @media (prefers-reduced-motion:reduce) { .tg-wizard *, .tg-wizard *::before, .tg-wizard *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; } }
 </style>
 @endpush
 
@@ -389,7 +364,7 @@ window.Step2Planner = (function() {
                     name: result.value,
                     item_ids: [itemId]
                 }).done(() => reloadStep2())
-                  .fail(() => Swal.fire('Error', 'No se pudo crear el grupo', 'error'));
+                  .fail(xhr => Swal.fire('Error', xhr.responseJSON?.message || 'No se pudo crear el grupo', 'error'));
             }
         });
     }
@@ -428,7 +403,8 @@ window.Step2Planner = (function() {
                     url: `/requisitions/${requisitionId}/quotation-planner/groups/${groupId}`,
                     method: 'POST',
                     data: { _token: '{{ csrf_token() }}', _method: 'DELETE' }
-                }).done(() => reloadStep2());
+                }).done(() => reloadStep2())
+                  .fail(xhr => Swal.fire('Error', xhr.responseJSON?.message || 'No se pudo eliminar el grupo', 'error'));
             }
         });
     }
@@ -475,7 +451,8 @@ window.Step2Planner = (function() {
             _token: '{{ csrf_token() }}',
             name: groupName,
             item_ids: itemIds
-        }).done(() => reloadStep2());
+        }).done(() => reloadStep2())
+          .fail(xhr => Swal.fire('Error', xhr.responseJSON?.message || 'No se pudo crear el grupo', 'error'));
     }
 
     function addMultipleItemsToGroup(requisitionId, groupId, itemIds) {
@@ -502,7 +479,7 @@ window.Step3Suppliers = (function() {
     let suppliersData = {};
 
     function init(requisitionId, existingData = []) {
-        if (isInitializing || (initialized && select2Instances.length > 0)) return;
+        if (isInitializing || initialized) return;
         if (!document.getElementById('suppliersSelectionStep')) return;
         
         isInitializing = true;
@@ -547,17 +524,14 @@ window.Step3Suppliers = (function() {
                 if (existingGroup.response_deadline) $(`.response-deadline-input[data-group-index="${groupIndex}"]`).val(existingGroup.response_deadline);
                 if (existingGroup.notes) $(`.group-notes-input[data-group-index="${groupIndex}"]`).val(existingGroup.notes);
             }
-            
-            $select.select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Selecciona proveedores...',
-                width: '100%'
-            }).on('change', function() {
+
+            $select.off('.tgSupplierSelection').on('change.tgSupplierSelection', function() {
+                syncSupplierCards(groupIndex);
                 updateSupplierCount(groupIndex);
                 saveSupplierSelection(groupIndex);
             });
-            
-            select2Instances.push($select);
+
+            syncSupplierCards(groupIndex);
             updateSupplierCount(groupIndex);
             if (existingGroup) saveSupplierSelection(groupIndex);
         });
@@ -571,14 +545,113 @@ window.Step3Suppliers = (function() {
         $(document).off('blur', '.group-notes-input').on('blur', '.group-notes-input', function() {
             saveSupplierSelection($(this).data('group-index'));
         });
+
+        $(document).off('click.tgSupplierCards', '.tg-supplier-card').on('click.tgSupplierCards', '.tg-supplier-card', function() {
+            const groupIndex = $(this).data('group-index');
+            const supplierId = String($(this).data('supplier-id'));
+            const $select = $(`.supplier-select[data-group-index="${groupIndex}"]`);
+            const selected = ($select.val() || []).map(String);
+            if (!selected.includes(supplierId)) {
+                animateSupplierTransfer($(this), $(`.tg-selected-supplier-list[data-group-index="${groupIndex}"]`), 'to-selected');
+                $select.val([...selected, supplierId]).trigger('change');
+            }
+        });
+
+        $(document).off('input.tgSupplierFilter', '.tg-supplier-filter').on('input.tgSupplierFilter', '.tg-supplier-filter', function() {
+            const query = $(this).val().trim().toLocaleLowerCase();
+            const groupIndex = $(this).data('group-index');
+            $(`.tg-supplier-card[data-group-index="${groupIndex}"]`).each(function() {
+                const name = String($(this).data('supplier-name')).toLocaleLowerCase();
+                $(this).toggleClass('is-filtered-out', query.length > 0 && !name.includes(query));
+            });
+        });
+
+        $(document).off('click.tgSelectedSuppliers', '.remove-selected-supplier').on('click.tgSelectedSuppliers', '.remove-selected-supplier', function() {
+            const groupIndex = $(this).data('group-index');
+            const supplierId = String($(this).data('supplier-id'));
+            const $select = $(`.supplier-select[data-group-index="${groupIndex}"]`);
+            const next = ($select.val() || []).map(String).filter(id => id !== supplierId);
+            animateSupplierTransfer($(this), $(`.tg-supplier-card-list`).filter(function() {
+                return $(this).closest('.tg-supplier-transfer').data('group-index') === groupIndex;
+            }), 'to-available');
+            $select.val(next).trigger('change');
+        });
+
+        $(document).off('click.tgGroupToggle', '.tg-group-toggle').on('click.tgGroupToggle', '.tg-group-toggle', function(event) {
+            if ($(event.target).closest('button, input, label, a, .form-check').length) return;
+            const target = document.querySelector($(this).data('group-target'));
+            if (target && window.bootstrap?.Collapse) bootstrap.Collapse.getOrCreateInstance(target, { toggle: false }).toggle();
+        });
+
+        $(document).off('keydown.tgGroupToggle', '.tg-group-toggle').on('keydown.tgGroupToggle', '.tg-group-toggle', function(event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            $(this).trigger('click');
+        });
+
+        $(document).off('shown.bs.collapse.tgGroupToggle hidden.bs.collapse.tgGroupToggle', '.tg-group-configurator')
+            .on('shown.bs.collapse.tgGroupToggle hidden.bs.collapse.tgGroupToggle', '.tg-group-configurator', function(event) {
+                const expanded = event.type === 'shown';
+                const $header = $(this).prev('.tg-group-toggle');
+                $header.attr('aria-expanded', expanded ? 'true' : 'false').toggleClass('is-collapsed', !expanded);
+                $header.find('.tg-group-chevron i').attr('class', expanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down');
+                $header.find('.tg-group-toggle-hint').html(expanded ? '<i class="ti ti-chevron-up"></i> Cerrar' : '<i class="ti ti-click"></i> Abrir');
+                if (expanded) {
+                    const $card = $(this).closest('.group-supplier-card').addClass('is-opening');
+                    setTimeout(() => $card.removeClass('is-opening'), 1150);
+                }
+            });
+    }
+
+    function syncSupplierCards(groupIndex) {
+        const selected = ($(`.supplier-select[data-group-index="${groupIndex}"]`).val() || []).map(String);
+        $(`.tg-supplier-card[data-group-index="${groupIndex}"]`).each(function() {
+            const checked = selected.includes(String($(this).data('supplier-id')));
+            $(this).toggleClass('is-selected', checked);
+        });
+
+        const $selectedList = $(`.tg-selected-supplier-list[data-group-index="${groupIndex}"]`);
+        $selectedList.empty();
+        if (selected.length === 0) {
+            $selectedList.append($('<div>', { class: 'tg-selected-empty' }).append($('<i>', { class: 'ti ti-users-minus' })).append($('<span>').text('Aún no hay proveedores seleccionados.')));
+            return;
+        }
+
+        selected.forEach(supplierId => {
+            const $source = $(`.tg-supplier-card[data-group-index="${groupIndex}"][data-supplier-id="${supplierId}"]`);
+            const name = String($source.data('supplier-name') || 'Proveedor');
+            const initials = name.trim().charAt(0).toUpperCase();
+            const $row = $('<button>', { type: 'button', class: 'tg-selected-supplier remove-selected-supplier', 'data-group-index': groupIndex, 'data-supplier-id': supplierId, 'aria-label': `Quitar ${name}` });
+            $row.append($('<span>', { class: 'tg-supplier-avatar', text: initials }));
+            $row.append($('<strong>').text(name));
+            $row.append($('<span>', { class: 'tg-supplier-remove' }).append($('<i>', { class: 'ti ti-x' })));
+            $selectedList.append($row);
+        });
+    }
+
+    function animateSupplierTransfer($source, $target, direction) {
+        const sourceRect = $source[0]?.getBoundingClientRect();
+        const targetRect = $target[0]?.getBoundingClientRect();
+        if (!sourceRect || !targetRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const targetX = targetRect.left + Math.min(42, targetRect.width / 2);
+        const targetY = targetRect.top + Math.min(42, targetRect.height / 2);
+        const $ghost = $source.clone(false, false)
+            .removeClass('is-selected is-filtered-out remove-selected-supplier')
+            .addClass(`tg-supplier-transfer-ghost ${direction}`)
+            .css({ left: sourceRect.left, top: sourceRect.top, width: sourceRect.width, height: sourceRect.height });
+
+        $('body').append($ghost);
+        requestAnimationFrame(() => {
+            $ghost.css({ transform: `translate(${targetX - sourceRect.left}px, ${targetY - sourceRect.top}px) scale(.82)`, opacity: .18 });
+        });
+        setTimeout(() => $ghost.remove(), 720);
     }
 
     function updateSupplierCount(groupIndex) {
         const count = $(`.supplier-select[data-group-index="${groupIndex}"]`).val()?.length || 0;
         const $badge = $(`.supplier-count[data-group-index="${groupIndex}"]`);
         $badge.text(count);
-        $badge.removeClass('bg-primary bg-success bg-secondary')
-              .addClass(count === 0 ? 'bg-secondary' : (count >= 3 ? 'bg-success' : 'bg-primary'));
     }
 
     function saveSupplierSelection(groupIndex) {

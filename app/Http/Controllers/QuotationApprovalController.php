@@ -14,6 +14,7 @@ use App\Services\QuotationRejectionWorkflowService;
 use App\Services\QuotationSummaryItemService;
 use App\Services\ApprovalDelegationService;
 use App\Services\ApprovalDecisionService;
+use App\Services\CostCenterApprovalFlowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class QuotationApprovalController extends Controller
         private QuotationSummaryItemService $quotationSummaryItemService,
         private ApprovalDelegationService $approvalDelegations,
         private ApprovalDecisionService $approvalDecisions,
+        private CostCenterApprovalFlowService $costCenterApprovalFlow,
     ) {}
 
     public function index(Request $request)
@@ -212,8 +214,9 @@ class QuotationApprovalController extends Controller
             'items.rfqResponse'
         );
 
+        $advancedOnly = false;
         try {
-            DB::transaction(function () use ($request, &$summary, $principalId) {
+            DB::transaction(function () use ($request, &$summary, $principalId, &$advancedOnly) {
                 $summary = QuotationSummary::query()->lockForUpdate()->findOrFail($summary->id);
 
                 if (! $summary->isPending()) {
@@ -238,6 +241,13 @@ class QuotationApprovalController extends Controller
                     'items.rfqResponse'
                 );
                 $rfq = $summary->rfq;
+
+                if ($request->status === 'approved' && $summary->approvalSteps()->exists()) {
+                    if (! $this->costCenterApprovalFlow->advance($summary, Auth::user(), $request->input('notes'))) {
+                        $advancedOnly = true;
+                        return;
+                    }
+                }
 
                 if ($request->status === 'approved') {
                     $this->quotationSummaryItemService->applyApproval($summary, $request->input('items', []));
@@ -285,13 +295,9 @@ class QuotationApprovalController extends Controller
                     $this->budgetAllocationService->transferQuotationSummaryToPurchaseOrder($summary, $purchaseOrder);
 
                     $this->quotationRejectionWorkflowService->refreshRequisitionStatus($summary->requisition_id);
-                    $this->approvalDecisions->record(
-                        $summary,
-                        $principalId,
-                        Auth::user(),
-                        'APPROVED',
-                        $summary->notes
-                    );
+                    if (! $summary->approvalSteps()->exists()) {
+                        $this->approvalDecisions->record($summary, $principalId, Auth::user(), 'APPROVED', $summary->notes);
+                    }
                 } else {
                     $reason = $request->string('reason')->toString();
                     $this->quotationRejectionWorkflowService->handleApprovalRejection(
@@ -304,6 +310,11 @@ class QuotationApprovalController extends Controller
             });
 
             $summary->refresh();
+
+            if ($advancedOnly) {
+                return redirect()->route('approvals.quotations.index')
+                    ->with('status', 'Aprobación registrada; la cotización avanzó al siguiente responsable.');
+            }
 
             if ($request->status === 'approved' && ! $summary->isRejected()) {
                 $this->notifyApprovalOutcome($summary->fresh(['requisition.requester', 'selector', 'rfq', 'selectedSupplier']), true);

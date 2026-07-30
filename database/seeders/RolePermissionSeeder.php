@@ -104,6 +104,8 @@ class RolePermissionSeeder extends Seeder
             'catalogo_cuentas.editar',
             'catalogo_cuentas.eliminar',
             'departamentos.administrar',
+            'perfiles_presupuestales.ver',
+            'perfiles_presupuestales.administrar_propios',
             'puestos.administrar',
         ];
 
@@ -299,6 +301,7 @@ class RolePermissionSeeder extends Seeder
                 'catalogo_cuentas.crear',
                 'catalogo_cuentas.editar',
                 'catalogo_cuentas.eliminar',
+                'departamentos.administrar',
                 'edit_own_profile',
             ]);
 
@@ -312,6 +315,8 @@ class RolePermissionSeeder extends Seeder
                 // Presupuesto
                 'view_budget',
                 'manage_budget',
+                'perfiles_presupuestales.ver',
+                'perfiles_presupuestales.administrar_propios',
                 // Reportes
                 'view_purchase_reports',
                 'view_accounting_reports',

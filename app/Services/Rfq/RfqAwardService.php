@@ -176,15 +176,10 @@ class RfqAwardService
 
             $summary->loadMissing('requester', 'requisition.requester');
 
-            $resolution = $this->authorizerResolutionService->resolveForSummary($summary);
-
-            $summary->update([
-                'current_approver_user_id' => $resolution['approver_user']->id,
-                'authorizer_role_id' => $resolution['authorizer_role']->id,
-                'effective_authorization_limit' => $resolution['effective_limit'],
-                'approval_chain_snapshot' => $resolution['chain'],
-                'resolution_notes' => $resolution['resolution_notes'],
-            ]);
+            if (! app(\App\Services\CostCenterApprovalFlowService::class)->initialize($summary)) {
+                $resolution = $this->authorizerResolutionService->resolveForSummary($summary);
+                $summary->update(['current_approver_user_id' => $resolution['approver_user']->id, 'authorizer_role_id' => $resolution['authorizer_role']->id, 'effective_authorization_limit' => $resolution['effective_limit'], 'approval_chain_snapshot' => $resolution['chain'], 'resolution_notes' => $resolution['resolution_notes']]);
+            }
 
             $this->quotationSummaryItemService->syncFromSelectedSupplier($summary);
             $this->budgetAllocationService->reserveQuotationSummary($summary);

@@ -168,6 +168,7 @@ class DirectPurchaseOrder extends Model
     {
         return $this->hasMany(DirectPurchaseOrderItem::class);
     }
+    public function approvalSteps(): MorphMany { return $this->morphMany(CostCenterApprovalStep::class, 'approvable'); }
 
     public function primaryCostCenter(): ?CostCenter
     {

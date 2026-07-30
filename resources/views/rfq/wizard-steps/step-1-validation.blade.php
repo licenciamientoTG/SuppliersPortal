@@ -1,312 +1,58 @@
-{{-- Información General --}}
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <label class="form-label text-muted text-uppercase fs-11 fw-bold">Solicitante</label>
-        <div class="d-flex align-items-center bg-light p-2 rounded border">
-            <span class="avatar avatar-xs rounded-circle bg-primary-subtle text-primary me-2">
-                <i class="ti ti-user"></i>
-            </span>
-            <span class="fw-medium text-dark">{{ $requisition->requester->name }}</span>
-        </div>
+@php
+    $primaryCostCenter = $requisition->primaryCostCenter();
+    $validationConfirmed = collect($validationData)->only(['specs_clear', 'time_feasible', 'alternatives_evaluated'])->filter()->count();
+    $validationMarkerState = $validationConfirmed === 3 ? 'is-complete' : ($validationConfirmed === 0 ? 'is-empty' : 'is-progress');
+@endphp
+<section class="tg-validation-flow" aria-labelledby="validation-title">
+    <div class="tg-validation-marker {{ $validationMarkerState }}" role="status" aria-label="{{ $validationConfirmed }} de 3 validaciones confirmadas"><span class="tg-validation-marker-icon"><i class="ti {{ $validationConfirmed === 3 ? 'ti-circle-check' : 'ti-clipboard-check' }}"></i></span><span class="tg-validation-marker-copy"><strong>{{ $validationConfirmed }}<small>/3</small></strong><span>{{ $validationConfirmed === 3 ? 'Listo para cotizar' : 'validaciones' }}</span></span></div>
+    <div class="tg-readiness-panel">
+        <div><span class="tg-section-kicker">Control de compra</span><h3 id="validation-title">¿La requisición está lista para salir a cotización?</h3><p>Revisa el contexto y confirma los tres criterios indispensables antes de preparar solicitudes.</p></div>
     </div>
-    <div class="col-md-4">
-        <label class="form-label text-muted text-uppercase fs-11 fw-bold">Centro de Costos</label>
-        <div class="bg-light p-2 rounded border text-truncate">
-            @php
-                $primaryCostCenter = $requisition->primaryCostCenter();
-            @endphp
-            <span>{{ $primaryCostCenter?->code ?? 'N/A' }} - {{ $primaryCostCenter?->name ?? 'Sin centro de costo' }}</span>
-        </div>
+    <div class="tg-requisition-context">
+        <div class="tg-context-card"><i class="ti ti-user"></i><span>Solicitante</span><strong>{{ $requisition->requester?->name ?? 'Sin asignar' }}</strong></div>
+        <div class="tg-context-card"><i class="ti ti-building"></i><span>Centro de costo</span><strong>{{ $primaryCostCenter?->code ?? 'N/A' }} · {{ $primaryCostCenter?->name ?? 'Sin centro de costo' }}</strong></div>
+        <div class="tg-context-card"><i class="ti ti-list-details"></i><span>Partidas</span><strong>{{ $requisition->items->count() }} por revisar</strong></div>
     </div>
-</div>
-
-{{-- Notas del Requisitor --}}
-<div class="alert alert-info border-0 bg-info-subtle text-info mb-4" role="alert">
-    <div class="d-flex">
-        <div class="me-3">
-            <i class="ti ti-message-2 fs-3"></i>
+    <div class="tg-validation-grid">
+        <div class="tg-validation-main">
+            <h4>Lista de confirmación</h4>
+            <p class="text-muted small mb-3">Marca cada afirmación únicamente cuando puedas respaldarla.</p>
+            <label class="tg-check-card {{ ($validationData['specs_clear'] ?? false) ? 'is-checked' : '' }}" for="check_specs_clear"><input class="form-check-input validation-checkbox" type="checkbox" wire:model.live="validationData.specs_clear" id="check_specs_clear"><span class="tg-check-icon"><i class="ti ti-file-check"></i></span><span><strong>Las especificaciones son cotizables</strong><small>El proveedor podrá entender productos, cantidades y condiciones sin pedir aclaraciones.</small></span></label>
+            <label class="tg-check-card {{ ($validationData['time_feasible'] ?? false) ? 'is-checked' : '' }}" for="check_time_feasible"><input class="form-check-input validation-checkbox" type="checkbox" wire:model.live="validationData.time_feasible" id="check_time_feasible"><span class="tg-check-icon"><i class="ti ti-calendar-time"></i></span><span><strong>El tiempo de entrega es factible</strong><small>La necesidad puede atenderse en el plazo previsto por la operación.</small></span></label>
+            <label class="tg-check-card {{ ($validationData['alternatives_evaluated'] ?? false) ? 'is-checked' : '' }}" for="check_alternatives"><input class="form-check-input validation-checkbox" type="checkbox" wire:model.live="validationData.alternatives_evaluated" id="check_alternatives"><span class="tg-check-icon"><i class="ti ti-arrows-exchange"></i></span><span><strong>Se evaluaron alternativas</strong><small>La selección corresponde a la mejor opción disponible para solicitar precios.</small></span></label>
+            <div class="mt-3"><label for="purchasing-notes" class="form-label fw-semibold">Observaciones de Compras <span class="text-muted fw-normal">(opcional)</span></label><textarea id="purchasing-notes" class="form-control" wire:model="validationData.purchasing_notes" rows="3" placeholder="Deja contexto útil para la siguiente etapa de cotización..."></textarea></div>
         </div>
-        <div>
-            <h5 class="alert-heading fs-14 fw-bold">Notas del Requisitor:</h5>
-            <p class="mb-0 fs-13">{{ $requisition->description ?: 'Sin observaciones adicionales' }}</p>
-        </div>
-    </div>
-</div>
-
-{{-- Detalle de Partidas --}}
-<h6 class="text-uppercase text-muted mb-2 fs-12 fw-bold">Detalle de Partidas</h6>
-<div class="table-responsive border rounded mb-4">
-    <table class="table table-sm table-nowrap table-hover mb-0 align-middle">
-        <thead class="table-light">
-            <tr>
-                <th width="50">#</th>
-                <th>Producto / Servicio</th>
-                <th class="text-center" width="100">Cant.</th>
-                <th class="text-center" width="100">Unidad</th>
-                                <th width="200">Cuenta</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($requisition->items as $index => $item)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>
-                        <strong>{{ $item->productService?->short_name ?? $item->description ?? 'Producto sin nombre' }}</strong>
-                        @if($item->productService?->code)
-                            <br>
-                            <small class="text-muted">{{ $item->productService->code }}</small>
-                        @endif
-                        @if($item->productService?->brand || $item->productService?->model)
-                            <br>
-                            <small class="text-muted">
-                                {{ collect([$item->productService->brand, $item->productService->model])->filter()->join(' / ') }}
-                            </small>
-                        @endif
-                    </td>
-                    <td class="text-center">{{ $item->quantity }}</td>
-                    <td class="text-center">{{ $item->unit }}</td>
-                    <td>
-                        <span class="badge bg-info">
-                            {{ $item->expenseCategory->code }} - {{ $item->expenseCategory->name }}
-                        </span>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        No hay partidas en esta requisición
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-</div>
-
-<hr class="my-4 border-dashed">
-
-{{-- Formulario de Validación --}}
-<div class="card bg-light border-start border-4">
-    <div class="card-body">
-        <h5 class="card-title mb-3">
-            <i class="ti ti-gavel me-2"></i> Validaciones del Departamento de Compras
-        </h5>
-
-        <p class="text-muted mb-4">
-            <i class="ti ti-info-circle me-1"></i>
-            Antes de proceder con la cotización, verifica los siguientes aspectos:
-        </p>
-
-        <div class="row g-3">
-            {{-- Validación 1: Claridad de Especificaciones --}}
-            <div class="col">
-                <div class="card validation-card {{ ($validationData['specs_clear'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
-                    <div class="card-body">
-                        <div class="form-check custom-checkbox">
-                            <input type="checkbox"
-                                class="form-check-input validation-checkbox"
-                                wire:model.live="validationData.specs_clear"
-                                id="check_specs_clear">
-                            <label class="form-check-label fw-bold {{ ($validationData['specs_clear'] ?? false) ? 'text-success' : 'text-dark' }}"
-                                for="check_specs_clear">
-                                <i class="ti ti-file-check me-1 text-primary"></i>
-                                Claridad de Especificaciones Técnicas
-                            </label>
-                        </div>
-                        <div class="form-text mt-2 ms-4">
-                            Las observaciones y especificaciones agregadas por el usuario son lo suficientemente
-                            claras para que un proveedor pueda cotizar sin errores o malentendidos.
-                        </div>
-                    </div>
-                </div>
+        <aside class="tg-request-review">
+            <div class="tg-review-heading"><span class="tg-section-kicker">Para validar</span><h4>Partidas solicitadas</h4></div>
+            <div class="tg-review-items">
+                @forelse($requisition->items as $index => $item)
+                    @php
+                        $itemDetail = filled($item->notes)
+                            ? $item->notes
+                            : ($item->description !== ($item->productService?->short_name ?? null) ? $item->description : null);
+                    @endphp
+                    <div class="tg-review-item"><span>{{ $index + 1 }}</span><div><strong>{{ $item->productService?->short_name ?? $item->description ?? 'Producto sin nombre' }}</strong><small>{{ number_format($item->quantity, 3) }} {{ $item->unit }} · {{ $item->expenseCategory?->name ?? 'Sin cuenta asignada' }}</small>@if(filled($itemDetail))<div class="tg-item-detail"><i class="ti ti-notes"></i><div><b>Notas de la partida</b><p>{{ $itemDetail }}</p></div></div>@endif</div></div>
+                @empty
+                    <div class="tg-empty-state"><i class="ti ti-package-off"></i><span>Esta requisición no tiene partidas.</span></div>
+                @endforelse
             </div>
-
-            {{-- Validación 2: Factibilidad de Tiempos --}}
-            <div class="col">
-                <div class="card validation-card {{ ($validationData['time_feasible'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
-                    <div class="card-body">
-                        <div class="form-check custom-checkbox">
-                            <input type="checkbox"
-                                class="form-check-input validation-checkbox"
-                                wire:model.live="validationData.time_feasible"
-                                id="check_time_feasible">
-                            <label class="form-check-label fw-bold {{ ($validationData['time_feasible'] ?? false) ? 'text-success' : 'text-dark' }}"
-                                for="check_time_feasible">
-                                <i class="ti ti-clock-hour-4 me-1 text-warning"></i>
-                                Factibilidad de Tiempos de Entrega
-                            </label>
-                        </div>
-                        <div class="form-text mt-2 ms-4">
-                            De acuerdo con las condiciones actuales del mercado, es posible cumplir con los
-                            tiempos de entrega esperados para esta requisición.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Validación 3: Evaluación de Alternativas --}}
-            <div class="col">
-                <div class="card validation-card {{ ($validationData['alternatives_evaluated'] ?? false) ? 'border-success border-2 bg-success-subtle' : 'border' }}">
-                    <div class="card-body">
-                        <div class="form-check custom-checkbox">
-                            <input type="checkbox"
-                                class="form-check-input validation-checkbox"
-                                wire:model.live="validationData.alternatives_evaluated"
-                                id="check_alternatives">
-                            <label class="form-check-label fw-bold {{ ($validationData['alternatives_evaluated'] ?? false) ? 'text-success' : 'text-dark' }}"
-                                for="check_alternatives">
-                                <i class="ti ti-arrows-exchange me-1 text-success"></i>
-                                Evaluación de Alternativas de Catálogo
-                            </label>
-                        </div>
-                        <div class="form-text mt-2 ms-4">
-                            Los productos seleccionados son la opción más eficiente en cuanto a costo-beneficio.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Notas adicionales de validación --}}
-        <div class="mt-4 pt-3 border-top">
-            <label class="form-label fw-bold text-dark">
-                Observaciones de Compras (opcional)
-            </label>
-            <textarea class="form-control"
-                      wire:model="validationData.purchasing_notes"
-                      rows="3"
-                      placeholder="Comentarios adicionales sobre productos alternativos sugeridos..."></textarea>
-        </div>
+            <div class="tg-request-notes"><i class="ti ti-message-2"></i><div><strong>Notas del solicitante</strong><p>{{ $requisition->description ?: 'Sin observaciones adicionales.' }}</p></div></div>
+        </aside>
     </div>
-</div>
+</section>
 
-@push('styles')
 <style>
-    .fs-11 { font-size: 0.688rem; }
-    .fs-12 { font-size: 0.75rem; }
-    .fs-13 { font-size: 0.813rem; }
-    .fs-14 { font-size: 0.875rem; }
-    .border-dashed { border-style: dashed !important; }
-    .avatar-xs {
-        width: 2rem;
-        height: 2rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.875rem;
-    }
-
-    /* Estilos para animación de validación */
-    .validation-card {
-        transition: all 0.3s ease;
-    }
-
-    .validation-card.validated {
-        border-color: #198754 !important;
-        border-width: 2px !important;
-        background-color: rgba(25, 135, 84, 0.08) !important;
-    }
-
-    .validation-checkbox:checked ~ label {
-        color: #198754 !important;
-    }
-
-    .custom-checkbox .form-check-input:checked {
-        background-color: #28a745;
-        border-color: #28a745;
-    }
-
-    @keyframes checkPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-
-    .animate-check {
-        animation: checkPulse 0.3s ease;
-    }
+    .tg-validation-flow { position:relative; padding-top:.75rem; }.tg-readiness-panel { display:flex; align-items:center; gap:1rem; padding:1.1rem 10rem 1.1rem 1.1rem; border:1px solid #dcecf8; border-radius:.75rem; background:#f7fbff; }.tg-readiness-panel h3 { margin:.2rem 0; font-size:1.08rem; }.tg-readiness-panel p { margin:0; color:#718096; font-size:.85rem; }.tg-validation-marker { position:absolute; z-index:4; top:0; right:.85rem; display:flex; align-items:center; gap:.5rem; min-width:130px; padding:.5rem .7rem; border:1px solid; border-radius:.7rem; box-shadow:0 .5rem 1.25rem rgba(28,80,120,.2); transform:translateY(-45%); }.tg-validation-marker::after { position:absolute; right:.8rem; bottom:-.28rem; width:.55rem; height:.55rem; border-right:1px solid; border-bottom:1px solid; background:inherit; content:""; transform:rotate(45deg); }.tg-validation-marker-icon,.tg-validation-marker-copy { position:relative; z-index:1; }.tg-validation-marker-icon { display:inline-flex; align-items:center; justify-content:center; width:1.9rem; height:1.9rem; border-radius:.5rem; font-size:1rem; }.tg-validation-marker-copy strong,.tg-validation-marker-copy > span { display:block; }.tg-validation-marker-copy strong { font-size:1rem; line-height:1; }.tg-validation-marker-copy strong small { margin-left:.08rem; font-size:.68rem; font-weight:700; }.tg-validation-marker-copy > span { margin-top:.16rem; font-size:.62rem; font-weight:700; white-space:nowrap; }.tg-validation-marker.is-empty { border-color:#d8e0e9; color:#657487; background:#fff; }.tg-validation-marker.is-empty .tg-validation-marker-icon { color:#718096; background:#eef2f6; }.tg-validation-marker.is-progress { border-color:#f2d28b; color:#9a6812; background:#fffaf0; }.tg-validation-marker.is-progress .tg-validation-marker-icon { color:#bd7d0a; background:#fff0cd; }.tg-validation-marker.is-complete { border-color:#9de1bd; color:#19704b; background:#f3fcf7; }.tg-validation-marker.is-complete .tg-validation-marker-icon { color:#218b64; background:#dff8eb; }.tg-requisition-context { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin:1rem 0; }.tg-context-card { padding:.85rem; border:1px solid #e2e9f0; border-radius:.65rem; background:#fff; }.tg-context-card i { color:#188ae2; }.tg-context-card span,.tg-context-card strong { display:block; }.tg-context-card span { margin-top:.35rem; color:#718096; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; }.tg-context-card strong { margin-top:.2rem; font-size:.82rem; }.tg-validation-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr); gap:1rem; }.tg-validation-main,.tg-request-review { padding:1rem; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-validation-main h4,.tg-request-review h4 { margin:0; font-size:.95rem; }.tg-check-card { display:grid; grid-template-columns:auto auto 1fr; gap:.75rem; align-items:flex-start; margin-bottom:.65rem; padding:.85rem; border:1px solid #e2e9f0; border-radius:.65rem; cursor:pointer; transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }.tg-check-card:hover { transform:translateY(-2px); box-shadow:0 5px 12px rgba(28,80,120,.08); }.tg-check-card.is-checked { border-color:#7edfb0; background:#f4fcf8; }.tg-check-card input { margin-top:.2rem; }.tg-check-icon { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; border-radius:.5rem; color:#188ae2; background:#eaf6ff; }.tg-check-card.is-checked .tg-check-icon { color:#218b64; background:#e8fbf2; }.tg-check-card strong,.tg-check-card small { display:block; }.tg-check-card strong { font-size:.84rem; }.tg-check-card small { margin-top:.2rem; color:#718096; font-size:.76rem; }.tg-review-items { max-height:280px; overflow:auto; margin-top:.75rem; }.tg-review-item { display:grid; grid-template-columns:1.5rem 1fr; gap:.55rem; padding:.6rem 0; border-bottom:1px solid #eef2f6; }.tg-review-item > span { display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%; color:#1269ac; background:#eaf6ff; font-size:.7rem; font-weight:700; }.tg-review-item strong,.tg-review-item small { display:block; }.tg-review-item strong { font-size:.8rem; }.tg-review-item small { color:#718096; font-size:.72rem; }.tg-item-detail { display:flex; gap:.4rem; margin-top:.45rem; padding:.45rem .55rem; border-left:2px solid #9dd4f5; border-radius:0 .4rem .4rem 0; background:#f7fbff; color:#526274; }.tg-item-detail > i { margin-top:.05rem; color:#188ae2; }.tg-item-detail b { display:block; color:#49708e; font-size:.66rem; letter-spacing:.03em; text-transform:uppercase; }.tg-item-detail p { margin:.12rem 0 0; font-size:.73rem; line-height:1.35; white-space:pre-line; }.tg-request-notes { display:flex; gap:.6rem; margin-top:.75rem; padding:.75rem; border-radius:.6rem; background:#f7fbff; color:#526274; }.tg-request-notes i { color:#188ae2; }.tg-request-notes strong { font-size:.78rem; }.tg-request-notes p { margin:.2rem 0 0; font-size:.75rem; }
+    @media (max-width:991.98px) { .tg-validation-grid { grid-template-columns:1fr; } }
+    .tg-validation-marker { position:fixed; top:7.25rem; right:1.25rem; transform:none; }.tg-validation-marker::after { display:none; }
+    @media (max-width:575.98px) { .tg-readiness-panel { align-items:flex-start; padding:1rem; }.tg-validation-marker { position:fixed; top:5.25rem; right:.75rem; width:max-content; margin:0; }.tg-requisition-context { grid-template-columns:1fr; } }
 </style>
-@endpush
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-$(function() {
-    'use strict';
-});
-
-/**
- * Confirmar rechazo/devolución de requisición
- */
 function confirmReject() {
-    Swal.fire({
-        title: '¿Devolver requisición {{ $requisition->folio }}?',
-        html: `
-            <div class="text-start">
-                <p class="mb-3"><strong>Al devolver esta requisición al usuario:</strong></p>
-                <ul class="text-muted small">
-                    <li class="mb-2">
-                        <i class="ti ti-ban text-danger"></i>
-                        Cambiará a estado <span class="badge bg-danger">RECHAZADA</span>
-                    </li>
-                    <li class="mb-2">
-                        <i class="ti ti-bell text-primary"></i>
-                        El solicitante recibirá notificación del rechazo
-                    </li>
-                    <li class="mb-2">
-                        <i class="ti ti-message-2 text-info"></i>
-                        Podrá corregir y volver a enviar
-                    </li>
-                </ul>
-
-                <div class="mt-3">
-                    <label for="rejection_reason" class="form-label fw-bold">
-                        Motivo de devolución <span class="text-danger">*</span>
-                    </label>
-                    <textarea
-                        id="rejection_reason"
-                        class="form-control"
-                        rows="4"
-                        placeholder="Explica claramente qué debe corregir el usuario (especificaciones incompletas, tiempo no factible, etc.)..."
-                        maxlength="1000"
-                        required></textarea>
-                    <small class="form-text text-muted">Mínimo 20 caracteres - Máximo 1000 caracteres</small>
-                </div>
-            </div>
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: '<i class="ti ti-arrow-back-up me-1"></i> Sí, Devolver',
-        cancelButtonText: '<i class="ti ti-x me-1"></i> Cancelar',
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        width: '650px',
-        reverseButtons: true,
-        customClass: {
-            confirmButton: 'btn btn-danger',
-            cancelButton: 'btn btn-outline-secondary'
-        },
-        buttonsStyling: false,
-        preConfirm: () => {
-            const reason = document.getElementById('rejection_reason').value.trim();
-
-            if (!reason) {
-                Swal.showValidationMessage('Debes proporcionar un motivo de devolución');
-                return false;
-            }
-
-            if (reason.length < 20) {
-                Swal.showValidationMessage('El motivo debe tener al menos 20 caracteres para ser claro');
-                return false;
-            }
-
-            return reason;
-        }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            // Llamar al método Livewire para rechazar
-            @this.rejectRequisition(result.value);
-        }
-    });
+    Swal.fire({ title: '¿Devolver requisición?', input: 'textarea', inputLabel: 'Motivo para el solicitante', inputPlaceholder: 'Explica qué debe corregirse...', showCancelButton: true, confirmButtonText: 'Devolver requisición', cancelButtonText: 'Cancelar', inputValidator: value => value && value.trim().length >= 20 ? undefined : 'Escribe al menos 20 caracteres.' }).then(result => { if (result.isConfirmed) @this.rejectRequisition(result.value.trim()); });
 }
 </script>
 @endpush

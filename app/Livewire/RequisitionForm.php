@@ -544,12 +544,19 @@ class RequisitionForm extends Component
             return false;
         }
 
-        return app(BudgetCedulaCatalogService::class)->isValidCedulaForContext(
+        $missingTargets = app(\App\Services\CostCenterDistributionService::class)->missingBudgetTargets(
             (int) $itemData['cost_center_id'],
             (int) $itemData['expense_category_id'],
             (int) $itemData['budget_cedula_id'],
             now()->year
         );
+
+        if ($missingTargets->isNotEmpty()) {
+            $this->dispatch('item-error', message: 'Sin presupuesto asignado en: '.$missingTargets->map(fn ($center) => $center->code.' '.$center->name)->implode(', '));
+            return false;
+        }
+
+        return true;
     }
 
     private function enrichItemWithBudgetClassification(array $itemData): array

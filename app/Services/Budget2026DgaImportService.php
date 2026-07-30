@@ -6,6 +6,7 @@ use App\Models\AnnualBudget;
 use App\Models\BudgetCedula;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
+use App\Models\User;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use RuntimeException;
@@ -115,8 +116,13 @@ class Budget2026DgaImportService
     public function import(string $filePath, int $year = 2026, string $status = 'PLANIFICACION'): array
     {
         $analysis = $this->analyze($filePath, $year);
+        $actorId = Auth::id() ?: User::query()->value('id');
 
-        DB::transaction(function () use ($analysis, $year, $status) {
+        if (! $actorId) {
+            throw new RuntimeException('No existe un usuario para registrar la importación presupuestal.');
+        }
+
+        DB::transaction(function () use ($analysis, $year, $status, $actorId) {
             foreach ($analysis['processed_sheets'] as $sheetReport) {
                 if ($sheetReport['cost_center_missing']) {
                     continue;
@@ -140,8 +146,8 @@ class Budget2026DgaImportService
                 $budget->fill([
                     'total_annual_amount' => $sheetReport['annual_total'],
                     'status' => $budget->exists ? $budget->status : $status,
-                    'created_by' => $budget->created_by ?: Auth::id() ?: 1,
-                    'updated_by' => Auth::id() ?: 1,
+                    'created_by' => $budget->created_by ?: $actorId,
+                    'updated_by' => $actorId,
                 ]);
                 $budget->save();
 
@@ -172,8 +178,8 @@ class Budget2026DgaImportService
                                 'assigned_amount' => 0,
                                 'consumed_amount' => 0,
                                 'committed_amount' => 0,
-                                'created_by' => Auth::id() ?: 1,
-                                'updated_by' => Auth::id() ?: 1,
+                                'created_by' => $actorId,
+                                'updated_by' => $actorId,
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ];

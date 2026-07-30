@@ -310,18 +310,23 @@ Route::middleware(['auth', 'lock'])->group(function () {
             ->middleware('can:catalogo_cuentas.editar')
             ->name('subaccounts.update');
 
-        Route::middleware('can:catalogo_cuentas.editar')
-            ->prefix('budget-profiles')
-            ->name('budget-profiles.')
-            ->controller(BudgetProfileController::class)
-            ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::post('/departments', 'storeDepartment')->name('departments.store');
-                Route::put('/departments/{department}', 'updateDepartment')->name('departments.update');
-                Route::post('/', 'storeProfile')->name('store');
-                Route::put('/{budgetProfile}', 'updateProfile')->name('update');
-            });
     });
+
+    Route::middleware('module.access:budget_profiles')
+        ->prefix('budget-profiles')
+        ->name('budget-profiles.')
+        ->controller(BudgetProfileController::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/departments', 'storeDepartment')->name('departments.store');
+            Route::put('/departments/{department}', 'updateDepartment')->name('departments.update');
+            Route::patch('/departments/{department}/toggle', 'toggleDepartment')->name('departments.toggle');
+            Route::delete('/departments/{department}', 'destroyDepartment')->name('departments.destroy');
+            Route::post('/', 'storeProfile')->name('store');
+            Route::put('/{budgetProfile}', 'updateProfile')->name('update');
+            Route::patch('/{budgetProfile}/toggle', 'toggleProfile')->name('toggle');
+            Route::delete('/{budgetProfile}', 'destroyProfile')->name('destroy');
+        });
 
     Route::middleware('module.access:employees')->group(function () {
         Route::get('employees/datatable', [EmployeeController::class, 'datatable'])->name('employees.datatable');

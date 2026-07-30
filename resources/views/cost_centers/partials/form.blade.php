@@ -44,6 +44,15 @@
         @enderror
     </div>
 
+    <div class="col-md-4">
+        <label for="cost_center_type" class="form-label">Tipo de centro <span class="text-danger">*</span></label>
+        <select id="cost_center_type" name="cost_center_type" class="form-select @error('cost_center_type') is-invalid @enderror">
+            <option value="STANDARD" @selected(old('cost_center_type', $costCenter->cost_center_type ?? 'STANDARD') === 'STANDARD')>Centro estándar</option>
+            <option value="DISTRIBUTION" @selected(old('cost_center_type', $costCenter->cost_center_type ?? '') === 'DISTRIBUTION')>Centro de distribución</option>
+        </select>
+        <div class="form-text">El distribuidor reparte cada compra entre sus centros destino.</div>
+    </div>
+
     {{-- ===== SECCION 2: RELACIONES ORGANIZACIONALES ===== --}}
     <div class="col-12">
         <hr>
@@ -98,7 +107,22 @@
         @error('responsible_user_id')
         <div class="invalid-feedback">{{ $message }}</div>
         @enderror
-        <div class="form-text">Jefe de Area responsable de este centro de costo.</div>
+        <div class="form-text">Solo aparecen usuarios activos con los roles Autorizador y Jefe de departamento.</div>
+    </div>
+
+    @php($configuredDestinations = old('destinations', $costCenter->distributionTargets?->map(fn ($target) => ['target_cost_center_id' => $target->target_cost_center_id, 'percentage' => $target->percentage])->all() ?? []))
+    <div id="distributionFields" class="col-12" style="display:none">
+        <div class="card border-primary-subtle bg-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div><h6 class="mb-1 text-primary"><i class="ti ti-arrows-split"></i> Distribución presupuestal</h6><small class="text-muted">Los porcentajes deben sumar exactamente 100%. Solo se pueden elegir centros estándar activos de la misma empresa.</small></div>
+                    <button type="button" id="addDistributionTarget" class="btn btn-sm btn-primary"><i class="ti ti-plus"></i> Agregar destino</button>
+                </div>
+                <div id="distributionTargets" class="vstack gap-2"></div>
+                @error('destinations')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                <div class="mt-3 fw-semibold">Total: <span id="distributionTotal">0.0000</span>%</div>
+            </div>
+        </div>
     </div>
 
     {{-- ===== SECCION 3: TIPO DE PRESUPUESTO ===== --}}
@@ -246,6 +270,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const budgetTypeSelect = document.getElementById('budget_type');
+        const centerTypeSelect = document.getElementById('cost_center_type');
+        const companySelect = document.getElementById('company_id');
+        const distributionFields = document.getElementById('distributionFields');
+        const distributionTargets = document.getElementById('distributionTargets');
+        const destinations = @json($configuredDestinations);
+        const centerOptions = @json($destinationCenters->map(fn ($center) => ['id' => $center->id, 'company_id' => $center->company_id, 'label' => '['.$center->code.'] '.$center->name])->values());
         const freeConsumptionFields = document.getElementById('freeConsumptionFields');
         const validityDateField = document.getElementById('validityDateField');
         const freeConsumptionJustification = document.getElementById('freeConsumptionJustification');
@@ -259,6 +289,25 @@
 
         toggleFreeConsumptionFields();
         budgetTypeSelect.addEventListener('change', toggleFreeConsumptionFields);
+
+        function refreshDistributionTotal() {
+            const total = Array.from(distributionTargets.querySelectorAll('[name$="[percentage]"]')).reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+            document.getElementById('distributionTotal').textContent = total.toFixed(4);
+        }
+        function addDestination(value = {}) {
+            const index = distributionTargets.children.length;
+            const companyId = companySelect.value;
+            const options = centerOptions.filter(item => !companyId || String(item.company_id) === String(companyId)).map(item => `<option value="${item.id}" ${String(value.target_cost_center_id) === String(item.id) ? 'selected' : ''}>${item.label}</option>`).join('');
+            const row = document.createElement('div'); row.className = 'row g-2 align-items-center';
+            row.innerHTML = `<div class="col-md-8"><select class="form-select" name="destinations[${index}][target_cost_center_id]"><option value="">Selecciona centro destino</option>${options}</select></div><div class="col-md-3"><div class="input-group"><input class="form-control" type="number" step="0.0001" min="0.0001" max="100" name="destinations[${index}][percentage]" value="${value.percentage || ''}"><span class="input-group-text">%</span></div></div><div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100 js-remove-target"><i class="ti ti-trash"></i></button></div>`;
+            row.querySelector('.js-remove-target').addEventListener('click', () => { row.remove(); refreshDistributionTotal(); });
+            row.querySelector('input').addEventListener('input', refreshDistributionTotal); distributionTargets.appendChild(row);
+        }
+        function toggleDistribution() { distributionFields.style.display = centerTypeSelect.value === 'DISTRIBUTION' ? 'block' : 'none'; }
+        destinations.forEach(addDestination); toggleDistribution(); refreshDistributionTotal();
+        centerTypeSelect.addEventListener('change', toggleDistribution);
+        companySelect.addEventListener('change', () => { const current = Array.from(distributionTargets.children).map(row => ({ target_cost_center_id: row.querySelector('select').value, percentage: row.querySelector('input').value })); distributionTargets.innerHTML = ''; current.forEach(addDestination); });
+        document.getElementById('addDistributionTarget').addEventListener('click', () => addDestination());
     });
 </script>
 @endpush

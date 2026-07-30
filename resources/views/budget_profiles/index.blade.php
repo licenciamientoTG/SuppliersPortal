@@ -9,1144 +9,202 @@
 @endsection
 
 @push('styles')
-    <style>
-        .budget-profile-page {
-            --bp-border: #d9e2ec;
-            --bp-muted: #64748b;
-            --bp-surface: #ffffff;
-            --bp-soft: #f7fafc;
-            --bp-accent: #2563eb;
-            --bp-success: #14845c;
-            --bp-warning: #b45309;
-        }
-
-        .bp-toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 1rem;
-            align-items: center;
-            padding: 1rem 0 1.25rem;
-        }
-
-        .bp-title {
-            display: flex;
-            align-items: center;
-            gap: .65rem;
-            margin: 0;
-            font-size: 1.35rem;
-            font-weight: 700;
-        }
-
-        .bp-title-icon {
-            display: inline-flex;
-            width: 2.4rem;
-            height: 2.4rem;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            background: linear-gradient(135deg, #2563eb, #16a34a);
-            border-radius: 8px;
-            flex: 0 0 auto;
-        }
-
-        .bp-summary {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(130px, 1fr));
-            gap: .75rem;
-            margin-bottom: 1rem;
-        }
-
-        .bp-metric,
-        .bp-panel,
-        .bp-profile-card,
-        .bp-department-row {
-            border: 1px solid var(--bp-border);
-            background: var(--bp-surface);
-            border-radius: 8px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-        }
-
-        .bp-metric {
-            padding: .9rem 1rem;
-        }
-
-        .bp-metric-label {
-            color: var(--bp-muted);
-            font-size: .76rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .bp-metric-value {
-            margin-top: .2rem;
-            font-size: 1.5rem;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .bp-panel {
-            margin-bottom: 1rem;
-            overflow: hidden;
-        }
-
-        .bp-panel-header {
-            display: flex;
-            justify-content: space-between;
-            gap: 1rem;
-            align-items: center;
-            padding: 1rem 1.1rem;
-            border-bottom: 1px solid var(--bp-border);
-            background: linear-gradient(180deg, #ffffff, #f8fafc);
-        }
-
-        .bp-panel-title {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 750;
-        }
-
-        .bp-panel-body {
-            padding: 1.1rem;
-        }
-
-        .bp-tabs {
-            display: inline-flex;
-            gap: .35rem;
-            padding: .25rem;
-            border: 1px solid var(--bp-border);
-            border-radius: 8px;
-            background: #eef2f7;
-        }
-
-        .bp-tabs .nav-link {
-            border: 0;
-            border-radius: 6px;
-            color: #334155;
-            font-weight: 700;
-            padding: .48rem .8rem;
-        }
-
-        .bp-tabs .nav-link.active {
-            color: #0f172a;
-            background: #ffffff;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
-        }
-
-        .bp-search {
-            max-width: 420px;
-        }
-
-        .bp-list-controls {
-            display: grid;
-            grid-template-columns: minmax(240px, 1fr) minmax(220px, .55fr) auto;
-            gap: .75rem;
-            align-items: center;
-            width: min(100%, 920px);
-        }
-
-        .bp-profile-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .9rem;
-        }
-
-        .bp-pagination {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .75rem;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--bp-border);
-        }
-
-        .bp-page-actions {
-            display: inline-flex;
-            gap: .4rem;
-            align-items: center;
-        }
-
-        .bp-page-status {
-            color: var(--bp-muted);
-            font-size: .84rem;
-            font-weight: 700;
-        }
-
-        .bp-profile-card {
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-            min-height: 100%;
-            overflow: hidden;
-        }
-
-        .bp-profile-head {
-            display: flex;
-            justify-content: space-between;
-            gap: .85rem;
-            padding: 1rem;
-            border-bottom: 1px solid var(--bp-border);
-        }
-
-        .bp-profile-name {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 800;
-        }
-
-        .bp-profile-department {
-            color: var(--bp-muted);
-            font-size: .85rem;
-        }
-
-        .bp-profile-body {
-            padding: 1rem;
-        }
-
-        .bp-profile-description {
-            min-height: 2.3rem;
-            color: #475569;
-        }
-
-        .bp-chip-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .4rem;
-        }
-
-        .bp-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: .3rem;
-            padding: .28rem .5rem;
-            border: 1px solid var(--bp-border);
-            border-radius: 999px;
-            background: var(--bp-soft);
-            color: #334155;
-            font-size: .78rem;
-            font-weight: 700;
-        }
-
-        .bp-chip-success {
-            border-color: rgba(20, 132, 92, .25);
-            background: rgba(20, 132, 92, .09);
-            color: var(--bp-success);
-        }
-
-        .bp-chip-muted {
-            color: var(--bp-muted);
-        }
-
-        .bp-profile-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: .5rem;
-            padding: .85rem 1rem;
-            border-top: 1px solid var(--bp-border);
-            background: #fbfdff;
-        }
-
-        .bp-edit-area {
-            padding: 1rem;
-            border-top: 1px solid var(--bp-border);
-            background: #f8fafc;
-        }
-
-        .bp-department-list {
-            display: grid;
-            gap: .75rem;
-        }
-
-        .bp-department-row {
-            display: grid;
-            grid-template-columns: minmax(220px, .35fr) minmax(0, 1fr);
-            gap: 1rem;
-            padding: 1rem;
-        }
-
-        .bp-department-name {
-            font-weight: 800;
-        }
-
-        .bp-empty {
-            padding: 2.5rem 1rem;
-            text-align: center;
-            color: var(--bp-muted);
-            border: 1px dashed var(--bp-border);
-            border-radius: 8px;
-            background: #fbfdff;
-        }
-
-        .bp-subaccount-picker {
-            border: 1px solid var(--bp-border);
-            border-radius: 8px;
-            background: #ffffff;
-            overflow: hidden;
-        }
-
-        .bp-picker-toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: .75rem;
-            align-items: center;
-            padding: .75rem;
-            border-bottom: 1px solid var(--bp-border);
-            background: #f8fafc;
-        }
-
-        .bp-picker-count {
-            color: var(--bp-muted);
-            font-size: .78rem;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .bp-picker-list {
-            max-height: 360px;
-            overflow: auto;
-        }
-
-        .bp-picker-group + .bp-picker-group {
-            border-top: 1px solid var(--bp-border);
-        }
-
-        .bp-picker-group-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .75rem;
-            padding: .55rem .75rem;
-            background: #ffffff;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-
-        .bp-picker-group-title {
-            display: inline-flex;
-            align-items: center;
-            gap: .4rem;
-            min-width: 0;
-            border: 0;
-            background: transparent;
-            padding: 0;
-            color: #0f172a;
-            font-size: .86rem;
-            font-weight: 800;
-            text-align: left;
-        }
-
-        .bp-picker-group-title i {
-            transition: transform .15s ease;
-        }
-
-        .bp-picker-group-title.collapsed i {
-            transform: rotate(-90deg);
-        }
-
-        .bp-picker-actions {
-            display: inline-flex;
-            gap: .25rem;
-            flex: 0 0 auto;
-        }
-
-        .bp-picker-actions .btn {
-            padding: 0 .25rem;
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .bp-picker-options {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: .35rem;
-            padding: 0 .75rem .75rem;
-        }
-
-        .bp-picker-option {
-            display: flex;
-            align-items: flex-start;
-            gap: .5rem;
-            min-height: 42px;
-            padding: .48rem .55rem;
-            border: 1px solid #e6edf5;
-            border-radius: 7px;
-            background: #fbfdff;
-            color: #334155;
-            cursor: pointer;
-            line-height: 1.25;
-        }
-
-        .bp-picker-option:hover {
-            border-color: #b9c7d8;
-            background: #f4f8fc;
-        }
-
-        .bp-picker-option input {
-            margin-top: .1rem;
-            flex: 0 0 auto;
-        }
-
-        .bp-picker-option:has(input:checked) {
-            border-color: rgba(37, 99, 235, .45);
-            background: rgba(37, 99, 235, .08);
-            color: #1e3a8a;
-        }
-
-        .bp-picker-option strong {
-            margin-right: .2rem;
-        }
-
-        .bp-picker-empty {
-            display: none;
-            padding: 1rem;
-            color: var(--bp-muted);
-            text-align: center;
-        }
-
-        .bp-subaccount-picker.is-empty .bp-picker-empty {
-            display: block;
-        }
-
-        @media (max-width: 1199.98px) {
-            .bp-summary,
-            .bp-profile-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .bp-picker-options {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 767.98px) {
-            .bp-toolbar,
-            .bp-panel-header,
-            .bp-department-row {
-                grid-template-columns: 1fr;
-                display: grid;
-            }
-
-            .bp-summary,
-            .bp-profile-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .bp-search {
-                max-width: none;
-            }
-
-            .bp-list-controls {
-                grid-template-columns: 1fr;
-                width: 100%;
-            }
-
-            .bp-picker-toolbar,
-            .bp-picker-options {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+<style>
+    .bp-console { --bp-blue:#188ae2; --bp-green:#4bd396; --bp-ink:#24364b; --bp-muted:#718096; --bp-border:#e2e9f0; color:var(--bp-ink); }.bp-intro,.bp-workspace,.bp-metric { border:1px solid var(--bp-border); border-radius:.85rem; background:#fff; box-shadow:0 6px 20px rgba(28,80,120,.05); }.bp-intro { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; padding:1rem 1.15rem; }.bp-logo { width:2.8rem; height:2.8rem; object-fit:contain; }.bp-kicker { display:block; color:var(--bp-muted); font-size:.68rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }.bp-intro h1 { margin:.16rem 0; color:var(--bp-blue); font-size:1.35rem; font-weight:750; }.bp-intro p { margin:0; color:var(--bp-muted); font-size:.84rem; }.bp-tabs { display:flex; gap:.35rem; margin-left:auto; padding:.25rem; border:1px solid var(--bp-border); border-radius:.65rem; background:#f7fbff; }.bp-tabs .nav-link { border:0; border-radius:.45rem; color:#58718b; font-size:.8rem; font-weight:700; }.bp-tabs .nav-link.active { color:#1269ac; background:#eaf6ff; }.bp-metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:.7rem; margin-bottom:1rem; }.bp-metric { padding:.75rem .9rem; }.bp-metric span,.bp-metric strong { display:block; }.bp-metric span { color:var(--bp-muted); font-size:.68rem; }.bp-metric strong { margin-top:.15rem; font-size:1.2rem; }.bp-workspace { overflow:hidden; }.bp-toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem; border-bottom:1px solid var(--bp-border); background:#fbfdff; }.bp-toolbar h2 { margin:.1rem 0 0; font-size:1rem; }.bp-toolbar-copy { min-width:0; }.bp-toolbar-copy p { margin:.18rem 0 0; color:var(--bp-muted); font-size:.76rem; }.bp-toolbar-actions { display:flex; align-items:center; gap:.5rem; }.bp-toolbar-actions .form-control,.bp-toolbar-actions .form-select { min-width:150px; max-width:230px; }.bp-layout { display:grid; grid-template-columns:minmax(360px,.8fr) minmax(0,1.2fr); min-height:540px; }.bp-list { border-right:1px solid var(--bp-border); }.bp-list-head { display:flex; align-items:center; justify-content:space-between; padding:.7rem 1rem; border-bottom:1px solid var(--bp-border); color:var(--bp-muted); font-size:.75rem; font-weight:700; }.bp-row { display:grid; grid-template-columns:1fr auto; gap:.65rem; width:100%; padding:.85rem 1rem; border:0; border-bottom:1px solid #eef2f6; color:inherit; background:#fff; text-align:left; transition:background .18s ease,border-color .18s ease; }.bp-row:hover,.bp-row.is-selected { background:#f7fbff; }.bp-row.is-selected { box-shadow:inset 3px 0 0 var(--bp-blue); }.bp-row strong,.bp-row small { display:block; }.bp-row strong { font-size:.84rem; }.bp-row small { margin-top:.18rem; color:var(--bp-muted); font-size:.72rem; }.bp-state { display:inline-flex; align-items:center; gap:.25rem; height:max-content; padding:.24rem .46rem; border:1px solid; border-radius:99px; font-size:.67rem; font-weight:800; white-space:nowrap; }.bp-state.active { border-color:#bdebd2; color:#218b64; background:#f3fcf7; }.bp-state.inactive { border-color:#dce4ec; color:#718096; background:#f7f9fb; }.bp-detail { padding:1.25rem; background:#fcfeff; }.bp-detail-empty { display:flex; min-height:480px; align-items:center; justify-content:center; flex-direction:column; gap:.45rem; color:var(--bp-muted); text-align:center; }.bp-detail-empty i { color:var(--bp-blue); font-size:2rem; }.bp-detail-head { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }.bp-detail h3 { margin:.2rem 0; font-size:1.15rem; }.bp-detail p { color:#526274; }.bp-detail-actions { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:1rem; }.bp-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin:1rem 0; }.bp-fact { padding:.7rem; border:1px solid var(--bp-border); border-radius:.65rem; background:#fff; }.bp-fact span,.bp-fact strong { display:block; }.bp-fact span { color:var(--bp-muted); font-size:.67rem; }.bp-fact strong { margin-top:.15rem; font-size:.85rem; }.bp-section { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--bp-border); }.bp-section h4 { margin:0 0 .55rem; font-size:.8rem; }.bp-chip-row { display:flex; flex-wrap:wrap; gap:.4rem; }.bp-chip { display:inline-flex; align-items:center; gap:.3rem; padding:.3rem .5rem; border:1px solid #dce8f2; border-radius:99px; color:#526274; background:#fff; font-size:.72rem; }.bp-offcanvas { width:min(760px,100vw) !important; }.bp-offcanvas .offcanvas-header { border-bottom:1px solid var(--bp-border); background:#fbfdff; }.bp-form-body { padding:1rem; }.bp-form-step { display:flex; align-items:center; gap:.45rem; margin:1.15rem 0 .65rem; color:#1269ac; font-size:.78rem; font-weight:800; }.bp-form-step:first-child { margin-top:0; }.bp-step-no { display:inline-flex; align-items:center; justify-content:center; width:1.45rem; height:1.45rem; border-radius:50%; color:#1269ac; background:#eaf6ff; }.bp-transfer { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }.bp-transfer-pane { min-height:230px; overflow:hidden; border:1px solid var(--bp-border); border-radius:.65rem; background:#fff; }.bp-transfer-pane header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.6rem .7rem; border-bottom:1px solid var(--bp-border); background:#f7fbff; font-size:.74rem; font-weight:800; }.bp-transfer-list { max-height:290px; overflow:auto; padding:.45rem; }.bp-transfer-item { display:flex; align-items:flex-start; gap:.5rem; width:100%; margin-bottom:.35rem; padding:.5rem; border:1px solid transparent; border-radius:.5rem; background:#fff; color:#354a61; text-align:left; font-size:.74rem; transition:transform .18s ease,background .18s ease,border-color .18s ease; }.bp-transfer-item:hover { border-color:#b9dcf6; background:#f7fbff; transform:translateY(-1px); }.bp-transfer-item i { margin-top:.08rem; color:var(--bp-blue); }.bp-transfer-item strong,.bp-transfer-item small { display:block; }.bp-transfer-item small { color:var(--bp-muted); }.bp-transfer-group { padding:.45rem .35rem .25rem; color:#65798e; font-size:.67rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }.bp-transfer-empty { padding:1.5rem .7rem; color:var(--bp-muted); text-align:center; font-size:.75rem; }.bp-department-tab { display:none; }.bp-department-tab.is-active { display:block; }.bp-hidden { display:none!important; }.bp-console .btn { border-radius:.55rem; transition:transform .18s ease,box-shadow .18s ease; }.bp-console .btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 5px 12px rgba(28,80,120,.12); }@media(max-width:991.98px){.bp-layout{grid-template-columns:1fr}.bp-list{border-right:0;border-bottom:1px solid var(--bp-border)}.bp-detail{min-height:420px}.bp-metrics{grid-template-columns:repeat(2,1fr)}}@media(max-width:767.98px){.bp-intro{align-items:flex-start;flex-wrap:wrap}.bp-tabs{width:100%;margin-left:0}.bp-tabs .nav-item{flex:1}.bp-tabs .nav-link{width:100%}.bp-toolbar{align-items:stretch;flex-direction:column}.bp-toolbar-actions{flex-wrap:wrap}.bp-toolbar-actions>*{flex:1 1 150px}.bp-facts,.bp-transfer{grid-template-columns:1fr}.bp-detail-head{flex-direction:column}.bp-metrics{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.bp-console *,.bp-console *::before,.bp-console *::after{animation:none!important;transition:none!important}}
+</style>
+<style>
+    .bp-list { display:flex; flex-direction:column; min-height:0; max-height:min(640px,calc(100vh - 230px)); }
+    #profileList,#departmentList { flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+    .bp-toolbar #newProfile,.bp-toolbar #newDepartment { display:none; }
+    @if(! $canManageDepartments).bp-department-tab .bp-detail-actions { display:none; }@endif
+    .bp-state::before { width:.42rem; height:.42rem; border-radius:50%; background:currentColor; content:''; box-shadow:0 0 0 3px currentColor; opacity:.18; }
+    .bp-state.active { box-shadow:0 3px 9px rgba(75,211,150,.12); }
+    .bp-metric { position:relative; overflow:hidden; min-height:5.25rem; border-color:#dbe8f3; background:linear-gradient(135deg,#fff 35%,#f7fbff); }
+    .bp-facts.bp-facts-compact { grid-template-columns:repeat(2,minmax(0,1fr)); max-width:23rem; }
+    .bp-detail { display:flex; min-width:0; flex-direction:column; }
+    .bp-detail-head { padding-bottom:1rem; border-bottom:1px solid var(--bp-border); }
+    .bp-intro { position:relative; overflow:hidden; min-height:5.75rem; border-color:#dbe8f3; background:linear-gradient(135deg,#fff 38%,#f7fbff); }
+    .bp-intro::before { position:absolute; top:0; right:0; width:9rem; height:100%; background:linear-gradient(135deg,transparent 10%,rgba(24,138,226,.08) 52%,rgba(75,211,150,.12)); content:''; clip-path:polygon(42% 0,100% 0,100% 100%,0 100%); }
+    .bp-intro > * { position:relative; z-index:1; }
+    .bp-intro .bp-logo { animation:bp-logo-spin 8s linear infinite; transform-origin:center; }
+    .bp-detail-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin:1rem 0; }
+    .bp-detail-summary .bp-fact { display:flex; align-items:center; justify-content:space-between; min-height:4.35rem; background:linear-gradient(135deg,#fff,#f8fcff); }
+    .bp-detail-summary .bp-fact strong { color:#1269ac; font-size:1.25rem; }
+    .bp-assignment-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+    .bp-assignment-card { display:flex; min-height:10.5rem; flex-direction:column; border:1px solid var(--bp-border); border-radius:.75rem; background:#fff; overflow:hidden; }
+    .bp-assignment-card header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.7rem .8rem; border-bottom:1px solid #edf2f7; background:#f7fbff; }
+    .bp-assignment-card header strong { font-size:.79rem; }.bp-assignment-card header i { margin-right:.35rem; color:var(--bp-blue); }
+    .bp-assignment-card .bp-chip-row { padding:.75rem; align-content:flex-start; }
+    .bp-assignment-empty { display:flex; flex:1; align-items:center; justify-content:center; min-height:6rem; padding:.8rem; color:#8aa0b8; font-size:.76rem; text-align:center; }
+    .bp-detail-actions { margin-top:auto; padding-top:1rem; }
+    .bp-metric::before { position:absolute; top:0; right:0; width:3.25rem; height:3.25rem; border-radius:0 0 0 100%; background:rgba(24,138,226,.12); content:''; }
+    .bp-metric::after { position:absolute; right:.72rem; bottom:.58rem; color:rgba(24,138,226,.18); font-family:tabler-icons; font-size:1.35rem; content:'\ea69'; }
+    .bp-metric:nth-child(2)::before { background:rgba(75,211,150,.16); }.bp-metric:nth-child(2)::after { color:rgba(75,211,150,.3); content:'\eaa1'; }.bp-metric:nth-child(3)::after { content:'\eb0b'; }.bp-metric:nth-child(4)::after { content:'\eaa2'; }
+    .bp-metric strong { position:relative; z-index:1; color:#1269ac; font-size:1.45rem; }.bp-metric:nth-child(2) strong { color:#218b64; }
+    .bp-row { position:relative; overflow:hidden; }
+    .bp-row.is-selected.bp-logo-sweep::after { position:absolute; inset:0; z-index:0; background:linear-gradient(105deg,transparent 30%,rgba(24,138,226,.08) 43%,rgba(75,211,150,.2) 50%,rgba(255,202,64,.16) 57%,transparent 70%); content:''; transform:translateX(-120%); animation:bp-logo-sweep .78s ease-out; pointer-events:none; }
+    .bp-row.is-selected > * { position:relative; z-index:1; }
+    .bp-offcanvas.show { box-shadow:-16px 0 36px rgba(20,67,103,.18); }
+    .bp-offcanvas.show::before { position:absolute; top:0; right:100%; bottom:0; width:300px; background:linear-gradient(90deg,transparent,rgba(24,138,226,.16),rgba(75,211,150,.2),rgba(255,202,64,.15),transparent); content:''; opacity:0; pointer-events:none; animation:bp-panel-trail .9s ease-out; }
+    .bp-offcanvas .offcanvas-header,.bp-offcanvas form { position:relative; z-index:1; }
+    .bp-state.active::before { animation:bp-state-pulse 2s ease-in-out infinite; opacity:1; box-shadow:0 0 0 3px rgba(75,211,150,.2); }
+    .bp-row:has(.bp-state.active) { box-shadow:inset 2px 0 0 rgba(75,211,150,.55); }
+    .bp-row:has(.bp-state.inactive) { background:#fbfcfd; }
+    .bp-transfer-group-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:.5rem .35rem .25rem; border:0; color:#65798e; background:transparent; font-size:.67rem; font-weight:800; letter-spacing:.04em; text-align:left; text-transform:uppercase; }
+    .bp-transfer-group-toggle:hover { color:#1269ac; background:#f3f9fe; }
+    .bp-transfer-group-toggle .ti { transition:transform .18s ease; }
+    .bp-transfer-group-toggle.is-collapsed .ti { transform:rotate(-90deg); }
+    @keyframes bp-state-pulse { 50% { box-shadow:0 0 0 6px rgba(75,211,150,0); } }
+    @keyframes bp-logo-sweep { from { transform:translateX(-120%); opacity:0; } 18% { opacity:1; } to { transform:translateX(120%); opacity:0; } }
+    @keyframes bp-panel-trail { from { transform:translateX(130px); opacity:0; } 35% { opacity:1; } to { transform:translateX(-90px); opacity:0; } }
+    @keyframes bp-logo-spin { to { transform:rotate(360deg); } }
+    .bp-create-fab { position:fixed; right:1.5rem; bottom:1.5rem; z-index:1030; display:inline-flex; align-items:center; gap:.55rem; min-height:3.4rem; padding:.7rem 1.05rem .7rem .8rem; border:0; border-radius:999px!important; color:#fff; background:var(--bp-blue); box-shadow:0 12px 28px rgba(24,138,226,.32); font-weight:800; }
+    .bp-create-fab::before { display:inline-flex; align-items:center; justify-content:center; width:1.85rem; height:1.85rem; border-radius:50%; background:rgba(255,255,255,.2); content:'+'; font-size:1.35rem; font-weight:400; line-height:1; }
+    .bp-create-fab:hover,.bp-create-fab:focus-visible { color:#fff; background:#1269ac; box-shadow:0 15px 32px rgba(18,105,172,.38); transform:translateY(-3px); }
+    .bp-create-fab:focus-visible { outline:3px solid rgba(75,211,150,.55); outline-offset:3px; }
+    @media(max-width:991.98px){.bp-list{max-height:460px}.bp-create-fab{right:1rem;bottom:1rem}}
+    @media(max-width:575.98px){.bp-create-fab{width:3.5rem;padding:.7rem;justify-content:center}.bp-create-fab span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.bp-create-fab::before{width:2rem;height:2rem}.bp-detail-summary,.bp-assignment-grid{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){.bp-create-fab{transition:none!important}.bp-intro .bp-logo,.bp-state.active::before,.bp-row.is-selected.bp-logo-sweep::after,.bp-offcanvas.show::before{animation:none}}
+</style>
+<style>
+    .bp-action-help { align-self:center; color:#8a6d3b; font-size:.72rem; }
+</style>
 @endpush
 
 @section('content')
-    @php
-        $totalProfiles = $profiles->count();
-        $activeProfiles = $profiles->where('is_active', true)->count();
-        $totalUsers = $profiles->sum('users_count');
-        $assignedSubaccounts = $profiles->sum('subaccounts_count');
-        $totalDepartments = $departments->count();
-        $activeDepartments = $departments->where('is_active', true)->count();
-        $inactiveDepartments = $totalDepartments - $activeDepartments;
-    @endphp
+@php
+    $profilePayload = $profiles->map(fn ($profile) => ['id'=>$profile->id,'name'=>$profile->name,'description'=>$profile->description,'department_id'=>$profile->department_id,'department'=>$profile->department?->name,'is_active'=>$profile->is_active,'subaccount_ids'=>$profile->subaccounts->pluck('id')->values(),'user_ids'=>$profile->users->pluck('id')->values(),'subaccounts_count'=>$profile->subaccounts_count,'users_count'=>$profile->users_count]);
+    $departmentPayload = $departments->map(fn ($department) => ['id'=>$department->id,'name'=>$department->name,'abbreviated'=>$department->abbreviated,'notes'=>$department->notes,'manager_user_id'=>$department->manager_user_id,'manager'=>$department->manager?->name,'is_active'=>$department->is_active,'profiles_count'=>$department->budgetProfiles->count(),'users_count'=>$users->where('department_id',$department->id)->count()]);
+    $subaccountPayload = $subaccounts->map(fn ($subaccount) => ['id'=>$subaccount->id,'account'=>trim(($subaccount->account?->code ?? '').' '.($subaccount->account?->name ?? 'Sin cuenta')),'code'=>$subaccount->code,'name'=>$subaccount->name]);
+    $userPayload = $users->map(fn ($user) => ['id'=>$user->id,'name'=>$user->name,'email'=>$user->email,'department_id'=>$user->department_id,'is_active'=>$user->is_active]);
+    $budgetProfileClientData = [
+        'profiles' => $profilePayload,
+        'departments' => $departmentPayload,
+        'subaccounts' => $subaccountPayload,
+        'users' => $userPayload,
+        'departmentManagers' => $departmentManagers->map(fn ($user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]),
+        'permissions' => ['profiles' => $canManageProfiles, 'departments' => $canManageDepartments],
+        'routes' => [
+            'profileStore' => route('budget-profiles.store'),
+            'profileUpdate' => route('budget-profiles.update', '__PROFILE__'),
+            'profileToggle' => route('budget-profiles.toggle', '__PROFILE__'),
+            'profileDestroy' => route('budget-profiles.destroy', '__PROFILE__'),
+            'departmentStore' => route('budget-profiles.departments.store'),
+            'departmentUpdate' => route('budget-profiles.departments.update', '__DEPARTMENT__'),
+            'departmentToggle' => route('budget-profiles.departments.toggle', '__DEPARTMENT__'),
+            'departmentDestroy' => route('budget-profiles.departments.destroy', '__DEPARTMENT__'),
+        ],
+    ];
+@endphp
+<div class="bp-console">
+    @if($canManageProfiles)<button class="btn bp-create-fab" type="button" id="profileCreateFab" aria-label="Crear nuevo perfil" onclick="document.querySelector('.bp-toolbar #newProfile').click()"><span>Nuevo perfil</span></button>@endif
+    @if($canManageDepartments)<button class="btn bp-create-fab {{ $canManageProfiles ? 'bp-hidden':'' }}" type="button" id="departmentCreateFab" aria-label="Crear nuevo departamento" onclick="document.querySelector('.bp-toolbar #newDepartment').click()"><span>Nuevo departamento</span></button>@endif
+    @if(session('success'))<div class="alert alert-success alert-dismissible fade show" role="status"><i class="ti ti-circle-check me-1"></i>{{ session('success') }}<button class="btn-close" data-bs-dismiss="alert"></button></div>@endif
+    @if(session('error'))<div class="alert alert-danger alert-dismissible fade show" role="alert"><i class="ti ti-alert-triangle me-1"></i>{{ session('error') }}<button class="btn-close" data-bs-dismiss="alert"></button></div>@endif
+    @if($errors->any())<div class="alert alert-danger"><strong>Revisa los datos capturados.</strong><ul class="mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-    <div class="budget-profile-page">
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="ti ti-check me-1"></i>{{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-        @endif
+    <header class="bp-intro"><img class="bp-logo" src="{{ asset('images/logos/Logo.png') }}" alt="TotalGas"><div><span class="bp-kicker">Configuración presupuestal</span><h1>Perfiles presupuestales</h1><p>Controla quién puede usar cada subcuenta, sin perder el contexto del departamento.</p></div><ul class="nav bp-tabs" role="tablist"><li class="nav-item"><button class="nav-link active js-tab" data-target="profiles">Perfiles</button></li><li class="nav-item"><button class="nav-link js-tab" data-target="departments">Departamentos</button></li></ul></header>
+    <div class="bp-metrics"><div class="bp-metric"><span>Perfiles</span><strong>{{ $profiles->count() }}</strong></div><div class="bp-metric"><span>Activos</span><strong>{{ $profiles->where('is_active',true)->count() }}</strong></div><div class="bp-metric"><span>Usuarios asignados</span><strong>{{ $profiles->sum('users_count') }}</strong></div><div class="bp-metric"><span>Subcuentas ligadas</span><strong>{{ $profiles->sum('subaccounts_count') }}</strong></div></div>
 
-        @if ($errors->any())
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="ti ti-alert-triangle me-1"></i>Revisa los datos capturados.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                <ul class="mb-0 mt-2">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+    <section class="bp-workspace js-workspace" data-kind="profiles"><header class="bp-toolbar"><div class="bp-toolbar-copy"><span class="bp-kicker">Accesos configurados</span><h2>Perfiles</h2><p>Selecciona una fila para revisar o administrar su configuración.</p></div><div class="bp-toolbar-actions"><input id="profileSearch" class="form-control form-control-sm" type="search" placeholder="Buscar perfil o departamento"><select id="profileDepartment" class="form-select form-select-sm"><option value="">Todos los departamentos</option>@foreach($departments as $department)<option value="{{ $department->id }}">{{ $department->name }}</option>@endforeach</select><select id="profileStatus" class="form-select form-select-sm"><option value="">Todos los estados</option><option value="1">Activos</option><option value="0">Inactivos</option></select><button class="btn btn-primary btn-sm" type="button" id="newProfile"><i class="ti ti-plus me-1"></i>Nuevo perfil</button></div></header><div class="bp-layout"><div class="bp-list"><div class="bp-list-head"><span id="profileResultCount">{{ $profiles->count() }} perfiles</span><span>Estado</span></div><div id="profileList">@foreach($profiles as $profile)<button type="button" class="bp-row js-profile-row" data-id="{{ $profile->id }}" data-search="{{ Str::lower($profile->name.' '.$profile->description.' '.$profile->department?->name) }}" data-department="{{ $profile->department_id }}" data-status="{{ $profile->is_active ? '1':'0' }}"><span><strong>{{ $profile->name }}</strong><small>{{ $profile->department?->name ?? 'Sin departamento' }} · {{ $profile->subaccounts_count }} subcuentas · {{ $profile->users_count }} usuarios</small></span><span class="bp-state {{ $profile->is_active ? 'active':'inactive' }}"><i class="ti {{ $profile->is_active ? 'ti-circle-check':'ti-circle-off' }}"></i>{{ $profile->is_active ? 'Activo':'Inactivo' }}</span></button>@endforeach<div id="profileNoResults" class="bp-transfer-empty bp-hidden">No hay perfiles que coincidan.</div></div></div><div class="bp-detail" id="profileDetail"><div class="bp-detail-empty"><i class="ti ti-click"></i><strong>Selecciona un perfil</strong><span>Verás sus subcuentas, usuarios y acciones disponibles.</span></div></div></div></section>
 
-        <div class="bp-toolbar">
-            <div>
-                <h4 class="bp-title">
-                    <span class="bp-title-icon"><i class="ti ti-wallet"></i></span>
-                    Perfiles presupuestales
-                </h4>
-            </div>
+    <section class="bp-workspace bp-department-tab js-workspace" data-kind="departments"><header class="bp-toolbar"><div class="bp-toolbar-copy"><span class="bp-kicker">Base organizacional</span><h2>Departamentos</h2><p>Administra las unidades que agrupan perfiles y usuarios presupuestales.</p></div><div class="bp-toolbar-actions"><input id="departmentSearch" class="form-control form-control-sm" type="search" placeholder="Buscar departamento"><select id="departmentStatus" class="form-select form-select-sm"><option value="">Todos los estados</option><option value="1">Activos</option><option value="0">Inactivos</option></select><button class="btn btn-primary btn-sm" type="button" id="newDepartment"><i class="ti ti-plus me-1"></i>Nuevo departamento</button></div></header><div class="bp-layout"><div class="bp-list"><div class="bp-list-head"><span id="departmentResultCount">{{ $departments->count() }} departamentos</span><span>Estado</span></div><div id="departmentList">@foreach($departments as $department)<button type="button" class="bp-row js-department-row" data-id="{{ $department->id }}" data-search="{{ Str::lower($department->name.' '.$department->abbreviated.' '.$department->notes) }}" data-status="{{ $department->is_active ? '1':'0' }}"><span><strong>{{ $department->name }}</strong><small>{{ $department->abbreviated }} · {{ $department->budgetProfiles->count() }} perfiles · {{ $users->where('department_id',$department->id)->count() }} usuarios</small></span><span class="bp-state {{ $department->is_active ? 'active':'inactive' }}">{{ $department->is_active ? 'Activo':'Inactivo' }}</span></button>@endforeach<div id="departmentNoResults" class="bp-transfer-empty bp-hidden">No hay departamentos que coincidan.</div></div></div><div class="bp-detail" id="departmentDetail"><div class="bp-detail-empty"><i class="ti ti-building"></i><strong>Selecciona un departamento</strong><span>Consulta sus perfiles y gestiona su estado.</span></div></div></div></section>
+</div>
 
-            <ul class="nav bp-tabs" id="budgetProfileTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profilesTab" type="button" role="tab">
-                        <i class="ti ti-layout-list me-1"></i>Perfiles
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#departmentsTab" type="button" role="tab">
-                        <i class="ti ti-building me-1"></i>Departamentos
-                    </button>
-                </li>
-            </ul>
-        </div>
+<div class="offcanvas offcanvas-end bp-offcanvas" tabindex="-1" id="profileEditor"><div class="offcanvas-header"><div><span class="bp-kicker" id="profileEditorKicker">Nuevo registro</span><h5 class="mb-0" id="profileEditorTitle">Crear perfil</h5></div><button class="btn-close" data-bs-dismiss="offcanvas"></button></div><form method="POST" id="profileForm"><div class="offcanvas-body bp-form-body">@csrf<input type="hidden" id="profileMethod" name="_method"><div class="bp-form-step"><span class="bp-step-no">1</span> Datos del perfil</div><div class="row g-3"><div class="col-md-6"><label class="form-label">Departamento</label><select name="department_id" id="profileDepartmentInput" class="form-select" required><option value="">Selecciona un departamento</option>@foreach($departments as $department)<option value="{{ $department->id }}" @disabled(! $department->is_active)>{{ $department->name }}{{ ! $department->is_active ? ' (inactivo)':'' }}</option>@endforeach</select></div><div class="col-md-6"><label class="form-label">Estado</label><select name="is_active" id="profileActive" class="form-select"><option value="1">Activo</option><option value="0">Inactivo</option></select></div><div class="col-12"><label class="form-label">Nombre</label><input class="form-control" name="name" id="profileName" maxlength="150" required placeholder="Ej. Supervisor de estación"></div><div class="col-12"><label class="form-label">Descripción <span class="text-muted">(opcional)</span></label><textarea class="form-control" name="description" id="profileDescription" rows="2" maxlength="1000" placeholder="Alcance operativo de este perfil"></textarea></div></div><div class="bp-form-step"><span class="bp-step-no">2</span> Subcuentas permitidas</div><div class="bp-transfer" data-transfer="subaccounts"><div class="bp-transfer-pane"><header><span>Disponibles</span><input class="form-control form-control-sm js-transfer-search" placeholder="Buscar"></header><div class="bp-transfer-list js-transfer-available"></div></div><div class="bp-transfer-pane"><header><span>Seleccionadas</span><strong class="js-transfer-count">0</strong></header><div class="bp-transfer-list js-transfer-selected"></div></div><select class="d-none js-transfer-input" name="subaccount_ids[]" multiple></select></div><div class="bp-form-step"><span class="bp-step-no">3</span> Usuarios del departamento</div><p class="small text-muted">Sólo puedes asignar usuarios que pertenezcan al departamento elegido.</p><div class="bp-transfer" data-transfer="users"><div class="bp-transfer-pane"><header><span>Disponibles</span><input class="form-control form-control-sm js-transfer-search" placeholder="Buscar"></header><div class="bp-transfer-list js-transfer-available"></div></div><div class="bp-transfer-pane"><header><span>Asignados</span><strong class="js-transfer-count">0</strong></header><div class="bp-transfer-list js-transfer-selected"></div></div><select class="d-none js-transfer-input" name="user_ids[]" multiple></select></div></div><div class="offcanvas-footer p-3 border-top d-flex justify-content-end gap-2"><button type="button" class="btn btn-light" data-bs-dismiss="offcanvas">Cancelar</button><button class="btn btn-primary" type="submit"><i class="ti ti-device-floppy me-1"></i>Guardar perfil</button></div></form></div>
 
-        <div class="bp-summary">
-            <div class="bp-metric">
-                <div class="bp-metric-label">Perfiles</div>
-                <div class="bp-metric-value">{{ $totalProfiles }}</div>
-            </div>
-            <div class="bp-metric">
-                <div class="bp-metric-label">Activos</div>
-                <div class="bp-metric-value">{{ $activeProfiles }}</div>
-            </div>
-            <div class="bp-metric">
-                <div class="bp-metric-label">Usuarios asignados</div>
-                <div class="bp-metric-value">{{ $totalUsers }}</div>
-            </div>
-            <div class="bp-metric">
-                <div class="bp-metric-label">Subcuentas ligadas</div>
-                <div class="bp-metric-value">{{ $assignedSubaccounts }}</div>
-            </div>
-        </div>
+<div class="offcanvas offcanvas-end bp-offcanvas" tabindex="-1" id="departmentEditor"><div class="offcanvas-header"><div><span class="bp-kicker" id="departmentEditorKicker">Nuevo registro</span><h5 class="mb-0" id="departmentEditorTitle">Crear departamento</h5></div><button class="btn-close" data-bs-dismiss="offcanvas"></button></div><form method="POST" id="departmentForm"><div class="offcanvas-body bp-form-body">@csrf<input type="hidden" id="departmentMethod" name="_method"><div class="row g-3"><div class="col-12"><label class="form-label">Nombre</label><input class="form-control" name="name" id="departmentName" maxlength="100" required></div><div class="col-md-5"><label class="form-label">Abreviación</label><input class="form-control text-uppercase" name="abbreviated" id="departmentAbbreviated" maxlength="10" required></div><div class="col-md-7"><label class="form-label">Estado</label><select class="form-select" name="is_active" id="departmentActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div><div class="col-12"><label class="form-label">Notas <span class="text-muted">(opcional)</span></label><textarea class="form-control" name="notes" id="departmentNotes" rows="3" maxlength="255"></textarea></div></div></div><div class="offcanvas-footer p-3 border-top d-flex justify-content-end gap-2"><button type="button" class="btn btn-light" data-bs-dismiss="offcanvas">Cancelar</button><button class="btn btn-primary" type="submit"><i class="ti ti-device-floppy me-1"></i>Guardar departamento</button></div></form></div>
 
-        <div class="tab-content">
-            <div class="tab-pane fade show active" id="profilesTab" role="tabpanel">
-                <div class="bp-panel">
-                    <div class="bp-panel-header">
-                        <div>
-                            <h5 class="bp-panel-title">Nuevo perfil</h5>
-                        </div>
-                        <span class="bp-chip bp-chip-success">
-                            <i class="ti ti-circle-check"></i>Activo al crear
-                        </span>
-                    </div>
-                    <div class="bp-panel-body">
-                        <form method="POST" action="{{ route('budget-profiles.store') }}" class="row g-3 align-items-end">
-                            @csrf
-                            <input type="hidden" name="is_active" value="1">
-
-                            <div class="col-lg-3 col-md-6">
-                                <label class="form-label fw-semibold">Departamento</label>
-                                <select name="department_id" class="form-select" required>
-                                    <option value="">Selecciona un departamento</option>
-                                    @foreach ($departments as $department)
-                                        <option value="{{ $department->id }}" @selected((int) old('department_id') === $department->id)>
-                                            {{ $department->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-lg-3 col-md-6">
-                                <label class="form-label fw-semibold">Nombre del perfil</label>
-                                <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="Ej. Gerente de estacion" required>
-                            </div>
-
-                            <div class="col-lg-3 col-md-6">
-                                <label class="form-label fw-semibold">Descripcion</label>
-                                <input type="text" name="description" class="form-control" value="{{ old('description') }}" placeholder="Ej. Compra operativa mensual">
-                            </div>
-
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Subcuentas</label>
-                                @include('budget_profiles.partials.subaccount-picker', [
-                                    'pickerId' => 'createSubaccountPicker',
-                                    'subaccounts' => $subaccounts,
-                                    'selectedSubaccountIds' => old('subaccount_ids', []),
-                                ])
-                            </div>
-
-                            <div class="col-lg-12 d-grid d-lg-flex justify-content-lg-end">
-                                <button type="submit" class="btn btn-primary" title="Crear perfil">
-                                    <i class="ti ti-plus me-1"></i>Crear
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="bp-panel">
-                    <div class="bp-panel-header">
-                        <div>
-                            <h5 class="bp-panel-title">Perfiles configurados</h5>
-                        </div>
-                        <div class="bp-list-controls">
-                            <div class="input-group bp-search">
-                                <span class="input-group-text"><i class="ti ti-search"></i></span>
-                                <input type="search" class="form-control" id="profileSearch" placeholder="Buscar por perfil o subcuenta">
-                            </div>
-
-                            <select class="form-select" id="profileDepartmentFilter" aria-label="Filtrar por departamento">
-                                <option value="">Todos los departamentos</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
-
-                            <select class="form-select" id="profilePageSize" aria-label="Perfiles por pagina">
-                                <option value="8">8 por pagina</option>
-                                <option value="12" selected>12 por pagina</option>
-                                <option value="24">24 por pagina</option>
-                                <option value="9999">Todos</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="bp-panel-body">
-                        @if ($profiles->isEmpty())
-                            <div class="bp-empty">
-                                <i class="ti ti-wallet fs-2 d-block mb-2"></i>
-                                Sin perfiles presupuestales.
-                            </div>
-                        @else
-                            <div class="bp-profile-grid" id="profileGrid">
-                                @foreach ($profiles as $profile)
-                                    @php
-                                        $profileSearch = collect([
-                                            $profile->name,
-                                            $profile->description,
-                                            $profile->department?->name,
-                                            $profile->is_active ? 'activo' : 'inactivo',
-                                        ])
-                                            ->merge($profile->subaccounts->map(fn ($subaccount) => trim(($subaccount->account?->name ?? '').' '.$subaccount->code.' '.$subaccount->name)))
-                                            ->filter()
-                                            ->implode(' ');
-                                    @endphp
-
-                                    <article class="bp-profile-card js-profile-card" data-search="{{ Str::lower($profileSearch) }}" data-department-id="{{ $profile->department_id }}">
-                                        <div class="bp-profile-head">
-                                            <div>
-                                                <h5 class="bp-profile-name">{{ $profile->name }}</h5>
-                                                <div class="bp-profile-department">
-                                                    <i class="ti ti-building me-1"></i>{{ $profile->department?->name ?? 'Sin departamento' }}
-                                                </div>
-                                            </div>
-                                            <span class="bp-chip {{ $profile->is_active ? 'bp-chip-success' : 'bp-chip-muted' }}">
-                                                <i class="ti {{ $profile->is_active ? 'ti-circle-check' : 'ti-circle-off' }}"></i>
-                                                {{ $profile->is_active ? 'Activo' : 'Inactivo' }}
-                                            </span>
-                                        </div>
-
-                                        <div class="bp-profile-body">
-                                            <p class="bp-profile-description mb-3">
-                                                {{ $profile->description ?: 'Sin descripcion.' }}
-                                            </p>
-
-                                            <div class="bp-chip-row mb-3">
-                                                <span class="bp-chip"><i class="ti ti-users"></i>{{ $profile->users_count }} usuarios</span>
-                                                <span class="bp-chip"><i class="ti ti-list-details"></i>{{ $profile->subaccounts_count }} subcuentas</span>
-                                            </div>
-
-                                            <div class="bp-chip-row">
-                                                @forelse ($profile->subaccounts->take(4) as $subaccount)
-                                                    <span class="bp-chip" title="{{ $subaccount->account?->name }}">
-                                                        {{ $subaccount->account?->code }} / {{ $subaccount->code }} {{ Str::limit($subaccount->name, 28) }}
-                                                    </span>
-                                                @empty
-                                                    <span class="bp-chip bp-chip-muted">Sin subcuentas</span>
-                                                @endforelse
-
-                                                @if ($profile->subaccounts_count > 4)
-                                                    <span class="bp-chip bp-chip-muted">+{{ $profile->subaccounts_count - 4 }}</span>
-                                                @endif
-                                            </div>
-                                        </div>
-
-                                        <div class="bp-profile-actions">
-                                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#editProfile{{ $profile->id }}" aria-expanded="false" aria-controls="editProfile{{ $profile->id }}">
-                                                <i class="ti ti-edit me-1"></i>Editar
-                                            </button>
-                                        </div>
-
-                                        <div class="collapse" id="editProfile{{ $profile->id }}">
-                                            <div class="bp-edit-area">
-                                                <form method="POST" action="{{ route('budget-profiles.update', $profile) }}" class="row g-3">
-                                                    @csrf
-                                                    @method('PUT')
-
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Departamento</label>
-                                                        <select name="department_id" class="form-select form-select-sm" required>
-                                                            @foreach ($departments as $department)
-                                                                <option value="{{ $department->id }}" @selected($profile->department_id === $department->id)>
-                                                                    {{ $department->name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Estatus</label>
-                                                        <select name="is_active" class="form-select form-select-sm">
-                                                            <option value="1" @selected($profile->is_active)>Activo</option>
-                                                            <option value="0" @selected(! $profile->is_active)>Inactivo</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Nombre</label>
-                                                        <input type="text" name="name" class="form-control form-control-sm" value="{{ $profile->name }}" required>
-                                                    </div>
-
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Descripcion</label>
-                                                        <input type="text" name="description" class="form-control form-control-sm" value="{{ $profile->description }}">
-                                                    </div>
-
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold">Subcuentas</label>
-                                                        @include('budget_profiles.partials.subaccount-picker', [
-                                                            'pickerId' => 'editSubaccountPicker'.$profile->id,
-                                                            'subaccounts' => $subaccounts,
-                                                            'selectedSubaccountIds' => $profile->subaccounts->pluck('id'),
-                                                        ])
-                                                    </div>
-
-                                                    <div class="col-12 text-end">
-                                                        <button type="submit" class="btn btn-primary btn-sm">
-                                                            <i class="ti ti-device-floppy me-1"></i>Guardar cambios
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </article>
-                                @endforeach
-                            </div>
-
-                            <div class="bp-empty d-none" id="profileEmptySearch">
-                                <i class="ti ti-search fs-2 d-block mb-2"></i>
-                                Sin resultados.
-                            </div>
-
-                            <div class="bp-pagination" id="profilePagination">
-                                <div class="bp-page-status" id="profilePageStatus"></div>
-                                <div class="bp-page-actions">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="profilePrevPage">
-                                        <i class="ti ti-chevron-left me-1"></i>Anterior
-                                    </button>
-                                    <span class="bp-page-status" id="profilePageNumber"></span>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="profileNextPage">
-                                        Siguiente<i class="ti ti-chevron-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="departmentsTab" role="tabpanel">
-                <div class="bp-panel">
-                    <div class="bp-panel-header">
-                        <div>
-                            <h5 class="bp-panel-title">Nuevo departamento</h5>
-                        </div>
-                        <span class="bp-chip bp-chip-success">
-                            <i class="ti ti-circle-check"></i>Activo al crear
-                        </span>
-                    </div>
-                    <div class="bp-panel-body">
-                        <form method="POST" action="{{ route('budget-profiles.departments.store') }}" class="row g-3 align-items-end">
-                            @csrf
-                            <input type="hidden" name="is_active" value="1">
-
-                            <div class="col-lg-4 col-md-6">
-                                <label class="form-label fw-semibold">Nombre</label>
-                                <input type="text" name="name" class="form-control" value="{{ old('name') }}" maxlength="100" placeholder="Ej. Operaciones" required>
-                            </div>
-
-                            <div class="col-lg-2 col-md-6">
-                                <label class="form-label fw-semibold">Abreviacion</label>
-                                <input type="text" name="abbreviated" class="form-control text-uppercase" value="{{ old('abbreviated') }}" maxlength="10" placeholder="OPE" required>
-                            </div>
-
-                            <div class="col-lg-5 col-md-12">
-                                <label class="form-label fw-semibold">Notas</label>
-                                <input type="text" name="notes" class="form-control" value="{{ old('notes') }}" maxlength="255" placeholder="Contexto interno del departamento">
-                            </div>
-
-                            <div class="col-lg-1 d-grid">
-                                <button type="submit" class="btn btn-primary" title="Crear departamento">
-                                    <i class="ti ti-plus me-1"></i>Crear
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="bp-summary">
-                    <div class="bp-metric">
-                        <div class="bp-metric-label">Departamentos</div>
-                        <div class="bp-metric-value">{{ $totalDepartments }}</div>
-                    </div>
-                    <div class="bp-metric">
-                        <div class="bp-metric-label">Activos</div>
-                        <div class="bp-metric-value">{{ $activeDepartments }}</div>
-                    </div>
-                    <div class="bp-metric">
-                        <div class="bp-metric-label">Inactivos</div>
-                        <div class="bp-metric-value">{{ $inactiveDepartments }}</div>
-                    </div>
-                    <div class="bp-metric">
-                        <div class="bp-metric-label">Con perfiles</div>
-                        <div class="bp-metric-value">{{ $departments->filter(fn ($department) => $department->budgetProfiles->isNotEmpty())->count() }}</div>
-                    </div>
-                </div>
-
-                <div class="bp-panel">
-                    <div class="bp-panel-header">
-                        <div>
-                            <h5 class="bp-panel-title">Departamentos configurados</h5>
-                        </div>
-                        <div class="bp-list-controls">
-                            <div class="input-group bp-search">
-                                <span class="input-group-text"><i class="ti ti-search"></i></span>
-                                <input type="search" class="form-control" id="departmentSearch" placeholder="Buscar departamento, abreviacion o nota">
-                            </div>
-
-                            <select class="form-select" id="departmentStatusFilter" aria-label="Filtrar por estatus">
-                                <option value="">Todos los estatus</option>
-                                <option value="1">Activos</option>
-                                <option value="0">Inactivos</option>
-                            </select>
-
-                            <select class="form-select" id="departmentPageSize" aria-label="Departamentos por pagina">
-                                <option value="8">8 por pagina</option>
-                                <option value="12" selected>12 por pagina</option>
-                                <option value="24">24 por pagina</option>
-                                <option value="9999">Todos</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="bp-panel-body">
-                        @if ($departments->isEmpty())
-                            <div class="bp-empty">
-                                <i class="ti ti-building fs-2 d-block mb-2"></i>
-                                Sin departamentos.
-                            </div>
-                        @else
-                            <div class="bp-profile-grid" id="departmentGrid">
-                                @foreach ($departments as $department)
-                                    @php
-                                        $departmentSearch = collect([
-                                            $department->name,
-                                            $department->abbreviated,
-                                            $department->notes,
-                                            $department->is_active ? 'activo' : 'inactivo',
-                                        ])->filter()->implode(' ');
-                                    @endphp
-
-                                    <article class="bp-profile-card js-department-card" data-search="{{ Str::lower($departmentSearch) }}" data-status="{{ $department->is_active ? '1' : '0' }}">
-                                        <div class="bp-profile-head">
-                                            <div>
-                                                <h5 class="bp-profile-name">{{ $department->name }}</h5>
-                                                <div class="bp-profile-department">
-                                                    <i class="ti ti-tag me-1"></i>{{ $department->abbreviated }}
-                                                </div>
-                                            </div>
-                                            <span class="bp-chip {{ $department->is_active ? 'bp-chip-success' : 'bp-chip-muted' }}">
-                                                <i class="ti {{ $department->is_active ? 'ti-circle-check' : 'ti-circle-off' }}"></i>
-                                                {{ $department->is_active ? 'Activo' : 'Inactivo' }}
-                                            </span>
-                                        </div>
-
-                                        <div class="bp-profile-body">
-                                            <p class="bp-profile-description mb-3">
-                                                {{ $department->notes ?: 'Sin notas.' }}
-                                            </p>
-
-                                            <div class="bp-chip-row mb-3">
-                                                <span class="bp-chip"><i class="ti ti-wallet"></i>{{ $department->budgetProfiles->count() }} perfiles</span>
-                                                <span class="bp-chip"><i class="ti ti-list-details"></i>{{ $department->budgetProfiles->sum('subaccounts_count') }} subcuentas</span>
-                                                <span class="bp-chip"><i class="ti ti-users"></i>{{ $department->budgetProfiles->sum('users_count') }} usuarios</span>
-                                            </div>
-
-                                            <div class="bp-chip-row">
-                                                @forelse ($department->budgetProfiles->take(4) as $profile)
-                                                    <span class="bp-chip">
-                                                        <i class="ti ti-wallet"></i>
-                                                        {{ $profile->name }}
-                                                    </span>
-                                                @empty
-                                                    <span class="bp-chip bp-chip-muted">Sin perfiles</span>
-                                                @endforelse
-
-                                                @if ($department->budgetProfiles->count() > 4)
-                                                    <span class="bp-chip bp-chip-muted">+{{ $department->budgetProfiles->count() - 4 }}</span>
-                                                @endif
-                                            </div>
-                                        </div>
-
-                                        <div class="bp-profile-actions">
-                                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#editDepartment{{ $department->id }}" aria-expanded="false" aria-controls="editDepartment{{ $department->id }}">
-                                                <i class="ti ti-edit me-1"></i>Editar
-                                            </button>
-                                        </div>
-
-                                        <div class="collapse" id="editDepartment{{ $department->id }}">
-                                            <div class="bp-edit-area">
-                                                <form method="POST" action="{{ route('budget-profiles.departments.update', $department) }}" class="row g-3">
-                                                    @csrf
-                                                    @method('PUT')
-
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Nombre</label>
-                                                        <input type="text" name="name" class="form-control form-control-sm" value="{{ $department->name }}" maxlength="100" required>
-                                                    </div>
-
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Abreviacion</label>
-                                                        <input type="text" name="abbreviated" class="form-control form-control-sm text-uppercase" value="{{ $department->abbreviated }}" maxlength="10" required>
-                                                    </div>
-
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Estatus</label>
-                                                        <select name="is_active" class="form-select form-select-sm">
-                                                            <option value="1" @selected($department->is_active)>Activo</option>
-                                                            <option value="0" @selected(! $department->is_active)>Inactivo</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold">Notas</label>
-                                                        <input type="text" name="notes" class="form-control form-control-sm" value="{{ $department->notes }}" maxlength="255">
-                                                    </div>
-
-                                                    <div class="col-12 text-end">
-                                                        <button type="submit" class="btn btn-primary btn-sm">
-                                                            <i class="ti ti-device-floppy me-1"></i>Guardar cambios
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </article>
-                                @endforeach
-                            </div>
-
-                            <div class="bp-empty d-none" id="departmentEmptySearch">
-                                <i class="ti ti-search fs-2 d-block mb-2"></i>
-                                Sin resultados.
-                            </div>
-
-                            <div class="bp-pagination" id="departmentPagination">
-                                <div class="bp-page-status" id="departmentPageStatus"></div>
-                                <div class="bp-page-actions">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentPrevPage">
-                                        <i class="ti ti-chevron-left me-1"></i>Anterior
-                                    </button>
-                                    <span class="bp-page-status" id="departmentPageNumber"></span>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentNextPage">
-                                        Siguiente<i class="ti ti-chevron-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<form id="toggleForm" method="POST" class="d-none">@csrf @method('PATCH')</form><form id="deleteForm" method="POST" class="d-none">@csrf @method('DELETE')</form>
+<script id="bp-data" type="application/json">@json($budgetProfileClientData)</script>
 @endsection
 
 @push('scripts')
-    <script>
-        $(function () {
-            const normalize = function (value) {
-                return (value || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            };
-
-            const $profileCards = $('.js-profile-card');
-            const $profilePagination = $('#profilePagination');
-            let profilePage = 1;
-
-            const applyProfileFilters = function () {
-                const term = normalize($('#profileSearch').val());
-                const departmentId = $('#profileDepartmentFilter').val();
-                const pageSize = parseInt($('#profilePageSize').val(), 10);
-                const matchedCards = [];
-
-                $profileCards.each(function () {
-                    const $card = $(this);
-                    const matchesSearch = normalize($card.data('search')).includes(term);
-                    const matchesDepartment = ! departmentId || String($card.data('department-id')) === departmentId;
-                    const matches = matchesSearch && matchesDepartment;
-
-                    $card.toggleClass('d-none', ! matches);
-
-                    if (matches) {
-                        matchedCards.push($card);
-                    }
-                });
-
-                const totalMatches = matchedCards.length;
-                const totalPages = Math.max(1, Math.ceil(totalMatches / pageSize));
-                profilePage = Math.min(profilePage, totalPages);
-
-                matchedCards.forEach(function ($card, index) {
-                    const isCurrentPage = index >= (profilePage - 1) * pageSize && index < profilePage * pageSize;
-                    $card.toggleClass('d-none', ! isCurrentPage);
-                });
-
-                $('#profileEmptySearch').toggleClass('d-none', totalMatches !== 0);
-                $profilePagination.toggleClass('d-none', totalMatches === 0);
-                $('#profilePageStatus').text(totalMatches === 0 ? '' : totalMatches + ' perfiles encontrados');
-                $('#profilePageNumber').text('Pagina ' + profilePage + ' de ' + totalPages);
-                $('#profilePrevPage').prop('disabled', profilePage <= 1);
-                $('#profileNextPage').prop('disabled', profilePage >= totalPages);
-            };
-
-            $('#profileSearch, #profileDepartmentFilter, #profilePageSize').on('input change', function () {
-                profilePage = 1;
-                applyProfileFilters();
-            });
-
-            $('#profilePrevPage').on('click', function () {
-                if (profilePage > 1) {
-                    profilePage--;
-                    applyProfileFilters();
-                }
-            });
-
-            $('#profileNextPage').on('click', function () {
-                profilePage++;
-                applyProfileFilters();
-            });
-
-            applyProfileFilters();
-
-            const $departmentCards = $('.js-department-card');
-            const $departmentPagination = $('#departmentPagination');
-            let departmentPage = 1;
-
-            const applyDepartmentFilters = function () {
-                const term = normalize($('#departmentSearch').val());
-                const status = $('#departmentStatusFilter').val();
-                const pageSize = parseInt($('#departmentPageSize').val(), 10);
-                const matchedCards = [];
-
-                $departmentCards.each(function () {
-                    const $card = $(this);
-                    const matchesSearch = normalize($card.data('search')).includes(term);
-                    const matchesStatus = ! status || String($card.data('status')) === status;
-                    const matches = matchesSearch && matchesStatus;
-
-                    $card.toggleClass('d-none', ! matches);
-
-                    if (matches) {
-                        matchedCards.push($card);
-                    }
-                });
-
-                const totalMatches = matchedCards.length;
-                const totalPages = Math.max(1, Math.ceil(totalMatches / pageSize));
-                departmentPage = Math.min(departmentPage, totalPages);
-
-                matchedCards.forEach(function ($card, index) {
-                    const isCurrentPage = index >= (departmentPage - 1) * pageSize && index < departmentPage * pageSize;
-                    $card.toggleClass('d-none', ! isCurrentPage);
-                });
-
-                $('#departmentEmptySearch').toggleClass('d-none', totalMatches !== 0);
-                $departmentPagination.toggleClass('d-none', totalMatches === 0);
-                $('#departmentPageStatus').text(totalMatches === 0 ? '' : totalMatches + ' departamentos encontrados');
-                $('#departmentPageNumber').text('Pagina ' + departmentPage + ' de ' + totalPages);
-                $('#departmentPrevPage').prop('disabled', departmentPage <= 1);
-                $('#departmentNextPage').prop('disabled', departmentPage >= totalPages);
-            };
-
-            $('#departmentSearch, #departmentStatusFilter, #departmentPageSize').on('input change', function () {
-                departmentPage = 1;
-                applyDepartmentFilters();
-            });
-
-            $('#departmentPrevPage').on('click', function () {
-                if (departmentPage > 1) {
-                    departmentPage--;
-                    applyDepartmentFilters();
-                }
-            });
-
-            $('#departmentNextPage').on('click', function () {
-                departmentPage++;
-                applyDepartmentFilters();
-            });
-
-            applyDepartmentFilters();
-
-            $('.js-subaccount-picker').each(function () {
-                const $picker = $(this);
-                const $count = $picker.find('.js-subaccount-count');
-
-                const updateCount = function () {
-                    $count.text($picker.find('input[type="checkbox"]:checked').length);
-                };
-
-                const updateSearch = function () {
-                    const term = normalize($picker.find('.js-subaccount-search').val());
-                    let visibleGroups = 0;
-
-                    $picker.find('.js-subaccount-group').each(function () {
-                        const $group = $(this);
-                        const groupMatches = normalize($group.data('search')).includes(term);
-                        let visibleOptions = 0;
-
-                        $group.find('.js-subaccount-option').each(function () {
-                            const $option = $(this);
-                            const matches = groupMatches || normalize($option.data('search')).includes(term);
-                            $option.toggle(matches);
-
-                            if (matches) {
-                                visibleOptions++;
-                            }
-                        });
-
-                        $group.toggle(visibleOptions > 0);
-
-                        if (visibleOptions > 0) {
-                            visibleGroups++;
-                        }
-                    });
-
-                    $picker.toggleClass('is-empty', visibleGroups === 0);
-                };
-
-                $picker.on('change', 'input[type="checkbox"]', updateCount);
-
-                $picker.on('input', '.js-subaccount-search', updateSearch);
-
-                $picker.on('click', '.js-select-group', function () {
-                    $(this)
-                        .closest('.js-subaccount-group')
-                        .find('.js-subaccount-option:visible input[type="checkbox"]')
-                        .prop('checked', true);
-
-                    updateCount();
-                });
-
-                $picker.on('click', '.js-clear-group', function () {
-                    $(this)
-                        .closest('.js-subaccount-group')
-                        .find('.js-subaccount-option:visible input[type="checkbox"]')
-                        .prop('checked', false);
-
-                    updateCount();
-                });
-
-                updateCount();
-            });
-        });
-    </script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const data = JSON.parse(document.getElementById('bp-data').textContent), escape = value => $('<div>').text(value ?? '').html();
+    const profileEditor = bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('profileEditor')), departmentEditor = bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('departmentEditor'));
+    if (! data.permissions.profiles) {
+        document.querySelector('.js-tab[data-target="profiles"]')?.closest('li').remove();
+        document.querySelector('[data-kind="profiles"]')?.classList.add('bp-hidden');
+        document.querySelector('.js-tab[data-target="departments"]')?.classList.add('active');
+        document.querySelector('[data-kind="departments"]')?.classList.add('is-active');
+    }
+    if (! data.permissions.departments) {
+        document.getElementById('newDepartment')?.remove();
+        document.querySelector('[data-kind="departments"] .bp-detail-actions')?.remove();
+    }
+    const route = (key, id, token) => data.routes[key].replace(token, id);
+    const selected = { subaccounts: new Set(), users: new Set() };
+    const items = { subaccounts: data.subaccounts, users: data.users };
+    const profileForm = document.getElementById('profileForm');
+    const collapsedSubaccountGroups = new Set(data.subaccounts.map(item => item.account));
+    let departmentManagerInput = null;
+    if (data.permissions.departments) {
+        const departmentFields = document.querySelector('#departmentForm .row.g-3');
+        departmentManagerInput = document.createElement('div');
+        departmentManagerInput.className = 'col-12';
+        departmentManagerInput.innerHTML = `<label class="form-label">Encargado del departamento</label><select class="form-select" name="manager_user_id" id="departmentManager" required><option value="">Selecciona al encargado</option>${data.departmentManagers.map(manager => `<option value="${manager.id}">${escape(manager.name)} · ${escape(manager.email)}</option>`).join('')}</select><div class="form-text">Sólo el encargado podrá administrar los perfiles de este departamento.</div>`;
+        departmentFields.append(departmentManagerInput);
+    }
+    function setTransfer(kind, values = []) { selected[kind] = new Set(values.map(Number)); renderTransfer(kind); }
+    function renderTransfer(kind) {
+        const root = document.querySelector(`[data-transfer="${kind}"]`), term = root.querySelector('.js-transfer-search').value.toLowerCase(), departmentId = Number(document.getElementById('profileDepartmentInput').value || 0), available = root.querySelector('.js-transfer-available'), chosen = root.querySelector('.js-transfer-selected'), input = root.querySelector('.js-transfer-input');
+        available.innerHTML = ''; chosen.innerHTML = ''; input.innerHTML = '';
+        let grouped = {};
+        items[kind].filter(item => (kind !== 'users' || (departmentId && item.department_id === departmentId)) && `${item.account || ''} ${item.code || ''} ${item.name} ${item.email || ''}`.toLowerCase().includes(term)).forEach(item => { const key = kind === 'subaccounts' ? item.account : (item.is_active ? 'Usuarios activos' : 'Usuarios inactivos'); (grouped[key] ||= []).push(item); });
+        Object.entries(grouped).forEach(([group, groupItems]) => { const isCollapsed = kind === 'subaccounts' && collapsedSubaccountGroups.has(group), availableItems = groupItems.filter(item => !selected[kind].has(item.id)); if (kind === 'subaccounts') { available.insertAdjacentHTML('beforeend', `<button type="button" class="bp-transfer-group-toggle js-transfer-group-toggle ${isCollapsed ? 'is-collapsed':''}" data-group="${encodeURIComponent(group)}" aria-expanded="${!isCollapsed}"><span>${escape(group)} <small>(${availableItems.length})</small></span><i class="ti ti-chevron-down"></i></button>`); } else { available.insertAdjacentHTML('beforeend', `<div class="bp-transfer-group">${escape(group)}</div>`); } if (!isCollapsed) availableItems.forEach(item => available.insertAdjacentHTML('beforeend', transferButton(kind,item,false))); });
+        items[kind].filter(item => selected[kind].has(item.id)).forEach(item => { input.insertAdjacentHTML('beforeend', `<option value="${item.id}" selected></option>`); chosen.insertAdjacentHTML('beforeend', transferButton(kind,item,true)); });
+        if (!available.children.length) available.innerHTML = '<div class="bp-transfer-empty">No hay opciones disponibles.</div>'; if (!chosen.children.length) chosen.innerHTML = '<div class="bp-transfer-empty">Aún no hay selección.</div>'; root.querySelector('.js-transfer-count').textContent = selected[kind].size;
+    }
+    function transferButton(kind,item,isSelected) { const title = kind === 'subaccounts' ? `${item.code} · ${item.name}` : item.name, meta = kind === 'subaccounts' ? item.account : `${item.email}${item.is_active ? '' : ' · Inactivo'}`; return `<button type="button" class="bp-transfer-item js-transfer-item" data-kind="${kind}" data-id="${item.id}" data-selected="${isSelected ? 1 : 0}"><i class="ti ${isSelected ? 'ti-x':'ti-plus'}"></i><span><strong>${escape(title)}</strong><small>${escape(meta)}</small></span></button>`; }
+    function openProfile(profile = null) { profileForm.action = profile ? route('profileUpdate',profile.id,'__PROFILE__') : data.routes.profileStore; document.getElementById('profileMethod').value = profile ? 'PUT' : ''; document.getElementById('profileEditorKicker').textContent = profile ? 'Editar configuración' : 'Nuevo registro'; document.getElementById('profileEditorTitle').textContent = profile ? profile.name : 'Crear perfil'; document.getElementById('profileDepartmentInput').value = profile?.department_id || ''; document.getElementById('profileActive').value = profile?.is_active === false ? '0':'1'; document.getElementById('profileName').value = profile?.name || ''; document.getElementById('profileDescription').value = profile?.description || ''; setTransfer('subaccounts',profile?.subaccount_ids || []); setTransfer('users',profile?.user_ids || []); profileEditor.show(); }
+    function openDepartment(department = null) { const form = document.getElementById('departmentForm'); form.action = department ? route('departmentUpdate',department.id,'__DEPARTMENT__') : data.routes.departmentStore; document.getElementById('departmentMethod').value = department ? 'PUT':''; document.getElementById('departmentEditorKicker').textContent = department ? 'Editar departamento':'Nuevo registro'; document.getElementById('departmentEditorTitle').textContent = department ? department.name:'Crear departamento'; document.getElementById('departmentName').value = department?.name || ''; document.getElementById('departmentAbbreviated').value = department?.abbreviated || ''; document.getElementById('departmentActive').value = department?.is_active === false ? '0':'1'; document.getElementById('departmentNotes').value = department?.notes || ''; departmentEditor.show(); }
+    function submitAction(key,id,token,formId,confirmation) { if (!confirm(confirmation)) return; const form=document.getElementById(formId); form.action=route(key,id,token); form.submit(); }
+    function showProfile(id) { const profile=data.profiles.find(item=>item.id===Number(id)); if(!profile)return; document.querySelectorAll('.js-profile-row').forEach(row=>row.classList.toggle('is-selected',Number(row.dataset.id)===profile.id)); const subs=data.subaccounts.filter(item=>profile.subaccount_ids.includes(item.id)), users=data.users.filter(item=>profile.user_ids.includes(item.id)); document.getElementById('profileDetail').innerHTML=`<div class="bp-detail-head"><div><span class="bp-kicker">${escape(profile.department || 'Sin departamento')}</span><h3>${escape(profile.name)}</h3><p>${escape(profile.description || 'Sin descripción registrada.')}</p></div><span class="bp-state ${profile.is_active?'active':'inactive'}">${profile.is_active?'Activo':'Inactivo'}</span></div><div class="bp-detail-summary"><div class="bp-fact"><span>Subcuentas permitidas</span><strong>${profile.subaccounts_count}</strong></div><div class="bp-fact"><span>Usuarios asignados</span><strong>${profile.users_count}</strong></div></div><div class="bp-assignment-grid"><section class="bp-assignment-card"><header><strong><i class="ti ti-list-details"></i>Subcuentas permitidas</strong><span class="bp-state ${subs.length?'active':'inactive'}">${subs.length}</span></header>${subs.length?`<div class="bp-chip-row">${subs.map(item=>`<span class="bp-chip"><i class="ti ti-list-details"></i>${escape(item.code)} ${escape(item.name)}</span>`).join('')}</div>`:'<div class="bp-assignment-empty">Aún no se han asignado subcuentas.</div>'}</section><section class="bp-assignment-card"><header><strong><i class="ti ti-users"></i>Usuarios asignados</strong><span class="bp-state ${users.length?'active':'inactive'}">${users.length}</span></header>${users.length?`<div class="bp-chip-row">${users.map(item=>`<span class="bp-chip"><i class="ti ti-user"></i>${escape(item.name)}</span>`).join('')}</div>`:'<div class="bp-assignment-empty">Aún no hay usuarios vinculados.</div>'}</section></div><div class="bp-detail-actions"><button class="btn btn-primary btn-sm js-edit-profile" data-id="${profile.id}"><i class="ti ti-edit me-1"></i>Editar</button><button class="btn btn-outline-secondary btn-sm js-toggle-profile" data-id="${profile.id}">${profile.is_active?'Desactivar':'Activar'}</button>${profile.users_count===0?`<button class="btn btn-outline-danger btn-sm js-delete-profile" data-id="${profile.id}">Eliminar</button>`:''}</div>`; }
+    function showDepartment(id) { const department=data.departments.find(item=>item.id===Number(id)); if(!department)return; document.querySelectorAll('.js-department-row').forEach(row=>row.classList.toggle('is-selected',Number(row.dataset.id)===department.id)); document.getElementById('departmentDetail').innerHTML=`<div class="bp-detail-head"><div><span class="bp-kicker">${escape(department.abbreviated)}</span><h3>${escape(department.name)}</h3><p>${escape(department.notes || 'Sin notas registradas.')}</p></div><span class="bp-state ${department.is_active?'active':'inactive'}">${department.is_active?'Activo':'Inactivo'}</span></div><div class="bp-detail-summary"><div class="bp-fact"><span>Perfiles</span><strong>${department.profiles_count}</strong></div><div class="bp-fact"><span>Usuarios</span><strong>${department.users_count}</strong></div></div><div class="bp-assignment-grid"><section class="bp-assignment-card"><header><strong><i class="ti ti-user-shield"></i>Encargado</strong></header><div class="bp-assignment-empty">${department.manager?`<span><strong>${escape(department.manager)}</strong><br>Administra los perfiles del departamento.</span>`:'Aún no se ha designado un encargado.'}</div></section><section class="bp-assignment-card"><header><strong><i class="ti ti-lock-access"></i>Acceso presupuestal</strong></header><div class="bp-assignment-empty">${department.is_active?'El departamento está habilitado para operar perfiles presupuestales.':'El departamento está suspendido; sus perfiles no otorgan acceso.'}</div></section></div><div class="bp-detail-actions"><button class="btn btn-primary btn-sm js-edit-department" data-id="${department.id}"><i class="ti ti-edit me-1"></i>Editar</button><button class="btn btn-outline-secondary btn-sm js-toggle-department" data-id="${department.id}">${department.is_active?'Desactivar':'Activar'}</button>${department.profiles_count===0&&department.users_count===0?`<button class="btn btn-outline-danger btn-sm js-delete-department" data-id="${department.id}">Eliminar</button>`:''}</div>`; }
+    function filterRows(prefix) { const search=document.getElementById(`${prefix}Search`).value.toLowerCase(), status=document.getElementById(`${prefix}Status`)?.value || '', department=document.getElementById('profileDepartment')?.value || ''; let count=0; document.querySelectorAll(`.js-${prefix}-row`).forEach(row=>{const visible=row.dataset.search.includes(search)&&(!status||row.dataset.status===status)&&(prefix!=='profile'||!department||row.dataset.department===department);row.classList.toggle('bp-hidden',!visible);if(visible)count++;});document.getElementById(`${prefix}ResultCount`).textContent=`${count} ${prefix==='profile'?'perfiles':'departamentos'}`;document.getElementById(`${prefix}NoResults`).classList.toggle('bp-hidden',count!==0);}
+    document.addEventListener('click',event=>{const target=event.target.closest('button');if(!target)return;if(target.matches('.js-profile-row'))showProfile(target.dataset.id);if(target.matches('.js-department-row'))showDepartment(target.dataset.id);if(target.id==='newProfile')openProfile();if(target.id==='newDepartment')openDepartment();if(target.matches('.js-edit-profile'))openProfile(data.profiles.find(item=>item.id===Number(target.dataset.id)));if(target.matches('.js-edit-department'))openDepartment(data.departments.find(item=>item.id===Number(target.dataset.id)));if(target.matches('.js-toggle-profile'))submitAction('profileToggle',target.dataset.id,'__PROFILE__','toggleForm','¿Cambiar el estado de este perfil?');if(target.matches('.js-delete-profile'))submitAction('profileDestroy',target.dataset.id,'__PROFILE__','deleteForm','¿Eliminar definitivamente este perfil?');if(target.matches('.js-toggle-department'))submitAction('departmentToggle',target.dataset.id,'__DEPARTMENT__','toggleForm','¿Cambiar el estado de este departamento?');if(target.matches('.js-delete-department'))submitAction('departmentDestroy',target.dataset.id,'__DEPARTMENT__','deleteForm','¿Eliminar definitivamente este departamento?');if(target.matches('.js-transfer-item')){const kind=target.dataset.kind,id=Number(target.dataset.id);target.dataset.selected==='1'?selected[kind].delete(id):selected[kind].add(id);renderTransfer(kind);}});
+    document.querySelectorAll('.js-tab').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.js-tab').forEach(item=>item.classList.toggle('active',item===button));document.querySelectorAll('.js-workspace').forEach(item=>{const isCurrent=item.dataset.kind===button.dataset.target;item.classList.toggle('is-active',isCurrent);item.classList.toggle('bp-hidden',!isCurrent);});}));
+    document.querySelectorAll('#profileSearch,#profileDepartment,#profileStatus').forEach(input=>input.addEventListener('input',()=>filterRows('profile')));document.querySelectorAll('#profileDepartment,#profileStatus').forEach(input=>input.addEventListener('change',()=>filterRows('profile')));document.querySelectorAll('#departmentSearch,#departmentStatus').forEach(input=>input.addEventListener('input',()=>filterRows('department')));document.querySelectorAll('#departmentStatus').forEach(input=>input.addEventListener('change',()=>filterRows('department')));document.getElementById('profileDepartmentInput').addEventListener('change',()=>{selected.users.clear();renderTransfer('users');});document.querySelectorAll('.js-transfer-search').forEach(input=>input.addEventListener('input',()=>renderTransfer(input.closest('[data-transfer]').dataset.transfer)));
+    document.addEventListener('click', event => {
+        const target = event.target.closest('button');
+        if (! target) return;
+        if (target.matches('.js-profile-row,.js-department-row')) {
+            target.classList.remove('bp-logo-sweep');
+            requestAnimationFrame(() => target.classList.add('bp-logo-sweep'));
+        }
+        if (target.matches('.js-transfer-group-toggle')) {
+            const group = decodeURIComponent(target.dataset.group);
+            collapsedSubaccountGroups.has(group) ? collapsedSubaccountGroups.delete(group) : collapsedSubaccountGroups.add(group);
+            renderTransfer('subaccounts');
+            return;
+        }
+        if (! departmentManagerInput) return;
+        if (target.id === 'newDepartment') departmentManagerInput.querySelector('select').value = '';
+        if (target.matches('.js-edit-department')) {
+            const department = data.departments.find(item => item.id === Number(target.dataset.id));
+            departmentManagerInput.querySelector('select').value = department?.manager_user_id || '';
+        }
+    }, true);
+    document.querySelectorAll('.js-tab').forEach(button => button.addEventListener('click', () => {
+        const isProfiles = button.dataset.target === 'profiles';
+        document.getElementById('profileCreateFab')?.classList.toggle('bp-hidden', !isProfiles);
+        document.getElementById('departmentCreateFab')?.classList.toggle('bp-hidden', isProfiles);
+    }));
+    const renderProfileDetail = showProfile;
+    showProfile = (id) => {
+        renderProfileDetail(id);
+        const profile = data.profiles.find(item => item.id === Number(id));
+        const actions = document.querySelector('#profileDetail .bp-detail-actions');
+        if (! profile || ! actions || actions.querySelector('.js-delete-profile')) return;
+        const userCount = Number(profile.users_count) || 0;
+        const action = userCount === 0
+            ? `<button class="btn btn-outline-danger btn-sm js-delete-profile" data-id="${profile.id}"><i class="ti ti-trash me-1"></i>Eliminar</button>`
+            : `<button class="btn btn-outline-danger btn-sm bp-delete-locked" type="button" disabled aria-disabled="true" title="Retira los usuarios asignados antes de eliminar este perfil."><i class="ti ti-lock me-1"></i>Eliminar</button><span class="bp-action-help">Retira sus ${userCount} usuario${userCount === 1 ? '' : 's'} para eliminarlo.</span>`;
+        actions.insertAdjacentHTML('beforeend', action);
+    };
+    document.querySelector('.js-profile-row')?.click();document.querySelector('.js-department-row')?.click();
+});
+</script>
 @endpush

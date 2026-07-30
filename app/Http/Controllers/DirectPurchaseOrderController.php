@@ -20,6 +20,7 @@ use App\Services\BudgetAllocationService;
 use App\Services\PricingService;
 use App\Services\ApprovalDelegationService;
 use App\Services\ApprovalDecisionService;
+use App\Services\CostCenterApprovalFlowService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,8 @@ class DirectPurchaseOrderController extends Controller
         private BudgetAllocationService $budgetAllocationService,
         private AuthorizerResolutionService $authorizerResolutionService,
         private ApprovalDelegationService $approvalDelegations,
-        private ApprovalDecisionService $approvalDecisions
+        private ApprovalDecisionService $approvalDecisions,
+        private CostCenterApprovalFlowService $costCenterApprovalFlow
     ) {}
 
     public function create()
@@ -195,6 +197,10 @@ class DirectPurchaseOrderController extends Controller
                 $this->budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
             }
 
+            if (! $this->costCenterApprovalFlow->advance($directPurchaseOrder, Auth::user(), $request->input('comments'))) {
+                DB::commit();
+                return redirect()->route('direct-purchase-orders.show', $directPurchaseOrder)->with('success', 'Aprobación registrada; la orden avanzó al siguiente responsable.');
+            }
             $directPurchaseOrder->update([
                 'status' => 'ISSUED',
                 'approved_by' => Auth::id(),
@@ -210,13 +216,9 @@ class DirectPurchaseOrderController extends Controller
                 'comments' => $request->input('comments'),
                 'approved_at' => now(),
             ]);
-            $this->approvalDecisions->record(
-                $directPurchaseOrder,
-                $principalId,
-                Auth::user(),
-                'APPROVED',
-                $request->input('comments')
-            );
+            if (! $directPurchaseOrder->approvalSteps()->exists()) {
+                $this->approvalDecisions->record($directPurchaseOrder, $principalId, Auth::user(), 'APPROVED', $request->input('comments'));
+            }
 
             if ($directPurchaseOrder->supplier) {
                 $directPurchaseOrder->supplier->notify(new DirectPurchaseOrderApprovedNotification($directPurchaseOrder));
@@ -549,6 +551,10 @@ class DirectPurchaseOrderController extends Controller
 
         $this->ensureBudgetAvailability($directPurchaseOrder);
 
+        if ($this->costCenterApprovalFlow->initialize($directPurchaseOrder)) {
+            $this->budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
+            return;
+        }
         $resolution = $this->authorizerResolutionService->resolveForDirectPurchaseOrder($directPurchaseOrder);
 
         $this->budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
@@ -575,16 +581,18 @@ class DirectPurchaseOrderController extends Controller
         $directPurchaseOrder->loadMissing('items');
 
         foreach ($directPurchaseOrder->items as $item) {
-            $budgetCheck = $this->validateBudgetAvailability(
-                $item->cost_center_id,
-                $directPurchaseOrder->application_month,
-                (int) $item->expense_category_id,
-                (float) $item->total,
-                $item->budget_cedula_id ? (int) $item->budget_cedula_id : null
-            );
+            foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, (float) $item->total) as $allocation) {
+                $budgetCheck = $this->validateBudgetAvailability(
+                    $allocation['cost_center_id'],
+                    $directPurchaseOrder->application_month,
+                    (int) $item->expense_category_id,
+                    (float) $allocation['amount'],
+                    $item->budget_cedula_id ? (int) $item->budget_cedula_id : null
+                );
 
-            if (! ($budgetCheck['available'] ?? false)) {
-                throw new \RuntimeException('Presupuesto insuficiente: '.$budgetCheck['message']);
+                if (! ($budgetCheck['available'] ?? false)) {
+                    throw new \RuntimeException('Presupuesto insuficiente: '.$budgetCheck['message']);
+                }
             }
         }
     }

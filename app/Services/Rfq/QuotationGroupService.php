@@ -48,11 +48,15 @@ class QuotationGroupService
     /**
      * @throws GroupDoesNotBelongToRequisitionException
      */
-    public function removeItems(Requisition $requisition, QuotationGroup $group, array $itemIds): QuotationGroup
+    public function removeItems(Requisition $requisition, QuotationGroup $group, array $itemIds, int $userId): QuotationGroup
     {
         $this->assertGroupBelongsToRequisition($requisition, $group);
 
         $group->items()->detach($itemIds);
+
+        if ($group->items()->doesntExist()) {
+            $group->cancel('Grupo cancelado automáticamente al quedarse sin partidas.', $userId);
+        }
 
         return $group;
     }

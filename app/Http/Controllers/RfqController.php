@@ -273,7 +273,7 @@ class RfqController extends Controller
             ->addColumn('status_badge', function ($row) {
                 $badges = [
                     'DRAFT' => ['class' => 'warning', 'icon' => 'ti ti-pencil', 'label' => 'Borrador'],
-                    'SENT' => ['class' => 'info', 'icon' => 'ti ti-send', 'label' => 'Enviada'],
+                    'SENT' => ['class' => 'success', 'icon' => 'ti ti-circle-check', 'label' => 'Correo enviado'],
                     'RESPONSES_RECEIVED' => ['class' => 'success', 'icon' => 'ti ti-check', 'label' => 'Con Respuestas'],
                     'RECEIVED' => ['class' => 'success', 'icon' => 'ti ti-check', 'label' => 'Con Respuestas'],
                     'EVALUATED' => ['class' => 'primary', 'icon' => 'ti ti-check-circle', 'label' => 'Evaluada'],
@@ -283,9 +283,13 @@ class RfqController extends Controller
 
                 $badge = $badges[$row->status] ?? ['class' => 'secondary', 'icon' => 'ti ti-help', 'label' => $row->status];
 
-                return '<span class="badge bg-' . $badge['class'] . ' status-badge">
+                $sentAt = $row->status === 'SENT' && $row->sent_at
+                    ? '<small class="rfq-status-time">' . e($row->sent_at->format('d/m H:i')) . '</small>'
+                    : '';
+
+                return '<span class="badge bg-' . $badge['class'] . ' status-badge rfq-status-badge">
                     <i class="' . $badge['icon'] . '"></i> ' . $badge['label'] . '
-                </span>';
+                </span>' . $sentAt;
             })
             ->addColumn('days_remaining', function ($row) {
                 if (!$row->response_deadline) {
@@ -308,32 +312,38 @@ class RfqController extends Controller
             })
             ->addColumn('action', function ($row) {
                 $emails = $row->suppliers->pluck('email')->filter()->implode(', ');
-                $actions = '<div class="btn-group btn-group-sm" role="group">';
+                $actions = '<div class="rfq-row-actions" role="group">';
 
                 // Botón Enviar (solo si está en borrador)
                 if ($row->status === 'DRAFT') {
                     $actions .= '<button type="button" 
-                   class="btn btn-success btn-send-single-rfq" 
+                   class="btn btn-success btn-sm btn-send-single-rfq rfq-action-send"
                    data-rfq-id="' . $row->id . '" 
                    data-folio="' . $row->folio . '"
                    data-emails="' . e($emails) . '" 
                    data-bs-toggle="tooltip" 
                    title="Enviar">
-                    <i class="ti ti-send"></i>
+                    <i class="ti ti-send"></i><span>Enviar</span>
                  </button>';
+                }
+
+                if ($row->status === 'SENT') {
+                    $actions .= '<span class="rfq-delivery-confirmed" title="Correo enviado; este paquete ya no se puede modificar">
+                        <i class="ti ti-circle-check"></i><span>Enviado</span>
+                    </span>';
                 }
 
                 // Botón Ver detalles
                 $actions .= '<button type="button" 
-                       class="btn btn-primary btn-view-rfq-details" 
+                       class="btn btn-outline-primary btn-sm btn-view-rfq-details rfq-action-view"
                        data-rfq-id="' . $row->id . '" 
                        data-bs-toggle="tooltip" 
                        title="Ver Detalles">
                         <i class="ti ti-eye"></i>
                      </button>';
 
-                // 🔴 NUEVO: Botón Cancelar (solo si no está cancelado o completado)
-                if (!in_array($row->status, ['CANCELLED', 'COMPLETED', 'REJECTED'], true)) {
+                // Un borrador es el único estado que todavía puede cancelarse o reconfigurarse.
+                if ($row->status === 'DRAFT') {
                     $actions .= '<button type="button" class="btn btn-sm btn-danger btn-cancel-rfq" data-rfq-id="' . $row->id . '" 
                                data-folio="' . $row->folio . '"
                                data-bs-toggle="tooltip" 
@@ -936,4 +946,3 @@ class RfqController extends Controller
         }
     }
 }
-

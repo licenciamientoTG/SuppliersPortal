@@ -11,6 +11,7 @@ class ModuleAccessService
         'requisitions' => 'requisiciones.ver',
         'products_services' => 'productos.ver',
         'budget_control' => 'catalogo_cuentas.ver',
+        'budget_profiles' => 'perfiles_presupuestales.ver',
         'catalogs_config' => 'departamentos.administrar',
         'staff_users' => 'usuarios.ver',
         'employees' => 'usuarios.ver',
