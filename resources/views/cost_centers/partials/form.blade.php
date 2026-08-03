@@ -110,7 +110,12 @@
         <div class="form-text">Solo aparecen usuarios activos con los roles Autorizador y Jefe de departamento.</div>
     </div>
 
-    @php($configuredDestinations = old('destinations', $costCenter->distributionTargets?->map(fn ($target) => ['target_cost_center_id' => $target->target_cost_center_id, 'percentage' => $target->percentage])->all() ?? []))
+    @php
+        $configuredDestinations = old('destinations', $costCenter->distributionTargets?->map(fn ($target) => [
+            'target_cost_center_id' => $target->target_cost_center_id,
+            'percentage' => $target->percentage,
+        ])->all() ?? []);
+    @endphp
     <div id="distributionFields" class="col-12" style="display:none">
         <div class="card border-primary-subtle bg-light">
             <div class="card-body">

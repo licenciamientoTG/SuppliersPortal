@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\QuotationSummary;
 use App\Models\Requisition;
 use App\Models\Rfq;
 use App\Models\RfqResponse;
-use App\Models\QuotationSummary;
+use App\Models\Supplier;
+use App\Services\QuotationRejectionWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,11 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
-use App\Models\Supplier;
-use App\Notifications\RfqSentToSuppliersNotification;
-use App\Notifications\NewRfqForSupplierNotification;
-use App\Services\BuyerNotificationService;
-use App\Services\QuotationRejectionWorkflowService;
 
 class RfqController extends Controller
 {
@@ -27,8 +24,6 @@ class RfqController extends Controller
 
     /**
      * Listado general de RFQs.
-     * 
-     * @return View
      */
     public function index(): View
     {
@@ -37,9 +32,6 @@ class RfqController extends Controller
 
     /**
      * DataTable para listado de RFQs.
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function datatable(Request $request): JsonResponse
     {
@@ -48,7 +40,7 @@ class RfqController extends Controller
             'requisition',
             'quotationGroup',
             'requisitionItem',
-            'suppliers'
+            'suppliers',
         ])->select('rfqs.*');
 
         // Filtros
@@ -71,14 +63,15 @@ class RfqController extends Controller
             ->addColumn('group_or_item', function ($row) {
                 if ($row->quotation_group_id) {
                     return '<span class="badge bg-primary">
-                            <i class="ti ti-folder"></i> Grupo: ' .
-                        ($row->quotationGroup->name ?? 'N/A') .
+                            <i class="ti ti-folder"></i> Grupo: '.
+                        ($row->quotationGroup->name ?? 'N/A').
                         '</span>';
                 } elseif ($row->requisition_item_id) {
                     return '<span class="badge bg-secondary">
                             <i class="ti ti-file"></i> Partida Individual
                         </span>';
                 }
+
                 return '<span class="text-muted">N/A</span>';
             })
             ->addColumn('suppliers_count', function ($row) {
@@ -90,7 +83,7 @@ class RfqController extends Controller
                     return '<span class="text-muted">Sin proveedores</span>';
                 }
 
-                // Mapeamos los nombres a badges. 
+                // Mapeamos los nombres a badges.
                 // No pongas todos si son 50, o el DT va a parecer una sopa de letras.
                 $badges = $row->suppliers->take(5)->map(function ($supplier) {
                     // Preparamos la información de contacto (escapando datos, ¡no confíes en nadie!)
@@ -105,17 +98,17 @@ class RfqController extends Controller
                       data-bs-toggle="tooltip" 
                       data-bs-placement="top" 
                       data-bs-html="true"
-                      title="' . $tooltipContent . '">
-                    <i class="ti ti-building-store me-1"></i>' . e($supplier->company_name) . '
+                      title="'.$tooltipContent.'">
+                    <i class="ti ti-building-store me-1"></i>'.e($supplier->company_name).'
                 </span>';
                 })->implode(' ');
 
                 // Si hay más de 5, avisamos que hay más "soldados" en la lista
                 if ($row->suppliers->count() > 5) {
-                    $badges .= ' <span class="badge bg-secondary">+' . ($row->suppliers->count() - 5) . ' más</span>';
+                    $badges .= ' <span class="badge bg-secondary">+'.($row->suppliers->count() - 5).' más</span>';
                 }
 
-                return '<div class="d-flex flex-wrap gap-1">' . $badges . '</div>';
+                return '<div class="d-flex flex-wrap gap-1">'.$badges.'</div>';
             })
             ->addColumn('status_badge', function ($row) {
                 $badges = [
@@ -130,12 +123,12 @@ class RfqController extends Controller
 
                 $badge = $badges[$row->status] ?? ['class' => 'secondary', 'icon' => 'ti ti-help', 'label' => $row->status];
 
-                return '<span class="badge bg-' . $badge['class'] . ' status-badge">
-                        <i class="' . $badge['icon'] . '"></i> ' . $badge['label'] . '
+                return '<span class="badge bg-'.$badge['class'].' status-badge">
+                        <i class="'.$badge['icon'].'"></i> '.$badge['label'].'
                     </span>';
             })
             ->addColumn('days_remaining', function ($row) {
-                if (!$row->response_deadline) {
+                if (! $row->response_deadline) {
                     return '<span class="text-muted">-</span>';
                 }
 
@@ -153,11 +146,11 @@ class RfqController extends Controller
                         </span>';
                 } elseif ($daysRemaining <= 3) {
                     return '<span class="badge bg-warning days-remaining">
-                            ' . $daysRemaining . ' día' . ($daysRemaining > 1 ? 's' : '') . '
+                            '.$daysRemaining.' día'.($daysRemaining > 1 ? 's' : '').'
                         </span>';
                 } else {
                     return '<span class="badge bg-success days-remaining">
-                            ' . $daysRemaining . ' días
+                            '.$daysRemaining.' días
                         </span>';
                 }
             })
@@ -170,7 +163,7 @@ class RfqController extends Controller
                 $actions = '<div class="btn-group" role="group">';
 
                 // Botón Ver
-                $actions .= '<a href="' . $showUrl . '" 
+                $actions .= '<a href="'.$showUrl.'" 
                            class="btn btn-sm btn-primary" 
                            data-bs-toggle="tooltip" 
                            title="Ver Detalle">
@@ -182,9 +175,9 @@ class RfqController extends Controller
                     // AÑADIMOS data-emails AL BOTÓN
                     $actions .= '<button type="button" 
                        class="btn btn-sm btn-success btn-send-rfq" 
-                       data-rfq-id="' . $row->id . '" 
-                       data-folio="' . $row->folio . '"
-                       data-emails="' . e($emails) . '" 
+                       data-rfq-id="'.$row->id.'" 
+                       data-folio="'.$row->folio.'"
+                       data-emails="'.e($emails).'" 
                        data-bs-toggle="tooltip" 
                        title="Enviar a Proveedores">
                         <i class="ti ti-send"></i>
@@ -192,11 +185,11 @@ class RfqController extends Controller
                 }
 
                 // Botón Cancelar (si no está cancelada)
-                if (!in_array($row->status, ['CANCELLED', 'COMPLETED', 'REJECTED'], true)) {
+                if (! in_array($row->status, ['CANCELLED', 'COMPLETED', 'REJECTED'], true)) {
                     $actions .= '<button type="button" 
                                class="btn btn-sm btn-danger btn-cancel-rfq" 
-                               data-rfq-id="' . $row->id . '" 
-                               data-folio="' . $row->folio . '"
+                               data-rfq-id="'.$row->id.'" 
+                               data-folio="'.$row->folio.'"
                                data-bs-toggle="tooltip" 
                                title="Cancelar RFQ">
                                 <i class="ti ti-x"></i>
@@ -207,8 +200,8 @@ class RfqController extends Controller
 
                 return $actions;
             })
-            ->editColumn('sent_at', fn($row) => $row->sent_at ? $row->sent_at->format('d/m/Y H:i') : null)
-            ->editColumn('response_deadline', fn($row) => $row->response_deadline ?
+            ->editColumn('sent_at', fn ($row) => $row->sent_at ? $row->sent_at->format('d/m/Y H:i') : null)
+            ->editColumn('response_deadline', fn ($row) => $row->response_deadline ?
                 \Carbon\Carbon::parse($row->response_deadline)->format('d/m/Y') : null)
             ->rawColumns(['group_or_item', 'status_badge', 'days_remaining', 'action', 'suppliers_list'])
             ->make(true);
@@ -216,17 +209,13 @@ class RfqController extends Controller
 
     /**
      * DataTable para RFQs en el wizard (filtrado por requisición)
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @return JsonResponse
      */
     public function wizardDatatable(Request $request, Requisition $requisition): JsonResponse
     {
         $query = Rfq::with([
             'quotationGroup',
             'requisitionItem',
-            'suppliers'
+            'suppliers',
         ])
             ->where('requisition_id', $requisition->id)
             ->select('rfqs.*');
@@ -235,14 +224,15 @@ class RfqController extends Controller
             ->addColumn('group_or_item', function ($row) {
                 if ($row->quotation_group_id) {
                     return '<span class="badge bg-primary">
-                        <i class="ti ti-folder"></i> ' .
-                        ($row->quotationGroup->name ?? 'N/A') .
+                        <i class="ti ti-folder"></i> '.
+                        ($row->quotationGroup->name ?? 'N/A').
                         '</span>';
                 } elseif ($row->requisition_item_id) {
                     return '<span class="badge bg-secondary">
                         <i class="ti ti-file"></i> Partida Individual
                     </span>';
                 }
+
                 return '<span class="text-muted">N/A</span>';
             })
             ->addColumn('suppliers_list', function ($row) {
@@ -259,16 +249,16 @@ class RfqController extends Controller
                     return '<span class="badge bg-light text-dark border shadow-sm" 
                           data-bs-toggle="tooltip" 
                           data-bs-placement="top" 
-                          title="' . $tooltipContent . '">
-                        <i class="ti ti-building-store me-1"></i>' . e($supplier->company_name) . '
+                          title="'.$tooltipContent.'">
+                        <i class="ti ti-building-store me-1"></i>'.e($supplier->company_name).'
                     </span>';
                 })->implode(' ');
 
                 if ($row->suppliers->count() > 3) {
-                    $badges .= ' <span class="badge bg-secondary">+' . ($row->suppliers->count() - 3) . ' más</span>';
+                    $badges .= ' <span class="badge bg-secondary">+'.($row->suppliers->count() - 3).' más</span>';
                 }
 
-                return '<div class="d-flex flex-wrap gap-1">' . $badges . '</div>';
+                return '<div class="d-flex flex-wrap gap-1">'.$badges.'</div>';
             })
             ->addColumn('status_badge', function ($row) {
                 $badges = [
@@ -284,15 +274,15 @@ class RfqController extends Controller
                 $badge = $badges[$row->status] ?? ['class' => 'secondary', 'icon' => 'ti ti-help', 'label' => $row->status];
 
                 $sentAt = $row->status === 'SENT' && $row->sent_at
-                    ? '<small class="rfq-status-time">' . e($row->sent_at->format('d/m H:i')) . '</small>'
+                    ? '<small class="rfq-status-time">'.e($row->sent_at->format('d/m H:i')).'</small>'
                     : '';
 
-                return '<span class="badge bg-' . $badge['class'] . ' status-badge rfq-status-badge">
-                    <i class="' . $badge['icon'] . '"></i> ' . $badge['label'] . '
-                </span>' . $sentAt;
+                return '<span class="badge bg-'.$badge['class'].' status-badge rfq-status-badge">
+                    <i class="'.$badge['icon'].'"></i> '.$badge['label'].'
+                </span>'.$sentAt;
             })
             ->addColumn('days_remaining', function ($row) {
-                if (!$row->response_deadline) {
+                if (! $row->response_deadline) {
                     return '<span class="text-muted">-</span>';
                 }
 
@@ -305,9 +295,9 @@ class RfqController extends Controller
                 } elseif ($daysRemaining === 0) {
                     return '<span class="badge bg-warning">Hoy</span>';
                 } elseif ($daysRemaining <= 3) {
-                    return '<span class="badge bg-warning">' . $daysRemaining . ' días</span>';
+                    return '<span class="badge bg-warning">'.$daysRemaining.' días</span>';
                 } else {
-                    return '<span class="badge bg-success">' . $daysRemaining . ' días</span>';
+                    return '<span class="badge bg-success">'.$daysRemaining.' días</span>';
                 }
             })
             ->addColumn('action', function ($row) {
@@ -318,9 +308,9 @@ class RfqController extends Controller
                 if ($row->status === 'DRAFT') {
                     $actions .= '<button type="button" 
                    class="btn btn-success btn-sm btn-send-single-rfq rfq-action-send"
-                   data-rfq-id="' . $row->id . '" 
-                   data-folio="' . $row->folio . '"
-                   data-emails="' . e($emails) . '" 
+                   data-rfq-id="'.$row->id.'" 
+                   data-folio="'.$row->folio.'"
+                   data-emails="'.e($emails).'" 
                    data-bs-toggle="tooltip" 
                    title="Enviar">
                     <i class="ti ti-send"></i><span>Enviar</span>
@@ -336,7 +326,7 @@ class RfqController extends Controller
                 // Botón Ver detalles
                 $actions .= '<button type="button" 
                        class="btn btn-outline-primary btn-sm btn-view-rfq-details rfq-action-view"
-                       data-rfq-id="' . $row->id . '" 
+                       data-rfq-id="'.$row->id.'" 
                        data-bs-toggle="tooltip" 
                        title="Ver Detalles">
                         <i class="ti ti-eye"></i>
@@ -344,19 +334,19 @@ class RfqController extends Controller
 
                 // Un borrador es el único estado que todavía puede cancelarse o reconfigurarse.
                 if ($row->status === 'DRAFT') {
-                    $actions .= '<button type="button" class="btn btn-sm btn-danger btn-cancel-rfq" data-rfq-id="' . $row->id . '" 
-                               data-folio="' . $row->folio . '"
+                    $actions .= '<button type="button" class="btn btn-sm btn-danger btn-cancel-rfq" data-rfq-id="'.$row->id.'" 
+                               data-folio="'.$row->folio.'"
                                data-bs-toggle="tooltip" 
                                title="Cancelar RFQ">
                                 <i class="ti ti-x"></i>
                              </button>';
                 }
 
-
                 $actions .= '</div>';
+
                 return $actions;
             })
-            ->editColumn('response_deadline', fn($row) => $row->response_deadline ?
+            ->editColumn('response_deadline', fn ($row) => $row->response_deadline ?
                 \Carbon\Carbon::parse($row->response_deadline)->format('d/m/Y') : null)
             ->rawColumns(['group_or_item', 'status_badge', 'days_remaining', 'action', 'suppliers_list'])
             ->make(true);
@@ -376,7 +366,7 @@ class RfqController extends Controller
             return response()->json([
                 'success' => true,
                 'drafts' => $drafts,
-                'sent' => $sent
+                'sent' => $sent,
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -385,8 +375,6 @@ class RfqController extends Controller
 
     /**
      * Resumen de RFQs por estado
-     * 
-     * @return JsonResponse
      */
     public function summary(): JsonResponse
     {
@@ -401,14 +389,12 @@ class RfqController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $summary
+            'data' => $summary,
         ]);
     }
 
     /**
      * Bandeja de RFQs pendientes de respuesta.
-     * 
-     * @return View
      */
     public function pendingInbox(): View
     {
@@ -417,8 +403,6 @@ class RfqController extends Controller
 
     /**
      * Bandeja de RFQs con respuestas recibidas.
-     * 
-     * @return View
      */
     public function receivedInbox(): View
     {
@@ -427,9 +411,6 @@ class RfqController extends Controller
 
     /**
      * Detalle de una RFQ.
-     * 
-     * @param Rfq $rfq
-     * @return View
      */
     public function show(Rfq $rfq): View
     {
@@ -475,9 +456,6 @@ class RfqController extends Controller
 
     /**
      * Enviar RFQ a los proveedores
-     * 
-     * @param Rfq $rfq
-     * @return JsonResponse
      */
     public function sendRFQ(Rfq $rfq): JsonResponse
     {
@@ -486,7 +464,7 @@ class RfqController extends Controller
             if ($rfq->status !== 'DRAFT') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo se pueden enviar RFQs en estado borrador'
+                    'message' => 'Solo se pueden enviar RFQs en estado borrador',
                 ], 400);
             }
 
@@ -494,7 +472,7 @@ class RfqController extends Controller
             if ($rfq->suppliers->count() === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'La RFQ debe tener al menos un proveedor invitado'
+                    'message' => 'La RFQ debe tener al menos un proveedor invitado',
                 ], 400);
             }
 
@@ -526,7 +504,7 @@ class RfqController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'RFQ enviada exitosamente a ' . $rfq->suppliers->count() . ' proveedor(es)'
+                'message' => 'RFQ enviada exitosamente a '.$rfq->suppliers->count().' proveedor(es)',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -538,16 +516,15 @@ class RfqController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar la RFQ: ' . $e->getMessage()
+                'message' => 'Error al enviar la RFQ: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Cancelar RFQ
-     * 
-     * @param Request $request
-     * @param Rfq $rfq
+     *
+     * @param  Rfq  $rfq
      * @return JsonResponse
      */
     public function cancelRfq(Request $request, $id)
@@ -565,35 +542,36 @@ class RfqController extends Controller
             Log::info('RFQ cancelada sin borrado', [
                 'folio' => $rfq->folio,
                 'user_id' => Auth::id(),
-                'reason' => $validated['reason']
+                'reason' => $validated['reason'],
             ]);
+
             return response()->json([
                 'success' => true,
-                'message' => "La solicitud {$rfq->folio} fue cancelada y el expediente quedo resguardado."
+                'message' => "La solicitud {$rfq->folio} fue cancelada y el expediente quedo resguardado.",
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al cancelar la RFQ: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Error al cancelar la RFQ: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al procesar la cancelacion: ' . $e->getMessage()
+                'message' => 'Error al procesar la cancelacion: '.$e->getMessage(),
             ], 500);
         }
     }
 
-
     /**
      * Vista para seleccionar proveedores por grupo/partida.
-     * 
-     * @param Requisition $requisition
+     *
      * @return View
      */
     public function selectSuppliers(Requisition $requisition)
     {
         // Cargar grupos con sus partidas
         $groups = $requisition->quotationGroups()
-            ->with('items.productService.expenseCategory')
+            // La categoría presupuestal pertenece a la partida, no al catálogo de producto.
+            ->with(['items.productService', 'items.expenseCategory'])
             ->get();
 
         // Validar que haya grupos
@@ -617,9 +595,7 @@ class RfqController extends Controller
 
     /**
      * Crear RFQs para cada grupo con proveedores seleccionados
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
+     *
      * @return \Illuminate\Http\RedirectResponse
      */
     public function createRFQs(Request $request, Requisition $requisition)
@@ -692,28 +668,24 @@ class RfqController extends Controller
 
             return redirect()
                 ->route('rfq.index')
-                ->with('success', count($createdRFQs) . ' solicitud(es) de cotización creadas exitosamente');
+                ->with('success', count($createdRFQs).' solicitud(es) de cotización creadas exitosamente');
         } catch (\Exception $e) {
             DB::rollBack();
 
             Log::error('❌ Error al crear RFQs', [
                 'requisition_id' => $requisition->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return back()
                 ->withInput()
-                ->with('error', 'Error al crear las solicitudes: ' . $e->getMessage());
+                ->with('error', 'Error al crear las solicitudes: '.$e->getMessage());
         }
     }
 
     /**
      * Envía RFQs a los proveedores seleccionados.
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @return JsonResponse
      */
     public function send(Request $request, Requisition $requisition): JsonResponse
     {
@@ -735,7 +707,7 @@ class RfqController extends Controller
 
             foreach ($validated['rfqs'] as $rfqData) {
                 // Validar que tenga grupo O partida, no ambos
-                if (!empty($rfqData['group_id']) && !empty($rfqData['item_id'])) {
+                if (! empty($rfqData['group_id']) && ! empty($rfqData['item_id'])) {
                     throw new \Exception('Una RFQ no puede tener grupo Y partida individual.');
                 }
 
@@ -778,7 +750,7 @@ class RfqController extends Controller
                 'message' => '✅ RFQs enviadas exitosamente.',
                 'data' => [
                     'rfqs_count' => count($createdRfqs),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -790,16 +762,13 @@ class RfqController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar RFQs: ' . $e->getMessage()
+                'message' => 'Error al enviar RFQs: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Comparar cotizaciones de una requisición.
-     * 
-     * @param Requisition $requisition
-     * @return View
      */
     public function compare(Requisition $requisition): View
     {
@@ -809,7 +778,7 @@ class RfqController extends Controller
                 'responses.requisitionItem.product',
                 'supplier',
                 'quotationGroup',
-                'requisitionItem'
+                'requisitionItem',
             ])
             ->get();
 
@@ -820,10 +789,10 @@ class RfqController extends Controller
             foreach ($rfq->responses as $response) {
                 $itemId = $response->requisition_item_id;
 
-                if (!isset($comparisonData[$itemId])) {
+                if (! isset($comparisonData[$itemId])) {
                     $comparisonData[$itemId] = [
                         'item' => $response->requisitionItem,
-                        'responses' => []
+                        'responses' => [],
                     ];
                 }
 
@@ -840,10 +809,6 @@ class RfqController extends Controller
 
     /**
      * Aprobar cotización(es) ganadoras.
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @return JsonResponse
      */
     public function approve(Request $request, Requisition $requisition): JsonResponse
     {
@@ -892,7 +857,7 @@ class RfqController extends Controller
                 'message' => '✅ Cotizaciones aprobadas exitosamente.',
                 'data' => [
                     'summary' => $summary,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -903,19 +868,15 @@ class RfqController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al aprobar cotizaciones: ' . $e->getMessage()
+                'message' => 'Error al aprobar cotizaciones: '.$e->getMessage(),
             ], 500);
         }
     }
-
 
     /**
      * Envía una RFQ individual (Cambia estado de DRAFT a SENT)
      * * Misión: Notificar a proveedores y usuarios vinculados evitando duplicidad de correos.
      * Target: Proveedores registrados en el Portal Drill Sergeant.
-     *
-     * @param Rfq $rfq
-     * @return JsonResponse
      */
     public function sendSingle(Rfq $rfq, \App\Services\Rfq\RfqSendService $sendService): JsonResponse
     {
@@ -924,24 +885,24 @@ class RfqController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'RFQ enviada exitosamente a ' . $sent->suppliers->count() . ' proveedor(es).',
+                'message' => 'RFQ enviada exitosamente a '.$sent->suppliers->count().' proveedor(es).',
             ]);
         } catch (\App\Exceptions\Rfq\InvalidRfqStateException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 400);
         } catch (\Exception $e) {
             // INFORME DE DAÑOS EN LOGS
             Log::error('❌ Falla crítica al enviar RFQ', [
                 'rfq_id' => $rfq->id,
                 'error' => $e->getMessage(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error en el frente de batalla: ' . $e->getMessage()
+                'message' => 'Error en el frente de batalla: '.$e->getMessage(),
             ], 500);
         }
     }

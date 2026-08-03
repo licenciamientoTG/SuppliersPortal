@@ -65,7 +65,9 @@
                     </div>
                 @endif
 
-                @php($viewErrors = $errors ?? null)
+                @php
+                    $viewErrors = $errors ?? null;
+                @endphp
                 @if ($viewErrors?->any())
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <strong>Ocurrieron errores:</strong>

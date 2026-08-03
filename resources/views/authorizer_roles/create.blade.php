@@ -27,8 +27,14 @@
 
                     <div class="mb-3">
                         <label class="form-label">Límite con IVA</label>
-                        <input type="number" step="0.01" min="0" name="approval_limit" class="form-control"
-                            value="{{ old('approval_limit', $authorizerRole->approval_limit) }}">
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input id="approval_limit" type="text" inputmode="decimal" autocomplete="off" name="approval_limit" class="form-control @error('approval_limit') is-invalid @enderror" data-currency-input
+                                value="{{ filled(old('approval_limit', $authorizerRole->approval_limit)) ? number_format((float) old('approval_limit', $authorizerRole->approval_limit), 2, '.', ',') : '' }}">
+                        </div>
+                        @error('approval_limit')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
                         <small class="text-muted">Solo Dirección General puede dejar este campo vacío para operar sin límite.</small>
                         <div class="form-text">Déjalo vacío solo si este rol debe autorizar cualquier monto.</div>
                     </div>
@@ -50,3 +56,7 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+    @include('authorizer_roles.partials.currency-input-script')
+@endpush

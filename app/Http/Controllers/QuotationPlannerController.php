@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Enum\RequisitionStatus;
 use App\Exceptions\Rfq\GroupDoesNotBelongToRequisitionException;
 use App\Exceptions\Rfq\ItemsNotInRequisitionException;
-use App\Models\Requisition;
 use App\Models\QuotationGroup;
+use App\Models\Requisition;
 use App\Services\Rfq\QuotationGroupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,9 +21,6 @@ class QuotationPlannerController extends Controller
 
     /**
      * Muestra el planificador de cotización para una requisición.
-     * 
-     * @param Requisition $requisition
-     * @return View
      */
     public function show(Requisition $requisition): View
     {
@@ -37,9 +34,9 @@ class QuotationPlannerController extends Controller
             'items.productService',
             'items.expenseCategory',
             'quotationGroups.items',
-            'costCenter',
+            'items.costCenter',
             'department',
-            'requester'
+            'requester',
         ]);
 
         // Obtener partidas que NO están en ningún grupo
@@ -53,6 +50,7 @@ class QuotationPlannerController extends Controller
             ->active()
             ->with(['items.productService', 'items.expenseCategory'])
             ->get();
+
         return view('requisitions.quotation-planner.show', compact(
             'requisition',
             'unassignedItems',
@@ -62,9 +60,7 @@ class QuotationPlannerController extends Controller
 
     /**
      * Guarda la estrategia de cotización (grupos creados).
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
+     *
      * @return JsonResponse
      */
     public function saveStrategy(Request $request, Requisition $requisition)
@@ -115,7 +111,7 @@ class QuotationPlannerController extends Controller
 
                 // Sincronizar items
                 $itemIds = $groupData['item_ids'] ?? [];
-                if (!empty($itemIds)) {
+                if (! empty($itemIds)) {
                     $syncData = [];
                     foreach ($itemIds as $index => $itemId) {
                         $syncData[$itemId] = ['sort_order' => $index];
@@ -135,37 +131,66 @@ class QuotationPlannerController extends Controller
 
             $groupsToClose = QuotationGroup::where('requisition_id', $requisition->id)
                 ->active()
-                ->when(!empty($processedGroupIds), fn ($query) => $query->whereNotIn('id', $processedGroupIds))
+                ->when(! empty($processedGroupIds), fn ($query) => $query->whereNotIn('id', $processedGroupIds))
                 ->get();
 
             foreach ($groupsToClose as $groupToClose) {
                 $groupToClose->cancel('Grupo retirado de la estrategia de cotizacion.', Auth::id());
             }
 
+            // Toda partida debe llegar al paso de invitaciones. Las que el comprador
+            // deja fuera de un grupo se cotizan como una solicitud individual.
+            $individualGroups = $requisition->items()
+                ->whereDoesntHave('quotationGroups', fn ($query) => $query->active())
+                ->with('productService:id,code,short_name')
+                ->get()
+                ->map(function ($item) use ($requisition, &$savedGroups, &$processedGroupIds) {
+                    $productLabel = $item->productService?->short_name
+                        ?: $item->productService?->code
+                        ?: $item->description
+                        ?: 'Partida '.$item->line_number;
+                    $group = $this->groupService->create(
+                        $requisition,
+                        'Individual · '.\Illuminate\Support\Str::limit($productLabel, 220, ''),
+                        'Grupo individual creado automáticamente para una partida sin agrupar.',
+                        [$item->id],
+                        Auth::id(),
+                    );
+
+                    $processedGroupIds[] = $group->id;
+                    $savedGroups[] = [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                        'notes' => $group->notes,
+                        'item_count' => 1,
+                    ];
+
+                    return $group;
+                });
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => count($savedGroups) > 0
-                    ? 'Estrategia guardada correctamente'
-                    : 'Todos los grupos fueron eliminados',
+                'message' => $individualGroups->isNotEmpty()
+                    ? 'Estrategia guardada. Se crearon '.$individualGroups->count().' grupo(s) individual(es) para las partidas sin agrupar.'
+                    : (count($savedGroups) > 0
+                        ? 'Estrategia guardada correctamente'
+                        : 'Todos los grupos fueron eliminados'),
                 'groups' => $savedGroups,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar: ' . $e->getMessage()
+                'message' => 'Error al guardar: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Crea un nuevo grupo de cotización.
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @return JsonResponse
      */
     public function createGroup(Request $request, Requisition $requisition): JsonResponse
     {
@@ -197,7 +222,7 @@ class QuotationPlannerController extends Controller
                 'message' => 'Grupo creado exitosamente.',
                 'data' => [
                     'group' => $group,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al crear grupo', [
@@ -206,17 +231,13 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear el grupo.'
+                'message' => 'Error al crear el grupo.',
             ], 500);
         }
     }
 
     /**
      * Elimina un grupo de cotización.
-     * 
-     * @param Requisition $requisition
-     * @param QuotationGroup $group
-     * @return JsonResponse
      */
     public function deleteGroup(Requisition $requisition, QuotationGroup $group): JsonResponse
     {
@@ -229,12 +250,12 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Grupo cancelado exitosamente.'
+                'message' => 'Grupo cancelado exitosamente.',
             ]);
         } catch (GroupDoesNotBelongToRequisitionException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 403);
         } catch (\Exception $e) {
             Log::error('Error al eliminar grupo', [
@@ -244,18 +265,13 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el grupo.'
+                'message' => 'Error al eliminar el grupo.',
             ], 500);
         }
     }
 
     /**
      * Agrega partidas a un grupo.
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @param QuotationGroup $group
-     * @return JsonResponse
      */
     public function addItemsToGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
@@ -279,38 +295,33 @@ class QuotationPlannerController extends Controller
                 'message' => 'Partidas agregadas al grupo.',
                 'data' => [
                     'group' => $group,
-                ]
+                ],
             ]);
         } catch (GroupDoesNotBelongToRequisitionException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 403);
         } catch (ItemsNotInRequisitionException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 400);
         } catch (\Exception $e) {
             Log::error('Error al agregar partidas al grupo', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al agregar partidas al grupo.'
+                'message' => 'Error al agregar partidas al grupo.',
             ], 500);
         }
     }
 
     /**
      * Remueve partidas de un grupo.
-     * 
-     * @param Request $request
-     * @param Requisition $requisition
-     * @param QuotationGroup $group
-     * @return JsonResponse
      */
     public function removeItemsFromGroup(Request $request, Requisition $requisition, QuotationGroup $group): JsonResponse
     {
@@ -336,12 +347,12 @@ class QuotationPlannerController extends Controller
                     : 'Partidas removidas del grupo.',
                 'data' => [
                     'group' => $group,
-                ]
+                ],
             ]);
         } catch (GroupDoesNotBelongToRequisitionException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 403);
         } catch (\Exception $e) {
             Log::error('Error al remover partidas del grupo', [
@@ -350,7 +361,7 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al remover partidas del grupo.'
+                'message' => 'Error al remover partidas del grupo.',
             ], 500);
         }
     }
@@ -373,17 +384,13 @@ class QuotationPlannerController extends Controller
 
     /**
      * Obtiene sugerencias de proveedores para un grupo.
-     * 
-     * @param Requisition $requisition
-     * @param QuotationGroup $group
-     * @return JsonResponse
      */
     public function getSupplierSuggestions(Requisition $requisition, QuotationGroup $group): JsonResponse
     {
-        if ((int)$group->requisition_id !== (int)$requisition->id) {
+        if ((int) $group->requisition_id !== (int) $requisition->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Grupo inválido.'
+                'message' => 'Grupo inválido.',
             ], 403);
         }
 
@@ -410,7 +417,7 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $suggestions
+                'data' => $suggestions,
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener sugerencias de proveedores', [
@@ -419,7 +426,7 @@ class QuotationPlannerController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener sugerencias.'
+                'message' => 'Error al obtener sugerencias.',
             ], 500);
         }
     }

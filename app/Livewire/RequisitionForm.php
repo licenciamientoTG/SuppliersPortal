@@ -117,7 +117,9 @@ class RequisitionForm extends Component
                 return [
                     'product_id' => $item->product_service_id,
                     'product_name' => $item->productService->short_name ?? $item->description,
-                    'description' => $item->description,
+                    'description' => filled($item->description)
+                        ? $item->description
+                        : $item->productService?->getRequisitionDescription(),
                     'quantity' => $item->quantity,
                     'unit' => $item->unit,
                     'expense_category_id' => $item->expense_category_id,
@@ -232,12 +234,13 @@ class RequisitionForm extends Component
                 // Recrear partidas
                 foreach ($this->items as $index => $item) {
                     $product = \App\Models\ProductService::find($item['product_id']);
+                    $itemDescription = $this->resolvedItemDescription($item, $product);
                     RequisitionItem::create([
                         'requisition_id' => $requisition->id,
                         'product_service_id' => $item['product_id'],
                         'line_number' => $index + 1,
                         'product_code' => $product->code,
-                        'description' => $item['description'],
+                        'description' => $itemDescription,
                         'expense_category_id' => $item['expense_category_id'],
                         'budget_cedula_id' => $item['budget_cedula_id'],
                         'cost_center_id' => $item['cost_center_id'],
@@ -266,12 +269,13 @@ class RequisitionForm extends Component
                 // Crear partidas
                 foreach ($this->items as $index => $item) {
                     $product = \App\Models\ProductService::find($item['product_id']);
+                    $itemDescription = $this->resolvedItemDescription($item, $product);
                     RequisitionItem::create([
                         'requisition_id' => $requisition->id,
                         'product_service_id' => $item['product_id'],
                         'line_number' => $index + 1,
                         'product_code' => $product->code,
-                        'description' => $item['description'],
+                        'description' => $itemDescription,
                         'expense_category_id' => $item['expense_category_id'],
                         'budget_cedula_id' => $item['budget_cedula_id'],
                         'cost_center_id' => $item['cost_center_id'],
@@ -363,7 +367,6 @@ class RequisitionForm extends Component
         }
 
         $this->receiving_location_id = null;
-        $this->refreshReceivingLocations();
         $this->dispatch('company-context-changed', itemsCleared: $previousCompanyId !== $newCompanyId);
     }
 
@@ -377,14 +380,15 @@ class RequisitionForm extends Component
     // =====================================================
 
     #[Renderless]
-    public function addItem($itemData)
+    public function addItem($itemData): bool
     {
         $itemData = $this->enrichItemWithBudgetClassification($itemData);
+        $itemData = $this->withResolvedItemDescription($itemData);
 
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
 
-            return;
+            return false;
         }
 
         $this->items[] = [
@@ -403,24 +407,32 @@ class RequisitionForm extends Component
             'notes' => $itemData['notes'] ?? '',
         ];
 
-        $this->dispatch('item-added', message: 'Partida agregada correctamente');
+        $this->dispatch(
+            'item-added',
+            message: 'Partida agregada correctamente',
+            item: end($this->items),
+            items: $this->items,
+        );
+
+        return true;
     }
 
     #[Renderless]
-    public function updateItem($index, $itemData)
+    public function updateItem($index, $itemData): bool
     {
         if (! isset($this->items[$index])) {
             $this->dispatch('item-error', message: 'Partida no encontrada');
 
-            return;
+            return false;
         }
 
         $itemData = $this->enrichItemWithBudgetClassification($itemData);
+        $itemData = $this->withResolvedItemDescription($itemData);
 
         if (! $this->validateItemPayload($itemData)) {
             $this->dispatch('item-error', message: 'Faltan campos obligatorios');
 
-            return;
+            return false;
         }
 
         $this->items[$index] = [
@@ -439,7 +451,13 @@ class RequisitionForm extends Component
             'notes' => $itemData['notes'] ?? '',
         ];
 
-        $this->dispatch('item-updated', message: 'Partida actualizada correctamente');
+        $this->dispatch(
+            'item-updated',
+            message: 'Partida actualizada correctamente',
+            items: $this->items,
+        );
+
+        return true;
     }
 
     #[Renderless]
@@ -493,6 +511,26 @@ class RequisitionForm extends Component
             ->whereKey((int) $this->receiving_location_id)
             ->where('company_id', (int) $this->company_id)
             ->exists();
+    }
+
+    private function withResolvedItemDescription(array $itemData): array
+    {
+        $itemData['description'] = $this->resolvedItemDescription($itemData);
+
+        return $itemData;
+    }
+
+    private function resolvedItemDescription(array $itemData, ?ProductService $product = null): string
+    {
+        $description = trim((string) ($itemData['description'] ?? ''));
+
+        if ($description !== '') {
+            return $description;
+        }
+
+        $product ??= ProductService::find($itemData['product_id'] ?? null);
+
+        return $product?->getRequisitionDescription() ?? 'Sin descripción';
     }
 
     private function validateItemPayload(array $itemData): bool

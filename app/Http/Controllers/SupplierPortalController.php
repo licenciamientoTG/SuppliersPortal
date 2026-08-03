@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Rfq;
 use App\Models\RfqResponse;
-use App\Models\Supplier;
-use App\Models\SupplierRfq;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,11 +21,11 @@ class SupplierPortalController extends Controller
     {
         $supplier = Auth::guard('supplier')->user();
 
-        if (!$supplier) {
+        if (! $supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
         }
 
-        if (!$rfq->suppliers->contains($supplier->id)) {
+        if (! $rfq->suppliers->contains($supplier->id)) {
             abort(403, 'No tienes acceso a esta RFQ');
         }
     }
@@ -88,6 +86,12 @@ class SupplierPortalController extends Controller
             'items.*.attachment' => 'nullable|file|mimes:pdf|max:5120',
             'supplier_quotation_number' => 'nullable|string|max:100',
             'validity_days' => 'nullable|integer|min:1|max:365',
+            'global_payment_terms' => [
+                Rule::requiredIf(fn () => $request->input('action') === 'submit'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'quotation_pdf_file' => 'nullable|file|mimes:pdf|max:5120',
             'action' => 'required|in:save_draft,submit',
         ]);
@@ -180,7 +184,7 @@ class SupplierPortalController extends Controller
      */
     private function handleItemAttachment(RfqResponse $response, array $itemData, int $supplierId): void
     {
-        if (!isset($itemData['attachment'])) {
+        if (! isset($itemData['attachment'])) {
             return;
         }
 
@@ -202,7 +206,7 @@ class SupplierPortalController extends Controller
             ->where('supplier_id', $supplierId)
             ->first();
 
-        if (!$pivot) {
+        if (! $pivot) {
             return;
         }
 
@@ -210,6 +214,7 @@ class SupplierPortalController extends Controller
         if ($request->input('delete_pdf_flag') == '1') {
             $this->deleteQuotationPdf($pivot);
             Log::info("PDF de cotización eliminado para Proveedor {$supplierId} en RFQ {$rfq->id}");
+
             return;
         }
 
@@ -234,7 +239,7 @@ class SupplierPortalController extends Controller
             ->where('supplier_id', $pivot->supplier_id)
             ->update([
                 'quotation_pdf_path' => null,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
     }
 
@@ -257,7 +262,7 @@ class SupplierPortalController extends Controller
             ->where('supplier_id', $supplierId)
             ->update([
                 'quotation_pdf_path' => $pdfPath,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
     }
 
@@ -268,7 +273,7 @@ class SupplierPortalController extends Controller
     {
         $rfq->suppliers()->updateExistingPivot($supplierId, [
             'responded_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
     }
 
@@ -312,16 +317,17 @@ class SupplierPortalController extends Controller
             $this->handleItemAttachment($response, $itemData, $supplierId);
         }
     }
+
     /**
      * Dashboard del proveedor - Lista de RFQs asignadas
-     * 
+     *
      * @return \Illuminate\View\View
      */
     public function dashboard()
     {
         $supplier = Auth::guard('supplier')->user();
 
-        if (!$supplier) {
+        if (! $supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
         }
 
@@ -332,21 +338,47 @@ class SupplierPortalController extends Controller
     }
 
     /**
+     * Lista las RFQs asignadas al proveedor autenticado.
+     */
+    public function rfqsIndex()
+    {
+        $supplier = Auth::guard('supplier')->user();
+
+        if (! $supplier) {
+            abort(403, 'No tienes un perfil de proveedor asociado');
+        }
+
+        $rfqs = Rfq::query()
+            ->whereHas('suppliers', fn ($query) => $query->where('suppliers.id', $supplier->id))
+            ->with([
+                'requisition:id,folio,description',
+                'quotationGroup:id,name',
+                'rfqResponses' => fn ($query) => $query
+                    ->where('supplier_id', $supplier->id)
+                    ->select(['id', 'rfq_id', 'supplier_id', 'status', 'submitted_at']),
+            ])
+            ->orderByDesc('sent_at')
+            ->orderByDesc('id')
+            ->paginate(15);
+
+        return view('supplier.rfqs-index', compact('rfqs'));
+    }
+
+    /**
      * Ver detalle de una RFQ específica
-     * 
-     * @param Rfq $rfq
+     *
      * @return \Illuminate\View\View
      */
     public function showRfq(Rfq $rfq)
     {
         $supplier = Auth::guard('supplier')->user();
 
-        if (!$supplier) {
+        if (! $supplier) {
             abort(403, 'No tienes un perfil de proveedor asociado');
         }
 
         // Verificar que el proveedor esté invitado a esta RFQ
-        if (!$rfq->suppliers->contains($supplier->id)) {
+        if (! $rfq->suppliers->contains($supplier->id)) {
             abort(403, 'No tienes acceso a esta RFQ');
         }
 
@@ -390,8 +422,8 @@ class SupplierPortalController extends Controller
      * - action='save_draft' → Guarda como BORRADOR (status='DRAFT', submitted_at=null)
      * - action='submit' → Envía cotización (status='SUBMITTED', submitted_at=ahora)
      *
-     * @param Request $request - Datos del formulario
-     * @param Rfq $rfq - RFQ a la que se está respondiendo
+     * @param  Request  $request  - Datos del formulario
+     * @param  Rfq  $rfq  - RFQ a la que se está respondiendo
      * @return \Illuminate\Http\RedirectResponse
      */
     public function saveQuotation(Request $request, Rfq $rfq)
@@ -418,7 +450,12 @@ class SupplierPortalController extends Controller
         DB::beginTransaction();
         try {
             // Procesar partidas
-            if (!empty($validated['items'])) {
+            if (! empty($validated['items'])) {
+                foreach ($validated['items'] as &$item) {
+                    $item['payment_terms'] = $validated['global_payment_terms'] ?? $item['payment_terms'] ?? null;
+                }
+                unset($item);
+
                 $this->processQuotationItems($rfq, $supplier->id, $validated['items'], $validated['action']);
             }
 
@@ -446,13 +483,13 @@ class SupplierPortalController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Error en la operación: ' . $e->getMessage());
+                ->with('error', 'Error en la operación: '.$e->getMessage());
         }
     }
 
     /**
      * Ver historial de cotizaciones del proveedor
-     * 
+     *
      * @return \Illuminate\View\View
      */
     public function quotationHistory()
@@ -472,8 +509,7 @@ class SupplierPortalController extends Controller
 
     /**
      * Descargar archivo adjunto de cotización
-     * 
-     * @param RfqResponse $response
+     *
      * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
      */
     public function downloadAttachment(RfqResponse $response)
@@ -485,7 +521,7 @@ class SupplierPortalController extends Controller
             abort(403, 'No tienes acceso a este archivo');
         }
 
-        if (!$response->attachment_path || !Storage::disk('public')->exists($response->attachment_path)) {
+        if (! $response->attachment_path || ! Storage::disk('public')->exists($response->attachment_path)) {
             abort(404, 'Archivo no encontrado');
         }
 
@@ -494,8 +530,7 @@ class SupplierPortalController extends Controller
 
     /**
      * Eliminar borrador de cotización
-     * 
-     * @param RfqResponse $response
+     *
      * @return \Illuminate\Http\RedirectResponse
      */
     public function deleteDraft(RfqResponse $response)

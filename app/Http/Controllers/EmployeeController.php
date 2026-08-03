@@ -148,23 +148,25 @@ class EmployeeController extends Controller
         return view('employees.index', compact('companies'));
     }
 
-    public function datatable(): JsonResponse
+    public function datatable(Request $request): JsonResponse
     {
         $query = Employee::query()
             ->select(['id', 'employee_number', 'first_name', 'last_name', 'company', 'department', 'job_title', 'leader', 'is_active', 'user_id', 'photo']);
 
         return DataTables::of($query)
-            ->filter(function ($query) {
-                if (request()->filled('is_active')) {
-                    $query->where('is_active', request('is_active'));
+            ->filter(function ($query) use ($request) {
+                $activeFilter = $request->input('is_active', 'SI');
+
+                if ($activeFilter !== '') {
+                    $query->where('is_active', $activeFilter);
                 }
 
-                if (request()->filled('company')) {
-                    $query->where('company', request('company'));
+                if ($request->filled('company')) {
+                    $query->where('company', $request->input('company'));
                 }
 
-                if (request()->filled('search.value')) {
-                    $search = request('search.value');
+                if ($request->filled('search.value')) {
+                    $search = $request->input('search.value');
                     $query->where(function ($q) use ($search) {
                         $q->where('employee_number', 'like', "%{$search}%")
                             ->orWhere('first_name', 'like', "%{$search}%")

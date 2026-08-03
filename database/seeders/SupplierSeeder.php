@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Supplier;
+use App\Models\SupplierDocument;
+use App\Services\SupplierDocumentRequirementService;
 use Illuminate\Database\Seeder;
 
 class SupplierSeeder extends Seeder
@@ -18,7 +20,7 @@ class SupplierSeeder extends Seeder
         ];
 
         foreach ($seedProfiles as $index => $profile) {
-            Supplier::updateOrCreate(
+            $supplier = Supplier::updateOrCreate(
                 ['rfc' => $profile['rfc']],
                 [
                     'first_name' => 'Proveedor',
@@ -42,6 +44,7 @@ class SupplierSeeder extends Seeder
                     'default_payment_terms' => 'NET_30',
                     'approval_status' => 'approved',
                     'document_status' => 'approved',
+                    'approved_at' => now(),
                     'provides_specialized_services' => $profile['provides_specialized_services'],
                     'economic_activity' => ['Servicios generales'],
                     'repse_registration_number' => $profile['repse_registration_number'] ?? null,
@@ -54,6 +57,47 @@ class SupplierSeeder extends Seeder
                     'us_bank_name' => $profile['us_bank_name'] ?? null,
                 ]
             );
+
+            $this->approveRequiredDocuments($supplier);
         }
+    }
+
+    private function approveRequiredDocuments(Supplier $supplier): void
+    {
+        $requirements = app(SupplierDocumentRequirementService::class)->ensureForSupplier($supplier);
+
+        foreach ($requirements->where('is_enforced', true) as $requirement) {
+            $type = $requirement->documentType;
+
+            if (! $type) {
+                continue;
+            }
+
+            $document = SupplierDocument::updateOrCreate(
+                [
+                    'supplier_document_requirement_id' => $requirement->id,
+                    'path_file' => "seed://supplier-documents/{$type->code}",
+                ],
+                [
+                    'supplier_id' => $supplier->id,
+                    'supplier_document_type_id' => $type->id,
+                    'doc_type' => $type->code,
+                    'status' => 'accepted',
+                    'uploaded_at' => now(),
+                    'reviewed_at' => now(),
+                    'rejection_reason' => null,
+                ]
+            );
+
+            $requirement->update([
+                'current_document_id' => $document->id,
+                'status' => 'compliant',
+                'due_at' => null,
+                'expires_at' => null,
+                'fulfilled_at' => now(),
+            ]);
+        }
+
+        $supplier->recalculateDocumentStatus();
     }
 }

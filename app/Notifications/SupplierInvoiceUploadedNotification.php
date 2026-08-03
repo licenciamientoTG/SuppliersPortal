@@ -11,9 +11,7 @@ class SupplierInvoiceUploadedNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public SupplierInvoice $invoice)
-    {
-    }
+    public function __construct(public SupplierInvoice $invoice) {}
 
     public function via(object $notifiable): array
     {
@@ -26,19 +24,22 @@ class SupplierInvoiceUploadedNotification extends Notification
             ->subject('Factura cargada por proveedor')
             ->view('emails.notifications.supplier-invoice-uploaded', [
                 'supplierName' => $this->invoice->supplier?->company_name,
-                'uuid'         => $this->invoice->uuid,
-                'total'        => '$' . number_format((float) $this->invoice->total, 2) . ' ' . $this->invoice->currency,
-                'url'          => route('invoices.index'),
+                'uuid' => $this->invoice->uuid,
+                'total' => '$'.number_format((float) $this->invoice->total, 2).' '.$this->invoice->currency,
+                'url' => route('invoices.index'),
             ]);
     }
 
     public function toArray(object $notifiable): array
     {
         return [
+            'type' => 'supplier_invoice_uploaded',
             'supplier_invoice_id' => $this->invoice->id,
             'supplier_id' => $this->invoice->supplier_id,
             'uuid' => $this->invoice->uuid,
             'total' => (float) $this->invoice->total,
+            'url' => route('invoices.index'),
+            'message' => 'El proveedor '.($this->invoice->supplier?->company_name ?? 'N/A').' cargó la factura '.($this->invoice->uuid ?? 'sin UUID').'.',
         ];
     }
 }

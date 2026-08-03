@@ -219,12 +219,12 @@ class BudgetMonthlyDistribution extends Model
      */
     public function commitAmount(float $amount): bool
     {
-        if (!$this->canCommit($amount)) {
+        if (! $this->canCommit($amount)) {
             return false;
         }
 
         $this->committed_amount = (float) $this->committed_amount + $amount;
-        $this->updated_by = Auth::id();
+        $this->updated_by = Auth::guard('web')->id();
         $this->save();
 
         return true;
@@ -246,7 +246,7 @@ class BudgetMonthlyDistribution extends Model
         }
 
         $this->committed_amount = $newCommitted;
-        $this->updated_by = Auth::id();
+        $this->updated_by = Auth::guard('web')->id();
         $this->save();
 
         return true;
@@ -261,12 +261,12 @@ class BudgetMonthlyDistribution extends Model
      */
     public function consumeAmount(float $amount): bool
     {
-        if (!$this->canConsume($amount)) {
+        if (! $this->canConsume($amount)) {
             return false;
         }
 
         $this->consumed_amount = (float) $this->consumed_amount + $amount;
-        $this->updated_by = Auth::id();
+        $this->updated_by = Auth::guard('web')->id();
         $this->save();
 
         return true;
@@ -291,7 +291,7 @@ class BudgetMonthlyDistribution extends Model
 
         $this->committed_amount = $newCommitted;
         $this->consumed_amount = $newConsumed;
-        $this->updated_by = Auth::id();
+        $this->updated_by = Auth::guard('web')->id();
         $this->save();
 
         return true;
@@ -393,8 +393,8 @@ class BudgetMonthlyDistribution extends Model
             $model->committed_amount = $model->committed_amount ?? 0;
 
             // Asegurar auditoría
-            if (!$model->created_by) {
-                $model->created_by = Auth::id();
+            if (! $model->created_by) {
+                $model->created_by = Auth::guard('web')->id();
             }
         });
 
@@ -408,14 +408,14 @@ class BudgetMonthlyDistribution extends Model
             }
 
             // Asegurar auditoría
-            if (!$model->updated_by) {
-                $model->updated_by = Auth::id();
+            if (! $model->updated_by) {
+                $model->updated_by = Auth::guard('web')->id();
             }
         });
 
         static::deleting(function ($model) {
             // Registrar quién lo elimina (soft delete)
-            $model->deleted_by = Auth::id();
+            $model->deleted_by = Auth::guard('web')->id();
             $model->save();
         });
     }

@@ -105,6 +105,12 @@ class AuthorizerRoleController extends Controller
 
     private function validateRole(Request $request, ?AuthorizerRole $authorizerRole = null): array
     {
+        if (is_string($request->input('approval_limit'))) {
+            $request->merge([
+                'approval_limit' => str_replace([',', '$', ' '], '', $request->input('approval_limit')),
+            ]);
+        }
+
         $data = $request->validate([
             'name' => [
                 'required',

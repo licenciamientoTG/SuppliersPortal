@@ -173,7 +173,20 @@ class ProductServiceForRequisitionApiTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $subaccount = Subaccount::factory()->create();
+        $expenseCategory = ExpenseCategory::factory()->create([
+            'status' => 'ACTIVO',
+        ]);
+        $budgetCedula = BudgetCedula::factory()->create([
+            'expense_category_id' => $expenseCategory->id,
+            'status' => 'ACTIVO',
+        ]);
+        $account = Account::factory()->create([
+            'legacy_expense_category_id' => $expenseCategory->id,
+        ]);
+        $subaccount = Subaccount::factory()->create([
+            'account_id' => $account->id,
+            'legacy_budget_cedula_id' => $budgetCedula->id,
+        ]);
         $product->subaccounts()->sync([$subaccount->id]);
         $user->subaccounts()->sync([$subaccount->id]);
 

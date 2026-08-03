@@ -4,7 +4,11 @@
       - $url (string)    Destino del botón.
       - $label (string)  Texto del botón.
 --}}
-@php($__safeUrl = ($url && (str_starts_with($url, 'https://') || str_starts_with($url, 'http://'))) ? $url : '#')
+@php
+    $__safeUrl = ($url && (str_starts_with($url, 'https://') || str_starts_with($url, 'http://')))
+        ? $url
+        : '#';
+@endphp
 
 <table width="100%" cellpadding="0" cellspacing="0">
     <tr>

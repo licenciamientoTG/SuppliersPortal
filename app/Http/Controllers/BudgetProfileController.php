@@ -29,7 +29,6 @@ class BudgetProfileController extends Controller
 
         $subaccounts = Subaccount::query()
             ->with('account:id,code,name')
-            ->active()
             ->orderBy('account_id')
             ->orderBy('name')
             ->get();

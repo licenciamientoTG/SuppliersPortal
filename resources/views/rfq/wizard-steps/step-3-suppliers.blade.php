@@ -1,13 +1,18 @@
 {{-- ID único para detectar el paso --}}
 <div id="suppliersSelectionStep">
+    @php
+        $activeQuotationGroups = $requisition->quotationGroups
+            ->where('status', 'ACTIVE')
+            ->values();
+    @endphp
     <header class="tg-invitations-header">
         <div><h3>Define quién recibirá cada solicitud</h3></div>
-        <div class="tg-invitations-summary"><div><span>Paquetes</span><strong>{{ $requisition->quotationGroups->count() }}</strong></div><div><span>Partidas</span><strong>{{ $requisition->quotationGroups->sum(fn($g) => $g->items->count()) }}</strong></div></div>
+        <div class="tg-invitations-summary"><div><span>Paquetes</span><strong>{{ $activeQuotationGroups->count() }}</strong></div><div><span>Partidas</span><strong>{{ $activeQuotationGroups->sum(fn($g) => $g->items->count()) }}</strong></div></div>
     </header>
     <div class="tg-invitations-notice"><i class="ti ti-info-circle"></i><span>Las solicitudes enviadas quedan protegidas. Activa <strong>Modificar</strong> únicamente cuando necesites sustituir una solicitud enviada.</span></div>
 
     {{-- Grupos y Selección de Proveedores --}}
-    @foreach($requisition->quotationGroups()->active()->with('items.productService', 'items.expenseCategory')->get() as $index => $group)
+    @foreach($activeQuotationGroups as $index => $group)
         @php
             // Buscamos si este grupo tiene una RFQ activa que NO sea borrador
             $activeRfq = $requisition->rfqs

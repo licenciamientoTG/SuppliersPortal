@@ -60,7 +60,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('layouts.partials.navbar', function ($view) {
-            $user = request()->user();
+            $user = request()->user('supplier') ?? request()->user('web') ?? request()->user();
 
             if (! $user) {
                 $view->with('recentNotifications', collect())
@@ -71,6 +71,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $notificationCenter = app(NotificationCenterService::class);
+            $notificationCenter->resolveObsoleteUnreadForUser($user);
 
             $view->with(
                 'recentNotifications',

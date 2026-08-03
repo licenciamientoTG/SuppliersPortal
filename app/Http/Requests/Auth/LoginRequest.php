@@ -42,6 +42,11 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Las cuentas internas y de proveedor comparten la misma sesión HTTP.
+        // Evitamos que ambas guardas queden autenticadas al alternar de portal.
+        $otherGuard = $guard === 'supplier' ? 'web' : 'supplier';
+        Auth::guard($otherGuard)->logout();
+
         Auth::shouldUse($guard);
 
         $authenticatable = Auth::guard($guard)->user();
@@ -78,7 +83,7 @@ class LoginRequest extends FormRequest
 
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());
+        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
     }
 
     private function resolveGuardForEmail(string $email): ?string

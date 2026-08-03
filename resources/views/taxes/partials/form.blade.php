@@ -1,4 +1,6 @@
-@php($editing = isset($tax) && $tax->exists)
+@php
+    $editing = isset($tax) && $tax->exists;
+@endphp
 @csrf
 
 <div id="formErrors" class="d-none"></div>

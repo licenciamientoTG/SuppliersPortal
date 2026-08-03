@@ -123,9 +123,15 @@
             </div>
             <div class="requisition-items-body">
                 <div id="itemFormPanel"
-                     class="border rounded p-3 mb-3 requisition-item-form-panel"
+                     class="border rounded p-3 mb-3 requisition-item-form-panel {{ $company_id && $receiving_location_id ? '' : 'is-context-locked' }}"
                      wire:ignore
                      wire:key="requisition-item-form-panel">
+                    <div id="itemFormLockMessage"
+                         class="requisition-item-form-lock {{ $company_id && $receiving_location_id ? 'd-none' : '' }}"
+                         role="status">
+                        <i class="ti ti-lock"></i>
+                        Selecciona la compañía y la ubicación de recepción para agregar partidas.
+                    </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
                             <h6 class="mb-1" id="itemModalTitle">Agregar partida</h6>
@@ -238,7 +244,6 @@
                                         <span class="badge bg-secondary" title="{{ $item['cost_center_name'] ?? '' }}">
                                             {{ Str::limit($item['cost_center_name'] ?? '—', 25) }}
                                         </span>
-                                        <small class="d-block text-muted">{{ $item['purchase_type'] ?? '' }}</small>
                                     </td>
                                     <td>
                                         @if(!empty($item['notes']))
@@ -596,6 +601,7 @@
         visibility: visible !important;
         opacity: 1 !important;
         height: auto !important;
+        position: relative;
         padding: 1.25rem !important;
         background: #f8fafc;
         border: 1px solid #e1e8ef !important;
@@ -606,6 +612,36 @@
     #itemFormPanel.requisition-item-form-panel:hover {
         background: #f5f9fd;
         border-color: #cfe2f1 !important;
+    }
+
+    #itemFormPanel.requisition-item-form-panel.is-context-locked {
+        background: #f5f7fa;
+        border-color: #dce3ea !important;
+    }
+
+    #itemFormPanel.requisition-item-form-panel.is-context-locked::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        cursor: not-allowed;
+    }
+
+    .requisition-item-form-lock {
+        position: absolute;
+        z-index: 3;
+        top: 1rem;
+        right: 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.6rem;
+        color: #64748b;
+        background: #fff;
+        border: 1px solid #dce3ea;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
     #modal_description {
@@ -1036,11 +1072,23 @@ $(function() {
     }
     window.ensureItemFormVisible = ensureItemFormVisible;
 
-    function renderRequisitionItems(animateLastItem = false) {
+    function updateItemFormAvailability() {
+        const $panel = $('#itemFormPanel');
+        const isReady = Boolean($('#company_id').val() && $('#receiving_location_id').val());
+
+        $panel.toggleClass('is-context-locked', !isReady)
+            .attr('aria-disabled', String(!isReady));
+        $('#itemFormLockMessage').toggleClass('d-none', isReady);
+        $('#btnAddItem, #btnSaveItem').prop('disabled', !isReady);
+    }
+
+    function renderRequisitionItems(animateLastItem = false, suppliedItems = null) {
         ensureItemFormVisible();
 
         const wire = getRequisitionWire();
-        const items = Array.isArray(wire?.$get('items')) ? wire.$get('items') : [];
+        const items = Array.isArray(suppliedItems)
+            ? suppliedItems
+            : (Array.isArray(wire?.$get('items')) ? wire.$get('items') : []);
         const $body = $('#requisitionItemsBody');
         const $badge = $('#itemsCountBadge');
 
@@ -1067,7 +1115,6 @@ $(function() {
         $body.html(items.map((item, index) => {
             const productName = escapeHtml(item.product_name);
             const costCenterName = escapeHtml(item.cost_center_name || '—');
-            const purchaseType = escapeHtml(item.purchase_type || '');
             const notes = escapeHtml(item.notes || '');
             const notesCell = notes
                 ? `<span class="text-primary cursor-help" title="${notes}">
@@ -1085,7 +1132,6 @@ $(function() {
                         <span class="badge bg-secondary" title="${costCenterName}">
                             ${escapeHtml(truncate(item.cost_center_name || '—', 25))}
                         </span>
-                        <small class="d-block text-muted">${purchaseType}</small>
                     </td>
                     <td>${notesCell}</td>
                     <td class="text-nowrap">
@@ -1176,10 +1222,9 @@ $(function() {
 
         matches.forEach(row => {
             const ccLabel = row.code ? `[${row.code}] ${row.name}` : row.name;
-            const label = row.purchase_type ? `${row.purchase_type} - ${ccLabel}` : ccLabel;
             $cc.append($('<option>', {
                 value: row.id,
-                text: label,
+                text: ccLabel,
                 'data-name': row.name,
                 'data-purchase-type': row.purchase_type
             }));
@@ -1256,6 +1301,7 @@ $(function() {
 
         $('#item_index').val('');
         $('#itemModalTitle').text('Agregar Partida');
+        setItemSaveButtonMode(false);
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
         $('#modal_expense_category').empty().append('<option value="">Seleccione primero un centro de costo...</option>').prop('disabled', true);
         resetBudgetCedulaSelect();
@@ -1268,6 +1314,7 @@ $(function() {
 
         $('#item_index').val('');
         $('#itemModalTitle').text('Agregar Partida');
+        setItemSaveButtonMode(false);
         $('#modal_product_id').val(null).trigger('change');
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
         $('#modal_description').val('');
@@ -1297,6 +1344,12 @@ $(function() {
             budget_cedula_id: $('#modal_budget_cedula').val() || '',
             notes: $('#modal_notes').val() || ''
         });
+    }
+
+    function setItemSaveButtonMode(isEditing) {
+        $('#btnSaveItem').html(isEditing
+            ? '<i class="ti ti-device-floppy me-1"></i>Actualizar Partida'
+            : '<i class="ti ti-check me-1"></i>Guardar Partida');
     }
 
     function setItemModalInitialState() {
@@ -1331,6 +1384,7 @@ $(function() {
     initializeRequisitionSelects();
     ensureItemFormVisible();
     resetItemFormControls();
+    updateItemFormAvailability();
 
     function loadReceivingLocationsForCompany(companyId, selectedValue = '') {
         const $company = $('#company_id');
@@ -1391,6 +1445,7 @@ $(function() {
             ensureItemFormVisible();
             resetItemFormControls();
             loadReceivingLocationsForCompany(companyId);
+            updateItemFormAvailability();
         });
 
     $(document)
@@ -1401,6 +1456,8 @@ $(function() {
             if (wire) {
                 wire.$set('receiving_location_id', $(this).val() || '', false);
             }
+
+            updateItemFormAvailability();
         });
 
     // =====================================================
@@ -1542,7 +1599,6 @@ $(function() {
         $('#item_index').val('');
         $('#budgetAlert').hide();
 
-        loadProductsForCostCenter();
         loadExpenseCategories();
 
         setTimeout(setItemModalInitialState, 100);
@@ -1573,6 +1629,7 @@ $(function() {
 
         $('#itemModalTitle').text('Editar Partida');
         $('#item_index').val(index);
+        setItemSaveButtonMode(true);
         $('#budgetAlert').hide();
 
         loadProductsForCostCenter();
@@ -1595,51 +1652,12 @@ $(function() {
     // 3. CARGAR PRODUCTOS DEL CATÁLOGO
     // =====================================================
     function loadProductsForCostCenter() {
-        const companyId = $('#company_id').val();
         const costCenterId = $('#modal_cost_center_id').val();
+        const $product = $('#modal_product_id');
 
-        $('#modal_product_id').prop('disabled', true).empty().append('<option value="">Cargando...</option>');
-
-        $.ajax({
-            url: '{{ route("products-services.api.active-for-requisitions") }}',
-            method: 'GET',
-            data: {
-                company_id: companyId,
-                cost_center_id: costCenterId,
-                all: true
-            },
-            success: function(response) {
-                $('#modal_product_id').empty().append('<option value="">Buscar producto...</option>');
-
-                if (response.products && response.products.length > 0) {
-                    response.products.forEach(function(product) {
-                        const $option = $('<option>', {
-                            value: product.id,
-                            text: product.short_name || product.description.substring(0, 50),
-                            'data-code': product.code,
-                            'data-description': product.description,
-                            'data-unit': product.unit_of_measure || 'PZA',
-                            'data-suggested-vendor': product.default_vendor_name || 'Sin proveedor',
-                            'data-min-qty': product.minimum_quantity || '',
-                            'data-max-qty': product.maximum_quantity || '',
-                            'data-brand': product.brand || '',
-                            'data-model': product.model || '',
-                            'data-type': product.product_type || 'PRODUCTO'
-                        });
-                        $option.data('budget-classification', product.budget_classification || null);
-                        $('#modal_product_id').append($option);
-                    });
-
-                    initializeProductSelect2();
-                }
-            },
-            error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON?.message || 'No se pudieron cargar los productos del catálogo.', 'error');
-            },
-            complete: function() {
-                $('#modal_product_id').prop('disabled', false);
-            }
-        });
+        $product.empty().append('<option value="">Buscar producto...</option>');
+        $product.prop('disabled', !costCenterId);
+        initializeProductSelect2();
     }
 
     // =====================================================
@@ -1651,7 +1669,9 @@ $(function() {
     }
 
     function selectedProductClassification() {
-        const classification = $('#modal_product_id option:selected').data('budget-classification');
+        const $product = $('#modal_product_id');
+        const classification = $product.data('budget-classification')
+            || $product.find('option:selected').data('budget-classification');
 
         return classification || null;
     }
@@ -1686,21 +1706,42 @@ $(function() {
 
         initializeSearchableSelect($product, 'Buscar producto...', {
             dropdownParent: $(document.body),
-            allowClear: true
+            allowClear: true,
+            ajax: {
+                url: '{{ route("products-services.api.active-for-requisitions") }}',
+                dataType: 'json',
+                delay: 250,
+                data: params => ({
+                    company_id: $('#company_id').val(),
+                    cost_center_id: $('#modal_cost_center_id').val(),
+                    search: params.term || '',
+                    page: params.page || 1,
+                }),
+                processResults: response => ({
+                    results: (response.products || []).map(product => ({
+                        ...product,
+                        text: `[${product.code}] ${product.short_name || product.description || 'Sin nombre'}`,
+                    })),
+                    pagination: response.pagination || { more: false },
+                }),
+            },
         });
 
         $product.off('.requisitionProduct');
 
         $product.on('select2:select.requisitionProduct', function(e) {
-            const $option = $(e.params.data.element);
+            const product = e.params.data;
 
-            $('#modal_description').val($option.data('description') || '');
-            $('#modal_unit').val($option.data('unit') || 'PZA');
-            $('#modal_suggested_vendor').val($option.data('suggested-vendor') || 'Sin proveedor sugerido');
+            $product.data('requisition-product', product);
+            $product.data('budget-classification', product.budget_classification || null);
+            $product.find('option:selected').data('budget-classification', product.budget_classification || null);
+            $('#modal_description').val(product.description || '');
+            $('#modal_unit').val(product.unit_of_measure || 'PZA');
+            $('#modal_suggested_vendor').val(product.default_vendor_name || 'Sin proveedor sugerido');
 
-            const minQty = $option.data('min-qty');
-            const maxQty = $option.data('max-qty');
-            const unit = $option.data('unit') || 'PZA';
+            const minQty = product.minimum_quantity;
+            const maxQty = product.maximum_quantity;
+            const unit = product.unit_of_measure || 'PZA';
 
             let helpText = 'Mínimo: 0.001';
             if (minQty) {
@@ -1716,6 +1757,8 @@ $(function() {
         });
 
         $product.on('select2:clear.requisitionProduct', function() {
+            $product.removeData('requisition-product');
+            $product.removeData('budget-classification');
             $('#modal_expense_category').empty().append('<option value=""></option>').val('');
             $('#modal_budget_cedula').empty().append('<option value=""></option>').val('');
         });
@@ -2037,6 +2080,7 @@ $(function() {
         $('#itemModalTitle').text('Agregar Partida');
         document.getElementById('itemForm').reset();
         $('#item_index').val('');
+        setItemSaveButtonMode(false);
         $('#budgetAlert').hide();
         resetBudgetCedulaSelect();
 
@@ -2055,6 +2099,7 @@ $(function() {
 
         $('#itemModalTitle').text('Editar Partida');
         $('#item_index').val(index);
+        setItemSaveButtonMode(true);
         $('#budgetAlert').hide();
         resetBudgetCedulaSelect();
 
@@ -2062,7 +2107,16 @@ $(function() {
         renderModalCostCenters('edit');
 
         setTimeout(() => {
-            $('#modal_product_id').val(item.product_id).trigger('change');
+            const $product = $('#modal_product_id');
+            const classification = {
+                expense_category_id: item.expense_category_id,
+                expense_category_name: item.expense_category_name,
+                budget_cedula_id: item.budget_cedula_id,
+                budget_cedula_name: item.budget_cedula_name,
+            };
+            const option = new Option(item.product_name, item.product_id, true, true);
+            $(option).data('budget-classification', classification);
+            $product.append(option).trigger('change');
             applySelectedProductClassification();
             $('#modal_description').val(item.description);
             $('#modal_quantity').val(item.quantity);
@@ -2082,8 +2136,12 @@ $(function() {
             return;
         }
 
-        const costCenterId   = $('#modal_cost_center_id').val();
-        const $selectedCc    = $('#modal_cost_center_id option:selected');
+        const $costCenter = $('#modal_cost_center_id');
+        const selectedCostCenterData = $costCenter.data('select2')
+            ? ($costCenter.select2('data')[0] || {})
+            : {};
+        const costCenterId = $costCenter.val() || selectedCostCenterData.id || '';
+        const $selectedCc = $costCenter.find('option:selected');
         const costCenterName = $selectedCc.data('name') || '';
         const purchaseType   = $selectedCc.data('purchase-type') || '';
         const productId      = $('#modal_product_id').val();
@@ -2112,10 +2170,10 @@ $(function() {
             return;
         }
 
-        const $selectedProduct = $('#modal_product_id option:selected');
-        const minQty = parseFloat($selectedProduct.data('min-qty'));
-        const maxQty = parseFloat($selectedProduct.data('max-qty'));
-        const unit = $selectedProduct.data('unit') || 'PZA';
+        const selectedProduct = $('#modal_product_id').data('requisition-product') || {};
+        const minQty = parseFloat(selectedProduct.minimum_quantity);
+        const maxQty = parseFloat(selectedProduct.maximum_quantity);
+        const unit = selectedProduct.unit_of_measure || 'PZA';
 
         if (minQty && quantity < minQty) {
             Swal.fire({
@@ -2170,12 +2228,6 @@ $(function() {
             } else {
                 await wire.$call('addItem', itemData);
             }
-
-            renderRequisitionItems(isNewItem);
-            if (isNewItem) {
-                showItemAddedFeedback(itemData.product_name);
-            }
-            resetItemFormForNextItem(true);
         } catch (error) {
             console.error('Error al guardar partida:', error);
             Swal.fire('Error', 'No se pudo guardar la partida.', 'error');
@@ -2188,6 +2240,10 @@ $(function() {
     // 7. LISTENERS DE EVENTOS DE LIVEWIRE
     // =====================================================
     Livewire.on('item-added', (event) => {
+        renderRequisitionItems(true, event.items);
+        showItemAddedFeedback(event.item?.product_name || 'La partida');
+        resetItemFormForNextItem(true);
+
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -2207,6 +2263,9 @@ $(function() {
     });
 
     Livewire.on('item-updated', (event) => {
+        renderRequisitionItems(false, event.items);
+        resetItemFormForNextItem(true);
+
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',

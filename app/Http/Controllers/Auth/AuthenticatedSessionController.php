@@ -33,9 +33,10 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
-        $guard = Auth::guard('supplier')->check() ? 'supplier' : 'web';
-
-        Auth::guard($guard)->logout();
+        // Una sesión puede conservar credenciales de ambas guardas si se cambió
+        // entre portal interno y proveedor. Cerrar ambas evita redirecciones cíclicas.
+        Auth::guard('web')->logout();
+        Auth::guard('supplier')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

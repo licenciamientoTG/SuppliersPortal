@@ -72,6 +72,11 @@ class SaveProductServiceRequest extends FormRequest
 
             $assignments = collect($this->input('department_subaccount_assignments', []));
             $seenDepartments = [];
+            $subaccountsByCedula = Subaccount::query()
+                ->active()
+                ->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)
+                ->get(['id', 'legacy_budget_cedula_id'])
+                ->keyBy('legacy_budget_cedula_id');
 
             $unexpectedCedulaIds = $assignments->keys()
                 ->map(fn ($id) => (int) $id)
@@ -106,10 +111,26 @@ class SaveProductServiceRequest extends FormRequest
                         );
                     }
                     $seenDepartments[$departmentId] = true;
+
+                    $subaccount = $subaccountsByCedula->get($budgetCedulaId);
+                    $hasBudgetProfileAccess = $subaccount && $subaccount->budgetProfiles()
+                        ->active()
+                        ->where(function ($query) use ($departmentId) {
+                            $query->whereHas('department', fn ($departmentQuery) => $departmentQuery->whereKey($departmentId)->where('is_active', true))
+                                ->orWhereHas('departments', fn ($departmentQuery) => $departmentQuery->whereKey($departmentId)->where('is_active', true));
+                        })
+                        ->exists();
+
+                    if (! $hasBudgetProfileAccess) {
+                        $validator->errors()->add(
+                            "department_subaccount_assignments.{$budgetCedulaId}",
+                            'El departamento seleccionado no tiene esta subcuenta en ninguno de sus perfiles presupuestales activos.'
+                        );
+                    }
                 }
             }
 
-            if (Subaccount::query()->whereIn('legacy_budget_cedula_id', $budgetCedulaIds)->count() !== $budgetCedulaIds->count()) {
+            if ($subaccountsByCedula->count() !== $budgetCedulaIds->count()) {
                 $validator->errors()->add('budget_cedula_ids', 'Una subcuenta seleccionada no tiene una equivalencia de subcuenta configurada.');
             }
         });

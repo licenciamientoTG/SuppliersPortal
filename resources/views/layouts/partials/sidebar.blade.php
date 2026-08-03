@@ -14,7 +14,9 @@
       - All other authenticated users (staff roles) → sidebar-staff.blade.php
 --}}
 <div class="sidenav-menu">
-    @php($isSupplierGuard = auth('supplier')->check())
+    @php
+        $isSupplierGuard = auth('supplier')->check();
+    @endphp
     <a href="{{ $isSupplierGuard ? route('supplier.documents.index') : route('dashboard') }}" class="logo">
         <span class="logo-light">
             <span class="logo-lg"><img src="{{ asset('images/logos/logo_TotalGas_hor_azul.png') }}" alt="TotalGas" class="sidenav-logo-img"></span>

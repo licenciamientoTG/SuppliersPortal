@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
 use App\Mail\RequisitionFeedbackMail;
+use App\Models\Requisition;
 use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\NewRequisitionForPurchasingNotification;
-use App\Models\Requisition;
 use App\Notifications\RequisitionFeedbackNotification;
 use App\Notifications\RequisitionInQuotationNotification;
 use App\Notifications\RequisitionRejectedNotification;
@@ -32,7 +32,7 @@ class RequisitionWorkflowController extends Controller
             'company:id,name',
             'costCenter:id,code,name',
             'department:id,name',
-            'requester:id,name'
+            'requester:id,name',
         ])
             ->where('status', RequisitionStatus::PENDING->value)
             ->orderByDesc('id')
@@ -52,8 +52,8 @@ class RequisitionWorkflowController extends Controller
         $requisition->load([
             'requester',
             'company',
-            'costCenter',
             'department',
+            'items.costCenter',
             'items.productService',
             'items.expenseCategory',
             'feedbacks.buyer',
@@ -68,7 +68,7 @@ class RequisitionWorkflowController extends Controller
             'reason' => ['required', 'string', 'max:500'],
         ]);
 
-        if (!in_array($requisition->status, [RequisitionStatus::PENDING->value, RequisitionStatus::PAUSED->value], true)) {
+        if (! in_array($requisition->status, [RequisitionStatus::PENDING->value, RequisitionStatus::PAUSED->value], true)) {
             return $this->respond($request, false, 'La requisición no puede ser pausada en su estado actual.');
         }
 
@@ -200,7 +200,7 @@ class RequisitionWorkflowController extends Controller
             'rejection_reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);
 
-        if (!$requisition->canBeRejected()) {
+        if (! $requisition->canBeRejected()) {
             return $this->respond(
                 $request,
                 false,
@@ -214,7 +214,7 @@ class RequisitionWorkflowController extends Controller
                 Auth::id()
             );
 
-            if (!$success) {
+            if (! $success) {
                 throw new \RuntimeException('El modelo Requisition se negó a procesar el rechazo.');
             }
 
@@ -230,7 +230,7 @@ class RequisitionWorkflowController extends Controller
 
             return $this->respond($request, true, '❌ Requisición rechazada. El solicitante ha sido notificado por correo y sistema.');
         } catch (\Throwable $e) {
-            Log::error("Falla crítica en rechazo de requisición ID {$requisition->id}: " . $e->getMessage());
+            Log::error("Falla crítica en rechazo de requisición ID {$requisition->id}: ".$e->getMessage());
 
             return $this->respond(
                 $request,
@@ -250,16 +250,16 @@ class RequisitionWorkflowController extends Controller
         $isRequester = $requisition->requested_by === $user->id;
 
         if ($requisition->status === RequisitionStatus::APPROVED->value) {
-            if (!$user->hasRole(['superadmin', 'admin'])) {
+            if (! $user->hasRole(['superadmin', 'admin'])) {
                 return $this->respond($request, false, 'Solo administradores pueden cancelar una requisición aprobada.');
             }
         } elseif ($requisition->status === RequisitionStatus::DRAFT->value) {
-            if (!$isRequester && !$user->hasRole(['superadmin', 'admin'])) {
+            if (! $isRequester && ! $user->hasRole(['superadmin', 'admin'])) {
                 return $this->respond($request, false, 'Solo el requisitor puede cancelar un borrador.');
             }
         }
 
-        if (!$requisition->canBeCancelled()) {
+        if (! $requisition->canBeCancelled()) {
             return $this->respond($request, false, 'Esta requisición no puede ser cancelada en su estado actual.');
         }
 
@@ -274,7 +274,7 @@ class RequisitionWorkflowController extends Controller
 
     public function submitToApproval(Request $request, Requisition $requisition)
     {
-        if (!$requisition->canBeSubmitted() && !$requisition->isPaused()) {
+        if (! $requisition->canBeSubmitted() && ! $requisition->isPaused()) {
             return $this->respond($request, false, 'La requisición no puede ser enviada desde su estado actual.');
         }
 
@@ -306,10 +306,10 @@ class RequisitionWorkflowController extends Controller
 
             Log::error('Error al enviar requisición a Compras', [
                 'requisition_id' => $requisition->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
-            return $this->respond($request, false, 'Error al enviar la requisición: ' . $e->getMessage());
+            return $this->respond($request, false, 'Error al enviar la requisición: '.$e->getMessage());
         }
     }
 

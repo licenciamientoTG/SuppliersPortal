@@ -131,6 +131,7 @@ class QuotationWizard extends Component
             $this->loadPlanningData();
         }
         if ($this->currentStep >= 3) {
+            $this->createIndividualGroupsForUnassignedItems();
             $this->loadSuppliersData();
         }
     }
@@ -229,10 +230,14 @@ class QuotationWizard extends Component
     {
         $this->refreshReadOnlyAfterSend();
 
-        if ($this->currentStep === 2 && ! $this->requisition->quotationGroups()->active()->exists()) {
-            session()->flash('error', 'Crea al menos un grupo con partidas antes de configurar invitaciones.');
+        if ($this->currentStep === 2) {
+            $this->createIndividualGroupsForUnassignedItems();
 
-            return;
+            if (! $this->requisition->quotationGroups()->active()->exists()) {
+                session()->flash('error', 'Crea al menos una partida antes de configurar invitaciones.');
+
+                return;
+            }
         }
 
         if ($this->currentStep < 5) {
@@ -538,6 +543,46 @@ class QuotationWizard extends Component
             'count' => count($this->suppliersData),
             'data' => $this->suppliersData,
         ]);
+    }
+
+    /**
+     * Asegura que toda partida tenga una solicitud de cotización propia o grupal.
+     */
+    private function createIndividualGroupsForUnassignedItems(): void
+    {
+        if ($this->isReadOnlyAfterSend) {
+            return;
+        }
+
+        $unassignedItems = $this->requisition->items()
+            ->whereDoesntHave('quotationGroups', fn ($query) => $query->active())
+            ->with('productService:id,code,short_name')
+            ->get();
+
+        if ($unassignedItems->isEmpty()) {
+            return;
+        }
+
+        DB::transaction(function () use ($unassignedItems): void {
+            foreach ($unassignedItems as $item) {
+                $label = $item->productService?->short_name
+                    ?: $item->productService?->code
+                    ?: $item->description
+                    ?: 'Partida '.$item->line_number;
+
+                $group = QuotationGroup::create([
+                    'requisition_id' => $this->requisition->id,
+                    'name' => 'Individual · '.\Illuminate\Support\Str::limit($label, 220, ''),
+                    'notes' => 'Grupo individual creado automáticamente para una partida sin agrupar.',
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+                $group->items()->attach($item->id, ['sort_order' => 0]);
+            }
+        });
+
+        $this->requisition->unsetRelation('quotationGroups');
+        $this->requisition->load('quotationGroups.items');
     }
 
     private function refreshReadOnlyAfterSend(): void

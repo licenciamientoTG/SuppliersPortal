@@ -589,6 +589,7 @@ Route::middleware(['auth:supplier'])->prefix('supplier')->name('supplier.')->gro
     });
 
     // RFQ
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/rfqs', [SupplierPortalController::class, 'rfqsIndex'])->name('rfqs.index');
     Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->get('/rfq/{rfq}', [SupplierPortalController::class, 'showRfq'])->name('rfq.show');
     Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)->post('/rfq/{rfq}/quotation', [SupplierPortalController::class, 'saveQuotation'])->name('rfq.quotation.save');
 

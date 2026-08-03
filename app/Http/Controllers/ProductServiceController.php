@@ -6,9 +6,11 @@ use App\Enum\ProductServiceStatus;
 use App\Events\ProductServiceApproved;
 use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Account;
+use App\Models\BudgetCedula;
 use App\Models\ContractProduct;
 use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
 use App\Models\Subaccount;
@@ -628,8 +630,23 @@ class ProductServiceController extends Controller
             ], 403);
         }
 
+        $departmentId = (int) $user->department_id;
+
         $query = ProductService::active()
-            ->with(['defaultVendor', 'subaccounts.account']);
+            ->select([
+                'id', 'code', 'technical_description', 'short_name', 'product_type',
+                'brand', 'model', 'unit_of_measure', 'estimated_price', 'currency_code',
+                'default_vendor_id', 'minimum_quantity', 'maximum_quantity', 'lead_time_days',
+            ])
+            ->with([
+                'defaultVendor:id,first_name,last_name,company_name',
+                'subaccounts:id,account_id,legacy_budget_cedula_id,code,name,is_fixed_asset',
+                'subaccounts.account:id,legacy_expense_category_id,code,name,is_fixed_asset',
+                'departmentSubaccountMappings' => fn ($query) => $query
+                    ->where('department_id', $departmentId)
+                    ->with('subaccount:id,account_id,legacy_budget_cedula_id,code,name,is_fixed_asset'),
+                'departmentSubaccountMappings.subaccount.account:id,legacy_expense_category_id,code,name,is_fixed_asset',
+            ]);
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
         $query->withAllowedSubaccounts($allowedSubaccounts);
@@ -646,24 +663,40 @@ class ProductServiceController extends Controller
 
         $query->orderBy('code');
 
-        // Si se solicita TODOS los productos (para Select2 local)
-        if ($request->boolean('all', false)) {
-            $products = $query->get();
-        } else {
-            $products = $query->limit(50)->get();
+        // Livewire recibe 15 resultados por página; `all` se conserva para formularios legacy.
+        $perPage = 15;
+        $page = max(1, (int) $request->input('page', 1));
+        $isLegacyFullLoad = $request->boolean('all', false);
+        $products = $isLegacyFullLoad
+            ? $query->get()
+            : $query->offset(($page - 1) * $perPage)->limit($perPage + 1)->get();
+        $hasMore = ! $isLegacyFullLoad && $products->count() > $perPage;
+
+        if ($hasMore) {
+            $products->pop();
         }
 
-        $classificationService = app(ProductBudgetClassificationService::class);
-        $departmentId = $user->department_id;
+        $subaccounts = $products->flatMap->subaccounts;
+        $budgetCedulas = BudgetCedula::query()
+            ->whereKey($subaccounts->pluck('legacy_budget_cedula_id')->filter()->unique())
+            ->get(['id', 'expense_category_id', 'name'])
+            ->keyBy('id');
+        $expenseCategories = ExpenseCategory::query()
+            ->whereKey($subaccounts->pluck('account.legacy_expense_category_id')->filter()->unique())
+            ->get(['id', 'name'])
+            ->keyBy('id');
 
         return response()->json([
-            'products' => $products->filter(function ($p) use ($classificationService, $departmentId) {
-                return $classificationService->isAvailableForDepartment($p, $departmentId);
-            })->map(function ($p) use ($classificationService, $departmentId) {
-                try {
-                    $budgetClassification = $classificationService->resolveForProduct($p, $departmentId);
-                } catch (\RuntimeException $exception) {
-                    $budgetClassification = null;
+            'products' => $products->map(function ($p) use ($allowedSubaccounts, $budgetCedulas, $expenseCategories) {
+                $budgetClassification = $this->requisitionBudgetClassification(
+                    $p,
+                    $budgetCedulas,
+                    $expenseCategories,
+                );
+
+                if (! $budgetClassification
+                    || ! $allowedSubaccounts->contains($budgetClassification['subaccount_id'])) {
+                    return null;
                 }
 
                 return [
@@ -683,19 +716,60 @@ class ProductServiceController extends Controller
                     'maximum_quantity' => $p->maximum_quantity ? (float) $p->maximum_quantity : null,
                     'lead_time_days' => $p->lead_time_days,
                     'budget_classification' => $budgetClassification,
-                    'subaccounts' => $p->subaccounts->map(fn ($subaccount) => [
-                        'id' => $subaccount->id,
-                        'code' => $subaccount->code,
-                        'name' => $subaccount->name,
-                        'account_id' => $subaccount->account_id,
-                        'account_name' => $subaccount->account?->name,
-                        'legacy_budget_cedula_id' => $subaccount->legacy_budget_cedula_id,
-                        'legacy_expense_category_id' => $subaccount->account?->legacy_expense_category_id,
-                        'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $subaccount->account?->is_fixed_asset),
-                    ])->values(),
                 ];
-            }),
+            })->filter()->values(),
+            'pagination' => [
+                'more' => $hasMore,
+            ],
         ]);
+    }
+
+    /**
+     * Resuelve la clasificación con relaciones ya precargadas para evitar consultas por producto.
+     */
+    private function requisitionBudgetClassification(
+        ProductService $product,
+        \Illuminate\Support\Collection $budgetCedulas,
+        \Illuminate\Support\Collection $expenseCategories,
+    ): ?array {
+        $subaccounts = $product->subaccounts
+            ->filter(fn (Subaccount $subaccount) => $subaccount->legacy_budget_cedula_id)
+            ->sortBy('id')
+            ->values();
+
+        if ($subaccounts->isEmpty()) {
+            return null;
+        }
+
+        $subaccount = $subaccounts->count() === 1
+            ? $subaccounts->first()
+            : $product->departmentSubaccountMappings
+                ->pluck('subaccount')
+                ->first(fn (?Subaccount $mappingSubaccount) => $mappingSubaccount
+                    && $subaccounts->contains('id', $mappingSubaccount->id));
+
+        $account = $subaccount?->account;
+        $budgetCedula = $budgetCedulas->get($subaccount?->legacy_budget_cedula_id);
+        $expenseCategory = $expenseCategories->get($account?->legacy_expense_category_id);
+
+        if (! $subaccount || ! $account || ! $budgetCedula || ! $expenseCategory
+            || (int) $budgetCedula->expense_category_id !== (int) $expenseCategory->id) {
+            return null;
+        }
+
+        return [
+            'account_id' => (int) $account->id,
+            'account_code' => $account->code,
+            'account_name' => $account->name,
+            'subaccount_id' => (int) $subaccount->id,
+            'subaccount_code' => $subaccount->code,
+            'subaccount_name' => $subaccount->name,
+            'expense_category_id' => (int) $expenseCategory->id,
+            'expense_category_name' => $expenseCategory->name,
+            'budget_cedula_id' => (int) $budgetCedula->id,
+            'budget_cedula_name' => $budgetCedula->name,
+            'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $account->is_fixed_asset),
+        ];
     }
 
     /**

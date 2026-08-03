@@ -40,9 +40,21 @@
         Si actúas, quedará registrado que lo hiciste en su representación.
     </div>
 @endif
-@php($delegatedDecision = $directPurchaseOrder->approvalDecisions->whereNotNull('approval_delegation_id')->sortByDesc('acted_at')->first())
+@php
+    $delegatedDecision = $directPurchaseOrder->approvalDecisions
+        ->whereNotNull('approval_delegation_id')
+        ->sortByDesc('acted_at')
+        ->first();
+@endphp
 @if($delegatedDecision)
-    @php($delegatedActionLabel = match($delegatedDecision->action) { 'APPROVED' => 'Autorizado', 'REJECTED' => 'Rechazado', 'RETURNED' => 'Devuelto', default => $delegatedDecision->action })
+    @php
+        $delegatedActionLabel = match($delegatedDecision->action) {
+            'APPROVED' => 'Autorizado',
+            'REJECTED' => 'Rechazado',
+            'RETURNED' => 'Devuelto',
+            default => $delegatedDecision->action,
+        };
+    @endphp
     <div class="alert alert-light border">
         <i class="ti ti-history me-1"></i>
         {{ $delegatedActionLabel }} por

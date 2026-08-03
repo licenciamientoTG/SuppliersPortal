@@ -15,6 +15,14 @@
         ? 'USD'
         : 'MXN';
 
+    $profilePaymentTerm = $supplier->default_payment_terms instanceof \App\Enum\PaymentTerm
+        ? $supplier->default_payment_terms
+        : \App\Enum\PaymentTerm::tryFrom((string) $supplier->default_payment_terms);
+    $defaultPaymentTerms = old(
+        'global_payment_terms',
+        $responses->first()?->payment_terms ?? $profilePaymentTerm?->label() ?? $supplier->default_payment_terms ?? ''
+    );
+
     $itemPurchasingNotes = $items
         ->pluck('notes')
         ->filter(fn ($note) => filled($note))
@@ -277,18 +285,31 @@
                   id="quotation-form">
                 @csrf
 
+                <section class="tg-quote-hero mb-3" aria-labelledby="quote-form-title">
+                    <div class="tg-quote-logo-wrap" aria-hidden="true">
+                        <img src="{{ asset('images/logos/Logo.png') }}" alt="" class="tg-quote-logo-spinner">
+                    </div>
+                    <div class="tg-quote-hero-content">
+                        <span class="tg-eyebrow"><i class="ti ti-pencil-check me-1"></i>Respuesta de cotización</span>
+                        <h2 id="quote-form-title">Completa tu propuesta</h2>
+                        <p class="mb-0">Guarda un borrador cuando quieras; envía la cotización cuando esté lista.</p>
+                    </div>
+                </section>
+
                 {{-- Datos Generales de la Cotización --}}
-                <div class="card mb-3 shadow-sm">
-                    <div class="card-header bg-light py-2">
-                        <h6 class="mb-0">
-                            <i class="ti ti-file-text me-2"></i> Datos Generales de tu Cotización
-                        </h6>
+                <div class="card mb-3 shadow-sm tg-quote-section">
+                    <div class="card-header tg-section-header">
+                        <div>
+                            <span class="tg-section-kicker">Paso 1</span>
+                            <h6 class="mb-0"><i class="ti ti-file-text me-2"></i>Datos generales</h6>
+                        </div>
+                        <span class="tg-optional-note">Folio, vigencia y PDF son opcionales</span>
                     </div>
                     <div class="card-body p-3">
                         <div class="row g-3">
-                            <div class="col">
+                            <div class="col-md-6 col-xl-4">
                                 <label for="supplier_quotation_number" class="form-label form-label-sm">
-                                    Número de tu Cotización
+                                    Número de tu cotización <span class="tg-field-optional">Opcional</span>
                                 </label>
                                 <input type="text" 
                                     class="form-control form-control-sm @error('supplier_quotation_number') is-invalid @enderror" 
@@ -301,9 +322,9 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col">
+                            <div class="col-md-6 col-xl-3">
                                 <label for="validity_days" class="form-label form-label-sm">
-                                    Vigencia (días)
+                                    Vigencia (días) <span class="tg-field-optional">Opcional</span>
                                 </label>
                                 <input type="number" 
                                     class="form-control form-control-sm @error('validity_days') is-invalid @enderror" 
@@ -320,16 +341,22 @@
                             </div>
 
                             {{-- CAMPO GLOBAL PARCHADO --}}
-                            <div class="col">
-                                <label for="global_payment_terms" class="form-label form-label-sm fw-bold text-primary">
-                                    <i class="ti ti-credit-card me-1"></i>Condiciones de Pago Globales
+                            <div class="col-md-12 col-xl-5">
+                                <label for="global_payment_terms" class="form-label form-label-sm fw-bold">
+                                    <i class="ti ti-credit-card me-1"></i>Condiciones de pago <span class="tg-required-mark">*</span>
+                                    <span class="tg-required-label">Obligatorio al enviar</span>
                                 </label>
                                 <input type="text" 
                                     id="global_payment_terms" 
-                                    class="form-control form-control-sm border-primary" 
+                                    name="global_payment_terms"
+                                    class="form-control form-control-sm tg-required-input @error('global_payment_terms') is-invalid @enderror"
                                     placeholder="Ej: Crédito 30 días, Contado, etc."
-                                    value="{{ old('global_payment_terms', $responses->first()?->payment_terms ?? '') }}"
+                                    value="{{ $defaultPaymentTerms }}"
                                     {{ $allLocked ? 'disabled' : '' }}>
+                                <div class="form-text">Se aplicarán a todas las partidas de esta cotización.</div>
+                                @error('global_payment_terms')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             {{-- ========================================================== --}}
@@ -424,12 +451,13 @@
                         No hay partidas para cotizar en esta RFQ.
                     </div>
                 @else
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0">
-                                <i class="ti ti-list-details me-2"></i>
-                                Partidas a Cotizar ({{ $items->count() }})
-                            </h6>
+                    <div class="card shadow-sm tg-quote-section">
+                        <div class="card-header tg-section-header">
+                            <div>
+                                <span class="tg-section-kicker">Paso 2</span>
+                                <h6 class="mb-0"><i class="ti ti-list-details me-2"></i>Partidas a cotizar ({{ $items->count() }})</h6>
+                            </div>
+                            <span class="tg-required-legend"><span class="tg-required-mark">*</span> Obligatorio al enviar</span>
                         </div>
                         <div class="card-body p-2">
                             
@@ -440,7 +468,7 @@
                                     $itemPrefix = "items[{$index}]";
                                 @endphp
                                 
-                                <div class="quotation-item border rounded-3 p-3 mb-2 {{ $isLocked ? 'bg-light border-warning' : 'bg-white' }}" data-item-index="{{ $index }}">
+                                <div class="quotation-item border rounded-3 p-3 mb-3 {{ $isLocked ? 'bg-light border-warning' : 'bg-white' }}" data-item-index="{{ $index }}">
     
                                     {{-- Header de la Partida --}}
                                     <div class="d-flex align-items-start justify-content-between mb-3">
@@ -538,7 +566,7 @@
                                         
                                         {{-- FILA 1: Precios y Cálculos --}}
                                         <div class="col-md-2">
-                                            <label class="form-label-sm mb-1">Precio Unit. * <small class="text-muted">(sin IVA)</small></label>
+                                            <label class="form-label-sm mb-1">Precio unitario <span class="tg-required-mark">*</span> <small class="text-muted">(sin IVA)</small></label>
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">$</span>
                                                 <input type="number" 
@@ -553,7 +581,7 @@
                                         </div>
                                         
                                         <div class="col-md-1">
-                                            <label class="form-label-sm mb-1">Cant. *</label>
+                                            <label class="form-label-sm mb-1">Cantidad <span class="tg-required-mark">*</span></label>
                                             <input type="number" 
                                                 step="0.001"
                                                 min="0.001"
@@ -576,7 +604,7 @@
                                         </div>
                                         
                                         <div class="col-md-2">
-                                            <label class="form-label-sm mb-1">IVA *</label>
+                                            <label class="form-label-sm mb-1">IVA <span class="tg-required-mark">*</span></label>
                                             <select class="form-select form-select-sm iva-rate" 
                                                     name="{{ $itemPrefix }}[iva_rate]"
                                                     {{ $isLocked ? 'disabled' : '' }}> {{-- DISABLED --}}
@@ -616,7 +644,7 @@
                                         </div>
                                         
                                         <div class="col-md-2">
-                                            <label class="form-label-sm mb-1">Días Entrega</label>
+                                            <label class="form-label-sm mb-1">Días de entrega <span class="tg-required-mark">*</span></label>
                                             <input type="number" 
                                                 step="1"
                                                 min="0"
@@ -628,7 +656,7 @@
                                         </div>
                                         
                                         <div class="col-md-2">
-                                            <label class="form-label-sm mb-1">Moneda</label>
+                                            <label class="form-label-sm mb-1">Moneda <span class="tg-field-optional">Opcional</span></label>
                                             <select class="form-select form-select-sm" name="{{ $itemPrefix }}[currency]" {{ $isLocked ? 'disabled' : '' }}>
                                                 <option value="MXN" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? $defaultCurrency) == 'MXN' ? 'selected' : '' }}>MXN ($)</option>
                                                 <option value="USD" {{ old("{$itemPrefix}[currency]", $existingResponse->currency ?? $defaultCurrency) == 'USD' ? 'selected' : '' }}>USD (US$)</option>
@@ -636,7 +664,7 @@
                                         </div>
                                         
                                         <div class="col-md-2">
-                                            <label class="form-label-sm mb-1">Marca</label>
+                                            <label class="form-label-sm mb-1">Marca <span class="tg-field-optional">Opcional</span></label>
                                             <input type="text" 
                                                 class="form-control form-control-sm" 
                                                 name="{{ $itemPrefix }}[brand]" 
@@ -646,7 +674,7 @@
                                         </div>
                                         
                                         <div class="col-md-3">
-                                            <label class="form-label-sm mb-1">Modelo</label>
+                                            <label class="form-label-sm mb-1">Modelo <span class="tg-field-optional">Opcional</span></label>
                                             <input type="text" 
                                                 class="form-control form-control-sm" 
                                                 name="{{ $itemPrefix }}[model]" 
@@ -658,7 +686,7 @@
                                         {{-- FILA 3: Adjuntos --}}
                                         <div class="col-md-3">
                                             <label class="form-label-sm mb-1">
-                                                <i class="ti ti-paperclip me-1"></i>Adjunto PDF
+                                                <i class="ti ti-paperclip me-1"></i>Adjunto PDF <span class="tg-field-optional">Opcional</span>
                                                 @if($existingResponse && $existingResponse->attachment_path)
                                                     <a href="{{ route('supplier.quotation.download', $existingResponse) }}" 
                                                     class="text-primary ms-2" 
@@ -677,7 +705,7 @@
 
                                         {{-- FILA 4: Áreas de Texto --}}
                                         <div class="col-md-4">
-                                            <label class="form-label-sm mb-1">Especificaciones Técnicas</label>
+                                            <label class="form-label-sm mb-1">Especificaciones técnicas <span class="tg-field-optional">Opcional</span></label>
                                             <textarea class="form-control form-control-sm" 
                                                     name="{{ $itemPrefix }}[specifications]" 
                                                     rows="2" 
@@ -686,7 +714,7 @@
                                         </div>
                                         
                                         <div class="col-md-4">
-                                            <label class="form-label-sm mb-1">Garantía</label>
+                                            <label class="form-label-sm mb-1">Garantía <span class="tg-field-optional">Opcional</span></label>
                                             <textarea class="form-control form-control-sm" 
                                                     name="{{ $itemPrefix }}[warranty_terms]" 
                                                     rows="2" 
@@ -695,7 +723,7 @@
                                         </div>
                                         
                                         <div class="col-md-4">
-                                            <label class="form-label-sm mb-1">Notas Adicionales</label>
+                                            <label class="form-label-sm mb-1">Notas adicionales <span class="tg-field-optional">Opcional</span></label>
                                             <textarea class="form-control form-control-sm" 
                                                     name="{{ $itemPrefix }}[notes]" 
                                                     rows="2" 
@@ -710,7 +738,7 @@
 
                     {{-- Botones de Acción --}}
                     @if(in_array($rfq->status, ['SENT', 'RECEIVED']))
-                        <div class="card mt-3 shadow-sm border-top border-3 {{ $allLocked ? 'border-info' : 'border-primary' }}">
+                        <div class="card mt-3 shadow-sm tg-submit-panel {{ $allLocked ? 'border-info' : 'border-primary' }}">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                                     
@@ -724,7 +752,7 @@
                                         @else
                                             <small class="text-muted">
                                                 <i class="ti ti-info-circle-filled me-1 text-primary"></i>
-                                                Puedes guardar tus avances como <strong>borrador</strong> y finalizar el envío después.
+                                                <strong>Borrador:</strong> guarda avances sin requisitos. <strong>Envío final:</strong> valida los campos marcados con <span class="tg-required-mark">*</span>.
                                             </small>
                                         @endif
                                     </div>
@@ -846,6 +874,68 @@
 
 @push('styles')
 <style>
+    .tg-quote-hero {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.4rem;
+        overflow: hidden;
+        color: #23384d;
+        background: #fff;
+        border: 1px solid #e2e9f0;
+        border-radius: .85rem;
+        box-shadow: 0 .3rem 1rem rgba(35, 79, 119, .05);
+        animation: tg-quote-enter .45s ease both;
+    }
+
+    .tg-quote-logo-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.1rem;
+        height: 3.1rem;
+        flex: 0 0 auto;
+        isolation: isolate;
+        animation: tg-quote-logo-arrival 1.15s cubic-bezier(.22, 1, .36, 1) both;
+    }
+
+    .tg-quote-logo-wrap::before {
+        position: absolute;
+        top: -62vh;
+        left: 50%;
+        z-index: 0;
+        width: .3rem;
+        height: 62vh;
+        content: '';
+        pointer-events: none;
+        background: linear-gradient(180deg, transparent 0%, rgba(24, 138, 226, .14) 42%, rgba(75, 211, 150, .75) 100%);
+        border-radius: 999px;
+        box-shadow: 0 0 .65rem rgba(24, 138, 226, .55);
+        opacity: 0;
+        transform: translateX(-50%);
+        animation: tg-quote-logo-trail 1.15s ease-out both;
+    }
+
+    .tg-quote-logo-spinner { position: relative; z-index: 1; width: 2.35rem; height: 2.35rem; object-fit: contain; animation: tg-quote-logo-spin 8s linear infinite; }
+    .tg-quote-hero-content { flex: 1; min-width: 0; }
+    .tg-quote-hero h2 { margin: .12rem 0 .25rem; color: #20354a; font-size: 1.2rem; font-weight: 700; }
+    .tg-quote-hero p { color: #718096; font-size: .84rem; }
+    .tg-eyebrow, .tg-section-kicker { color: #188ae2; font-size: .69rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+    .tg-quote-section { overflow: hidden; border: 1px solid #e2e9f0; border-radius: .8rem; }
+    #quotation-form > .tg-quote-section { animation: tg-quote-enter .45s ease both; }
+    #quotation-form > .tg-quote-section:nth-of-type(3) { animation-delay: .08s; }
+    .tg-section-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; background: #fff !important; border-bottom: 1px solid #e9eff5; }
+    .tg-section-header h6 { color: #34465a; font-weight: 700; }
+    .tg-optional-note, .tg-required-legend { padding: .25rem .48rem; border-radius: 999px; color: #64748b; background: #f4f7fa; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+    .tg-required-legend { color: #a84444; background: #fff3f3; }
+    .tg-required-mark { color: #d64c4c; font-weight: 800; }
+    .tg-required-label { display: inline-block; margin-left: .25rem; padding: .08rem .35rem; color: #a84444; background: #fff1f1; border-radius: 999px; font-size: .65rem; font-weight: 700; }
+    .tg-field-optional { margin-left: .2rem; color: #7b8794; font-size: .66rem; font-weight: 500; }
+    .tg-required-input { border-color: #9fc9ea; box-shadow: inset 0 0 0 1px rgba(24, 138, 226, .05); }
+    .tg-submit-panel { border: 1px solid #e2e9f0; border-top-width: 3px !important; border-radius: .8rem; }
+
     .form-label-sm {
         font-size: 0.875rem;
         font-weight: 500;
@@ -853,13 +943,16 @@
     }
     
     .quotation-item {
-        background-color: #f8f9fa;
-        transition: all 0.2s ease;
+        background-color: #f7fbff;
+        border-color: #e2e9f0 !important;
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
     }
     
     .quotation-item:hover {
         background-color: #fff;
-        box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.1);
+        border-color: #a9d5f3 !important;
+        box-shadow: 0 .35rem .85rem rgba(31, 70, 110, .1);
+        transform: translateY(-2px);
     }
 
     @media (min-width: 992px) {
@@ -891,6 +984,34 @@
     .file-drop-message {
         color: #6c757d;
         font-size: 0.95rem;
+    }
+
+    @keyframes tg-quote-enter {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes tg-quote-logo-spin { to { transform: rotate(360deg); } }
+    @keyframes tg-quote-logo-arrival {
+        0% { opacity: 0; transform: translateY(-105vh) scale(2.4); }
+        72% { opacity: 1; transform: translateY(.45rem) scale(.9); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes tg-quote-logo-trail {
+        0%, 10% { opacity: 0; }
+        28% { opacity: .85; }
+        70% { opacity: .35; }
+        100% { opacity: 0; }
+    }
+
+    @media (max-width: 767.98px) {
+        .tg-quote-hero, .tg-section-header { align-items: flex-start; flex-wrap: wrap; }
+        .tg-optional-note, .tg-required-legend { white-space: normal; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tg-quote-hero, .tg-quote-logo-wrap, .tg-quote-logo-wrap::before, .tg-quote-logo-spinner, #quotation-form > .tg-quote-section, .quotation-item { animation: none; transition: none; }
+        .quotation-item:hover { transform: none; }
     }
 </style>
 @endpush

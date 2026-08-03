@@ -4,7 +4,9 @@
       - $detailsTitle (string)  Título de la caja (ej. "Detalles de la OC")
       - $rows (array)           Pares etiqueta => valor. Los valores null o '' se omiten.
 --}}
-@php($__rows = array_filter($rows ?? [], fn ($v) => ! is_null($v) && $v !== ''))
+@php
+    $__rows = array_filter($rows ?? [], fn ($v) => ! is_null($v) && $v !== '');
+@endphp
 
 @if (! empty($__rows))
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">

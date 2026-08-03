@@ -29,7 +29,7 @@
                     <label class="form-label mb-1" style="font-size: 12px;">Estado</label>
                     <select id="filterStatus" class="form-select form-select-sm">
                         <option value="">Todos</option>
-                        <option value="SI">Activos</option>
+                        <option value="SI" selected>Activos</option>
                         <option value="NO">Inactivos</option>
                     </select>
                 </div>

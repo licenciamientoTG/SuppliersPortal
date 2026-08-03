@@ -15,8 +15,11 @@ class NotificationController extends Controller
 
     public function index(Request $request): View
     {
+        $authenticatable = $this->resolveAuthenticatable($request);
+        $this->notificationCenter->resolveObsoleteUnreadForUser($authenticatable);
+
         $notifications = $this->notificationCenter
-            ->queryForUser($this->resolveAuthenticatable($request))
+            ->queryForUser($authenticatable)
             ->latest()
             ->paginate(20);
 
@@ -29,11 +32,17 @@ class NotificationController extends Controller
 
         abort_unless($notificationModel, 404);
 
+        $targetUrl = $this->notificationCenter->targetFor($notificationModel);
+
         if ($notificationModel->read_at === null) {
             $notificationModel->markAsRead();
         }
 
-        $targetUrl = $notificationModel->data['url'] ?? route('notifications.index');
+        if ($targetUrl === null) {
+            return redirect()
+                ->route('notifications.index')
+                ->with('warning', 'Esta notificación se conserva como historial; el elemento relacionado ya no está disponible.');
+        }
 
         return redirect()->to($targetUrl);
     }
@@ -57,6 +66,7 @@ class NotificationController extends Controller
 
         return back()->with('status', 'Todas las notificaciones fueron marcadas como leídas.');
     }
+
     private function resolveAuthenticatable(Request $request): mixed
     {
         return $request->user('supplier') ?? $request->user('web') ?? $request->user();

@@ -34,6 +34,7 @@ class RfqComparisonController extends Controller
             'suppliers',
             'rfqResponses' => fn ($query) => $query->whereIn('status', ['SUBMITTED', 'SELECTED', 'REJECTED']),
             'quotationSummary.rejector',
+            'quotationSummary.currentApprover',
             'activities',
         ]);
 
@@ -64,6 +65,12 @@ class RfqComparisonController extends Controller
     {
         if ($rfq->isRejected()) {
             return back()->with('error', 'Esta RFQ ya fue rechazada en autorización. Usa la opción de re-adjudicar para crear una nueva vuelta.');
+        }
+
+        $rfq->loadMissing('quotationSummary');
+
+        if ($rfq->quotationSummary?->isPending()) {
+            return back()->with('error', 'Esta RFQ ya tiene una adjudicación pendiente de autorización. Espera la resolución del aprobador antes de continuar.');
         }
 
         $request->validate([
@@ -224,5 +231,4 @@ class RfqComparisonController extends Controller
             return back()->with('error', 'No fue posible cerrar la cotización: '.$exception->getMessage());
         }
     }
-
 }

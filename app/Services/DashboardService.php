@@ -169,7 +169,7 @@ class DashboardService
             ],
             'quickActions' => [
                 $this->quickAction('supplier-docs', 'Documentacion', route('supplier.documents.index'), 'ti-checklist', 'warning'),
-                $this->quickAction('supplier-rfqs', 'Mis RFQs', route('supplier.dashboard'), 'ti-file-invoice', 'primary'),
+                $this->quickAction('supplier-rfqs', 'Mis RFQs', route('supplier.rfqs.index'), 'ti-file-invoice', 'primary'),
                 $this->quickAction('supplier-invoices', 'Cargar factura', route('supplier.invoices.create'), 'ti-receipt-2', 'success'),
                 $this->quickAction('supplier-deliveries', 'Registrar entrega', route('supplier.deliveries.index'), 'ti-truck-delivery', 'info'),
             ],

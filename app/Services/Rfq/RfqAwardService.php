@@ -80,7 +80,12 @@ class RfqAwardService
             $summary->setRelation('rfq', $rfq);
 
             try {
-                $this->authorizerResolutionService->resolveForSummary($summary);
+                $resolvedByCostCenter = app(\App\Services\CostCenterApprovalFlowService::class)
+                    ->canResolve($summary);
+
+                if (! $resolvedByCostCenter) {
+                    $this->authorizerResolutionService->resolveForSummary($summary);
+                }
             } catch (Throwable $exception) {
                 $reasons[] = $exception->getMessage();
             }
@@ -153,6 +158,23 @@ class RfqAwardService
         }
 
         $summary = DB::transaction(function () use ($rfq, $supplierId, $justification, $notes, $userId, $totals) {
+            $existingSummary = QuotationSummary::query()
+                ->where('rfq_id', $rfq->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingSummary?->isPending()) {
+                throw new AwardNotAllowedException(
+                    'Esta RFQ ya tiene una adjudicación pendiente de autorización. Espera la resolución del aprobador antes de continuar.'
+                );
+            }
+
+            if ($existingSummary && ! $existingSummary->isRejected()) {
+                throw new AwardNotAllowedException(
+                    'Esta RFQ ya tiene una adjudicación resuelta. No puede adjudicarse nuevamente desde el comparativo.'
+                );
+            }
+
             $summary = QuotationSummary::updateOrCreate(
                 ['rfq_id' => $rfq->id],
                 [

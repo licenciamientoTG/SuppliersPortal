@@ -40,8 +40,8 @@
         <div class="{{ $openSupplierRfq ? 'show' : '' }} collapse" id="sidebarSupplierRfq">
             <ul class="sub-menu">
                 <li class="side-nav-item">
-                    <a href="{{ route('supplier.dashboard') }}"
-                        class="side-nav-link {{ request()->routeIs('supplier.dashboard') || request()->routeIs('supplier.rfq.show') ? 'active' : '' }}">
+                    <a href="{{ route('supplier.rfqs.index') }}"
+                        class="side-nav-link {{ request()->routeIs('supplier.rfqs.*') || request()->routeIs('supplier.rfq.show') ? 'active' : '' }}">
                         <span class="menu-text">Mis RFQs</span>
                     </a>
                 </li>

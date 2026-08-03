@@ -8,20 +8,26 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        api: __DIR__ . '/../routes/api.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->redirectUsersTo(function (Request $request): string {
+            return $request->user('supplier')
+                ? route('supplier.dashboard', absolute: false)
+                : route('dashboard', absolute: false);
+        });
+
         // ✅ Todos los alias en UNA SOLA llamada
         $middleware->alias([
-            'role'              => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission'        => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission'=> \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'lock'              => \App\Http\Middleware\CheckLockScreen::class,
-            'api.key'           => \App\Http\Middleware\ApiKeyMiddleware::class,
-            'module.access'     => \App\Http\Middleware\ModuleAccess::class,
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'lock' => \App\Http\Middleware\CheckLockScreen::class,
+            'api.key' => \App\Http\Middleware\ApiKeyMiddleware::class,
+            'module.access' => \App\Http\Middleware\ModuleAccess::class,
             'supplier.approved' => \App\Http\Middleware\EnsureSupplierIsApproved::class,
         ]);
     })

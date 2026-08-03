@@ -28,9 +28,21 @@
         Si actúas, quedará registrado que lo hiciste en su representación.
     </div>
 @endif
-@php($delegatedDecision = $purchaseOrder->approvalDecisions->whereNotNull('approval_delegation_id')->sortByDesc('acted_at')->first())
+@php
+    $delegatedDecision = $purchaseOrder->approvalDecisions
+        ->whereNotNull('approval_delegation_id')
+        ->sortByDesc('acted_at')
+        ->first();
+@endphp
 @if($delegatedDecision)
-    @php($delegatedActionLabel = match($delegatedDecision->action) { 'APPROVED' => 'Autorizado', 'REJECTED' => 'Rechazado', 'RETURNED' => 'Devuelto', default => $delegatedDecision->action })
+    @php
+        $delegatedActionLabel = match($delegatedDecision->action) {
+            'APPROVED' => 'Autorizado',
+            'REJECTED' => 'Rechazado',
+            'RETURNED' => 'Devuelto',
+            default => $delegatedDecision->action,
+        };
+    @endphp
     <div class="alert alert-light border">
         <i class="ti ti-history me-1"></i>
         {{ $delegatedActionLabel }} por
@@ -39,7 +51,10 @@
         el {{ $delegatedDecision->acted_at?->format('d/m/Y H:i') }}.
     </div>
 @endif
-@php($canAuthorize = $purchaseOrder->isPendingApproval() && $purchaseOrder->isApproverFor(Auth::user()))
+@php
+    $canAuthorize = $purchaseOrder->isPendingApproval()
+        && $purchaseOrder->isApproverFor(Auth::user());
+@endphp
 
 <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
     <a href="{{ route('purchase-orders.index') }}" class="btn btn-outline-secondary">
@@ -167,14 +182,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($purchaseOrder->items as $index => $item)
-                        @php
+                    <?php foreach ($purchaseOrder->items as $index => $item): ?>
+                        <?php
                             $requisitionItem = $item->requisitionItem;
                             $currencySymbol = ($purchaseOrder->currency ?? 'MXN') === 'USD' ? 'US$' : '$';
                             $ivaRate = $item->subtotal > 0
                                 ? round(((float) $item->iva_amount / (float) $item->subtotal) * 100)
                                 : 16;
-                        @endphp
+                        ?>
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td>
@@ -189,7 +204,7 @@
                             <td class="text-end">{{ $ivaRate }}%</td>
                             <td class="text-end fw-bold">{{ $currencySymbol }}{{ number_format((float) $item->total, 2) }}</td>
                         </tr>
-                    @endforeach
+                    <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     @php

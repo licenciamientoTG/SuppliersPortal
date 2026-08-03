@@ -57,6 +57,30 @@
     @endif
 
     {{-- 🎯 VALIDACIÓN PRESUPUESTAL VISUAL --}}
+    @if($rfq->quotationSummary?->isPending())
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-info border-0 shadow-sm mb-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="avatar-sm flex-shrink-0">
+                            <span class="avatar-title rounded-circle bg-info-subtle text-info">
+                                <i class="ti ti-hourglass-high fs-20"></i>
+                            </span>
+                        </span>
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">Adjudicación en aprobación</h5>
+                            <p class="mb-0 text-dark">
+                                La RFQ fue adjudicada a <strong>{{ $rfq->quotationSummary->selectedSupplier?->company_name ?? 'proveedor seleccionado' }}</strong>
+                                y está pendiente de autorización de <strong>{{ $rfq->quotationSummary->currentApprover?->name ?? 'un aprobador asignado' }}</strong>.
+                                El comparativo permanece disponible solo para consulta.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="row mb-4">
         <div class="col-12">
             <div id="budget-panel" class="card border-3 border-top border-success shadow-sm">
@@ -340,7 +364,11 @@
                                                 $supplierExpired = \Carbon\Carbon::parse($sQDate)->addDays($sMinVal)->isPast();
                                             }
                                         @endphp
-                                        @if($selection['allowed'])
+                                        @if($rfq->quotationSummary?->isPending())
+                                            <button type="button" class="btn btn-outline-info btn-sm shadow-sm px-4 rounded-pill" disabled>
+                                                <i class="ti ti-hourglass-high me-1"></i>En aprobación
+                                            </button>
+                                        @elseif($selection['allowed'])
                                         <button type="button"
                                                 class="btn btn-primary btn-sm btn-select-winner shadow-sm px-4 rounded-pill"
                                                 data-supplier-id="{{ $supplier->id }}"
