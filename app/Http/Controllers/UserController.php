@@ -64,8 +64,18 @@ class UserController extends Controller
 
         // Búsqueda global
         if (! empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
+            $terms = preg_split('/\s+/', trim($search), -1, PREG_SPLIT_NO_EMPTY);
+
+            $query->where(function ($q) use ($search, $terms) {
+                $q->where(function ($nameQuery) use ($terms) {
+                    foreach ($terms as $term) {
+                        $nameQuery->where(function ($termQuery) use ($term) {
+                            $termQuery->where('name', 'LIKE', "%{$term}%")
+                                ->orWhere('first_name', 'LIKE', "%{$term}%")
+                                ->orWhere('last_name', 'LIKE', "%{$term}%");
+                        });
+                    }
+                })
                     ->orWhere('email', 'LIKE', "%{$search}%")
                     ->orWhere('phone', 'LIKE', "%{$search}%")
                     ->orWhere('job_title', 'LIKE', "%{$search}%")

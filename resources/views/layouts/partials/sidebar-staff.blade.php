@@ -439,6 +439,14 @@
 </li>
 @endmoduleAccess
 
+<li class="side-nav-item">
+    <a class="side-nav-link {{ request()->routeIs('admin.user-sessions.*') ? 'active' : '' }}"
+        href="{{ route('admin.user-sessions.index') }}">
+        <span class="menu-icon"><i class="ti ti-history"></i></span>
+        <span class="menu-text">Sesiones de usuarios</span>
+    </a>
+</li>
+
 @moduleAccess('employees')
 <li class="side-nav-item">
     <a class="side-nav-link {{ request()->routeIs('employees.index') ? 'active' : '' }}"

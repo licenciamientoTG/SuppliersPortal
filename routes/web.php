@@ -58,6 +58,7 @@ use App\Http\Controllers\SupplierSirocController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\Tools\CfdiGeneratorController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserSessionMonitorController;
 use App\Models\Requisition;
 use Illuminate\Support\Facades\Route;
 
@@ -678,6 +679,9 @@ Route::middleware(['auth', 'lock', 'role:superadmin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+        Route::get('/user-sessions', [UserSessionMonitorController::class, 'index'])
+            ->name('user-sessions.index');
+
         Route::get('/approval-delegations', [AdminApprovalDelegationController::class, 'index'])
             ->name('approval-delegations.index');
         Route::post('/approval-delegations/{delegation}/deactivate', [AdminApprovalDelegationController::class, 'deactivate'])

@@ -84,6 +84,11 @@ class User extends Authenticatable
         return $this->hasOne(UserAuthorizerRole::class);
     }
 
+    public function sessionActivities(): HasMany
+    {
+        return $this->hasMany(UserSessionActivity::class);
+    }
+
     public function authorizerRole(): HasOneThrough
     {
         return $this->hasOneThrough(
