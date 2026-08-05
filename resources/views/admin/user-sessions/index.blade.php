@@ -51,7 +51,7 @@
                             <td><div class="fw-semibold">{{ $user->full_name ?: $user->name }}</div><small class="text-muted">{{ $user->email }}</small></td>
                             <td><small>{{ $user->roles->pluck('name')->join(', ') ?: 'Sin rol' }}</small></td>
                             <td>@if($user->session_status === 'active')<span class="status-dot status-active"></span><span class="text-success fw-semibold">Activa</span>@else<span class="status-dot status-closed"></span><span class="text-muted fw-semibold">Cerrada</span>@endif</td>
-                            <td>{{ optional($user->last_session_started_at)->format('d/m/Y H:i') }}<br><small class="text-muted">{{ optional($user->last_session_started_at)->diffForHumans() }}</small></td>
+                            <td>{{ optional($user->last_session_started_at)->format('d/m/Y H:i') }}<br><small class="text-muted">{{ $user->last_session_started_human }}</small></td>
                             <td>@if($user->last_session_ended_at){{ $user->last_session_ended_at->format('d/m/Y H:i') }}@else<span class="text-muted">Sin cierre registrado</span>@endif</td>
                         </tr>
                     @empty

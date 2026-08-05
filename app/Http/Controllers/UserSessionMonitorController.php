@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserSessionActivity;
+use DateTimeInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -34,6 +35,7 @@ class UserSessionMonitorController extends Controller
                 $user->last_session_ended_at = $user->session_activities_max_ended_at
                     ? Carbon::parse($user->session_activities_max_ended_at)
                     : null;
+                $user->last_session_started_human = $this->relativeToApplicationTime($user->last_session_started_at);
 
                 return $user;
             });
@@ -50,5 +52,21 @@ class UserSessionMonitorController extends Controller
             'activeCount' => $activeUserIds->count(),
             'closedCount' => $users->total() - $activeUserIds->count(),
         ]);
+    }
+
+    private function relativeToApplicationTime(?DateTimeInterface $timestamp): ?string
+    {
+        if (! $timestamp) {
+            return null;
+        }
+
+        // Algunos registros históricos fueron guardados sin zona horaria. Para
+        // evitar que el texto relativo difiera de la fecha visible, se compara
+        // la misma hora mostrada en la zona efectiva de la aplicación.
+        return Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $timestamp->format('Y-m-d H:i:s'),
+            config('app.timezone')
+        )->diffForHumans(now());
     }
 }
