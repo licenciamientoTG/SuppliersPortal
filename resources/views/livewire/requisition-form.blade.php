@@ -210,6 +210,21 @@
                                         placeholder="Especificaciones adicionales, requisitos especiales, información de contacto, etc."></textarea>
                                 </div>
                             </div>
+                            @if (! $isEditMode)
+                                <div class="col-12">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="modal_attach_document">
+                                        <label class="form-check-label fw-semibold" for="modal_attach_document">Adjuntar documento a esta partida</label>
+                                    </div>
+                                    <label id="modal_attachment_dropzone" class="requisition-attachment-dropzone d-none" data-requisition-dropzone>
+                                        <input type="file" id="modal_attachment" class="requisition-attachment-input" data-requisition-file-input accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                                        <i class="ti ti-cloud-upload"></i>
+                                        <strong>Arrastra un archivo aquí o haz clic para seleccionarlo</strong>
+                                        <span>PDF, Word, Excel o imagen · Máximo 10 MB</span>
+                                    </label>
+                                    <div id="modal_attachment_name" class="requisition-attachment-selected d-none"></div>
+                                </div>
+                            @endif
                         </div>
 
                         <div class="d-flex justify-content-end gap-2 mt-3">
@@ -323,6 +338,78 @@
         max-width: 1120px;
         margin: 0 auto;
         color: #29384a;
+    }
+
+    .requisition-attachment-dropzone {
+        display: flex;
+        min-height: 9.5rem;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: .45rem;
+        padding: 1.25rem;
+        border: 2px dashed #b9dcf6;
+        border-radius: .75rem;
+        color: #58718b;
+        background: #f7fbff;
+        cursor: pointer;
+        text-align: center;
+        transition: border-color .18s ease, background .18s ease, transform .18s ease;
+    }
+
+    .requisition-attachment-dropzone:hover,
+    .requisition-attachment-dropzone.is-dragging {
+        border-color: #188ae2;
+        background: #eaf6ff;
+        transform: translateY(-2px);
+    }
+
+    .requisition-attachment-dropzone > i {
+        color: #188ae2;
+        font-size: 2rem;
+    }
+
+    .requisition-attachment-dropzone strong {
+        color: #29384a;
+        font-size: .9rem;
+    }
+
+    .requisition-attachment-dropzone span {
+        color: #738196;
+        font-size: .78rem;
+    }
+
+    .requisition-attachment-dropzone.is-invalid {
+        border-color: #dc3545;
+    }
+
+    .requisition-attachment-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        clip-path: inset(50%);
+    }
+
+    .requisition-attachment-selected {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        margin-top: .75rem;
+        padding: .65rem .8rem;
+        border-radius: .55rem;
+        font-size: .82rem;
+    }
+
+    .requisition-attachment-selected {
+        color: #218b64;
+        background: #f3fcf7;
+    }
+
+    .requisition-attachment-selected i {
+        font-size: 1.1rem;
     }
 
     .requisition-page-intro,
@@ -1010,6 +1097,77 @@ function hideRequisitionSubmitProgress() {
 }
 
 $(function() {
+    let modalAttachmentKey = null;
+    let modalAttachmentUploading = false;
+
+    function resetModalAttachment() {
+        modalAttachmentKey = null;
+        modalAttachmentUploading = false;
+        $('#modal_attach_document').prop('checked', false);
+        $('#modal_attachment').val('');
+        $('#modal_attachment_dropzone, #modal_attachment_name').addClass('d-none');
+        $('#modal_attachment_name').empty();
+    }
+
+    function uploadModalAttachment(file) {
+        const wire = getRequisitionWire();
+        if (!wire || !file) return;
+
+        modalAttachmentUploading = true;
+        modalAttachmentKey = modalAttachmentKey || (window.crypto?.randomUUID?.() || `attachment-${Date.now()}`);
+        $('#modal_attachment_name').removeClass('d-none').html('<span class="spinner-border spinner-border-sm"></span> Cargando documento…');
+        wire.upload(`itemAttachments.${modalAttachmentKey}`, file,
+            () => {
+                modalAttachmentUploading = false;
+                $('#modal_attachment_name').html('<i class="ti ti-file-check"></i> ' + $('<div>').text(file.name).html());
+            },
+            () => {
+                modalAttachmentUploading = false;
+                resetModalAttachment();
+                Swal.fire('Error', 'No se pudo cargar el documento.', 'error');
+            }
+        );
+    }
+
+    $(document).on('change', '#modal_attach_document', function() {
+        $('#modal_attachment_dropzone').toggleClass('d-none', !this.checked);
+        if (!this.checked) resetModalAttachment();
+    });
+
+    $(document).on('change', '#modal_attachment', function() {
+        uploadModalAttachment(this.files?.[0]);
+    });
+
+    document.addEventListener('dragover', event => {
+        const dropzone = event.target.closest('[data-requisition-dropzone]');
+        if (!dropzone) return;
+
+        event.preventDefault();
+        dropzone.classList.add('is-dragging');
+    });
+
+    document.addEventListener('dragleave', event => {
+        const dropzone = event.target.closest('[data-requisition-dropzone]');
+        if (dropzone) dropzone.classList.remove('is-dragging');
+    });
+
+    document.addEventListener('drop', event => {
+        const dropzone = event.target.closest('[data-requisition-dropzone]');
+        if (!dropzone) return;
+
+        event.preventDefault();
+        dropzone.classList.remove('is-dragging');
+
+        const file = event.dataTransfer?.files?.[0];
+        const input = dropzone.querySelector('[data-requisition-file-input]');
+        if (!file || !input) return;
+
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     'use strict';
 
     // =====================================================
@@ -1300,6 +1458,7 @@ $(function() {
         }
 
         $('#item_index').val('');
+        resetModalAttachment();
         $('#itemModalTitle').text('Agregar Partida');
         setItemSaveButtonMode(false);
         $('#modal_product_id').empty().append('<option value="">Buscar producto del catálogo...</option>');
@@ -1313,6 +1472,7 @@ $(function() {
         const currentCostCenterId = keepCostCenter ? $('#modal_cost_center_id').val() : '';
 
         $('#item_index').val('');
+        resetModalAttachment();
         $('#itemModalTitle').text('Agregar Partida');
         setItemSaveButtonMode(false);
         $('#modal_product_id').val(null).trigger('change');
@@ -2193,6 +2353,16 @@ $(function() {
             return;
         }
 
+        if (modalAttachmentUploading) {
+            Swal.fire('Archivo en carga', 'Espera a que termine de cargarse el documento antes de guardar la partida.', 'info');
+            return;
+        }
+
+        if ($('#modal_attach_document').is(':checked') && !modalAttachmentKey) {
+            Swal.fire('Documento requerido', 'Selecciona un documento para esta partida o desmarca la opción de adjuntar.', 'info');
+            return;
+        }
+
         const itemData = {
             product_id:            productId,
             product_name:          $('#modal_product_id option:selected').text(),
@@ -2208,7 +2378,8 @@ $(function() {
             cost_center_id:        costCenterId,
             cost_center_name:      costCenterName,
             purchase_type:         purchaseType,
-            notes:                 $('#modal_notes').val() || ''
+            notes:                 $('#modal_notes').val() || '',
+            attachment_key:        $('#modal_attach_document').is(':checked') ? modalAttachmentKey : null,
         };
 
         const editIndex = $('#item_index').val();

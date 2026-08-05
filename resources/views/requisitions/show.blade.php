@@ -213,6 +213,7 @@
                         <th width="180">Subcategoria Presupuestal</th>
                         <th width="150">Proveedor Sug.</th>
                         <th width="60" class="text-center">Notas</th>
+                        <th width="130" class="text-center">Documento</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -280,6 +281,21 @@
                                 title="{{ $item->notes }}"></i>
                             @else
                             -
+                            @endif
+                        </td>
+                        <td class="text-center">
+                            @if ($item->attachment)
+                            <a href="{{ route('requisitions.items.attachment.show', [$requisition, $item]) }}"
+                                target="_blank" rel="noopener"
+                                class="btn btn-sm btn-outline-primary requisition-attachment-link"
+                                title="Abrir {{ $item->attachment->original_name }}">
+                                <i class="ti ti-paperclip me-1"></i>Ver archivo
+                            </a>
+                            <small class="d-block text-muted text-truncate mt-1" style="max-width: 125px;" title="{{ $item->attachment->original_name }}">
+                                {{ $item->attachment->original_name }}
+                            </small>
+                            @else
+                            <span class="text-muted">-</span>
                             @endif
                         </td>
                     </tr>

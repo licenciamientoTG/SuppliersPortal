@@ -52,6 +52,7 @@
                                 'selectorId' => 'budget-cedula-selector-create',
                                 'budgetCedulas' => $budgetCedulas,
                                 'selectedIds' => collect(old('budget_cedula_ids', [])),
+                                'collapseGroups' => true,
                                 'departments' => $departments,
                                 'departmentAssignments' => old('department_subaccount_assignments', $departmentAssignments),
                         ])

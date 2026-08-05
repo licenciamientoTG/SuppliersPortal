@@ -7,25 +7,27 @@ use App\Enum\RequisitionStatus;
 use App\Events\RequisitionUpdated;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\BudgetCedula;
-use App\Models\CostCenter;
-use App\Models\Requisition;
 use App\Models\Company;
+use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\ReceivingLocation;
+use App\Models\Requisition;
+use App\Models\RequisitionItem;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
-use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 use Throwable;
+use Yajra\DataTables\Facades\DataTables;
 
 /**
  * Handles requisition management including creation, viewing, updating, and deletion.
- * 
+ *
  * IMPORTANTE: Las requisiciones NO manejan precios (RN-002).
  * Los precios se asignan en el módulo de COTIZACIONES.
  */
@@ -76,9 +78,9 @@ class RequisitionController extends Controller
             ->withCount('items');
 
         return DataTables::of($query)
-            ->addColumn('cost_center', fn($r) => e($r->primaryCostCenterLabel()))
-            ->addColumn('department', fn($r) => e($r->department?->name ?? '—'))
-            ->addColumn('requester', fn($r) => e($r->requester?->name ?? '—'))
+            ->addColumn('cost_center', fn ($r) => e($r->primaryCostCenterLabel()))
+            ->addColumn('department', fn ($r) => e($r->department?->name ?? '—'))
+            ->addColumn('requester', fn ($r) => e($r->requester?->name ?? '—'))
 
             // 'items_count' ya vendrá como atributo gracias a withCount
             ->editColumn('items_count', function ($r) {
@@ -87,14 +89,16 @@ class RequisitionController extends Controller
 
             // ✅ Status con data-status para filtrado
             ->editColumn('status', function ($requisition) {
-                return '<span data-status="' . $requisition->status->value . '" class="badge bg-' .
-                    $requisition->status->badgeClass() .
-                    '">' .
-                    $requisition->status->label() .
+                return '<span data-status="'.$requisition->status->value.'" class="badge bg-'.
+                    $requisition->status->badgeClass().
+                    '">'.
+                    $requisition->status->label().
                     '</span>';
             })
             ->editColumn('required_date', function ($r) {
-                if (!$r->required_date) return '—';
+                if (! $r->required_date) {
+                    return '—';
+                }
 
                 try {
                     // Si es un objeto Carbon o DateTime
@@ -111,7 +115,9 @@ class RequisitionController extends Controller
 
             // ✅ Fecha de creación - Manejo seguro
             ->editColumn('created_at', function ($r) {
-                if (!$r->created_at) return '—';
+                if (! $r->created_at) {
+                    return '—';
+                }
 
                 try {
                     // Si es un objeto Carbon o DateTime
@@ -132,12 +138,12 @@ class RequisitionController extends Controller
                 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $keyword)) {
                     // Si viene en formato ISO (YYYY-MM-DD) del input type="date"
                     $query->where('required_date', '>=', \Carbon\Carbon::parse($keyword)->startOfDay())
-                          ->where('required_date', '<=', \Carbon\Carbon::parse($keyword)->endOfDay());
+                        ->where('required_date', '<=', \Carbon\Carbon::parse($keyword)->endOfDay());
                 } elseif (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $keyword, $matches)) {
                     // Si viene en formato DD/MM/YYYY
                     $date = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
                     $query->where('required_date', '>=', \Carbon\Carbon::parse($date)->startOfDay())
-                          ->where('required_date', '<=', \Carbon\Carbon::parse($date)->endOfDay());
+                        ->where('required_date', '<=', \Carbon\Carbon::parse($date)->endOfDay());
                 }
             })
 
@@ -146,18 +152,18 @@ class RequisitionController extends Controller
                 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $keyword)) {
                     // Si viene en formato ISO (YYYY-MM-DD) del input type="date"
                     $query->where('created_at', '>=', \Carbon\Carbon::parse($keyword)->startOfDay())
-                          ->where('created_at', '<=', \Carbon\Carbon::parse($keyword)->endOfDay());
+                        ->where('created_at', '<=', \Carbon\Carbon::parse($keyword)->endOfDay());
                 } elseif (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $keyword, $matches)) {
                     // Si viene en formato DD/MM/YYYY
                     $date = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
                     $query->where('created_at', '>=', \Carbon\Carbon::parse($date)->startOfDay())
-                          ->where('created_at', '<=', \Carbon\Carbon::parse($date)->endOfDay());
+                        ->where('created_at', '<=', \Carbon\Carbon::parse($date)->endOfDay());
                 }
             })
 
             // ✅ Filtro personalizado para status (buscar por el valor del enum)
             ->filterColumn('status', function ($query, $keyword) {
-                if (!empty($keyword)) {
+                if (! empty($keyword)) {
                     $query->where('status', $keyword);
                 }
             })
@@ -176,17 +182,18 @@ class RequisitionController extends Controller
                 $csrfToken = csrf_token();
 
                 $html = '<div class="d-flex justify-content-end gap-1">'
-                    . '<a class="btn btn-sm btn-outline-secondary" href="' . $showUrl . '" title="Ver Detalles"><i class="ti ti-eye"></i></a>';
+                    .'<a class="btn btn-sm btn-outline-secondary" href="'.$showUrl.'" title="Ver Detalles"><i class="ti ti-eye"></i></a>';
 
                 if ($canEdit) {
-                    $html .= '<a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '" title="Editar"><i class="ti ti-pencil"></i></a>';
+                    $html .= '<a class="btn btn-sm btn-outline-primary" href="'.$editUrl.'" title="Editar"><i class="ti ti-pencil"></i></a>';
                 }
                 // Cancelar (PENDING, PAUSED, IN_QUOTATION)
                 if ($canCancel) {
-                    $html .= '<button type="button" class="btn btn-sm btn-outline-warning js-cancel-btn" data-folio="' . $r->folio . '" data-url="' . $cancelUrl . '" title="Cancelar"><i class="ti ti-ban"></i></button>';
+                    $html .= '<button type="button" class="btn btn-sm btn-outline-warning js-cancel-btn" data-folio="'.$r->folio.'" data-url="'.$cancelUrl.'" title="Cancelar"><i class="ti ti-ban"></i></button>';
                 }
 
                 $html .= '</div>';
+
                 return $html;
             })
             ->rawColumns(['status', 'actions'])
@@ -229,7 +236,7 @@ class RequisitionController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Error al guardar la requisición: ' . $e->getMessage());
+                ->with('error', 'Error al guardar la requisición: '.$e->getMessage());
         }
     }
 
@@ -262,8 +269,8 @@ class RequisitionController extends Controller
      */
     public function edit(Requisition $requisition): View
     {
-        if (!$requisition->canBeEdited()) {
-            abort(403, 'No se puede editar una requisición en estado "' . $requisition->statusLabel() . '".');
+        if (! $requisition->canBeEdited()) {
+            abort(403, 'No se puede editar una requisición en estado "'.$requisition->statusLabel().'".');
         }
 
         return view('requisitions.edit-livewire', compact('requisition'));
@@ -304,9 +311,10 @@ class RequisitionController extends Controller
             });
         } catch (Throwable $e) {
             DB::rollBack();
+
             return back()
                 ->withInput()
-                ->with('error', 'Error al actualizar la requisición: ' . $e->getMessage());
+                ->with('error', 'Error al actualizar la requisición: '.$e->getMessage());
         }
     }
 
@@ -329,19 +337,19 @@ class RequisitionController extends Controller
     public function cancel(Request $request, Requisition $requisition): RedirectResponse
     {
         // Solo se pueden cancelar requisiciones en estados activos
-        if (!$requisition->canBeCancelled()) {
+        if (! $requisition->canBeCancelled()) {
             return back()->with(
                 'error',
-                'No se puede cancelar una requisición en estado "' . $requisition->status->label() . '".'
+                'No se puede cancelar una requisición en estado "'.$requisition->status->label().'".'
             );
         }
 
         // Validar motivo de cancelación
         $request->validate([
-            'cancellation_reason' => 'required|string|max:1000'
+            'cancellation_reason' => 'required|string|max:1000',
         ], [
             'cancellation_reason.required' => 'Debe proporcionar un motivo de cancelación.',
-            'cancellation_reason.max' => 'El motivo no puede exceder 1000 caracteres.'
+            'cancellation_reason.max' => 'El motivo no puede exceder 1000 caracteres.',
         ]);
 
         try {
@@ -361,7 +369,7 @@ class RequisitionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Error al cancelar la requisición: ' . $e->getMessage());
+            return back()->with('error', 'Error al cancelar la requisición: '.$e->getMessage());
         }
     }
 
@@ -380,6 +388,7 @@ class RequisitionController extends Controller
             'items.costCenter',
             'items.suggestedVendor',
             'items.contractProduct',
+            'items.attachment',
             'purchaseOrders.supplier',
             'requester',
             'creator',
@@ -390,6 +399,30 @@ class RequisitionController extends Controller
         ]);
 
         return view('requisitions.show', compact('requisition'));
+    }
+
+    /**
+     * Muestra el adjunto privado asociado a una partida de la requisición.
+     */
+    public function showItemAttachment(Requisition $requisition, RequisitionItem $item)
+    {
+        abort_unless((int) $item->requisition_id === (int) $requisition->id, 404);
+
+        $attachment = $item->attachment;
+
+        abort_unless($attachment, 404, 'La partida no tiene un archivo adjunto.');
+        abort_unless(
+            Storage::disk($attachment->disk)->exists($attachment->path),
+            404,
+            'El archivo adjunto ya no está disponible.'
+        );
+
+        return Storage::disk($attachment->disk)->response(
+            $attachment->path,
+            $attachment->original_name,
+            ['Content-Type' => $attachment->mime_type ?: 'application/octet-stream'],
+            'inline'
+        );
     }
 
     /**
@@ -538,12 +571,12 @@ class RequisitionController extends Controller
         $incomingIds = collect($items)
             ->pluck('id')
             ->filter()
-            ->map(fn($v) => (int) $v)
+            ->map(fn ($v) => (int) $v)
             ->all();
 
         // Eliminar partidas que ya no están en el request
         $toDelete = array_diff($currentIds, $incomingIds);
-        if (!empty($toDelete)) {
+        if (! empty($toDelete)) {
             $requisition->items()->whereIn('id', $toDelete)->delete();
         }
 
@@ -555,22 +588,22 @@ class RequisitionController extends Controller
 
     /**
      * Process a single requisition item.
-     * 
+     *
      * IMPORTANTE: NO se manejan precios aquí (RN-002).
      * Los precios se asignan en el módulo de COTIZACIONES.
-     * 
+     *
      * Esta función procesa una partida individual de la requisición:
      * - Valida que el producto exista en el catálogo (RN-001)
      * - Hereda información del catálogo (código, descripción, unidad)
      * - Asigna la categoría de gasto seleccionada por el requisitor (RN-010A, RN-010B)
      * - NO asigna mes de aplicación (este campo fue eliminado del sistema)
      * - NO maneja precios (estos se asignan en cotizaciones - RN-002)
-     * 
-     * @param Requisition $requisition La requisición padre
-     * @param array $itemData Datos de la partida desde el formulario
-     * @param int $lineNumber Número de línea secuencial
+     *
+     * @param  Requisition  $requisition  La requisición padre
+     * @param  array  $itemData  Datos de la partida desde el formulario
+     * @param  int  $lineNumber  Número de línea secuencial
+     *
      * @throws \RuntimeException Si el producto no existe en el catálogo
-     * @return void
      */
     protected function processRequisitionItem(Requisition $requisition, array $itemData, int $lineNumber): void
     {
@@ -580,7 +613,7 @@ class RequisitionController extends Controller
         // RN-001: Validar que el producto exista en el catálogo
         $product = ProductService::find($itemData['product_service_id']);
 
-        if (!$product) {
+        if (! $product) {
             throw new \RuntimeException('El producto seleccionado no existe en el catálogo (RN-001).');
         }
 
@@ -681,11 +714,11 @@ class RequisitionController extends Controller
             9 => 'Septiembre',
             10 => 'Octubre',
             11 => 'Noviembre',
-            12 => 'Diciembre'
+            12 => 'Diciembre',
         ];
 
         // Filtrar solo meses válidos (del mes actual a diciembre - RN-010E)
-        return array_filter($months, fn($month) => $month >= $currentMonth, ARRAY_FILTER_USE_KEY);
+        return array_filter($months, fn ($month) => $month >= $currentMonth, ARRAY_FILTER_USE_KEY);
     }
 
     /**
@@ -716,8 +749,8 @@ class RequisitionController extends Controller
                 return $row->items_count;
             })
             ->editColumn('status', function ($row) {
-                $badges = '<span class="badge bg-' . $row->status->badgeClass() . '">' .
-                    $row->status->label() . '</span>';
+                $badges = '<span class="badge bg-'.$row->status->badgeClass().'">'.
+                    $row->status->label().'</span>';
 
                 if ($row->feedbacks_count > 0) {
                     $badges .= ' <span class="badge bg-info-subtle text-info border border-info-subtle">Retroalimentada</span>';
@@ -734,7 +767,7 @@ class RequisitionController extends Controller
                     $actions[] = [
                         'url' => route('requisitions.validate.show', $row->id),
                         'icon' => 'ti ti-check',
-                        'label' => 'Validar Requisición'
+                        'label' => 'Validar Requisición',
                     ];
                 }
 
@@ -743,7 +776,7 @@ class RequisitionController extends Controller
                     $actions[] = [
                         'url' => route('requisitions.quotation-planner.show', $row->id),
                         'icon' => 'ti ti-layout-grid',
-                        'label' => 'Planificar Cotización'
+                        'label' => 'Planificar Cotización',
                     ];
                 }
 
@@ -753,14 +786,14 @@ class RequisitionController extends Controller
 
                 $html = '<div class="d-flex justify-content-end gap-1">';
                 foreach ($actions as $action) {
-                    $html .= '<a class="btn btn-sm btn-outline-secondary" href="' . $action['url'] . '" title="' . $action['label'] . '"><i class="' . $action['icon'] . '"></i></a>';
+                    $html .= '<a class="btn btn-sm btn-outline-secondary" href="'.$action['url'].'" title="'.$action['label'].'"><i class="'.$action['icon'].'"></i></a>';
                 }
                 $html .= '</div>';
 
                 return $html;
             })
-            ->editColumn('created_at', fn($row) => $row->created_at ? $row->created_at->format('d/m/Y H:i') : 'N/A')
-            ->editColumn('required_date', fn($row) => $row->required_date ? $row->required_date->format('d/m/Y') : 'N/A')
+            ->editColumn('created_at', fn ($row) => $row->created_at ? $row->created_at->format('d/m/Y H:i') : 'N/A')
+            ->editColumn('required_date', fn ($row) => $row->required_date ? $row->required_date->format('d/m/Y') : 'N/A')
             ->rawColumns(['status', 'action'])
             ->make(true);
     }
@@ -785,15 +818,15 @@ class RequisitionController extends Controller
 
             'cost_center' => $requisition->primaryCostCenterLabel(),
 
-            'partidas' => $requisition->items->map(fn($item) => [
+            'partidas' => $requisition->items->map(fn ($item) => [
                 // Usamos Null Safe aquí también por si acaso
                 'producto' => $item->description ?? $item->productService?->description ?? 'N/A',
                 'cantidad' => (float) $item->quantity,
                 'unidad' => $item->unit ?? 'PZA',
-                'categoria_sugerida' => $item->expenseCategory?->name ?? 'N/A'
+                'categoria_sugerida' => $item->expenseCategory?->name ?? 'N/A',
             ]),
 
-            'action_url' => route('requisitions.validate-technical', $requisition->id)
+            'action_url' => route('requisitions.validate-technical', $requisition->id),
         ]);
     }
 
@@ -807,11 +840,11 @@ class RequisitionController extends Controller
         $request->validate([
             'specs_clear' => 'required|accepted', // "Las especificaciones son claras"
             'time_feasible' => 'required|accepted', // "El tiempo es realista"
-            'category_id' => 'required|exists:categorias_gastos,id' // Compras puede ajustar la categoría
+            'category_id' => 'required|exists:categorias_gastos,id', // Compras puede ajustar la categoría
         ]);
 
         try {
-            DB::transaction(function () use ($requisition, $request) {
+            DB::transaction(function () use ($requisition) {
                 // Actualizamos estatus a "En Cotización" [cite: 634]
                 $requisition->update([
                     'status' => 'En cotización',
@@ -825,10 +858,10 @@ class RequisitionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Requisición validada. Lista para cotizar (RFQ).'
+                'message' => 'Requisición validada. Lista para cotizar (RFQ).',
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error al validar: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error al validar: '.$e->getMessage()], 500);
         }
     }
 
@@ -840,14 +873,14 @@ class RequisitionController extends Controller
     {
         // La justificación es obligatoria y mínima de 50 caracteres [cite: 334-335]
         $request->validate([
-            'reason' => 'required|string|min:50'
+            'reason' => 'required|string|min:50',
         ]);
 
         $requisition->update([
             'status' => 'Rechazada', // [cite: 638]
             'rejection_reason' => $request->reason,
             'rejected_at' => now(),
-            'rejected_by' => Auth::id()
+            'rejected_by' => Auth::id(),
         ]);
 
         // IMPORTANTE: El presupuesto no se afecta en rechazo, así que no hacemos rollback de fondos aquí.
@@ -858,7 +891,7 @@ class RequisitionController extends Controller
     // Método temporal en tu controlador
     public function duplicateForTesting($id)
     {
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             abort(403, 'Esta función solo está disponible en desarrollo');
         }
 

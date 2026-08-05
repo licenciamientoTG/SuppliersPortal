@@ -56,6 +56,7 @@ class RequisitionWorkflowController extends Controller
             'items.costCenter',
             'items.productService',
             'items.expenseCategory',
+            'items.attachment',
             'feedbacks.buyer',
         ]);
 

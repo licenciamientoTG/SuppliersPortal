@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Models\Requisition;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Notificación que se envía al Departamento de Compras cuando
@@ -38,20 +38,34 @@ class NewRequisitionForPurchasingNotification extends Notification
     {
         $url = route('requisitions.show', $this->requisition->id);
 
-        return (new MailMessage)
-            ->subject('Nueva Requisición para Cotizar - ' . $this->requisition->folio)
+        $mailMessage = (new MailMessage)
+            ->subject('Nueva Requisición para Cotizar - '.$this->requisition->folio)
             ->view('emails.notifications.new-requisition-for-purchasing', [
-                'name'         => $notifiable->first_name ?? $notifiable->name,
-                'folio'        => $this->requisition->folio,
-                'requester'    => $this->requisition->requester?->name ?? '—',
-                'department'   => $this->requisition->department?->name ?? '—',
-                'costCenter'   => $this->requisition->costCenter?->name ?? '—',
-                'company'      => $this->requisition->company?->name ?? '—',
-                'itemsCount'   => $this->requisition->items()->count(),
+                'name' => $notifiable->first_name ?? $notifiable->name,
+                'folio' => $this->requisition->folio,
+                'requester' => $this->requisition->requester?->name ?? '—',
+                'department' => $this->requisition->department?->name ?? '—',
+                'costCenter' => $this->requisition->costCenter?->name ?? '—',
+                'company' => $this->requisition->company?->name ?? '—',
+                'itemsCount' => $this->requisition->items()->count(),
                 'requiredDate' => $this->requisition->required_date ? $this->requisition->required_date->format('d/m/Y') : 'No especificada',
-                'description'  => $this->requisition->description ?: 'Sin descripción',
-                'url'          => $url,
+                'description' => $this->requisition->description ?: 'Sin descripción',
+                'url' => $url,
             ]);
+
+        $this->requisition->items()->with('attachment')->get()
+            ->pluck('attachment')
+            ->filter()
+            ->each(function ($attachment) use ($mailMessage) {
+                if (Storage::disk($attachment->disk)->exists($attachment->path)) {
+                    $mailMessage->attach(
+                        Storage::disk($attachment->disk)->path($attachment->path),
+                        ['as' => $attachment->original_name, 'mime' => $attachment->mime_type]
+                    );
+                }
+            });
+
+        return $mailMessage;
     }
 
     /**
@@ -65,7 +79,7 @@ class NewRequisitionForPurchasingNotification extends Notification
             'requisition_folio' => $this->requisition->folio,
             'requester_name' => $this->requisition->requester?->name ?? '—',
             'url' => route('requisitions.show', $this->requisition->id),
-            'message' => 'Nueva requisición ' . $this->requisition->folio . ' recibida de ' . ($this->requisition->requester?->name ?? '—'),
+            'message' => 'Nueva requisición '.$this->requisition->folio.' recibida de '.($this->requisition->requester?->name ?? '—'),
         ];
     }
 }

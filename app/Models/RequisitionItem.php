@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RequisitionItem extends Model
 {
     use HasFactory;
+
     protected $table = 'requisition_items';
 
     protected $fillable = [
@@ -55,6 +57,11 @@ class RequisitionItem extends Model
     public function requisition(): BelongsTo
     {
         return $this->belongsTo(Requisition::class);
+    }
+
+    public function attachment(): HasOne
+    {
+        return $this->hasOne(RequisitionAttachment::class);
     }
 
     /**
@@ -180,7 +187,7 @@ class RequisitionItem extends Model
      */
     public function getFormattedQuantity(): string
     {
-        return number_format($this->quantity, 3) . ' ' . $this->unit;
+        return number_format($this->quantity, 3).' '.$this->unit;
     }
 
     // =========================================================================

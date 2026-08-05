@@ -111,6 +111,7 @@
                         <th class="text-center" width="100">Unidad</th>
                         <th width="200">Cuenta</th>
                         <th width="80">Notas</th>
+                        <th width="120" class="text-center">Documento</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -147,10 +148,22 @@
                                     <span class="text-muted">—</span>
                                 @endif
                             </td>
+                            <td class="text-center">
+                                @if ($item->attachment)
+                                    <a href="{{ route('requisitions.items.attachment.show', [$requisition, $item]) }}"
+                                        target="_blank" rel="noopener"
+                                        class="btn btn-sm btn-outline-primary requisition-attachment-link"
+                                        title="Abrir {{ $item->attachment->original_name }}">
+                                        <i class="ti ti-paperclip me-1"></i>Ver archivo
+                                    </a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                         </tr>
                         @if ($item->notes)
                             <tr id="notes-row-{{ $index }}" class="notes-row d-none">
-                                <td colspan="7" class="bg-light">
+                                <td colspan="8" class="bg-light">
                                     <div class="d-flex align-items-start gap-2 py-2">
                                         <div class="flex-grow-1">
                                             <small class="text-muted d-block mb-1">
@@ -168,7 +181,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 No hay partidas en esta requisición
                             </td>
                         </tr>

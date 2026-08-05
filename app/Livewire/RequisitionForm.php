@@ -16,9 +16,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class RequisitionForm extends Component
 {
+    use WithFileUploads;
+
     // ===== PROPIEDADES DE MODO =====
     public $isEditMode = false;
 
@@ -32,6 +35,8 @@ class RequisitionForm extends Component
     public $required_date;
 
     public $description = '';
+
+    public array $itemAttachments = [];
 
     // ===== COLECCIONES =====
     public $companies = [];
@@ -181,6 +186,7 @@ class RequisitionForm extends Component
             'company_id' => 'required|exists:companies,id',
             'receiving_location_id' => 'required|exists:receiving_locations,id',
             'description' => 'nullable|string|max:500',
+            'itemAttachments.*' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
         ], [
             'company_id.required' => 'La compañía es obligatoria.',
             'receiving_location_id.required' => 'La ubicación de recepción es obligatoria.',
@@ -217,6 +223,20 @@ class RequisitionForm extends Component
             if ($this->isEditMode) {
                 // ===== MODO EDICIÓN =====
                 $requisition = Requisition::findOrFail($this->requisitionId);
+                $existingAttachments = $requisition->items()
+                    ->with('attachment')
+                    ->orderBy('line_number')
+                    ->get()
+                    ->mapWithKeys(function (RequisitionItem $item): array {
+                        return [$item->line_number => $item->attachment?->only([
+                            'disk',
+                            'path',
+                            'original_name',
+                            'mime_type',
+                            'size',
+                        ])];
+                    })
+                    ->all();
 
                 // Actualizar datos principales
                 $requisition->update([
@@ -235,7 +255,7 @@ class RequisitionForm extends Component
                 foreach ($this->items as $index => $item) {
                     $product = \App\Models\ProductService::find($item['product_id']);
                     $itemDescription = $this->resolvedItemDescription($item, $product);
-                    RequisitionItem::create([
+                    $requisitionItem = RequisitionItem::create([
                         'requisition_id' => $requisition->id,
                         'product_service_id' => $item['product_id'],
                         'line_number' => $index + 1,
@@ -250,6 +270,10 @@ class RequisitionForm extends Component
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
                         'notes' => $item['notes'] ?? null,
                     ]);
+
+                    if ($attachment = $existingAttachments[$index + 1] ?? null) {
+                        $requisitionItem->attachment()->create($attachment);
+                    }
                 }
 
                 $message = "Requisición {$requisition->folio} actualizada correctamente";
@@ -288,6 +312,10 @@ class RequisitionForm extends Component
                 }
 
                 $message = "Requisición creada con folio: {$requisition->folio}";
+            }
+
+            foreach ($requisition->items()->orderBy('line_number')->get() as $index => $requisitionItem) {
+                $this->persistItemAttachment($requisitionItem, $this->items[$index]['attachment_key'] ?? null);
             }
 
             // Si se va a enviar a Compras
@@ -405,6 +433,7 @@ class RequisitionForm extends Component
             'cost_center_name' => $itemData['cost_center_name'],
             'purchase_type' => $itemData['purchase_type'],
             'notes' => $itemData['notes'] ?? '',
+            'attachment_key' => $itemData['attachment_key'] ?? null,
         ];
 
         $this->dispatch(
@@ -449,6 +478,7 @@ class RequisitionForm extends Component
             'cost_center_name' => $itemData['cost_center_name'],
             'purchase_type' => $itemData['purchase_type'],
             'notes' => $itemData['notes'] ?? '',
+            'attachment_key' => $itemData['attachment_key'] ?? null,
         ];
 
         $this->dispatch(
@@ -499,6 +529,25 @@ class RequisitionForm extends Component
         if ($this->receiving_location_id && ! $this->receivingLocationBelongsToCompany()) {
             $this->receiving_location_id = null;
         }
+    }
+
+    private function persistItemAttachment(RequisitionItem $item, ?string $attachmentKey): void
+    {
+        if (! $attachmentKey || empty($this->itemAttachments[$attachmentKey])) {
+            return;
+        }
+
+        $attachment = $this->itemAttachments[$attachmentKey];
+        $disk = 'local';
+        $path = $attachment->store("requisition-item-attachments/{$item->id}", $disk);
+
+        $item->attachment()->updateOrCreate([], [
+            'disk' => $disk,
+            'path' => $path,
+            'original_name' => $attachment->getClientOriginalName(),
+            'mime_type' => $attachment->getMimeType(),
+            'size' => $attachment->getSize(),
+        ]);
     }
 
     private function receivingLocationBelongsToCompany(): bool

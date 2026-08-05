@@ -8,6 +8,17 @@
 @endsection
 
 @section('content')
+    <section class="product-edit-context mb-3" aria-label="Producto o servicio que se está editando">
+        <div class="product-edit-context__icon"><i class="ti ti-package"></i></div>
+        <div class="product-edit-context__content">
+            <span>Editando producto/servicio</span>
+            <h2>{{ $productService->code }} · {{ $productService->short_name ?: $productService->technical_description }}</h2>
+            @if ($productService->short_name && $productService->technical_description !== $productService->short_name)
+                <p>{{ $productService->technical_description }}</p>
+            @endif
+        </div>
+    </section>
+
     <form action="{{ route('products-services.update', $productService->id) }}" method="POST">
     @csrf
     @method('PUT')
@@ -436,5 +447,55 @@
             });
         });
     </script>
+@endpush
+
+@push('styles')
+    <style>
+        .product-edit-context {
+            display: flex;
+            align-items: flex-start;
+            gap: .85rem;
+            padding: 1rem 1.15rem;
+            border: 1px solid #e2e9f0;
+            border-radius: .75rem;
+            background: #f7fbff;
+            box-shadow: 0 4px 14px rgba(28, 80, 120, .04);
+        }
+
+        .product-edit-context__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: .65rem;
+            color: #188ae2;
+            background: #eaf6ff;
+            font-size: 1.2rem;
+        }
+
+        .product-edit-context__content span {
+            display: block;
+            color: #718096;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .product-edit-context__content h2 {
+            margin: .15rem 0 0;
+            color: #24364b;
+            font-size: 1.08rem;
+            font-weight: 700;
+        }
+
+        .product-edit-context__content p {
+            margin: .2rem 0 0;
+            color: #718096;
+            font-size: .82rem;
+        }
+    </style>
 @endpush
 

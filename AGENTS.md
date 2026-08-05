@@ -23,3 +23,12 @@ Recent history favors short conventional prefixes like `feat:`, `refactor:`, and
 
 ## Security & Configuration Tips
 Do not commit secrets from `.env`; use `.env.example` as the template. When adding integrations or background jobs, document required environment variables and queue behavior in the PR. Review `config/` defaults before changing mail, queue, or permission settings.
+
+## Database Safety
+Protect operational and shared databases. Codex may perform intentional, scoped data writes requested by the user, such as `INSERT`, `UPDATE`, ordinary additive migrations, or a specific seeder/importer. Before a write, inspect and report the effective connection and database name; do not proceed if the target is shared, production-like, unknown, or configuration makes it uncertain.
+
+- Never run `php artisan migrate:fresh`, `php artisan migrate:refresh`, `php artisan db:wipe`, `php artisan schema:dump --prune`, or equivalent destructive SQL (`DROP`, `TRUNCATE`, unscoped mass `DELETE`, or database recreation), unless the user explicitly authorizes that exact operation and confirms an isolated disposable database.
+- Do not infer permission for destructive database operations from a general implementation request.
+- `php artisan migrate`, additive migrations, `INSERT`, targeted `UPDATE`, targeted `DELETE`, and specifically requested seeders/imports are allowed when their scope is clear and the target connection has been verified.
+- For automated tests, use the isolated test configuration from `phpunit.xml`; never override it to point to an operational database.
+- Prefer read-only checks (`php artisan migrate:status`, `php artisan migrate --pretend`, linting, and view cache) when they are sufficient.

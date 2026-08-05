@@ -76,7 +76,7 @@
                         <div class="col-md-6 js-cedula-row"
                              data-category="{{ $categoryKey }}"
                              data-id="{{ $cedula->id }}"
-                             data-label="{{ Str::lower(($category?->code ?? '') . ' ' . ($category?->name ?? '') . ' ' . $cedula->name) }}">
+                             data-label="{{ Str::lower($cedula->name . ' ' . ($subaccount?->code ?? '')) }}">
                             <label class="d-flex gap-2 align-items-start p-2 mb-0 border-end border-bottom cursor-pointer">
                                 <input class="form-check-input mt-1 js-cedula-check"
                                        type="checkbox"
@@ -195,6 +195,24 @@
                     }).get();
                 }
 
+                function normalizeSearchValue(value) {
+                    return String(value)
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .toLowerCase();
+                }
+
+                function setCategoryPanelVisibility($card, shouldExpand) {
+                    const panel = $card.find('.js-category-panel').get(0);
+
+                    if (!panel || !panel.classList.contains('collapse') || !window.bootstrap?.Collapse) {
+                        return;
+                    }
+
+                    const collapse = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
+                    shouldExpand ? collapse.show() : collapse.hide();
+                }
+
                 function syncHiddenInputs() {
                     const values = selectedValues();
                     $hiddenInputs.empty();
@@ -262,29 +280,23 @@
                 $root.on('change', '.js-cedula-check, .js-department-assignment-check', syncAll);
 
                 $root.on('input', '.js-budget-search', function() {
-                    const term = $(this).val().toLowerCase().trim();
+                    const term = normalizeSearchValue($(this).val()).trim();
 
                     $root.find('.js-category-card').each(function() {
                         const $card = $(this);
-                        const cardMatches = !term || String($card.data('search')).includes(term);
                         let visibleRows = 0;
 
                         $card.find('.js-cedula-row').each(function() {
-                            const rowMatches = !term || cardMatches || String($(this).data('label')).includes(term);
+                            const rowMatches = !term || normalizeSearchValue($(this).data('label')).includes(term);
                             $(this).toggle(rowMatches);
                             if (rowMatches) {
                                 visibleRows++;
                             }
                         });
 
-                        $card.toggle(cardMatches || visibleRows > 0);
-
-                        if (term && (cardMatches || visibleRows > 0)) {
-                            const panel = $card.find('.js-category-panel').get(0);
-                            if (panel && window.bootstrap?.Collapse) {
-                                bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).show();
-                            }
-                        }
+                        const hasMatches = visibleRows > 0;
+                        $card.toggle(!term || hasMatches);
+                        setCategoryPanelVisibility($card, Boolean(term && hasMatches));
                     });
                 });
 

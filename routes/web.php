@@ -397,6 +397,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/{requisition}/review-data', 'reviewData')->name('review-data');
         Route::post('/{requisition}/validate-technical', 'validateTechnical')->name('validate-technical');
         Route::post('/{requisition}/reject', 'reject')->name('reject');
+        Route::get('/{requisition}/items/{item}/attachment', 'showItemAttachment')->name('items.attachment.show');
 
         // CRUD
         Route::get('/', 'index')->name('index');
