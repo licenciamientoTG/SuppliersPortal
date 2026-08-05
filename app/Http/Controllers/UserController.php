@@ -949,11 +949,28 @@ class UserController extends Controller
         // company_ids[] llega del <select multiple> o checkboxes
         $ids = $request->input('company_ids', []);
         // Normaliza a enteros por seguridad
-        $ids = array_map('intval', $ids);
+        $ids = array_values(array_unique(array_map('intval', $ids)));
 
-        $user->companies()->sync($ids);
+        DB::transaction(function () use ($user, $ids) {
+            $currentCompanyIds = $user->companies()->pluck('companies.id')->map(fn ($id) => (int) $id)->all();
+            $revokedCompanyIds = array_diff($currentCompanyIds, $ids);
 
-        return response()->json(['success' => true]);
+            $user->companies()->sync($ids);
+
+            if (! empty($revokedCompanyIds)) {
+                $costCenterIds = $user->costCenters()
+                    ->whereIn('cost_centers.company_id', $revokedCompanyIds)
+                    ->pluck('cost_centers.id')
+                    ->all();
+
+                $user->costCenters()->detach($costCenterIds);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Empresas actualizadas correctamente.',
+        ]);
     }
 
     /**
