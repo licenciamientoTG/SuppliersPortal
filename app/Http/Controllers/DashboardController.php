@@ -10,8 +10,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly DashboardService $dashboardService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -19,7 +18,7 @@ class DashboardController extends Controller
         abort_unless($user, 403);
 
         return view('dashboard', [
-            'dashboard' => $this->dashboardService->buildForUser($user),
+            'dashboard' => $this->dashboardService->buildInitialForUser($user),
         ]);
     }
 }

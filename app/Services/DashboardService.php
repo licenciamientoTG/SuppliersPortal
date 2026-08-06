@@ -24,6 +24,8 @@ use Illuminate\Support\Str;
 
 class DashboardService
 {
+    private ?int $criticalBudgetCount = null;
+
     private const INTERNAL_ROLE_ORDER = [
         'staff',
         'buyer',
@@ -104,6 +106,28 @@ class DashboardService
         $board['sections'] = array_values($board['sections']);
 
         return $board;
+    }
+
+    /**
+     * Datos que deben estar disponibles en el primer render del dashboard.
+     *
+     * Los widgets operativos se cargan en un componente Livewire diferido para
+     * no bloquear la navegacion inicial con las consultas de todos los roles.
+     */
+    public function buildInitialForUser(User $user): array
+    {
+        $roles = $this->resolveInternalRoles($user);
+
+        return [
+            'hero' => [
+                'eyebrow' => 'Centro de trabajo',
+                'title' => 'Vista operativa',
+                'subtitle' => 'Consulta pendientes, accesos rapidos y actividad clave en un solo lugar.',
+                'user_name' => $user->full_name ?: $user->name,
+                'context_badge' => $this->contextBadgeForRoles($roles),
+                'notification_summary' => $this->notificationSummaryForNotifiable($user),
+            ],
+        ];
     }
 
     public function buildForSupplier(Supplier $supplier): array
@@ -380,7 +404,13 @@ class DashboardService
             ->whereNull('rfq_suppliers.responded_at')
             ->count();
 
-        $pendingApprovals = QuotationSummary::query()->pending()->assignedTo($user->id);
+        $pendingApprovals = QuotationSummary::query()
+            ->with([
+                'requisition:id,folio',
+                'currentApprover:id,name,full_name',
+            ])
+            ->pending()
+            ->assignedTo($user->id);
         $openOrderStatuses = ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'];
         $pendingDocs = SupplierDocument::query()->where('status', 'pending_review')->count();
 
@@ -453,7 +483,13 @@ class DashboardService
 
     private function buildAuthorizerBoard(User $user): array
     {
-        $quotationApprovals = QuotationSummary::query()->pending()->assignedTo($user->id);
+        $quotationApprovals = QuotationSummary::query()
+            ->with([
+                'requisition:id,folio',
+                'requester:id,name,full_name',
+            ])
+            ->pending()
+            ->assignedTo($user->id);
         $directOrders = DirectPurchaseOrder::query()->assignedToApprover($user->id);
         $contractOrders = PurchaseOrder::query()->assignedToApprover($user->id);
         $criticalBudgets = $this->criticalBudgetCount();
@@ -595,6 +631,7 @@ class DashboardService
                     'items' => collect()
                         ->merge(
                             FinancialProvision::query()
+                                ->with('supplier:id,company_name')
                                 ->whereIn('status', [
                                     FinancialProvision::STATUS_PENDING_INVOICE,
                                     FinancialProvision::STATUS_DISCREPANCY_REVIEW,
@@ -617,6 +654,7 @@ class DashboardService
                         )
                         ->merge(
                             SupplierInvoice::query()
+                                ->with('supplier:id,company_name')
                                 ->where('status', SupplierInvoice::STATUS_UPLOADED)
                                 ->latest()
                                 ->limit(3)
@@ -856,19 +894,17 @@ class DashboardService
 
     private function criticalBudgetCount(): int
     {
+        if ($this->criticalBudgetCount !== null) {
+            return $this->criticalBudgetCount;
+        }
+
         $currentYear = (int) now()->year;
 
-        return BudgetMonthlyDistribution::query()
+        return $this->criticalBudgetCount = BudgetMonthlyDistribution::query()
             ->whereHas('annualBudget', fn ($query) => $query->where('fiscal_year', $currentYear))
-            ->get()
-            ->filter(function (BudgetMonthlyDistribution $distribution) {
-                $assigned = (float) $distribution->assigned_amount;
-                $consumed = (float) $distribution->consumed_amount;
-                $committed = (float) $distribution->committed_amount;
-                $available = (float) $distribution->getAvailableAmount();
-                $usage = $assigned > 0 ? (($consumed + $committed) / $assigned) : 0;
-
-                return $available <= 0 || $usage > 0.7;
+            ->where(function ($query) {
+                $query->whereRaw('assigned_amount - consumed_amount - committed_amount <= 0')
+                    ->orWhereRaw('(consumed_amount + committed_amount) > (assigned_amount * 0.7)');
             })
             ->count();
     }

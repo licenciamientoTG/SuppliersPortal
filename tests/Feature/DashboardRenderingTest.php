@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\CheckLockScreen;
+use App\Http\Middleware\EnsureSupplierIsApproved;
+use App\Livewire\Dashboard\DashboardContent;
 use App\Models\QuotationSummary;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
@@ -13,6 +15,7 @@ use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -50,6 +53,11 @@ class DashboardRenderingTest extends TestCase
 
         $response->assertOk()
             ->assertSeeText('Vista operativa')
+            ->assertSeeText('Tu resumen operativo se cargara al continuar')
+            ->assertDontSeeText('Mis requisiciones recientes');
+
+        Livewire::actingAs($user)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Mis requisiciones recientes')
             ->assertSeeText('Mis borradores')
             ->assertSeeText('En proceso')
@@ -71,9 +79,10 @@ class DashboardRenderingTest extends TestCase
             'status' => 'QUOTED',
         ]);
 
-        $response = $this->actingAs($user)->get(route('dashboard'));
+        $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $response->assertOk()
+        Livewire::actingAs($user)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Cotizadas')
             ->assertSeeText('1')
             ->assertSeeText('Mis requisiciones recientes');
@@ -110,9 +119,10 @@ class DashboardRenderingTest extends TestCase
             'total' => 1250,
         ]);
 
-        $response = $this->actingAs($buyer)->get(route('dashboard'));
+        $this->actingAs($buyer)->get(route('dashboard'))->assertOk();
 
-        $response->assertOk()
+        Livewire::actingAs($buyer)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Gestionar RFQs')
             ->assertSeeText('Bandeja operativa de compras')
             ->assertSeeText('RFQs enviadas')
@@ -142,9 +152,10 @@ class DashboardRenderingTest extends TestCase
             'uploaded_by_supplier_id' => $supplier->id,
         ]);
 
-        $response = $this->actingAs($user)->get(route('dashboard'));
+        $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $response->assertOk()
+        Livewire::actingAs($user)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Bandeja financiera')
             ->assertSeeText('Facturas cargadas')
             ->assertSeeText('Provisiones pendientes')
@@ -158,9 +169,10 @@ class DashboardRenderingTest extends TestCase
         $user->assignRole('staff');
         $user->assignRole('accounting');
 
-        $response = $this->actingAs($user)->get(route('dashboard'));
+        $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $response->assertOk()
+        Livewire::actingAs($user)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Mis requisiciones recientes')
             ->assertSeeText('Bandeja financiera')
             ->assertSeeText('Nueva requisicion')
@@ -172,9 +184,10 @@ class DashboardRenderingTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('superadmin');
 
-        $response = $this->actingAs($user)->get(route('dashboard'));
+        $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $response->assertOk()
+        Livewire::actingAs($user)
+            ->test(DashboardContent::class, ['lazy' => false])
             ->assertSeeText('Vista consolidada')
             ->assertSeeText('Mis requisiciones recientes')
             ->assertSeeText('Bandeja financiera')
@@ -183,6 +196,8 @@ class DashboardRenderingTest extends TestCase
 
     public function test_supplier_dashboard_uses_new_board_and_keeps_rfq_flow_visible(): void
     {
+        $this->withoutMiddleware(EnsureSupplierIsApproved::class);
+
         $supplier = Supplier::factory()->create([
             'approval_status' => 'approved',
             'document_status' => 'pending',
