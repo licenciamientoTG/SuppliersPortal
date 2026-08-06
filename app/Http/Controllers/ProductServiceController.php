@@ -49,11 +49,16 @@ class ProductServiceController extends Controller
      */
     public function datatable(Request $request)
     {
-        $query = ProductService::query()
-            ->with(['creator', 'subaccounts.account']);
+        // Las columnas del listado no muestran relaciones. Evitar eager loading
+        // aqui reduce consultas e hidratacion en cada pagina de DataTables.
+        $query = ProductService::query();
 
-        $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($request->user());
-        if (! $request->user()?->can('productos.administrar')) {
+        $user = $request->user();
+        $canManageCatalog = $user?->can('productos.administrar')
+            || $user?->hasAnyRole(['catalog_admin', 'superadmin']);
+
+        if (! $canManageCatalog) {
+            $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor($user);
             $query->withAllowedSubaccounts($allowedSubaccounts);
         }
 

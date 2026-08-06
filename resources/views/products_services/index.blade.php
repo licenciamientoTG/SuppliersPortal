@@ -78,15 +78,7 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('assets/vendor/datatables.net/js/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/datatables.net-bs5/js/dataTables.bootstrap5.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/datatables.net-buttons/js/dataTables.buttons.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/datatables.net-buttons/js/buttons.html5.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/datatables.net-buttons/js/buttons.print.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/jszip/jszip.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/pdfmake/pdfmake.min.js') }}"></script>
-    <script src="{{ asset('assets/vendor/pdfmake/vfs_fonts.js') }}"></script>
+    {{-- DataTables y sus dependencias se incluyen una vez desde layouts.zircos. --}}
     <script>
         $(function() {
             const table = $('#productsTable').DataTable({
