@@ -84,6 +84,7 @@
             const table = $('#productsTable').DataTable({
                 responsive: false,
                 processing: true,
+                serverSide: true,
                 dom: '<"top"Bf>rt<"bottom"lip>',
                 pageLength: 50,
                 buttons: [{

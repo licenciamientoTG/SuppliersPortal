@@ -25,7 +25,7 @@ class ProductServiceDatatableTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole('superadmin');
-        $product = ProductService::factory()->create();
+        $products = ProductService::factory()->count(51)->create();
 
         $response = $this->actingAs($user)->getJson(route('products-services.datatable', [
             'draw' => 1,
@@ -35,6 +35,8 @@ class ProductServiceDatatableTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data'])
-            ->assertJsonFragment(['code' => $product->code]);
+            ->assertJsonPath('recordsTotal', 51)
+            ->assertJsonCount(50, 'data')
+            ->assertJsonFragment(['code' => $products->first()->code]);
     }
 }
