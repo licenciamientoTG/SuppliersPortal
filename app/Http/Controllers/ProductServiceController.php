@@ -63,6 +63,16 @@ class ProductServiceController extends Controller
         }
 
         return DataTables::of($query)
+            // La columna "Descripción" muestra short_name cuando está disponible.
+            // Incluirlo también en la búsqueda para que lo visible y lo buscable
+            // coincidan.
+            ->filterColumn('technical_description', function ($query, $keyword) {
+                $query->where(function ($descriptionQuery) use ($keyword) {
+                    $descriptionQuery
+                        ->where('technical_description', 'like', "%{$keyword}%")
+                        ->orWhere('short_name', 'like', "%{$keyword}%");
+                });
+            })
             ->addColumn('creator_name', fn ($p) => e($p->creator?->name ?? '—'))
             ->addColumn('product_type_badge', function ($p) {
                 $color = $p->product_type === 'SERVICIO' ? 'info' : 'primary';
