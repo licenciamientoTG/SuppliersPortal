@@ -28,6 +28,7 @@ use App\Http\Controllers\FinancialProvisionController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\LockScreenController;
 use App\Http\Controllers\LogViewerController;
+use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductServiceController;
 use App\Http\Controllers\ProfileController;
@@ -688,6 +689,17 @@ Route::middleware(['auth', 'lock', 'role:superadmin'])
             ->name('approval-delegations.deactivate');
     });
 
+// ============================================================================
+// Control y monitoreo (solo lectura; el alcance se valida en el servicio)
+// ============================================================================
+Route::middleware(['auth', 'lock'])->prefix('monitoring')->name('monitoring.')->group(function () {
+    Route::middleware('module.access:monitoring_alerts')->get('/alerts', [MonitoringController::class, 'alerts'])->name('alerts');
+    Route::middleware('module.access:monitoring_operations')->get('/operations', [MonitoringController::class, 'operations'])->name('operations');
+    Route::middleware('module.access:monitoring_budget')->get('/budget', [MonitoringController::class, 'budget'])->name('budget');
+    Route::middleware('module.access:monitoring_suppliers')->get('/suppliers', [MonitoringController::class, 'suppliers'])->name('suppliers');
+    Route::middleware('module.access:monitoring_security')->get('/security', [MonitoringController::class, 'security'])->name('security');
+});
+
 Route::middleware(['auth', 'lock', 'module.access:payments_billing'])->group(function () {
     Route::get('/invoices', [FinanceInvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/invoices/create', [FinanceInvoiceController::class, 'create'])->name('invoices.create');
@@ -755,8 +767,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
 // ============================================================================
 //  Dev Tools (solo usuario id=1)
 // ============================================================================
-Route::get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
-Route::delete('/dev/logs', [LogViewerController::class, 'clear'])->name('dev.log.clear');
+Route::middleware(['auth', 'lock', 'role:superadmin'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
 
 // ============================================================================
 //  Rutas comentadas (sin uso actual, conservadas por decisión)

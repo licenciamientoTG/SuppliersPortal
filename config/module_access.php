@@ -55,6 +55,21 @@ return [
         'reported_incidents' => [
             'roles' => ['superadmin'],
         ],
+        'monitoring_alerts' => [
+            'roles' => ['buyer', 'accounting', 'general_director'],
+        ],
+        'monitoring_operations' => [
+            'roles' => ['buyer', 'general_director'],
+        ],
+        'monitoring_budget' => [
+            'roles' => ['accounting', 'general_director'],
+        ],
+        'monitoring_suppliers' => [
+            'roles' => ['buyer', 'general_director'],
+        ],
+        'monitoring_security' => [
+            'roles' => ['superadmin'],
+        ],
         'supplier_documents' => [
             'roles' => ['supplier'],
         ],

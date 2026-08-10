@@ -22,6 +22,10 @@
         'communicator',
     ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
 
+    $showMonitoringSection = collect([
+        'monitoring_alerts', 'monitoring_operations', 'monitoring_budget', 'monitoring_suppliers', 'monitoring_security',
+    ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
+
     $openRfq = request()->routeIs('rfq.*') || request()->routeIs('quotes.*') || request()->routeIs('approvals.quotations.*');
     $openBudget = request()->routeIs('annual_budgets.*')
         || request()->routeIs('budget_monthly_distributions.*')
@@ -51,6 +55,7 @@
         || request()->routeIs('sat-retenciones.*')
         || request()->routeIs('roles.catalog');
     $openConfiguration = $openConfiguration || request()->routeIs('admin.approval-delegations.*');
+    $openMonitoring = request()->routeIs('monitoring.*');
 
     try {
         $activeRequisitionsCount = \App\Models\Requisition::whereNotIn('status', ['DRAFT', 'CANCELLED', 'COMPLETED'])->count();
@@ -109,6 +114,22 @@
       - HERRAMIENTAS    → superadmin only
       - CONFIGURACIÓN   → superadmin only
 --}}
+
+@if($showMonitoringSection)
+<li class="side-nav-title">CONTROL Y MONITOREO</li>
+<li class="side-nav-item">
+    <a class="side-nav-link {{ $openMonitoring ? '' : 'collapsed' }}" data-bs-toggle="collapse" href="#sidebarMonitoring" role="button" aria-expanded="{{ $openMonitoring ? 'true' : 'false' }}" aria-controls="sidebarMonitoring">
+        <span class="menu-icon"><i class="ti ti-chart-dots-3"></i></span><span class="menu-text">Monitores</span><span class="menu-arrow"></span>
+    </a>
+    <div class="{{ $openMonitoring ? 'show' : '' }} collapse" id="sidebarMonitoring"><ul class="sub-menu">
+        @moduleAccess('monitoring_alerts')<li class="side-nav-item"><a class="side-nav-link {{ request()->routeIs('monitoring.alerts') ? 'active' : '' }}" href="{{ route('monitoring.alerts') }}"><span class="menu-text">Centro de alertas</span></a></li>@endmoduleAccess
+        @moduleAccess('monitoring_operations')<li class="side-nav-item"><a class="side-nav-link {{ request()->routeIs('monitoring.operations') ? 'active' : '' }}" href="{{ route('monitoring.operations') }}"><span class="menu-text">Operación de compras</span></a></li>@endmoduleAccess
+        @moduleAccess('monitoring_budget')<li class="side-nav-item"><a class="side-nav-link {{ request()->routeIs('monitoring.budget') ? 'active' : '' }}" href="{{ route('monitoring.budget') }}"><span class="menu-text">Presupuesto y gasto</span></a></li>@endmoduleAccess
+        @moduleAccess('monitoring_suppliers')<li class="side-nav-item"><a class="side-nav-link {{ request()->routeIs('monitoring.suppliers') ? 'active' : '' }}" href="{{ route('monitoring.suppliers') }}"><span class="menu-text">Proveedores y cumplimiento</span></a></li>@endmoduleAccess
+        @moduleAccess('monitoring_security')<li class="side-nav-item"><a class="side-nav-link {{ request()->routeIs('monitoring.security') ? 'active' : '' }}" href="{{ route('monitoring.security') }}"><span class="menu-text">Seguridad y auditoría</span></a></li>@endmoduleAccess
+    </ul></div>
+</li>
+@endif
 
 {{-- ═══════════════════════════════════════════════════
      INICIO — visible to: all staff roles
@@ -341,6 +362,17 @@
     </div>
 </li>
 @endmoduleAccess
+@endif
+
+@if($showMonitoringSection)
+<li class="side-nav-title">CONTROL Y MONITOREO</li>
+<li class="side-nav-item">
+    <a href="{{ route('monitoring.alerts') }}"
+        class="side-nav-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-chart-dots-3"></i></span>
+        <span class="menu-text">Abrir monitores</span>
+    </a>
+</li>
 @endif
 
 @if ($showSuppliersSection)

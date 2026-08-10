@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LogViewerController extends Controller
@@ -16,19 +15,19 @@ class LogViewerController extends Controller
 
     public function index()
     {
-        abort_unless(Auth::id() === 1, 403);
+        abort_unless(Auth::user()?->hasRole('superadmin'), 403);
 
         $lines = [];
 
         if (file_exists($this->logPath)) {
-            $file    = new \SplFileObject($this->logPath, 'r');
+            $file = new \SplFileObject($this->logPath, 'r');
             $file->seek(PHP_INT_MAX);
-            $total   = $file->key();
-            $start   = max(0, $total - 500);
+            $total = $file->key();
+            $start = max(0, $total - 500);
             $content = [];
 
             $file->seek($start);
-            while (!$file->eof()) {
+            while (! $file->eof()) {
                 $content[] = $file->fgets();
             }
 
@@ -36,20 +35,9 @@ class LogViewerController extends Controller
         }
 
         $fileSize = file_exists($this->logPath)
-            ? round(filesize($this->logPath) / 1024, 1) . ' KB'
+            ? round(filesize($this->logPath) / 1024, 1).' KB'
             : '0 KB';
 
         return view('dev.log-viewer', compact('lines', 'fileSize'));
-    }
-
-    public function clear(Request $request)
-    {
-        abort_unless(Auth::id() === 1, 403);
-
-        if (file_exists($this->logPath)) {
-            file_put_contents($this->logPath, '');
-        }
-
-        return back()->with('success', 'Log vaciado correctamente.');
     }
 }
