@@ -1,23 +1,23 @@
 <div>
     @if ($show && $this->group)
         <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
-            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content mq-shell">
-                    <div class="modal-header py-2">
+                    <div class="modal-header py-3 mq-header">
                         <h5 class="modal-title">
                             <i class="ti ti-pencil-dollar me-2"></i>Capturar precio conocido — {{ $this->group->name }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="close"></button>
                     </div>
 
-                    <div class="modal-body">
-                        <div class="alert alert-primary py-2 small">
+                    <div class="modal-body mq-body">
+                        <div class="mq-route-card">
                             <i class="ti ti-info-circle me-1"></i>
                             Esta ruta adjudica directamente al proveedor capturado y continúa con presupuesto y autorización. No se enviará una RFQ ni se realizará comparativo.
                         </div>
                         <div class="small text-muted mb-3">El proveedor seleccionado aporta su moneda y condiciones de pago. Puedes sustituir cualquier partida con información de los últimos pedidos emitidos.</div>
                         {{-- Proveedor --}}
-                        <div class="row g-2 mb-3">
+                        <div class="row g-2 mb-3 mq-section">
                             <div class="col-md-6">
                                 <label class="form-label fs-12 mb-1">Proveedor</label>
                                 <select class="form-select form-select-sm" wire:model.live="supplierId">
@@ -41,7 +41,7 @@
 
                         {{-- Alta de proveedor externo --}}
                         @unless ($supplierId)
-                            <div class="border rounded p-2 mb-3 bg-light">
+                            <div class="mq-external-card mb-3">
                                 <p class="fs-12 text-muted mb-2"><i class="ti ti-user-plus me-1"></i>Datos del proveedor externo nuevo</p>
                                 <div class="row g-2">
                                     <div class="col-md-4">
@@ -78,7 +78,7 @@
                         @endunless
 
                         {{-- Partidas --}}
-                        <div class="table-responsive">
+                        <div class="table-responsive mq-table-shell">
                             <table class="table table-sm align-middle">
                                 <thead class="table-light">
                                     <tr>
@@ -167,7 +167,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-footer py-2">
+                    <div class="modal-footer py-3 mq-footer">
                         <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="close">Cancelar</button>
                         <button type="button" class="btn btn-sm btn-primary" wire:click="save" wire:loading.attr="disabled">
                             <i class="ti ti-device-floppy me-1"></i>Guardar cotización
@@ -202,3 +202,22 @@
         </div>
     @endif
 </div>
+
+@push('styles')
+<style>
+    .mq-shell { border: 0; border-radius: .85rem; box-shadow: 0 1.2rem 3.2rem rgba(20,54,80,.24); overflow: hidden; }
+    .mq-header { align-items: center; background: #f7fbff; border-bottom: 1px solid #e2e9f0; color: #153952; }
+    .mq-body { background: #f5f5f5; padding: 1.25rem; }
+    .mq-route-card { background: #edf8ff; border: 1px solid #b9dbf6; border-radius: .75rem; color: #245476; font-size: .84rem; margin-bottom: 1rem; padding: .75rem 1rem; }
+    .mq-section { background: #fff; border: 1px solid #e2e9f0; border-radius: .78rem; padding: 1rem; }
+    .mq-external-card { background: #f7fbff; border: 1px dashed #9ecbec; border-radius: .75rem; padding: 1rem; }
+    .mq-table-shell { background: #fff; border: 1px solid #e2e9f0; border-radius: .75rem; overflow: hidden; }
+    .mq-table-shell .table { margin: 0; }
+    .mq-table-shell thead th { background: #f7fbff; color: #526274; font-size: .7rem; letter-spacing: .02em; vertical-align: middle; white-space: nowrap; }
+    .mq-table-shell tbody tr { transition: background .15s ease; }
+    .mq-table-shell tbody tr:hover { background: #f7fbff; }
+    .mq-footer { background: #fff; border-top: 1px solid #e2e9f0; }
+    @media (prefers-reduced-motion: reduce) { .mq-table-shell tbody tr { transition: none; } }
+    @media (max-width: 767px) { .mq-body { padding: .75rem; } .mq-section { padding: .75rem; } }
+</style>
+@endpush
