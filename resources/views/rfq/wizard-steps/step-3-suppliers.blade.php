@@ -322,7 +322,7 @@
                                     <tr>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-outline-primary w-100"
-                                                    x-on:click="window.dispatchEvent(new CustomEvent('manual-history-open')); $wire.openManualPurchaseHistory({{ $item->id }})">
+                                                    wire:click="openManualPurchaseHistory({{ $item->id }})">
                                                 <i class="ti ti-history"></i>
                                             </button>
                                         </td>
@@ -386,36 +386,27 @@
     </div>
 </div>
 
-    <div x-data="{ manualHistoryOpen: false }"
-         x-on:manual-history-open.window="manualHistoryOpen = true"
-         x-on:keydown.escape.window="if (manualHistoryOpen) { manualHistoryOpen = false; $wire.closeManualPurchaseHistory() }"
-         x-cloak x-show="manualHistoryOpen" x-transition.opacity class="modal fade show d-block" tabindex="-1"
-         x-on:click.self="manualHistoryOpen = false; $wire.closeManualPurchaseHistory()"
-         style="z-index:1070; background:rgba(17,37,57,.58);">
+@if($manualHistoryItemId)
+    <div class="modal fade show d-block" tabindex="-1" style="z-index:1070; background:rgba(17,37,57,.58);">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light"><div><h6 class="modal-title mb-0"><i class="ti ti-history me-2"></i>Últimos 10 pedidos</h6><small class="text-muted">Selecciona una referencia para copiar sus datos a esta partida.</small></div><button type="button" class="btn-close" x-on:click="manualHistoryOpen = false; $wire.closeManualPurchaseHistory()"></button></div>
+            <div class="modal-header bg-light"><div><h6 class="modal-title mb-0"><i class="ti ti-history me-2"></i>Últimos 10 pedidos</h6><small class="text-muted">Selecciona una referencia para copiar sus datos a esta partida.</small></div><button type="button" class="btn-close" wire:click="closeManualPurchaseHistory"></button></div>
             <div class="modal-body p-0">
-                <div wire:loading wire:target="openManualPurchaseHistory" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando historial…</div>
-                <div wire:loading.remove wire:target="openManualPurchaseHistory">
-                    @if($manualHistoryItemId)
-                        @forelse($manualPurchaseHistory as $reference)
-                            <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyManualPurchaseHistory({{ $reference['id'] }})">
-                                <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
-                                <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span><i class="ti ti-arrow-up-right text-primary fs-5"></i>
-                            </button>
-                        @empty
-                            <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
-                        @endforelse
-                    @endif
-                </div>
+                @forelse($manualPurchaseHistory as $reference)
+                    <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyManualPurchaseHistory({{ $reference['id'] }})">
+                        <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
+                        <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span><i class="ti ti-arrow-up-right text-primary fs-5"></i>
+                    </button>
+                @empty
+                    <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
+                @endforelse
             </div>
         </div></div>
     </div>
+@endif
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
-    [x-cloak] { display: none !important; }
     .supplier-select { font-size: 0.95rem; }
     .group-supplier-card { transition: all 0.3s ease; }
     .bg-info-subtle { background-color: #e7f6f8 !important; }
