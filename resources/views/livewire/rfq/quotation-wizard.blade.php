@@ -1001,11 +1001,15 @@ window.Step5Analysis = (function() {
     }
 
     function initializeDataTable(requisitionId) {
+        const canViewAuthorization = @json(auth()->user()?->hasRole('superadmin') ?? false);
+        const escapeHtml = (value) => $('<div>').text(value ?? '').html();
+
         dataTable = $('#rfq-analysis-table').DataTable({
             processing: true,
             serverSide: true,
             ajax: `/rfq/wizard/${requisitionId}/analysis-data`, // Nueva ruta filtrada
-            columns: [
+            columns: (() => {
+                const columns = [
                 { 
                     data: 'folio', 
                     className: 'fw-bold',
@@ -1067,7 +1071,27 @@ window.Step5Analysis = (function() {
                             </a>
                         </div>`
                 }
-            ],
+                ];
+
+                if (canViewAuthorization) {
+                    columns.splice(5, 0, {
+                        data: 'authorization',
+                        render: (data) => {
+                            const icons = { pending: 'ti-send', approved: 'ti-circle-check', rejected: 'ti-circle-x', warning: 'ti-alert-triangle', waiting: 'ti-clock' };
+                            const recipient = data.recipient ? `<strong>${escapeHtml(data.recipient)}</strong>` : '';
+
+                            return `<div class="tg-authorization-cell">
+                                <span class="tg-authorization-label">${escapeHtml(data.label)}</span>
+                                ${recipient}
+                                <span class="tg-authorization-detail">${escapeHtml(data.detail)}</span>
+                                <span class="tg-authorization-state ${escapeHtml(data.state)}"><i class="ti ${icons[data.state] || 'ti-info-circle'}"></i>${escapeHtml(data.label)}</span>
+                            </div>`;
+                        }
+                    });
+                }
+
+                return columns;
+            })(),
             language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
             drawCallback: function() {
                 // Inicializar tooltips

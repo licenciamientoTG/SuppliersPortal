@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Rfq;
 use App\Models\Requisition;
-use Illuminate\Http\Request;
+use App\Models\Rfq;
 use Yajra\DataTables\Facades\DataTables;
-use Carbon\Carbon;
 
 class RfqInboxController extends Controller
 {
@@ -33,13 +30,13 @@ class RfqInboxController extends Controller
                 'suppliers' => function ($q) {
                     $q->select('suppliers.id', 'company_name')
                         ->whereNotNull('rfq_suppliers.responded_at');
-                }
+                },
             ])
             ->withCount([
                 'suppliers',
                 'suppliers as responded_count' => function ($query) {
                     $query->whereNotNull('rfq_suppliers.responded_at');
-                }
+                },
             ])
             ->pending();
 
@@ -54,25 +51,27 @@ class RfqInboxController extends Controller
                 // Si nadie ha respondido, ponemos un mensaje de alerta
                 $names = $rfq->suppliers->pluck('company_name')->implode('<br>• ');
                 $tooltipTitle = $received > 0
-                    ? "<b>Respondieron:</b><br>• " . $names
-                    : "Sin respuestas aún";
+                    ? '<b>Respondieron:</b><br>• '.$names
+                    : 'Sin respuestas aún';
 
                 return [
                     'percent' => $percent,
-                    'label'   => "{$received}/{$invited}",
-                    'tooltip' => $tooltipTitle
+                    'label' => "{$received}/{$invited}",
+                    'tooltip' => $tooltipTitle,
                 ];
             })
 
             // 🎯 Columna de Vencimiento
             ->editColumn('response_deadline', function ($rfq) {
-                if (!$rfq->response_deadline) return null;
+                if (! $rfq->response_deadline) {
+                    return null;
+                }
 
                 return [
                     'display' => $rfq->response_deadline->format('d/m/Y H:i'),
-                    'human'   => $rfq->response_deadline->diffForHumans(),
+                    'human' => $rfq->response_deadline->diffForHumans(),
                     'is_past' => $rfq->response_deadline->isPast(),
-                    'is_urgent' => !$rfq->response_deadline->isPast() && $rfq->response_deadline->diffInDays(now()) <= 2
+                    'is_urgent' => ! $rfq->response_deadline->isPast() && $rfq->response_deadline->diffInDays(now()) <= 2,
                 ];
             })
 
@@ -81,43 +80,43 @@ class RfqInboxController extends Controller
                 $statusMap = [
                     'SENT' => [
                         'label' => 'Enviada',
-                        'desc'  => 'La solicitud está en el campo. Esperando que los proveedores respondan.',
+                        'desc' => 'La solicitud está en el campo. Esperando que los proveedores respondan.',
                         'color' => 'info',
-                        'icon'  => 'ti-send'
+                        'icon' => 'ti-send',
                     ],
                     'RECEIVED' => [
                         'label' => 'Con Respuestas',
-                        'desc'  => '¡Fuego completo! Todos los proveedores invitados ya enviaron sus cotizaciones.',
+                        'desc' => '¡Fuego completo! Todos los proveedores invitados ya enviaron sus cotizaciones.',
                         'color' => 'success',
-                        'icon'  => 'ti-circle-check'
+                        'icon' => 'ti-circle-check',
                     ],
                     'EVALUATED' => [
                         'label' => 'En Aprobacion',
-                        'desc'  => 'La cotizacion ya fue adjudicada por Compras y esta en aprobacion.',
+                        'desc' => 'La cotizacion ya fue adjudicada por Compras y esta en aprobacion.',
                         'color' => 'primary',
-                        'icon'  => 'ti-scale'
+                        'icon' => 'ti-scale',
                     ],
                     'DRAFT' => [
                         'label' => 'Borrador',
-                        'desc'  => 'Solicitud en preparación. Aún no se ha disparado a los proveedores.',
+                        'desc' => 'Solicitud en preparación. Aún no se ha disparado a los proveedores.',
                         'color' => 'secondary',
-                        'icon'  => 'ti-file-pencil'
+                        'icon' => 'ti-file-pencil',
                     ],
                 ];
 
                 $info = $statusMap[$rfq->status] ?? [
                     'label' => $rfq->status,
-                    'desc'  => 'Estado desconocido.',
+                    'desc' => 'Estado desconocido.',
                     'color' => 'dark',
-                    'icon'  => 'ti-help'
+                    'icon' => 'ti-help',
                 ];
 
                 return [
-                    'code'        => $rfq->status,
-                    'label'       => $info['label'],
+                    'code' => $rfq->status,
+                    'label' => $info['label'],
                     'description' => $info['desc'],
-                    'color'       => $info['color'],
-                    'icon'        => $info['icon']
+                    'color' => $info['color'],
+                    'icon' => $info['icon'],
                 ];
             })
 
@@ -130,6 +129,8 @@ class RfqInboxController extends Controller
      */
     public function analysisData(Requisition $requisition)
     {
+        $canViewAuthorization = auth()->user()?->hasRole('superadmin') ?? false;
+
         $query = Rfq::query()
             ->with([
                 'quotationGroup:id,name',
@@ -137,38 +138,49 @@ class RfqInboxController extends Controller
                 'suppliers' => function ($q) {
                     $q->select('suppliers.id', 'company_name')
                         ->whereNotNull('rfq_suppliers.responded_at');
-                }
+                },
             ])
+            ->when($canViewAuthorization, function ($query) {
+                $query->with([
+                    'quotationSummary.currentApprover:id,name',
+                    'quotationSummary.approver:id,name',
+                    'quotationSummary.rejector:id,name',
+                    'quotationSummary.authorizerRole:id,name',
+                ]);
+            })
             ->withCount([
                 'suppliers',
                 'suppliers as responded_count' => function ($query) {
                     $query->whereNotNull('rfq_suppliers.responded_at');
-                }
+                },
             ])
             ->where('requisition_id', $requisition->id) // 🎯 FILTRO CRUCIAL
             ->whereNotIn('status', ['CANCELLED', 'REJECTED']); // No mostrar basura
 
-        return DataTables::of($query)
+        $dataTable = DataTables::of($query)
             ->addColumn('progress', function ($rfq) {
                 $invited = $rfq->suppliers_count;
                 $received = $rfq->responded_count;
                 $percent = ($invited > 0) ? round(($received / $invited) * 100, 0) : 0;
 
                 $names = $rfq->suppliers->pluck('company_name')->implode('<br>• ');
-                $tooltipTitle = $received > 0 ? "<b>Respondieron:</b><br>• " . $names : "Sin respuestas aún";
+                $tooltipTitle = $received > 0 ? '<b>Respondieron:</b><br>• '.$names : 'Sin respuestas aún';
 
                 return [
                     'percent' => $percent,
-                    'label'   => "{$received}/{$invited}",
-                    'tooltip' => $tooltipTitle
+                    'label' => "{$received}/{$invited}",
+                    'tooltip' => $tooltipTitle,
                 ];
             })
             ->editColumn('response_deadline', function ($rfq) {
-                if (!$rfq->response_deadline) return null;
+                if (! $rfq->response_deadline) {
+                    return null;
+                }
+
                 return [
                     'display' => $rfq->response_deadline->format('d/m/Y H:i'),
-                    'human'   => $rfq->response_deadline->diffForHumans(),
-                    'is_past' => $rfq->response_deadline->isPast()
+                    'human' => $rfq->response_deadline->diffForHumans(),
+                    'is_past' => $rfq->response_deadline->isPast(),
                 ];
             })
             ->editColumn('status', function ($rfq) {
@@ -180,9 +192,35 @@ class RfqInboxController extends Controller
                     'EVALUATED' => ['label' => 'En Aprobaci?n', 'color' => 'primary', 'icon' => 'ti-scale'],
                 ];
                 $info = $statusMap[$rfq->status] ?? ['label' => $rfq->status, 'color' => 'dark', 'icon' => 'ti-help'];
+
                 return $info;
-            })
-            ->make(true);
+            });
+
+        if ($canViewAuthorization) {
+            $dataTable->addColumn('authorization', function (Rfq $rfq) {
+                $summary = $rfq->quotationSummary;
+
+                if (! $summary) {
+                    return ['label' => 'Aún no se envía a autorización', 'recipient' => null, 'detail' => 'Pendiente de adjudicación', 'state' => 'waiting'];
+                }
+
+                if ($summary->approval_status === 'pending' && $summary->currentApprover) {
+                    return ['label' => 'Enviada a autorizar', 'recipient' => $summary->currentApprover->name, 'detail' => $summary->authorizerRole?->name ?? 'Autorizador asignado', 'state' => 'pending'];
+                }
+
+                if ($summary->approval_status === 'approved') {
+                    return ['label' => 'Autorizada', 'recipient' => $summary->approver?->name, 'detail' => 'Proceso de autorización concluido', 'state' => 'approved'];
+                }
+
+                if ($summary->approval_status === 'rejected') {
+                    return ['label' => 'Rechazada', 'recipient' => $summary->rejector?->name, 'detail' => 'Proceso de autorización concluido', 'state' => 'rejected'];
+                }
+
+                return ['label' => 'Sin autorizador asignado', 'recipient' => null, 'detail' => 'Requiere revisión de la configuración', 'state' => 'warning'];
+            });
+        }
+
+        return $dataTable->make(true);
     }
 
     /**
@@ -194,7 +232,7 @@ class RfqInboxController extends Controller
             'quotationGroup.items.productService',
             'requisitionItem.productService',
             'suppliers',
-            'activities.causer' // 🎯 ESTA ES LA MUNICIÓN QUE FALTABA
+            'activities.causer', // 🎯 ESTA ES LA MUNICIÓN QUE FALTABA
         ]);
 
         return view('rfq.inbox.partials.rfq_info', compact('rfq'));
@@ -205,16 +243,15 @@ class RfqInboxController extends Controller
      */
     public function reqModalContent(Requisition $requisition)
     {
-        // 🎯 Cambiamos 'user' por 'requester' 
+        // 🎯 Cambiamos 'user' por 'requester'
         // 🎯 Cambiamos 'requisitionItem' por 'items'
         $requisition->load([
             'department',
             'requester', // Este es el nombre correcto en tu modelo
             'items',     // Requisition tiene 'items', no 'requisitionItem'
-            'costCenter'
+            'costCenter',
         ]);
 
         return view('rfq.inbox.partials.req_info', compact('requisition'));
     }
 }
-
