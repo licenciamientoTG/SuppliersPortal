@@ -104,6 +104,47 @@ class RfqDraftService
         ]);
     }
 
+    /**
+     * Prepara la RFQ exclusiva para precio conocido / compra directa.
+     * Un borrador de portal puede sustituirse antes de que se envíe; una RFQ
+     * en circulación nunca se mezcla con la ruta manual.
+     */
+    public function ensureExternalDraftForGroup(Requisition $requisition, QuotationGroup $group, int $userId): Rfq
+    {
+        $rfq = Rfq::where('requisition_id', $requisition->id)
+            ->where('quotation_group_id', $group->id)
+            ->active()
+            ->latest('id')
+            ->first();
+
+        if ($rfq?->source === 'external') {
+            if (in_array($rfq->status, ['DRAFT', 'RECEIVED'], true)) {
+                return $rfq;
+            }
+
+            throw new \DomainException('Este grupo ya tiene una compra directa en validación o autorizada.');
+        }
+
+        if ($rfq) {
+            if ($rfq->status !== 'DRAFT') {
+                throw new \DomainException('No se puede cambiar a compra directa porque la RFQ de este grupo ya fue enviada.');
+            }
+
+            $rfq->cancel('Borrador sustituido por compra directa con precio conocido.', $userId);
+        }
+
+        return Rfq::create([
+            'folio' => $this->folios->next(),
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => $group->id,
+            'source' => 'external',
+            'status' => 'DRAFT',
+            'response_deadline' => now(),
+            'created_by' => $userId,
+            'updated_by' => $userId,
+        ]);
+    }
+
     private function createDraft(
         Requisition $requisition,
         int $groupId,

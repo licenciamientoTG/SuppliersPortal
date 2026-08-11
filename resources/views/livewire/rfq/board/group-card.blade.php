@@ -9,6 +9,7 @@
         ];
         $badge = $stateBadges[$this->state];
         $rfq = $this->activeRfq;
+        $isDirectPurchase = $rfq?->source === 'external';
     @endphp
 
     <div class="card-header d-flex justify-content-between align-items-center py-2">
@@ -17,6 +18,9 @@
             <span class="badge bg-{{ $badge['class'] }}"><i class="ti {{ $badge['icon'] }} me-1"></i>{{ $badge['label'] }}</span>
             @if ($rfq)
                 <small class="text-muted">{{ $rfq->folio }}</small>
+            @endif
+            @if ($isDirectPurchase)
+                <span class="badge bg-primary"><i class="ti ti-file-invoice me-1"></i>Compra directa</span>
             @endif
         </div>
         @if ($this->state === 'preparing')
@@ -54,7 +58,7 @@
         @endif
 
         {{-- Progreso de respuestas (Seguimiento) --}}
-        @if (in_array($this->state, ['sent', 'received']))
+        @if (! $isDirectPurchase && in_array($this->state, ['sent', 'received']))
             @php $progress = $this->responseProgress; @endphp
             <div class="d-flex align-items-center gap-2 mb-2">
                 <div class="progress flex-grow-1" style="height: 8px;">
@@ -70,18 +74,20 @@
 
         {{-- Acciones por estado --}}
         <div class="d-flex gap-2 flex-wrap">
-            @if (in_array($this->state, ['preparing', 'sent']))
+            @if (! $isDirectPurchase && in_array($this->state, ['preparing', 'sent']))
                 @if ($this->state === 'preparing')
                     <button class="btn btn-sm btn-primary" wire:click="toggleRequestForm">
                         <i class="ti ti-send me-1"></i>Solicitar cotización
                     </button>
                 @endif
-                <button class="btn btn-sm btn-outline-primary" wire:click="openManualQuote">
-                    <i class="ti ti-pencil-dollar me-1"></i>Capturar precio conocido
-                </button>
+                @if ($this->state === 'preparing')
+                    <button class="btn btn-sm btn-outline-primary" wire:click="openManualQuote">
+                        <i class="ti ti-pencil-dollar me-1"></i>Precio conocido / compra directa
+                    </button>
+                @endif
             @endif
 
-            @if ($this->awardableSuppliers->isNotEmpty() && ! in_array($this->state, ['awarded', 'completed']))
+            @if (! $isDirectPurchase && $this->awardableSuppliers->isNotEmpty() && ! in_array($this->state, ['awarded', 'completed']))
                 <button class="btn btn-sm btn-success" wire:click="toggleAwardForm"
                         @disabled(! $this->isValidated)
                         @if(! $this->isValidated) title="Firma la validación técnica primero" @endif>
@@ -89,12 +95,23 @@
                 </button>
             @endif
 
-            @if ($rfq && in_array($this->state, ['sent', 'received', 'awarded']))
+            @if (! $isDirectPurchase && $rfq && in_array($this->state, ['sent', 'received', 'awarded']))
                 <a class="btn btn-sm btn-outline-secondary" href="{{ route('rfq.comparison.index', $rfq->id) }}">
                     <i class="ti ti-scale me-1"></i>Comparativo
                 </a>
             @endif
         </div>
+
+        @if ($isDirectPurchase)
+            <div class="alert alert-{{ $this->state === 'awarded' ? 'primary' : 'warning' }} py-2 px-3 mt-2 mb-0 small">
+                <i class="ti ti-{{ $this->state === 'awarded' ? 'shield-check' : 'alert-circle' }} me-1"></i>
+                @if ($this->state === 'awarded')
+                    En validacion presupuestal y autorizacion. Esta compra directa no se enviara a proveedores ni pasara por comparativo.
+                @else
+                    Precio conocido capturado. Revisa las validaciones mostradas antes de continuar con la autorizacion.
+                @endif
+            </div>
+        @endif
 
         {{-- Formulario: Solicitar cotización --}}
         @if ($showRequestForm && $this->state === 'preparing')

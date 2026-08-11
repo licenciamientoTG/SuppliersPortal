@@ -2,10 +2,10 @@
 
 namespace App\Services\Rfq;
 
+use App\Exceptions\Rfq\AwardNotAllowedException;
 use App\Exceptions\Rfq\DuplicateSupplierRfcException;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
-use App\Models\Rfq;
 use App\Models\RfqResponse;
 use App\Models\Supplier;
 use Illuminate\Http\UploadedFile;
@@ -18,7 +18,12 @@ use Illuminate\Support\Str;
  */
 class ManualQuoteService
 {
-    public function __construct(private RfqDraftService $drafts) {}
+    private const DIRECT_AWARD_JUSTIFICATION = 'Adjudicación directa por precio conocido capturado manualmente.';
+
+    public function __construct(
+        private RfqDraftService $drafts,
+        private RfqAwardService $awards,
+    ) {}
 
     /**
      * Reglas de validación Livewire para las partidas capturadas,
@@ -109,11 +114,19 @@ class ManualQuoteService
         int $validityDays,
         ?UploadedFile $attachment,
         int $userId
-    ): Rfq {
+    ): array {
+        if (! $requisition->validated_at) {
+            throw new \DomainException('Firma la validación técnica antes de capturar un precio conocido.');
+        }
+
+        if ((int) $group->requisition_id !== (int) $requisition->id) {
+            throw new \DomainException('El grupo no pertenece a la requisición en proceso.');
+        }
+
         $group->loadMissing('items');
 
-        return DB::transaction(function () use ($requisition, $group, $supplier, $itemsData, $quotationDate, $validityDays, $attachment, $userId) {
-            $rfq = $this->drafts->ensureActiveDraftForGroup($requisition, $group, $userId);
+        $rfq = DB::transaction(function () use ($requisition, $group, $supplier, $itemsData, $quotationDate, $validityDays, $attachment, $userId) {
+            $rfq = $this->drafts->ensureExternalDraftForGroup($requisition, $group, $userId);
 
             $rfq->suppliers()->syncWithoutDetaching([
                 $supplier->id => ['invited_at' => now(), 'responded_at' => now()],
@@ -167,5 +180,21 @@ class ManualQuoteService
 
             return $rfq;
         });
+
+        try {
+            $summary = $this->awards->award(
+                $rfq,
+                $supplier->id,
+                self::DIRECT_AWARD_JUSTIFICATION,
+                null,
+                $userId,
+            );
+
+            return ['rfq' => $rfq->fresh(), 'summary' => $summary, 'award_error' => null];
+        } catch (AwardNotAllowedException|\Throwable $exception) {
+            // La captura es evidencia válida aunque presupuesto, vigencia o
+            // autorización impidan avanzar. Queda RECEIVED para corregirse.
+            return ['rfq' => $rfq->fresh(), 'summary' => null, 'award_error' => $exception->getMessage()];
+        }
     }
 }

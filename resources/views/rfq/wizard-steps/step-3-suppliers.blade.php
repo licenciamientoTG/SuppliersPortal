@@ -173,8 +173,9 @@
                     <div class="col-12">
                         <button type="button"
                                 class="btn btn-sm btn-outline-success"
-                                wire:click="openManualQuoteModal({{ $group->id }})">
-                            <i class="ti ti-pencil-plus"></i> Cotización manual / Proveedor externo
+                                wire:click="openManualQuoteModal({{ $group->id }})"
+                                @disabled($activeRfq && $activeRfq->source !== 'external' && $activeRfq->status !== 'DRAFT')>
+                            <i class="ti ti-pencil-plus"></i> Precio conocido / compra directa
                         </button>
 
                         @if($manualSupplierIds->isNotEmpty())

@@ -5,9 +5,11 @@ namespace App\Livewire\Rfq\Board;
 use App\Exceptions\Rfq\DuplicateSupplierRfcException;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
+use App\Models\Rfq;
 use App\Models\Supplier;
 use App\Services\Rfq\ManualQuoteService;
 use App\Services\Rfq\PriceMemoryService;
+use App\Services\Rfq\ProductPurchaseHistoryService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -50,9 +52,31 @@ class ManualQuoteModal extends Component
 
     public $attachment = null;
 
+    public ?int $historyItemId = null;
+
+    public array $purchaseHistory = [];
+
     #[On('open-manual-quote')]
     public function open(int $groupId): void
     {
+        if (! $this->requisition->validated_at) {
+            session()->flash('error', 'Firma la validación técnica antes de capturar un precio conocido.');
+
+            return;
+        }
+
+        $existing = Rfq::where('requisition_id', $this->requisition->id)
+            ->where('quotation_group_id', $groupId)
+            ->active()
+            ->latest('id')
+            ->first();
+
+        if ($existing && $existing->source !== 'external' && $existing->status !== 'DRAFT') {
+            session()->flash('error', 'Este grupo ya tiene una RFQ enviada y no puede cambiar a compra directa.');
+
+            return;
+        }
+
         $group = QuotationGroup::with('items')->findOrFail($groupId);
 
         $this->groupId = $group->id;
@@ -90,6 +114,7 @@ class ManualQuoteModal extends Component
         $supplierIds = collect($this->priceReferences)->pluck('supplier_id')->unique();
         if ($supplierIds->count() === 1 && count($this->priceReferences) === count($this->items)) {
             $this->supplierId = $supplierIds->first();
+            $this->applySupplierDefaults((int) $this->supplierId);
         }
 
         $this->quotationDate = now()->format('Y-m-d');
@@ -97,6 +122,74 @@ class ManualQuoteModal extends Component
         $this->attachment = null;
         $this->resetErrorBag();
         $this->show = true;
+    }
+
+    public function updatedSupplierId($supplierId): void
+    {
+        if ($supplierId) {
+            $this->applySupplierDefaults((int) $supplierId, true);
+        }
+    }
+
+    public function openPurchaseHistory(int $itemId): void
+    {
+        $item = $this->group?->items->firstWhere('id', $itemId);
+        if (! $item?->product_service_id) {
+            $this->purchaseHistory = [];
+            $this->historyItemId = $itemId;
+
+            return;
+        }
+
+        $this->historyItemId = $itemId;
+        $this->purchaseHistory = app(ProductPurchaseHistoryService::class)
+            ->latestForProduct((int) $item->product_service_id)
+            ->values()
+            ->all();
+    }
+
+    public function closePurchaseHistory(): void
+    {
+        $this->historyItemId = null;
+        $this->purchaseHistory = [];
+    }
+
+    public function applyPurchaseHistory(int $historyId): void
+    {
+        $reference = collect($this->purchaseHistory)->firstWhere('id', $historyId);
+        if (! $reference || ! $this->historyItemId) {
+            return;
+        }
+
+        $itemId = $this->historyItemId;
+        $this->items[$itemId] = array_merge($this->items[$itemId] ?? [], [
+            'unit_price' => $reference['unit_price'],
+            'iva_rate' => $reference['iva_rate'],
+            'currency' => $reference['currency'],
+            'delivery_days' => $reference['delivery_days'],
+            'payment_terms' => $reference['payment_terms'],
+            'not_available' => false,
+        ]);
+        $this->supplierId = $reference['supplier_id'];
+        $this->applySupplierDefaults((int) $reference['supplier_id'], false);
+        $this->closePurchaseHistory();
+    }
+
+    private function applySupplierDefaults(int $supplierId, bool $overwrite = false): void
+    {
+        $supplier = Supplier::find($supplierId);
+        if (! $supplier) {
+            return;
+        }
+
+        foreach ($this->items as $itemId => $item) {
+            $this->items[$itemId]['currency'] = $overwrite || empty($item['currency'])
+                ? ($supplier->currency ?: 'MXN')
+                : $item['currency'];
+            $this->items[$itemId]['payment_terms'] = $overwrite || empty($item['payment_terms'])
+                ? $supplier->default_payment_terms
+                : $item['payment_terms'];
+        }
     }
 
     public function close(): void
@@ -126,6 +219,12 @@ class ManualQuoteModal extends Component
 
     public function save(): void
     {
+        if (! $this->requisition->validated_at) {
+            session()->flash('error', 'Firma la validación técnica antes de capturar un precio conocido.');
+
+            return;
+        }
+
         $rules = array_merge([
             'quotationDate' => 'required|date',
             'validityDays' => 'required|integer|min:1|max:365',
@@ -158,7 +257,7 @@ class ManualQuoteModal extends Component
         $group = QuotationGroup::with('items')->findOrFail($this->groupId);
 
         try {
-            $service->save(
+            $result = $service->save(
                 $this->requisition,
                 $group,
                 $supplier,
@@ -176,7 +275,12 @@ class ManualQuoteModal extends Component
 
         $this->show = false;
         $this->dispatch('board-refresh');
-        session()->flash('success', "✅ Cotización de {$supplier->company_name} capturada para el grupo {$group->name}.");
+        if (! $result['summary']) {
+            session()->flash('error', 'Precio conocido capturado, pero no se pudo enviar a autorización: '.$result['award_error']);
+
+            return;
+        }
+        session()->flash('success', "Compra directa de {$supplier->company_name} enviada a validación presupuestal y autorización.");
     }
 
     public function render()

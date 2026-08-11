@@ -65,7 +65,7 @@ class QuotationWizardManualQuoteTest extends TestCase
         $this->assertNotNull($pivot->pivot->responded_at);
     }
 
-    public function test_mixed_group_stays_sent_until_portal_supplier_also_responds(): void
+    public function test_sent_portal_group_cannot_change_to_manual_purchase(): void
     {
         $user = User::factory()->create();
         $this->actingAs($user);
@@ -86,6 +86,7 @@ class QuotationWizardManualQuoteTest extends TestCase
 
         Livewire::test(QuotationWizard::class, ['requisition' => $requisition])
             ->call('openManualQuoteModal', $group->id)
+            ->assertSet('showManualQuoteModal', false)
             ->set('manualQuoteSupplierId', $manualSupplier->id)
             ->set("manualQuoteItems.{$item->id}.unit_price", 80)
             ->set("manualQuoteItems.{$item->id}.iva_rate", 16)
@@ -93,6 +94,10 @@ class QuotationWizardManualQuoteTest extends TestCase
             ->call('saveManualQuote');
 
         $this->assertEquals('SENT', $rfq->fresh()->status);
+        $this->assertDatabaseMissing('rfq_responses', [
+            'rfq_id' => $rfq->id,
+            'supplier_id' => $manualSupplier->id,
+        ]);
     }
 
     public function test_not_available_item_is_saved_without_requiring_price(): void

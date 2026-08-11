@@ -2,7 +2,7 @@
     @if ($show && $this->group)
         <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-                <div class="modal-content">
+                <div class="modal-content mq-shell">
                     <div class="modal-header py-2">
                         <h5 class="modal-title">
                             <i class="ti ti-pencil-dollar me-2"></i>Capturar precio conocido — {{ $this->group->name }}
@@ -11,6 +11,11 @@
                     </div>
 
                     <div class="modal-body">
+                        <div class="alert alert-primary py-2 small">
+                            <i class="ti ti-info-circle me-1"></i>
+                            Esta ruta adjudica directamente al proveedor capturado y continúa con presupuesto y autorización. No se enviará una RFQ ni se realizará comparativo.
+                        </div>
+                        <div class="small text-muted mb-3">El proveedor seleccionado aporta su moneda y condiciones de pago. Puedes sustituir cualquier partida con información de los últimos pedidos emitidos.</div>
                         {{-- Proveedor --}}
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
@@ -81,8 +86,10 @@
                                         <th width="90">N/D</th>
                                         <th width="130">Precio unit. *</th>
                                         <th width="90">IVA % *</th>
+                                        <th width="90">Moneda</th>
                                         <th width="110">Entrega (días) *</th>
-                                        <th>Referencia reciente</th>
+                                        <th width="150">Pago</th>
+                                        <th width="110">Historial</th>
                                     </tr>
                                 </thead>
                                 <tbody>

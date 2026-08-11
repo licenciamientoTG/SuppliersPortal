@@ -395,7 +395,7 @@ class QuotationWizard extends Component
 
     public function openManualQuoteModal($quotationGroupId): void
     {
-        if (! $this->ensureEditableBeforeSend()) {
+        if (! $this->ensureManualQuoteAllowed((int) $quotationGroupId)) {
             return;
         }
 
@@ -460,7 +460,7 @@ class QuotationWizard extends Component
 
     public function saveManualQuote(): void
     {
-        if (! $this->ensureEditableBeforeSend()) {
+        if (! $this->ensureManualQuoteAllowed((int) $this->manualQuoteGroupId)) {
             return;
         }
 
@@ -488,7 +488,7 @@ class QuotationWizard extends Component
         $group = QuotationGroup::with('items')->findOrFail($this->manualQuoteGroupId);
 
         try {
-            app(ManualQuoteService::class)->save(
+            $result = app(ManualQuoteService::class)->save(
                 $this->requisition,
                 $group,
                 $supplier,
@@ -507,7 +507,12 @@ class QuotationWizard extends Component
         $this->showManualQuoteModal = false;
         $this->currentStep = $this->determineCurrentStep();
         $this->loadStepData();
-        session()->flash('success', "✅ Cotización de {$supplier->company_name} capturada para el grupo {$group->name}.");
+        if (! $result['summary']) {
+            session()->flash('error', 'Precio conocido capturado, pero no se pudo enviar a autorización: '.$result['award_error']);
+
+            return;
+        }
+        session()->flash('success', "Compra directa de {$supplier->company_name} enviada a validación presupuestal y autorización.");
     }
 
     /**
@@ -603,6 +608,36 @@ class QuotationWizard extends Component
         session()->flash('error', 'Esta requisición ya tiene solicitudes enviadas y las etapas anteriores están disponibles solo para consulta.');
 
         return false;
+    }
+
+    /** La compra directa es exclusiva del grupo y no depende de otros grupos enviados. */
+    private function ensureManualQuoteAllowed(int $groupId): bool
+    {
+        if (! $this->requisition->validated_at) {
+            session()->flash('error', 'Firma la validación técnica antes de capturar un precio conocido.');
+
+            return false;
+        }
+
+        $rfq = $this->requisition->rfqs()
+            ->where('quotation_group_id', $groupId)
+            ->active()
+            ->latest('id')
+            ->first();
+
+        if ($rfq && $rfq->source !== 'external' && $rfq->status !== 'DRAFT') {
+            session()->flash('error', 'Este grupo ya tiene una RFQ enviada y no puede cambiar a compra directa.');
+
+            return false;
+        }
+
+        if ($rfq && $rfq->source === 'external' && ! in_array($rfq->status, ['DRAFT', 'RECEIVED'], true)) {
+            session()->flash('error', 'Este grupo ya tiene una compra directa en validación o autorizada.');
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

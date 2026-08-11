@@ -216,8 +216,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div id="${collapseId}" class="collapse ${index === 0 ? 'show' : ''}">
                     <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover table-sm mb-0">
+                        <div class="table-responsive distribution-table-scroll">
+                            <table class="table table-bordered table-hover table-sm mb-0 distribution-table">
                                 <thead class="table-light">
                                     <tr>
                                         <th class="sticky-column" style="min-width: 250px;">Subcuenta</th>
@@ -378,6 +378,25 @@ document.addEventListener('DOMContentLoaded', function() {
     left: 0;
     background: #f8f9fa;
     z-index: 2;
+}
+
+/* Conserva los meses visibles al desplazarse verticalmente por la matriz. */
+.distribution-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #f8f9fa;
+    box-shadow: 0 1px 0 #dee2e6;
+}
+
+.distribution-table thead .sticky-column {
+    z-index: 5;
+}
+
+.distribution-table-scroll {
+    max-height: min(68vh, 680px);
+    overflow: auto;
+    overscroll-behavior: contain;
 }
 
 .category-card .table td,
