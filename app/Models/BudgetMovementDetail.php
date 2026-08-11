@@ -16,6 +16,7 @@ class BudgetMovementDetail extends Model
         'cost_center_id',
         'month',
         'expense_category_id',
+        'budget_cedula_id',
         'amount',
     ];
 
@@ -28,7 +29,9 @@ class BudgetMovementDetail extends Model
      * Constantes para tipos de detalle
      */
     const TYPE_ORIGIN = 'ORIGEN';
+
     const TYPE_DESTINATION = 'DESTINO';
+
     const TYPE_ADJUSTMENT = 'AJUSTE';
 
     /**
@@ -53,6 +56,14 @@ class BudgetMovementDetail extends Model
     public function expenseCategory(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class);
+    }
+
+    /**
+     * Subcuenta presupuestal afectada cuando el movimiento requiere precisión por subcuenta.
+     */
+    public function budgetCedula(): BelongsTo
+    {
+        return $this->belongsTo(BudgetCedula::class, 'budget_cedula_id');
     }
 
     /**
@@ -144,7 +155,7 @@ class BudgetMovementDetail extends Model
             9 => 'Septiembre',
             10 => 'Octubre',
             11 => 'Noviembre',
-            12 => 'Diciembre'
+            12 => 'Diciembre',
         ];
 
         return $months[$this->month] ?? '';

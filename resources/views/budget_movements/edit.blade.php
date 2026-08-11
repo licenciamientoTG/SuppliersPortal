@@ -87,6 +87,7 @@
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
+
                         </div>
 
                         <div class="col-md-6">
@@ -109,7 +110,6 @@
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
-
                             <div class="mb-3">
                                 <label for="total_amount" class="form-label">
                                     Monto Total <span class="text-danger">*</span>
@@ -231,6 +231,12 @@
                                 @enderror
                             </div>
 
+                            <div class="mb-3">
+                                <label for="origin_budget_cedula_id" class="form-label">Subcuenta <span class="text-danger">*</span></label>
+                                <select class="form-select select2 @error('origin_budget_cedula_id') is-invalid @enderror" id="origin_budget_cedula_id" name="origin_budget_cedula_id" data-selected="{{ old('origin_budget_cedula_id', $originDetail?->budget_cedula_id) }}" disabled><option value="">Primero seleccione una cuenta</option></select>
+                                @error('origin_budget_cedula_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                            </div>
+
                             <!-- Alert de Presupuesto Disponible ORIGEN -->
                             <div id="origin_budget_alert" class="alert" style="display: none;">
                                 <div class="d-flex align-items-center">
@@ -311,6 +317,11 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            <div class="mb-3">
+                                <label for="destination_budget_cedula_id" class="form-label">Subcuenta <span class="text-danger">*</span></label>
+                                <select class="form-select select2 @error('destination_budget_cedula_id') is-invalid @enderror" id="destination_budget_cedula_id" name="destination_budget_cedula_id" data-selected="{{ old('destination_budget_cedula_id', $destinationDetail?->budget_cedula_id) }}" disabled><option value="">Primero seleccione una cuenta</option></select>
+                                @error('destination_budget_cedula_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -343,6 +354,25 @@
                             </select>
                             @error('cost_center_id')
                             <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row mb-3" id="budget_cedula_row">
+                        <label for="budget_cedula_id" class="col-sm-3 col-form-label">
+                            Subcuenta <span class="text-danger">*</span>
+                        </label>
+                        <div class="col-sm-9">
+                            <select class="form-select select2 @error('budget_cedula_id') is-invalid @enderror"
+                                id="budget_cedula_id"
+                                name="budget_cedula_id"
+                                data-selected="{{ old('budget_cedula_id', $adjustmentDetail?->budget_cedula_id) }}"
+                                disabled>
+                                <option value="">Primero seleccione una cuenta</option>
+                            </select>
+                            <small class="text-muted">La ampliación se aplicará únicamente a esta subcuenta.</small>
+                            @error('budget_cedula_id')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
@@ -488,6 +518,38 @@
             width: '100%'
         });
 
+        const budgetCedulas = @json($budgetCedulas->map(fn ($cedula) => [
+            'id' => $cedula->id,
+            'expense_category_id' => $cedula->expense_category_id,
+            'name' => $cedula->name,
+        ])->values());
+
+        function refreshSubaccounts() {
+            [
+                ['#expense_category_id', '#budget_cedula_id'],
+                ['#origin_expense_category_id', '#origin_budget_cedula_id'],
+                ['#destination_expense_category_id', '#destination_budget_cedula_id'],
+            ].forEach(([accountSelector, subaccountSelector]) => {
+                const $subaccount = $(subaccountSelector);
+                if (! $subaccount.length) return;
+
+                const accountId = $(accountSelector).val();
+                const selectedId = $subaccount.data('selected') || $subaccount.val();
+                $subaccount.select2('destroy').empty();
+
+                if (! accountId) {
+                    $subaccount.append(new Option('Primero seleccione una cuenta', '')).prop('disabled', true);
+                } else {
+                    const options = budgetCedulas.filter((cedula) => String(cedula.expense_category_id) === String(accountId));
+                    $subaccount.append(new Option(options.length ? 'Seleccione una subcuenta' : 'Esta cuenta no tiene subcuentas activas', ''));
+                    options.forEach((cedula) => $subaccount.append(new Option(cedula.name, cedula.id, false, String(cedula.id) === String(selectedId))));
+                    $subaccount.prop('disabled', options.length === 0);
+                }
+
+                $subaccount.select2({ theme: 'bootstrap-5', width: '100%' }).data('selected', '');
+            });
+        }
+
         // Textos de ayuda según tipo de movimiento
         const helpTexts = {
             'TRANSFERENCIA': `
@@ -530,6 +592,7 @@
             $('#origin_section select, #origin_section input').prop('required', false);
             $('#destination_section select, #destination_section input').prop('required', false);
             $('#single_section select, #single_section input').prop('required', false);
+            $('#budget_cedula_row').hide();
 
             // Mostrar secciones según el tipo
             if (movementType === 'TRANSFERENCIA') {
@@ -538,8 +601,8 @@
                 $('#destination_title').text('Destino (A dónde va el dinero)');
 
                 // Hacer campos requeridos
-                $('#origin_cost_center_id, #origin_month, #origin_expense_category_id').prop('required', true);
-                $('#destination_cost_center_id, #destination_month, #destination_expense_category_id').prop('required', true);
+                $('#origin_cost_center_id, #origin_month, #origin_expense_category_id, #origin_budget_cedula_id').prop('required', true);
+                $('#destination_cost_center_id, #destination_month, #destination_expense_category_id, #destination_budget_cedula_id').prop('required', true);
 
                 $('#movement_type_help').text('Transferir presupuesto entre centros de costo');
 
@@ -549,7 +612,8 @@
                 $('#single_title').text('Centro de Costo a Ampliar');
 
                 // Hacer campos requeridos
-                $('#cost_center_id, #month, #expense_category_id').prop('required', true);
+                $('#cost_center_id, #month, #expense_category_id, #budget_cedula_id').prop('required', true);
+                $('#budget_cedula_row').show();
 
                 $('#movement_type_help').text('Aumentar el presupuesto de un centro de costo');
 
@@ -559,7 +623,8 @@
                 $('#single_title').text('Centro de Costo a Reducir');
 
                 // Hacer campos requeridos
-                $('#cost_center_id, #month, #expense_category_id').prop('required', true);
+                $('#cost_center_id, #month, #expense_category_id, #budget_cedula_id').prop('required', true);
+                $('#budget_cedula_row').show();
 
                 $('#movement_type_help').text('Disminuir el presupuesto de un centro de costo');
             }
@@ -573,9 +638,11 @@
 
         // Evento al cambiar tipo de movimiento
         $('#movement_type').on('change', updateSections);
+        $('#expense_category_id, #origin_expense_category_id, #destination_expense_category_id').on('change', refreshSubaccounts);
 
         // Ejecutar al cargar para mostrar las secciones según el tipo existente
         updateSections();
+        refreshSubaccounts();
 
         // Validación antes de enviar
         $('#movementForm').on('submit', function(e) {
@@ -604,12 +671,14 @@
                 const destMonth = $('#destination_month').val();
                 const originCat = $('#origin_expense_category_id').val();
                 const destCat = $('#destination_expense_category_id').val();
+                const originSubaccount = $('#origin_budget_cedula_id').val();
+                const destinationSubaccount = $('#destination_budget_cedula_id').val();
 
                 // Validar que al menos UNO sea diferente
-                if (originCC === destCC && originMonth === destMonth && originCat === destCat) {
+                if (originCC === destCC && originMonth === destMonth && originCat === destCat && originSubaccount === destinationSubaccount) {
                     Swal.fire({
                         title: 'Error',
-                        text: 'En una transferencia, al menos uno de estos campos debe ser diferente: centro de costo, mes o cuenta.',
+                        text: 'En una transferencia, al menos uno de estos campos debe ser diferente: centro de costo, mes, cuenta o subcuenta.',
                         icon: 'error',
                         customClass: {
                             confirmButton: 'btn btn-danger'
@@ -720,7 +789,8 @@
                     fiscal_year: fiscalYear,
                     cost_center_id: costCenterId,
                     month: month,
-                    expense_category_id: expenseCategoryId
+                    expense_category_id: expenseCategoryId,
+                    budget_cedula_id: $('#origin_budget_cedula_id').val()
                 },
                 success: function(response) {
                     $('#origin_budget_spinner').hide();
@@ -780,7 +850,7 @@
         }
 
         // Eventos para verificar presupuesto cuando cambian los campos
-        $('#fiscal_year, #origin_cost_center_id, #origin_month, #origin_expense_category_id').on('change', function() {
+        $('#fiscal_year, #origin_cost_center_id, #origin_month, #origin_expense_category_id, #origin_budget_cedula_id').on('change', function() {
             const movementType = $('#movement_type').val();
             // Solo verificar si es TRANSFERENCIA o REDUCCIÓN (que usan campos origen)
             if (movementType === 'TRANSFERENCIA' || movementType === 'REDUCCION') {
@@ -832,7 +902,8 @@
                     fiscal_year: fiscalYear,
                     cost_center_id: costCenterId,
                     month: month,
-                    expense_category_id: expenseCategoryId
+                    expense_category_id: expenseCategoryId,
+                    budget_cedula_id: $('#budget_cedula_id').val()
                 },
                 success: function(response) {
                     $('#single_budget_spinner').hide();
@@ -892,7 +963,7 @@
         }
 
         // Eventos para verificar presupuesto en single section
-        $('#fiscal_year, #cost_center_id, #month, #expense_category_id').on('change', function() {
+        $('#fiscal_year, #cost_center_id, #month, #expense_category_id, #budget_cedula_id').on('change', function() {
             const movementType = $('#movement_type').val();
             // Solo verificar si es AMPLIACIÓN o REDUCCIÓN
             if (movementType === 'AMPLIACION' || movementType === 'REDUCCION') {

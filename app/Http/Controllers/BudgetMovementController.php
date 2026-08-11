@@ -5,15 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SaveBudgetMovementRequest;
 use App\Models\AnnualBudget;
 use App\Models\BudgetCedula;
+use App\Models\BudgetMonthlyDistribution;
 use App\Models\BudgetMovement;
 use App\Models\BudgetMovementDetail;
-use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Facades\DataTables;
 
 class BudgetMovementController extends Controller
@@ -40,6 +40,7 @@ class BudgetMovementController extends Controller
                         'APROBADO' => '<span class="badge bg-success">Aprobado</span>',
                         'RECHAZADO' => '<span class="badge bg-danger">Rechazado</span>',
                     ];
+
                     return $badges[$movement->status] ?? '';
                 })
                 ->addColumn('type_badge', function ($movement) {
@@ -48,23 +49,24 @@ class BudgetMovementController extends Controller
                         'AMPLIACION' => '<span class="badge bg-primary">Ampliación</span>',
                         'REDUCCION' => '<span class="badge bg-secondary">Reducción</span>',
                     ];
+
                     return $badges[$movement->movement_type] ?? '';
                 })
                 ->addColumn('formatted_amount', function ($movement) {
-                    return '$' . number_format($movement->total_amount, 2);
+                    return '$'.number_format($movement->total_amount, 2);
                 })
                 ->addColumn('actions', function ($movement) {
                     $actions = '<div class="btn-group" role="group">';
 
                     // Ver detalles (todos pueden ver)
-                    $actions .= '<a href="' . route('budget_movements.show', $movement->id) . '" 
+                    $actions .= '<a href="'.route('budget_movements.show', $movement->id).'"
                                    class="btn btn-sm btn-info" title="Ver detalles">
                                    <i class="ti ti-eye"></i>
                                 </a>';
 
                     // Editar (solo si está pendiente)
                     if ($movement->isPending()) {
-                        $actions .= '<a href="' . route('budget_movements.edit', $movement->id) . '" 
+                        $actions .= '<a href="'.route('budget_movements.edit', $movement->id).'"
                                        class="btn btn-sm btn-warning" title="Editar">
                                        <i class="ti ti-pencil"></i>
                                     </a>';
@@ -75,14 +77,14 @@ class BudgetMovementController extends Controller
                     if ($movement->isPending()) {
                         $actions .= '<button type="button" 
                                        class="btn btn-sm btn-success btn-approve" 
-                                       data-id="' . $movement->id . '" 
+                                       data-id="'.$movement->id.'"
                                        title="Aprobar">
                                        <i class="ti ti-check"></i>
                                     </button>';
 
                         $actions .= '<button type="button" 
                                        class="btn btn-sm btn-danger btn-reject" 
-                                       data-id="' . $movement->id . '" 
+                                       data-id="'.$movement->id.'"
                                        title="Rechazar">
                                        <i class="ti ti-x"></i>
                                     </button>';
@@ -92,13 +94,14 @@ class BudgetMovementController extends Controller
                     if ($movement->isPending()) {
                         $actions .= '<button type="button" 
                                        class="btn btn-sm btn-outline-danger btn-delete" 
-                                       data-id="' . $movement->id . '" 
+                                       data-id="'.$movement->id.'"
                                        title="Eliminar">
                                        <i class="ti ti-trash"></i>
                                     </button>';
                     }
 
                     $actions .= '</div>';
+
                     return $actions;
                 })
                 ->rawColumns(['status_badge', 'type_badge', 'actions'])
@@ -115,9 +118,14 @@ class BudgetMovementController extends Controller
     {
         $costCenters = CostCenter::active()->orderBy('name')->get();
         $expenseCategories = ExpenseCategory::orderBy('name')->get();
+        $budgetCedulas = BudgetCedula::query()
+            ->active()
+            ->notDeleted()
+            ->orderBy('name')
+            ->get(['id', 'expense_category_id', 'name']);
         $currentYear = date('Y');
 
-        return view('budget_movements.create', compact('costCenters', 'expenseCategories', 'currentYear'));
+        return view('budget_movements.create', compact('costCenters', 'expenseCategories', 'budgetCedulas', 'currentYear'));
     }
 
     /**
@@ -147,6 +155,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->origin_cost_center_id,
                     'month' => $request->origin_month,
                     'expense_category_id' => $request->origin_expense_category_id,
+                    'budget_cedula_id' => $request->origin_budget_cedula_id,
                     'amount' => -abs($request->total_amount), // Negativo porque resta
                 ]);
 
@@ -157,6 +166,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->destination_cost_center_id,
                     'month' => $request->destination_month,
                     'expense_category_id' => $request->destination_expense_category_id,
+                    'budget_cedula_id' => $request->destination_budget_cedula_id,
                     'amount' => abs($request->total_amount), // Positivo porque suma
                 ]);
             } elseif ($request->movement_type === 'AMPLIACION') {
@@ -167,6 +177,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->cost_center_id,
                     'month' => $request->month,
                     'expense_category_id' => $request->expense_category_id,
+                    'budget_cedula_id' => $request->budget_cedula_id,
                     'amount' => abs($request->total_amount), // Positivo porque suma
                 ]);
             } elseif ($request->movement_type === 'REDUCCION') {
@@ -177,6 +188,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->cost_center_id,
                     'month' => $request->month,
                     'expense_category_id' => $request->expense_category_id,
+                    'budget_cedula_id' => $request->budget_cedula_id,
                     'amount' => -abs($request->total_amount), // Negativo porque resta
                 ]);
             }
@@ -188,7 +200,7 @@ class BudgetMovementController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Movimiento presupuestal registrado exitosamente.',
-                    'redirect' => route('budget_movements.index')
+                    'redirect' => route('budget_movements.index'),
                 ]);
             }
 
@@ -201,13 +213,13 @@ class BudgetMovementController extends Controller
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al registrar el movimiento: ' . $e->getMessage()
+                    'message' => 'Error al registrar el movimiento: '.$e->getMessage(),
                 ], 500);
             }
 
             return back()
                 ->withInput()
-                ->with('error', 'Error al registrar el movimiento: ' . $e->getMessage());
+                ->with('error', 'Error al registrar el movimiento: '.$e->getMessage());
         }
     }
 
@@ -220,7 +232,7 @@ class BudgetMovementController extends Controller
             'details.costCenter',
             'details.expenseCategory',
             'creator',
-            'approver'
+            'approver',
         ]);
 
         return view('budget_movements.show', compact('budgetMovement'));
@@ -232,7 +244,7 @@ class BudgetMovementController extends Controller
     public function edit(BudgetMovement $budgetMovement)
     {
         // Solo se pueden editar movimientos pendientes
-        if (!$budgetMovement->isPending()) {
+        if (! $budgetMovement->isPending()) {
             return redirect()
                 ->route('budget_movements.index')
                 ->with('error', 'Solo se pueden editar movimientos pendientes.');
@@ -241,8 +253,13 @@ class BudgetMovementController extends Controller
         $budgetMovement->load('details');
         $costCenters = CostCenter::active()->orderBy('name')->get();
         $expenseCategories = ExpenseCategory::orderBy('name')->get();
+        $budgetCedulas = BudgetCedula::query()
+            ->active()
+            ->notDeleted()
+            ->orderBy('name')
+            ->get(['id', 'expense_category_id', 'name']);
 
-        return view('budget_movements.edit', compact('budgetMovement', 'costCenters', 'expenseCategories'));
+        return view('budget_movements.edit', compact('budgetMovement', 'costCenters', 'expenseCategories', 'budgetCedulas'));
     }
 
     /**
@@ -251,11 +268,11 @@ class BudgetMovementController extends Controller
     public function update(SaveBudgetMovementRequest $request, BudgetMovement $budgetMovement)
     {
         // Solo se pueden actualizar movimientos pendientes
-        if (!$budgetMovement->isPending()) {
+        if (! $budgetMovement->isPending()) {
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo se pueden actualizar movimientos pendientes.'
+                    'message' => 'Solo se pueden actualizar movimientos pendientes.',
                 ], 403);
             }
 
@@ -287,6 +304,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->origin_cost_center_id,
                     'month' => $request->origin_month,
                     'expense_category_id' => $request->origin_expense_category_id,
+                    'budget_cedula_id' => $request->origin_budget_cedula_id,
                     'amount' => -abs($request->total_amount),
                 ]);
 
@@ -297,6 +315,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->destination_cost_center_id,
                     'month' => $request->destination_month,
                     'expense_category_id' => $request->destination_expense_category_id,
+                    'budget_cedula_id' => $request->destination_budget_cedula_id,
                     'amount' => abs($request->total_amount),
                 ]);
             } elseif ($request->movement_type === 'AMPLIACION') {
@@ -307,6 +326,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->cost_center_id,
                     'month' => $request->month,
                     'expense_category_id' => $request->expense_category_id,
+                    'budget_cedula_id' => $request->budget_cedula_id,
                     'amount' => abs($request->total_amount),
                 ]);
             } elseif ($request->movement_type === 'REDUCCION') {
@@ -317,6 +337,7 @@ class BudgetMovementController extends Controller
                     'cost_center_id' => $request->cost_center_id,
                     'month' => $request->month,
                     'expense_category_id' => $request->expense_category_id,
+                    'budget_cedula_id' => $request->budget_cedula_id,
                     'amount' => -abs($request->total_amount),
                 ]);
             }
@@ -328,7 +349,7 @@ class BudgetMovementController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Movimiento actualizado exitosamente.',
-                    'redirect' => route('budget_movements.index')
+                    'redirect' => route('budget_movements.index'),
                 ]);
             }
 
@@ -342,13 +363,13 @@ class BudgetMovementController extends Controller
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al actualizar el movimiento: ' . $e->getMessage()
+                    'message' => 'Error al actualizar el movimiento: '.$e->getMessage(),
                 ], 500);
             }
 
             return back()
                 ->withInput()
-                ->with('error', 'Error al actualizar el movimiento: ' . $e->getMessage());
+                ->with('error', 'Error al actualizar el movimiento: '.$e->getMessage());
         }
     }
 
@@ -358,10 +379,10 @@ class BudgetMovementController extends Controller
     public function destroy(BudgetMovement $budgetMovement)
     {
         // Solo se pueden eliminar movimientos pendientes
-        if (!$budgetMovement->isPending()) {
+        if (! $budgetMovement->isPending()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solo se pueden eliminar movimientos pendientes.'
+                'message' => 'Solo se pueden eliminar movimientos pendientes.',
             ], 403);
         }
 
@@ -370,12 +391,12 @@ class BudgetMovementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Movimiento eliminado exitosamente.'
+                'message' => 'Movimiento eliminado exitosamente.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el movimiento: ' . $e->getMessage()
+                'message' => 'Error al eliminar el movimiento: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -386,10 +407,10 @@ class BudgetMovementController extends Controller
     public function approve(BudgetMovement $budgetMovement)
     {
         // Solo se pueden aprobar movimientos pendientes
-        if (!$budgetMovement->isPending()) {
+        if (! $budgetMovement->isPending()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solo se pueden aprobar movimientos pendientes.'
+                'message' => 'Solo se pueden aprobar movimientos pendientes.',
             ], 403);
         }
 
@@ -409,9 +430,9 @@ class BudgetMovementController extends Controller
                         ->where('fiscal_year', $budgetMovement->fiscal_year)
                         ->first();
 
-                    if (!$annualBudget) {
+                    if (! $annualBudget) {
                         throw new \Exception(
-                            "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' " .
+                            "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' ".
                                 "en el año {$budgetMovement->fiscal_year}."
                         );
                     }
@@ -429,17 +450,17 @@ class BudgetMovementController extends Controller
                         // Verificar que haya suficiente presupuesto disponible
                         if ($availableAmount < $requiredAmount) {
                             throw new \Exception(
-                                "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto disponible. " .
-                                    "Mes: {$detail->month_name}, " .
-                                    "Categoría: '{$detail->expenseCategory->name}'. " .
-                                    "Disponible: $" . number_format($availableAmount, 2) . ", " .
-                                    "Requerido: $" . number_format($requiredAmount, 2)
+                                "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto disponible. ".
+                                    "Mes: {$detail->month_name}, ".
+                                    "Categoría: '{$detail->expenseCategory->name}'. ".
+                                    'Disponible: $'.number_format($availableAmount, 2).', '.
+                                    'Requerido: $'.number_format($requiredAmount, 2)
                             );
                         }
                     } else {
                         // Si no existe distribución y queremos restar, es un error
                         throw new \Exception(
-                            "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' " .
+                            "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' ".
                                 "en el mes {$detail->month_name} para la categoría '{$detail->expenseCategory->name}'."
                         );
                     }
@@ -453,11 +474,11 @@ class BudgetMovementController extends Controller
                     ->where('fiscal_year', $budgetMovement->fiscal_year)
                     ->first();
 
-                if (!$annualBudget) {
+                if (! $annualBudget) {
                     throw new \Exception(
-                        "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' " .
-                            "en el año {$budgetMovement->fiscal_year}. " .
-                            "Debe crear el presupuesto anual antes de aprobar este movimiento."
+                        "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' ".
+                            "en el año {$budgetMovement->fiscal_year}. ".
+                            'Debe crear el presupuesto anual antes de aprobar este movimiento.'
                     );
                 }
 
@@ -467,7 +488,7 @@ class BudgetMovementController extends Controller
                     ->where('expense_category_id', $detail->expense_category_id)
                     ->first();
 
-                if (!$distribution) {
+                if (! $distribution) {
                     // Si no existe, crear una nueva distribución con el monto
                     \App\Models\BudgetMonthlyDistribution::create([
                         'annual_budget_id' => $annualBudget->id,
@@ -489,13 +510,13 @@ class BudgetMovementController extends Controller
 
                         if ($availableBudget < $amountToReduce) {
                             throw new \Exception(
-                                "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto DISPONIBLE " .
-                                    "en el mes {$detail->month} para la categoría '{$detail->expenseCategory->name}'. " .
-                                    "Asignado: $" . number_format($distribution->assigned_amount, 2) . " | " .
-                                    "Consumido: $" . number_format($distribution->consumed_amount, 2) . " | " .
-                                    "Comprometido: $" . number_format($distribution->committed_amount, 2) . " | " .
-                                    "Disponible: $" . number_format($availableBudget, 2) . " | " .
-                                    "Solicitado: $" . number_format($amountToReduce, 2)
+                                "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto DISPONIBLE ".
+                                    "en el mes {$detail->month} para la categoría '{$detail->expenseCategory->name}'. ".
+                                    'Asignado: $'.number_format($distribution->assigned_amount, 2).' | '.
+                                    'Consumido: $'.number_format($distribution->consumed_amount, 2).' | '.
+                                    'Comprometido: $'.number_format($distribution->committed_amount, 2).' | '.
+                                    'Disponible: $'.number_format($availableBudget, 2).' | '.
+                                    'Solicitado: $'.number_format($amountToReduce, 2)
                             );
                         }
                     }
@@ -503,10 +524,10 @@ class BudgetMovementController extends Controller
                     // Validar que el asignado no quede negativo
                     if ($newAssignedAmount < 0) {
                         throw new \Exception(
-                            "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto asignado " .
-                                "en el mes {$detail->month} para la categoría '{$detail->expenseCategory->name}'. " .
-                                "Asignado actual: $" . number_format($distribution->assigned_amount, 2) . ", " .
-                                "Solicitado: $" . number_format(abs($detail->amount), 2)
+                            "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto asignado ".
+                                "en el mes {$detail->month} para la categoría '{$detail->expenseCategory->name}'. ".
+                                'Asignado actual: $'.number_format($distribution->assigned_amount, 2).', '.
+                                'Solicitado: $'.number_format(abs($detail->amount), 2)
                         );
                     }
 
@@ -530,13 +551,14 @@ class BudgetMovementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Movimiento aprobado exitosamente. Los cambios se han aplicado al presupuesto.'
+                'message' => 'Movimiento aprobado exitosamente. Los cambios se han aplicado al presupuesto.',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al aprobar el movimiento: ' . $e->getMessage()
+                'message' => 'Error al aprobar el movimiento: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -547,10 +569,10 @@ class BudgetMovementController extends Controller
     public function reject(BudgetMovement $budgetMovement)
     {
         // Solo se pueden rechazar movimientos pendientes
-        if (!$budgetMovement->isPending()) {
+        if (! $budgetMovement->isPending()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solo se pueden rechazar movimientos pendientes.'
+                'message' => 'Solo se pueden rechazar movimientos pendientes.',
             ], 403);
         }
 
@@ -565,12 +587,12 @@ class BudgetMovementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Movimiento rechazado.'
+                'message' => 'Movimiento rechazado.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al rechazar el movimiento: ' . $e->getMessage()
+                'message' => 'Error al rechazar el movimiento: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -585,6 +607,7 @@ class BudgetMovementController extends Controller
             'cost_center_id' => 'required|exists:cost_centers,id',
             'month' => 'required|integer|min:1|max:12',
             'expense_category_id' => 'required|exists:expense_categories,id',
+            'budget_cedula_id' => 'nullable|exists:budget_cedulas,id',
         ]);
 
         return $this->checkBudgetAvailabilityUsingCedulas($request);
@@ -595,7 +618,7 @@ class BudgetMovementController extends Controller
                 ->where('fiscal_year', $request->fiscal_year)
                 ->first();
 
-            if (!$annualBudget) {
+            if (! $annualBudget) {
                 return response()->json([
                     'success' => false,
                     'has_budget' => false,
@@ -613,7 +636,7 @@ class BudgetMovementController extends Controller
                 ->where('expense_category_id', $request->expense_category_id)
                 ->first();
 
-            if (!$distribution) {
+            if (! $distribution) {
                 return response()->json([
                     'success' => true,
                     'has_budget' => false,
@@ -648,7 +671,7 @@ class BudgetMovementController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar presupuesto: ' . $e->getMessage(),
+                'message' => 'Error al verificar presupuesto: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -743,7 +766,7 @@ class BudgetMovementController extends Controller
 
                 if ($distributions->isEmpty()) {
                     throw new \Exception(
-                        "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' " .
+                        "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' ".
                             "en el mes {$detail->month_name} para la categoría '{$detail->expenseCategory->name}'."
                     );
                 }
@@ -755,11 +778,11 @@ class BudgetMovementController extends Controller
 
                 if ($availableAmount + 0.000001 < $requiredAmount) {
                     throw new \Exception(
-                        "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto disponible. " .
-                            "Mes: {$detail->month_name}, " .
-                            "Categoría: '{$detail->expenseCategory->name}'. " .
-                            "Disponible: $" . number_format($availableAmount, 2) . ", " .
-                            "Requerido: $" . number_format($requiredAmount, 2)
+                        "El centro de costo '{$detail->costCenter->name}' no tiene suficiente presupuesto disponible. ".
+                            "Mes: {$detail->month_name}, ".
+                            "Categoría: '{$detail->expenseCategory->name}'. ".
+                            'Disponible: $'.number_format($availableAmount, 2).', '.
+                            'Requerido: $'.number_format($requiredAmount, 2)
                     );
                 }
             }
@@ -779,14 +802,14 @@ class BudgetMovementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Movimiento aprobado exitosamente. Los cambios se han aplicado al presupuesto.'
+                'message' => 'Movimiento aprobado exitosamente. Los cambios se han aplicado al presupuesto.',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al aprobar el movimiento: ' . $e->getMessage()
+                'message' => 'Error al aprobar el movimiento: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -813,6 +836,7 @@ class BudgetMovementController extends Controller
             $distributions = BudgetMonthlyDistribution::where('annual_budget_id', $annualBudget->id)
                 ->where('month', $request->month)
                 ->where('expense_category_id', $request->expense_category_id)
+                ->when($request->budget_cedula_id, fn ($query) => $query->where('budget_cedula_id', $request->budget_cedula_id))
                 ->get();
 
             if ($distributions->isEmpty()) {
@@ -857,7 +881,7 @@ class BudgetMovementController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar presupuesto: ' . $e->getMessage(),
+                'message' => 'Error al verificar presupuesto: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -870,7 +894,7 @@ class BudgetMovementController extends Controller
 
         if (! $annualBudget) {
             throw new \Exception(
-                "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' " .
+                "No existe presupuesto anual para el centro de costo '{$detail->costCenter->name}' ".
                     "en el año {$fiscalYear}. Debe crear el presupuesto anual antes de aprobar este movimiento."
             );
         }
@@ -883,6 +907,7 @@ class BudgetMovementController extends Controller
         return BudgetMonthlyDistribution::where('annual_budget_id', $annualBudget->id)
             ->where('month', $detail->month)
             ->where('expense_category_id', $detail->expense_category_id)
+            ->when($detail->budget_cedula_id, fn ($query) => $query->where('budget_cedula_id', $detail->budget_cedula_id))
             ->orderBy('budget_cedula_id')
             ->orderBy('id')
             ->get();
@@ -894,12 +919,13 @@ class BudgetMovementController extends Controller
 
         if ((float) $detail->amount > 0) {
             $this->applyIncreaseToCategory($annualBudget, $detail, $distributions);
+
             return;
         }
 
         if ($distributions->isEmpty()) {
             throw new \Exception(
-                "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' " .
+                "No existe presupuesto asignado para el centro de costo '{$detail->costCenter->name}' ".
                     "en el mes {$detail->month_name} para la categoría '{$detail->expenseCategory->name}'."
             );
         }
@@ -926,8 +952,8 @@ class BudgetMovementController extends Controller
 
         if ($remaining > 0.000001) {
             throw new \Exception(
-                "No fue posible aplicar la reducción completa a la categoría '{$detail->expenseCategory->name}'. " .
-                    "Monto pendiente: $" . number_format($remaining, 2)
+                "No fue posible aplicar la reducción completa a la categoría '{$detail->expenseCategory->name}'. ".
+                    'Monto pendiente: $'.number_format($remaining, 2)
             );
         }
     }
@@ -939,6 +965,33 @@ class BudgetMovementController extends Controller
     ): void {
         $amount = (float) $detail->amount;
 
+        if ($detail->budget_cedula_id) {
+            $distribution = $distributions->firstWhere('budget_cedula_id', $detail->budget_cedula_id);
+
+            if ($distribution) {
+                $distribution->update([
+                    'assigned_amount' => (float) $distribution->assigned_amount + $amount,
+                    'updated_by' => Auth::id(),
+                ]);
+
+                return;
+            }
+
+            BudgetMonthlyDistribution::create([
+                'annual_budget_id' => $annualBudget->id,
+                'budget_cedula_id' => $detail->budget_cedula_id,
+                'expense_category_id' => $detail->expense_category_id,
+                'month' => $detail->month,
+                'assigned_amount' => $amount,
+                'consumed_amount' => 0,
+                'committed_amount' => 0,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+            ]);
+
+            return;
+        }
+
         if ($distributions->isNotEmpty()) {
             /** @var BudgetMonthlyDistribution $distribution */
             $distribution = $distributions->sortBy('budget_cedula_id')->first();
@@ -946,6 +999,7 @@ class BudgetMovementController extends Controller
                 'assigned_amount' => (float) $distribution->assigned_amount + $amount,
                 'updated_by' => Auth::id(),
             ]);
+
             return;
         }
 
