@@ -9,6 +9,7 @@ use App\Models\QuotationGroup;
 use App\Models\Requisition;
 use App\Models\Supplier;
 use App\Services\Rfq\ManualQuoteService;
+use App\Services\Rfq\ProductPurchaseHistoryService;
 use App\Services\Rfq\RequisitionValidationService;
 use App\Services\Rfq\RfqDraftService;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +69,10 @@ class QuotationWizard extends Component
     public $manualQuoteValidityDays = 30;
 
     public $manualQuoteAttachment = null;
+
+    public $manualHistoryItemId = null;
+
+    public array $manualPurchaseHistory = [];
 
     /**
      * Inicializar el wizard con la requisición
@@ -438,6 +443,66 @@ class QuotationWizard extends Component
     public function closeManualQuoteModal(): void
     {
         $this->showManualQuoteModal = false;
+    }
+
+    public function updatedManualQuoteSupplierId($supplierId): void
+    {
+        if ($supplierId) {
+            $this->applyManualSupplierDefaults((int) $supplierId, true);
+        }
+    }
+
+    public function openManualPurchaseHistory(int $itemId): void
+    {
+        $item = $this->manualQuoteGroup?->items->firstWhere('id', $itemId);
+        $this->manualHistoryItemId = $itemId;
+        $this->manualPurchaseHistory = $item?->product_service_id
+            ? app(ProductPurchaseHistoryService::class)->latestForProduct((int) $item->product_service_id)->values()->all()
+            : [];
+    }
+
+    public function closeManualPurchaseHistory(): void
+    {
+        $this->manualHistoryItemId = null;
+        $this->manualPurchaseHistory = [];
+    }
+
+    public function applyManualPurchaseHistory(int $historyId): void
+    {
+        $reference = collect($this->manualPurchaseHistory)->firstWhere('id', $historyId);
+        if (! $reference || ! $this->manualHistoryItemId) {
+            return;
+        }
+
+        $itemId = $this->manualHistoryItemId;
+        $this->manualQuoteItems[$itemId] = array_merge($this->manualQuoteItems[$itemId] ?? [], [
+            'unit_price' => $reference['unit_price'],
+            'iva_rate' => $reference['iva_rate'],
+            'currency' => $reference['currency'],
+            'delivery_days' => $reference['delivery_days'],
+            'payment_terms' => $reference['payment_terms'],
+            'not_available' => false,
+        ]);
+        $this->manualQuoteSupplierId = $reference['supplier_id'];
+        $this->applyManualSupplierDefaults((int) $reference['supplier_id'], false);
+        $this->closeManualPurchaseHistory();
+    }
+
+    private function applyManualSupplierDefaults(int $supplierId, bool $overwrite = false): void
+    {
+        $supplier = Supplier::find($supplierId);
+        if (! $supplier) {
+            return;
+        }
+
+        foreach ($this->manualQuoteItems as $itemId => $item) {
+            $this->manualQuoteItems[$itemId]['currency'] = $overwrite || empty($item['currency'])
+                ? ($supplier->currency ?: 'MXN')
+                : $item['currency'];
+            $this->manualQuoteItems[$itemId]['payment_terms'] = $overwrite || empty($item['payment_terms'])
+                ? $supplier->default_payment_terms
+                : $item['payment_terms'];
+        }
     }
 
     public function getManualQuoteGroupProperty()

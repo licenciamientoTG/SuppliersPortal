@@ -230,8 +230,9 @@
      tabindex="-1"
      style="{{ $showManualQuoteModal ? 'background: rgba(0,0,0,.5);' : '' }}">
     <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content tg-manual-modal">
+            <div class="modal-header tg-manual-modal-header">
+                <img src="{{ asset('images/logos/Logo.png') }}" alt="TotalGas" class="tg-manual-logo-spinner">
                 <h5 class="modal-title">
                     <i class="ti ti-pencil-plus"></i> Cotización manual
                     @if($manualQuoteGroup)
@@ -240,11 +241,12 @@
                 </h5>
                 <button type="button" class="btn-close" wire:click="closeManualQuoteModal"></button>
             </div>
-            <div class="modal-body">
-                <div class="row mb-3">
+            <div class="modal-body tg-manual-modal-body">
+                <div class="tg-manual-context"><i class="ti ti-route"></i><div><strong>Compra directa con precio conocido</strong><span>Captura la oferta elegida; al guardar continúa con presupuesto y autorización, sin enviar RFQ ni comparativo.</span></div></div>
+                <div class="row mb-3 tg-manual-section">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Proveedor</label>
-                        <select class="form-select" wire:model="manualQuoteSupplierId">
+                        <select class="form-select" wire:model.live="manualQuoteSupplierId">
                             <option value="">-- Nuevo proveedor externo --</option>
                             @foreach($manualQuoteSelectableSuppliers as $sel)
                                 <option value="{{ $sel->id }}">{{ $sel->company_name }}{{ $sel->is_external ? ' (externo)' : '' }}</option>
@@ -263,7 +265,7 @@
                 </div>
 
                 @if(! $manualQuoteSupplierId)
-                    <div class="card border-info mb-3">
+                    <div class="card tg-manual-external mb-3">
                         <div class="card-body">
                             <h6 class="text-info"><i class="ti ti-building-store"></i> Nuevo proveedor externo</h6>
                             <div class="row g-2">
@@ -300,10 +302,11 @@
                 @endif
 
                 @if($manualQuoteGroup)
-                    <div class="table-responsive">
+                    <div class="table-responsive tg-manual-table-shell">
                         <table class="table table-sm table-bordered">
                             <thead class="table-light">
                                 <tr>
+                                    <th width="8%">Historial</th>
                                     <th>Partida</th>
                                     <th width="10%">No disp.</th>
                                     <th width="12%">Precio unit.</th>
@@ -317,6 +320,11 @@
                             <tbody>
                                 @foreach($manualQuoteGroup->items as $item)
                                     <tr>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary w-100" wire:click="openManualPurchaseHistory({{ $item->id }})">
+                                                <i class="ti ti-history"></i>
+                                            </button>
+                                        </td>
                                         <td>{{ $item->productService->short_name ?? $item->description }}</td>
                                         <td class="text-center">
                                             <input type="checkbox" wire:model="manualQuoteItems.{{ $item->id }}.not_available">
@@ -354,7 +362,7 @@
                     </div>
                 @endif
 
-                <div class="row mt-3">
+                <div class="row mt-3 tg-manual-attachment">
                     <div class="col-md-8">
                         <label class="form-label fw-bold">Adjunto (opcional)</label>
                         <input type="file" class="form-control" wire:model="manualQuoteAttachment" accept=".pdf,.jpg,.jpeg,.png">
@@ -362,7 +370,7 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer tg-manual-modal-footer">
                 <button type="button" class="btn btn-light" wire:click="closeManualQuoteModal">Cancelar</button>
                 <button type="button"
                         class="btn btn-success"
@@ -376,6 +384,24 @@
         </div>
     </div>
 </div>
+
+@if($manualHistoryItemId)
+    <div class="modal fade show d-block" tabindex="-1" style="z-index:1070; background:rgba(17,37,57,.58);">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light"><div><h6 class="modal-title mb-0"><i class="ti ti-history me-2"></i>Últimos 10 pedidos</h6><small class="text-muted">Selecciona una referencia para copiar sus datos a esta partida.</small></div><button type="button" class="btn-close" wire:click="closeManualPurchaseHistory"></button></div>
+            <div class="modal-body p-0">
+                @forelse($manualPurchaseHistory as $reference)
+                    <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyManualPurchaseHistory({{ $reference['id'] }})">
+                        <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
+                        <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span><i class="ti ti-arrow-up-right text-primary fs-5"></i>
+                    </button>
+                @empty
+                    <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
+                @endforelse
+            </div>
+        </div></div>
+    </div>
+@endif
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
@@ -414,4 +440,5 @@
     .tg-supplier-transfer { display:grid; grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr); gap:.65rem; align-items:stretch; }.tg-supplier-column { overflow:hidden; min-width:0; border:1px solid #e2e9f0; border-radius:.65rem; background:#fbfdff; }.tg-supplier-column > header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.7rem .75rem; border-bottom:1px solid #e2e9f0; background:#fff; }.tg-supplier-column header strong,.tg-supplier-column header span { display:block; }.tg-supplier-column header strong { font-size:.8rem; }.tg-supplier-column header div > span { margin-top:.12rem; color:#718096; font-size:.69rem; }.tg-supplier-total,.tg-selected-column .supplier-count { min-width:1.65rem; padding:.18rem .45rem; border-radius:999px; color:#1269ac; background:#eaf6ff; font-size:.72rem; font-weight:700; text-align:center; }.tg-supplier-filter-wrap { position:relative; padding:.6rem; border-bottom:1px solid #e2e9f0; }.tg-supplier-filter-wrap i { position:absolute; top:50%; left:1rem; color:#718096; transform:translateY(-50%); }.tg-supplier-filter { width:100%; padding:.5rem .65rem .5rem 2rem; border:1px solid #d7e0e9; border-radius:.5rem; font-size:.78rem; outline:0; }.tg-supplier-filter:focus { border-color:#188ae2; box-shadow:0 0 0 .15rem rgba(24,138,226,.12); }.tg-supplier-card-list,.tg-selected-supplier-list { max-height:290px; overflow:auto; padding:.45rem; }.tg-supplier-card { display:grid; width:100%; grid-template-columns:auto 1fr auto; gap:.45rem; align-items:center; min-height:42px; margin-bottom:.3rem; padding:.45rem .55rem; border:1px solid transparent; border-radius:.5rem; color:#34465a; background:#fff; cursor:pointer; text-align:left; }.tg-supplier-card:hover { border-color:#9ed5f5; background:#f7fbff; }.tg-supplier-card.is-selected,.tg-supplier-card.is-filtered-out { display:none; }.tg-supplier-avatar { display:inline-flex; align-items:center; justify-content:center; width:1.55rem; height:1.55rem; border-radius:50%; color:#1269ac; background:#eaf6ff; font-size:.64rem; font-weight:700; }.tg-supplier-name { overflow:hidden; font-size:.75rem; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }.tg-supplier-add { color:#188ae2; font-size:.9rem; }.tg-transfer-divider { display:flex; align-items:center; justify-content:center; color:#188ae2; }.tg-selected-column { border-color:#b9dcf6; }.tg-selected-supplier { display:grid; width:100%; grid-template-columns:auto 1fr auto; gap:.45rem; align-items:center; min-height:42px; margin-bottom:.3rem; padding:.45rem .55rem; border:1px solid #dcecf8; border-radius:.5rem; color:#34465a; background:#fff; cursor:pointer; text-align:left; }.tg-selected-supplier:hover { border-color:#e7b8b8; background:#fffafa; }.tg-selected-supplier strong { overflow:hidden; font-size:.75rem; text-overflow:ellipsis; white-space:nowrap; }.tg-supplier-remove { display:inline-flex; align-items:center; justify-content:center; width:1.65rem; height:1.65rem; border-radius:.4rem; color:#d55757; }.tg-selected-supplier:hover .tg-supplier-remove { background:#fff1f1; }.tg-selected-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:.45rem; color:#8a97a8; font-size:.76rem; text-align:center; }.tg-selected-empty i { color:#b9c7d6; font-size:1.5rem; }.tg-selection-summary { display:flex; align-items:center; gap:.45rem; margin-top:.65rem; color:#526274; font-size:.76rem; }.tg-selection-summary i { color:#188ae2; }.tg-selection-summary .supplier-count { color:#1269ac; font-size:.95rem; }
     @media (max-width:767.98px) { .tg-invitations-header { flex-direction:column; }.tg-invitations-summary { width:100%; }.tg-invitations-summary > div { flex:1; } }
     @media (max-width:767.98px) { .tg-supplier-transfer { grid-template-columns:1fr; }.tg-transfer-divider { min-height:24px; transform:rotate(90deg); }.tg-supplier-card-list,.tg-selected-supplier-list { max-height:230px; } }
+    .tg-manual-modal { border:0; color:#26384b; background:#f5f5f5; }.tg-manual-modal-header { gap:.75rem; padding:1rem 1.35rem; color:#153952; background:#f7fbff; border-bottom:1px solid #e2e9f0; }.tg-manual-logo-spinner { width:2.4rem; height:2.4rem; flex:0 0 auto; object-fit:contain; animation:tg-manual-logo-spin 8s linear infinite; }.tg-manual-modal-header .modal-title { font-size:1rem; font-weight:750; }.tg-manual-modal-body { max-width:1500px; width:100%; margin:0 auto; padding:1.25rem; }.tg-manual-context { display:flex; gap:.7rem; align-items:flex-start; margin-bottom:1rem; padding:.8rem 1rem; border:1px solid #b9dbf6; border-radius:.75rem; color:#245476; background:#edf8ff; }.tg-manual-context > i { color:#188ae2; font-size:1.3rem; }.tg-manual-context strong,.tg-manual-context span { display:block; }.tg-manual-context span { margin-top:.12rem; font-size:.78rem; }.tg-manual-section { padding:1rem; border:1px solid #e2e9f0; border-radius:.8rem; background:#fff; }.tg-manual-section::before { display:block; flex:0 0 100%; max-width:100%; margin-bottom:.65rem; color:#188ae2; font-size:.76rem; font-weight:800; letter-spacing:.05em; content:'DATOS COMERCIALES'; }.tg-manual-section .form-label { color:#405369; font-size:.78rem; }.tg-manual-external { border:1px dashed #80c7f2 !important; border-radius:.8rem; background:#f7fbff; box-shadow:none; }.tg-manual-external .card-body { padding:1rem; }.tg-manual-table-shell { overflow:hidden; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-table-shell .table { margin:0; }.tg-manual-table-shell thead th { padding:.75rem .55rem; color:#526274; background:#f1f6fb; font-size:.72rem; vertical-align:middle; white-space:nowrap; }.tg-manual-table-shell tbody td { padding:.55rem; vertical-align:middle; }.tg-manual-table-shell tbody tr { transition:background .15s ease; }.tg-manual-table-shell tbody tr:hover { background:#f7fbff; }.tg-manual-attachment { padding:.85rem; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-modal-footer { padding:.9rem 1.35rem; border-top:1px solid #e2e9f0; background:#fff; }.tg-manual-modal-footer .btn-success { border-color:#4bd396; background:#4bd396; }.tg-manual-modal-footer .btn-success:hover { border-color:#34b57b; background:#34b57b; }@keyframes tg-manual-logo-spin { to { transform:rotate(360deg); } }@media (prefers-reduced-motion:reduce) { .tg-manual-logo-spinner { animation:none; }.tg-manual-table-shell tbody tr { transition:none; } }@media (max-width:767.98px) { .tg-manual-modal-body { padding:.75rem; }.tg-manual-section { padding:.75rem; }.tg-manual-context { font-size:.82rem; }.tg-manual-modal-footer { padding:.75rem; } }
 </style>
