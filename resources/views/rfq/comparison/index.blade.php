@@ -13,7 +13,7 @@
 @section('content')
 @php
     $budgetBlockedNotice = $rfq->budgetBlockedNotice;
-    $canManageBudgetNotice = auth()->user()?->hasRole('buyer') ?? false;
+    $canManageBudgetNotice = auth()->user()?->hasAnyRole(['buyer', 'superadmin']) ?? false;
 @endphp
 <div class="container-fluid">
     {{-- ENCABEZADO DE OPERACIONES --}}

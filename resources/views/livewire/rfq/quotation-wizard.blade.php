@@ -64,11 +64,16 @@
             @if($isReadOnlyAfterSend && $currentStep < 4)
                 <div class="tg-readonly-notice" role="status">
                     <span class="tg-readonly-notice-icon"><i class="ti ti-lock-check"></i></span>
-                    <div><strong>Consulta protegida</strong><span>Esta requisición ya tiene solicitudes enviadas. Puedes revisar cada etapa, pero ya no se pueden cambiar paquetes, proveedores ni condiciones.</span></div>
-                    <a href="{{ route('rfq.wizard.steps', $requisition) }}?step=4" class="btn btn-sm btn-outline-primary">Ver envíos</a>
+                    @if($hasEditableManualBudgetBlockedGroup)
+                        <div><strong>Corrección presupuestal disponible</strong><span>Los grupos enviados siguen protegidos. Sólo la compra directa bloqueada por presupuesto puede abrirse para corregir sus importes.</span></div>
+                        <a href="{{ route('rfq.wizard.steps', $requisition) }}?step=3" class="btn btn-sm btn-warning">Corregir compra directa</a>
+                    @else
+                        <div><strong>Consulta protegida</strong><span>Esta requisición ya tiene solicitudes enviadas. Puedes revisar cada etapa, pero ya no se pueden cambiar paquetes, proveedores ni condiciones.</span></div>
+                        <a href="{{ route('rfq.wizard.steps', $requisition) }}?step=4" class="btn btn-sm btn-outline-primary">Ver envíos</a>
+                    @endif
                 </div>
             @endif
-            <div @if($isReadOnlyAfterSend && $currentStep < 4) inert aria-label="Contenido disponible solo para consulta" @endif>
+            <div @if($isReadOnlyAfterSend && $currentStep < 4 && ! $hasEditableManualBudgetBlockedGroup) inert aria-label="Contenido disponible solo para consulta" @endif>
             {{-- Contenido según el paso --}}
             @if($currentStep === 1)
                 @include('rfq.wizard-steps.step-1-validation')

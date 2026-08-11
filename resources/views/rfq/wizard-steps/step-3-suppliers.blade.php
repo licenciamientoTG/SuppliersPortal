@@ -26,7 +26,7 @@
                 ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
                 : collect();
             $manualBudgetInfo = $__livewire->manualBudgetBlockedInfo($group->id);
-            $canManageBudgetNotice = auth()->user()?->hasRole('buyer') ?? false;
+            $canManageBudgetNotice = auth()->user()?->hasAnyRole(['buyer', 'superadmin']) ?? false;
             $statusLabel = match ($activeRfq?->status) {
                 'RECEIVED' => 'RFQ RECIBIDA',
                 'EVALUATED' => 'RFQ EVALUADA',

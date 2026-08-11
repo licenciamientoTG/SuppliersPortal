@@ -30,8 +30,8 @@ class BudgetBlockedNoticeService
 
     public function send(Rfq $rfq, int $supplierId, User $buyer, ?string $note = null): RfqBudgetBlockedNotice
     {
-        if (! $buyer->hasRole('buyer')) {
-            throw new \DomainException('Sólo Compras puede informar el bloqueo presupuestal al requisitor.');
+        if (! $buyer->hasAnyRole(['buyer', 'superadmin'])) {
+            throw new \DomainException('Sólo Compras o Superadministración puede informar el bloqueo presupuestal al requisitor.');
         }
 
         if ($rfq->trashed() || in_array($rfq->status, ['CANCELLED', 'REJECTED'], true)) {

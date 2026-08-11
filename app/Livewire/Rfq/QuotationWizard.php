@@ -43,6 +43,8 @@ class QuotationWizard extends Component
 
     public $isReadOnlyAfterSend = false;
 
+    public bool $hasEditableManualBudgetBlockedGroup = false;
+
     // ======= NUEVO: Datos para el paso 2 =======
     public $unassignedItems = [];
 
@@ -764,6 +766,19 @@ class QuotationWizard extends Component
         $this->isReadOnlyAfterSend = $this->requisition->rfqs()
             ->whereIn('status', ['SENT', 'RESPONSES_RECEIVED', 'RECEIVED', 'EVALUATED'])
             ->exists();
+
+        $this->hasEditableManualBudgetBlockedGroup = false;
+
+        if (! $this->isReadOnlyAfterSend || ! Auth::user()?->hasAnyRole(['buyer', 'superadmin'])) {
+            return;
+        }
+
+        $this->hasEditableManualBudgetBlockedGroup = $this->requisition->rfqs()
+            ->active()
+            ->where('source', 'external')
+            ->where('status', 'RECEIVED')
+            ->get()
+            ->contains(fn (Rfq $rfq) => app(ManualQuoteService::class)->editableBudgetBlockedSupplierId($rfq) !== null);
     }
 
     private function ensureEditableBeforeSend(): bool
@@ -807,8 +822,8 @@ class QuotationWizard extends Component
         }
 
         if ($rfq?->source === 'external' && $rfq->status === 'RECEIVED') {
-            if (! Auth::user()?->hasRole('buyer') || ! app(ManualQuoteService::class)->editableBudgetBlockedSupplierId($rfq)) {
-                session()->flash('error', 'Esta compra directa sólo puede editarse por Compras cuando está bloqueada únicamente por presupuesto.');
+            if (! Auth::user()?->hasAnyRole(['buyer', 'superadmin']) || ! app(ManualQuoteService::class)->editableBudgetBlockedSupplierId($rfq)) {
+                session()->flash('error', 'Esta compra directa sólo puede editarse por Compras o Superadministración cuando está bloqueada únicamente por presupuesto.');
 
                 return false;
             }
