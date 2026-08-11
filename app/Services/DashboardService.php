@@ -407,7 +407,7 @@ class DashboardService
         $pendingApprovals = QuotationSummary::query()
             ->with([
                 'requisition:id,folio',
-                'currentApprover:id,name,full_name',
+                'currentApprover:id,name',
             ])
             ->pending()
             ->assignedTo($user->id);
@@ -486,7 +486,7 @@ class DashboardService
         $quotationApprovals = QuotationSummary::query()
             ->with([
                 'requisition:id,folio',
-                'requester:id,name,full_name',
+                'requester:id,name',
             ])
             ->pending()
             ->assignedTo($user->id);

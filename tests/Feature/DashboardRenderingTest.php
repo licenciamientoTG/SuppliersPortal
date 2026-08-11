@@ -130,6 +130,41 @@ class DashboardRenderingTest extends TestCase
             ->assertSeeText('Revision documental');
     }
 
+    public function test_authorizer_dashboard_loads_requester_name_without_selecting_a_nonexistent_column(): void
+    {
+        $authorizer = User::factory()->create();
+        $authorizer->assignRole('authorizer');
+
+        $requester = User::factory()->create();
+        $requisition = Requisition::factory()->create([
+            'requested_by' => $requester->id,
+            'created_by' => $requester->id,
+            'updated_by' => $requester->id,
+            'status' => 'QUOTED',
+        ]);
+        $item = RequisitionItem::factory()->create(['requisition_id' => $requisition->id]);
+        $rfq = Rfq::factory()->create([
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => null,
+            'requisition_item_id' => $item->id,
+            'status' => 'EVALUATED',
+        ]);
+
+        QuotationSummary::factory()->create([
+            'requisition_id' => $requisition->id,
+            'rfq_id' => $rfq->id,
+            'requested_by_user_id' => $requester->id,
+            'current_approver_user_id' => $authorizer->id,
+            'approval_status' => 'pending',
+            'total' => 1250,
+        ]);
+
+        Livewire::actingAs($authorizer)
+            ->test(DashboardContent::class, ['lazy' => false])
+            ->assertSeeText('Elementos por resolver')
+            ->assertSeeText('Solicitada por');
+    }
+
     public function test_accounting_dashboard_hides_purchase_widgets_and_shows_finance_widgets(): void
     {
         $user = User::factory()->create();
