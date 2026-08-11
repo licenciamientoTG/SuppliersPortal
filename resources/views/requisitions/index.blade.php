@@ -25,6 +25,19 @@
     .filter-row th {
         padding: 3px !important;
     }
+
+    .requisition-title-cell {
+        max-width: 320px;
+    }
+
+    .requisition-title-preview {
+        display: block;
+        overflow: hidden;
+        color: #34465a;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 </style>
 @endpush
 
@@ -110,6 +123,7 @@
                     <tr>
                         <th>#</th>
                         <th>Folio</th>
+                        <th>Título</th>
                         <th>Centro de costo</th>
                         <th>Solicitante</th>
                         <th class="text-center">Partidas</th>
@@ -122,9 +136,9 @@
                     <tr class="filter-row">
                         <th></th> <!-- 0: ID -->
                         <th><input type="text" class="filter-input" placeholder="Buscar folio" data-column="1"></th>
-                        <th><input type="text" class="filter-input" placeholder="Buscar centro" data-column="2"></th>
-                        <th><input type="text" class="filter-input" placeholder="Buscar solicitante" data-column="3"></th>
-                        <th><input type="date" class="filter-input" data-column="4"></th>
+                        <th><input type="text" class="filter-input" placeholder="Buscar título" data-column="2"></th>
+                        <th><input type="text" class="filter-input" placeholder="Buscar centro" data-column="3"></th>
+                        <th><input type="text" class="filter-input" placeholder="Buscar solicitante" data-column="4"></th>
                         <th></th> <!-- 5: Contador de partidas -->
                         <th>
                             <select class="filter-input" data-column="6">
@@ -378,6 +392,23 @@
                 {
                     data: 'folio',
                     name: 'folio'
+                },
+                {
+                    data: 'title',
+                    name: 'description',
+                    className: 'requisition-title-cell',
+                    render: function(data, type) {
+                        const title = data || 'Sin título';
+
+                        if (type !== 'display') {
+                            return title;
+                        }
+
+                        const escapeHtml = (value) => $('<div>').text(value).html();
+                        const preview = title.length > 72 ? `${title.slice(0, 72).trimEnd()}…` : title;
+
+                        return `<span class="requisition-title-preview" title="${escapeHtml(title)}">${escapeHtml(preview)}</span>`;
+                    }
                 },
                 {
                     data: 'cost_center',

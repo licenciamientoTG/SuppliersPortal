@@ -82,6 +82,8 @@ class RequisitionController extends Controller
             ->addColumn('department', fn ($r) => e($r->department?->name ?? '—'))
             ->addColumn('requester', fn ($r) => e($r->requester?->name ?? '—'))
 
+            ->addColumn('title', fn ($r) => $r->description ?: 'Sin título')
+
             // 'items_count' ya vendrá como atributo gracias a withCount
             ->editColumn('items_count', function ($r) {
                 return $r->items_count;
@@ -162,6 +164,10 @@ class RequisitionController extends Controller
             })
 
             // ✅ Filtro personalizado para status (buscar por el valor del enum)
+            ->filterColumn('title', function ($query, $keyword) {
+                $query->where('description', 'like', '%'.$keyword.'%');
+            })
+
             ->filterColumn('status', function ($query, $keyword) {
                 if (! empty($keyword)) {
                     $query->where('status', $keyword);
