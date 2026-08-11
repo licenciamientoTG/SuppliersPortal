@@ -524,11 +524,15 @@
                 width: '100%'
             });
 
-            const budgetCedulas = @json($budgetCedulas->map(fn ($cedula) => [
-                'id' => $cedula->id,
-                'expense_category_id' => $cedula->expense_category_id,
-                'name' => $cedula->name,
-            ])->values());
+            const budgetCedulas = {!! \Illuminate\Support\Js::from(
+                $budgetCedulas->map(function ($cedula) {
+                    return [
+                        'id' => $cedula->id,
+                        'expense_category_id' => $cedula->expense_category_id,
+                        'name' => $cedula->name,
+                    ];
+                })->values()
+            ) !!};
 
             function refreshSubaccounts() {
                 const selectors = [
