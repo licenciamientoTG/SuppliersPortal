@@ -127,6 +127,18 @@ class QuotationBoardTest extends TestCase
         $this->assertEquals([$item->id], $group->items->pluck('id')->all());
     }
 
+    public function test_board_does_not_offer_manual_quotation(): void
+    {
+        $requisition = Requisition::factory()->create(['validated_at' => now()]);
+        $item = RequisitionItem::factory()->create(['requisition_id' => $requisition->id]);
+        $group = QuotationGroup::factory()->create(['requisition_id' => $requisition->id]);
+        $group->items()->attach($item->id, ['sort_order' => 1]);
+
+        Livewire::test(QuotationBoard::class, ['requisition' => $requisition])
+            ->assertDontSee('Precio conocido / compra directa')
+            ->assertDontSee('puedes capturarlo directo');
+    }
+
     public function test_cancelled_group_returns_items_to_unassigned_pool(): void
     {
         $requisition = Requisition::factory()->create(['validated_at' => now()]);

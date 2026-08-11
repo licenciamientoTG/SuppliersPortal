@@ -1,4 +1,5 @@
-<div>
+<div x-data="{ purchaseHistoryOpen: false }"
+     x-on:keydown.escape.window="if (purchaseHistoryOpen) { purchaseHistoryOpen = false; $wire.closePurchaseHistory() }">
     @if ($show && $this->group)
         <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
             <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -147,7 +148,8 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <button type="button" class="btn btn-sm btn-outline-primary w-100" wire:click="openPurchaseHistory({{ $item->id }})">
+                                                <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                                                        x-on:click="purchaseHistoryOpen = true; $wire.openPurchaseHistory({{ $item->id }})">
                                                     <i class="ti ti-history"></i> Pedidos
                                                 </button>
                                             </td>
@@ -178,33 +180,39 @@
         </div>
     @endif
 
-    @if ($historyItemId)
-        <div class="modal fade show d-block" tabindex="-1" style="z-index:1070; background:rgba(17,37,57,.58);">
+        <div x-cloak x-show="purchaseHistoryOpen" x-transition.opacity class="modal fade show d-block" tabindex="-1"
+             x-on:click.self="purchaseHistoryOpen = false; $wire.closePurchaseHistory()"
+             style="z-index:1070; background:rgba(17,37,57,.58);">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content border-0 shadow-lg">
                     <div class="modal-header bg-light">
                         <div><h6 class="modal-title mb-0"><i class="ti ti-history me-2"></i>Últimos 10 pedidos</h6><small class="text-muted">Selecciona una referencia para importar sus datos.</small></div>
-                        <button type="button" class="btn-close" wire:click="closePurchaseHistory"></button>
+                        <button type="button" class="btn-close" x-on:click="purchaseHistoryOpen = false; $wire.closePurchaseHistory()"></button>
                     </div>
                     <div class="modal-body p-0">
-                        @forelse ($purchaseHistory as $reference)
-                            <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyPurchaseHistory({{ $reference['id'] }})">
-                                <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
-                                <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span>
-                                <i class="ti ti-arrow-up-right text-primary fs-5"></i>
-                            </button>
-                        @empty
-                            <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
-                        @endforelse
+                        <div wire:loading wire:target="openPurchaseHistory" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando historial…</div>
+                        <div wire:loading.remove wire:target="openPurchaseHistory">
+                            @if ($historyItemId)
+                                @forelse ($purchaseHistory as $reference)
+                                    <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyPurchaseHistory({{ $reference['id'] }})">
+                                        <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
+                                        <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span>
+                                        <i class="ti ti-arrow-up-right text-primary fs-5"></i>
+                                    </button>
+                                @empty
+                                    <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
+                                @endforelse
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    @endif
 </div>
 
 @push('styles')
 <style>
+    [x-cloak] { display: none !important; }
     .mq-shell { border: 0; border-radius: .85rem; box-shadow: 0 1.2rem 3.2rem rgba(20,54,80,.24); overflow: hidden; }
     .mq-header { align-items: center; background: #f7fbff; border-bottom: 1px solid #e2e9f0; color: #153952; }
     .mq-body { background: #f5f5f5; padding: 1.25rem; }
@@ -217,7 +225,7 @@
     .mq-table-shell tbody tr { transition: background .15s ease; }
     .mq-table-shell tbody tr:hover { background: #f7fbff; }
     .mq-footer { background: #fff; border-top: 1px solid #e2e9f0; }
-    @media (prefers-reduced-motion: reduce) { .mq-table-shell tbody tr { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .mq-table-shell tbody tr, [x-cloak] { transition: none !important; } }
     @media (max-width: 767px) { .mq-body { padding: .75rem; } .mq-section { padding: .75rem; } }
 </style>
 @endpush

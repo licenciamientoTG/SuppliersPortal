@@ -8,7 +8,6 @@ use App\Exceptions\Rfq\RfqAlreadyRejectedException;
 use App\Models\Requisition;
 use App\Models\Rfq;
 use App\Models\Supplier;
-use App\Services\Rfq\PriceMemoryService;
 use App\Services\Rfq\RfqAwardService;
 use App\Services\Rfq\RfqDraftService;
 use App\Services\Rfq\RfqSendService;
@@ -57,7 +56,7 @@ class GroupCard extends Component
     public function refreshCard()
     {
         $this->requisition->refresh();
-        unset($this->group, $this->activeRfq, $this->state, $this->priceHint, $this->awardableSuppliers, $this->responseProgress, $this->isValidated);
+        unset($this->group, $this->activeRfq, $this->state, $this->awardableSuppliers, $this->responseProgress, $this->isValidated);
         $this->prefillFromActiveRfq();
     }
 
@@ -124,12 +123,6 @@ class GroupCard extends Component
     public function isValidated(): bool
     {
         return $this->requisition->validated_at !== null;
-    }
-
-    #[Computed]
-    public function priceHint(): array
-    {
-        return app(PriceMemoryService::class)->groupHint($this->group);
     }
 
     #[Computed]
@@ -255,11 +248,6 @@ class GroupCard extends Component
         } catch (\Exception $e) {
             session()->flash('error', 'No fue posible enviar la RFQ: '.$e->getMessage());
         }
-    }
-
-    public function openManualQuote()
-    {
-        $this->dispatch('open-manual-quote', groupId: $this->groupId);
     }
 
     public function toggleAwardForm()

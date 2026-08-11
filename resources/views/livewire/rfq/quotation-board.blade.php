@@ -208,9 +208,6 @@
                 @endif
             </div>
         </div>
-
-        {{-- Modal de captura de precio conocido --}}
-        <livewire:rfq.board.manual-quote-modal :requisition="$requisition" />
     </div>
 </div>
 

@@ -48,15 +48,6 @@
             @endforeach
         </div>
 
-        {{-- Pista de memoria de precios --}}
-        @if ($this->priceHint['with_recent'] > 0 && in_array($this->state, ['preparing', 'sent']))
-            <div class="alert alert-info py-1 px-2 fs-13 mb-2">
-                <i class="ti ti-bulb me-1"></i>
-                {{ $this->priceHint['with_recent'] }} de {{ $this->priceHint['total'] }} partidas tienen precio
-                de hace menos de {{ $this->priceHint['fresh_days'] }} días — puedes capturarlo directo.
-            </div>
-        @endif
-
         {{-- Progreso de respuestas (Seguimiento) --}}
         @if (! $isDirectPurchase && in_array($this->state, ['sent', 'received']))
             @php $progress = $this->responseProgress; @endphp
@@ -78,11 +69,6 @@
                 @if ($this->state === 'preparing')
                     <button class="btn btn-sm btn-primary" wire:click="toggleRequestForm">
                         <i class="ti ti-send me-1"></i>Solicitar cotización
-                    </button>
-                @endif
-                @if ($this->state === 'preparing')
-                    <button class="btn btn-sm btn-outline-primary" wire:click="openManualQuote">
-                        <i class="ti ti-pencil-dollar me-1"></i>Precio conocido / compra directa
                     </button>
                 @endif
             @endif
