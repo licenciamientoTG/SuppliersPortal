@@ -29,7 +29,7 @@ class QuotationBoardTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    public function test_board_route_renders_livewire_component(): void
+    public function test_board_beta_route_is_not_available(): void
     {
         $this->withoutMiddleware([
             \App\Http\Middleware\ModuleAccess::class,
@@ -38,12 +38,10 @@ class QuotationBoardTest extends TestCase
 
         $requisition = Requisition::factory()->create();
 
-        $this->get(route('rfq.board', $requisition))
-            ->assertOk()
-            ->assertSeeLivewire(QuotationBoard::class);
+        $this->get('/rfq/board/'.$requisition->id)->assertNotFound();
     }
 
-    public function test_rfq_index_shows_board_beta_button(): void
+    public function test_rfq_index_only_shows_the_wizard_quote_action(): void
     {
         $this->withoutMiddleware([
             \App\Http\Middleware\ModuleAccess::class,
@@ -53,9 +51,9 @@ class QuotationBoardTest extends TestCase
         Requisition::factory()->create(['status' => 'PENDING']);
 
         $this->get(route('rfq.index'))->assertOk();
-        // El botón vive en el componente Livewire del listado
         Livewire::test(\App\Livewire\Rfq\RfqIndex::class)
-            ->assertSee('Tablero');
+            ->assertSee('Cotizar')
+            ->assertDontSee('Tablero');
     }
 
     public function test_sign_validation_requires_all_checks(): void
