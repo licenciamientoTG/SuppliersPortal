@@ -36,7 +36,7 @@ class RfqAwardService
      * Diagnóstico de si la oferta de un proveedor puede adjudicarse:
      * cotizaciones enviadas, vigencia, autorizador resoluble y presupuesto.
      *
-     * @return array{allowed: bool, reasons: string[], budget_blocked: bool, budget_messages: string[]}
+     * @return array{allowed: bool, reasons: string[], budget_blocked: bool, budget_messages: string[], budget_only_blocked: bool}
      */
     public function supplierDiagnostics(Rfq $rfq, int $supplierId): array
     {
@@ -113,11 +113,15 @@ class RfqAwardService
             }
         }
 
+        $uniqueReasons = array_values(array_unique($reasons));
+        $uniqueBudgetMessages = array_values(array_unique($budgetMessages));
+
         return [
-            'allowed' => empty($reasons),
-            'reasons' => array_values(array_unique($reasons)),
-            'budget_blocked' => ! empty($budgetMessages),
-            'budget_messages' => array_values(array_unique($budgetMessages)),
+            'allowed' => empty($uniqueReasons),
+            'reasons' => $uniqueReasons,
+            'budget_blocked' => ! empty($uniqueBudgetMessages),
+            'budget_messages' => $uniqueBudgetMessages,
+            'budget_only_blocked' => $uniqueReasons !== [] && ! empty($uniqueBudgetMessages) && array_diff($uniqueReasons, $uniqueBudgetMessages) === [],
         ];
     }
 

@@ -9,7 +9,10 @@ use App\Models\Rfq;
 use App\Models\RfqResponse;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\Rfq\RfqAwardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RfqComparisonManualBadgeTest extends TestCase
@@ -46,5 +49,50 @@ class RfqComparisonManualBadgeTest extends TestCase
         $this->get(route('rfq.comparison.index', $rfq))
             ->assertOk()
             ->assertSee('CAPTURADA MANUALMENTE');
+    }
+
+    public function test_comparison_shows_budget_notice_action_only_for_a_budget_only_blocked_supplier(): void
+    {
+        $this->withoutMiddleware([
+            \App\Http\Middleware\ModuleAccess::class,
+            \App\Http\Middleware\CheckLockScreen::class,
+        ]);
+
+        Role::findOrCreate('buyer', 'web');
+        $buyer = User::factory()->create();
+        $buyer->assignRole('buyer');
+        $this->actingAs($buyer);
+
+        $requisition = Requisition::factory()->create();
+        $group = QuotationGroup::factory()->create(['requisition_id' => $requisition->id]);
+        $item = RequisitionItem::factory()->create(['requisition_id' => $requisition->id]);
+        $group->items()->attach($item->id, ['sort_order' => 1]);
+        $supplier = Supplier::factory()->create(['company_name' => 'Proveedor sin presupuesto']);
+        $rfq = Rfq::factory()->create([
+            'requisition_id' => $requisition->id,
+            'quotation_group_id' => $group->id,
+            'status' => 'RECEIVED',
+        ]);
+        $rfq->suppliers()->attach($supplier->id, ['invited_at' => now(), 'responded_at' => now()]);
+        RfqResponse::factory()->create([
+            'rfq_id' => $rfq->id,
+            'supplier_id' => $supplier->id,
+            'requisition_item_id' => $item->id,
+            'status' => 'SUBMITTED',
+        ]);
+
+        $awardService = Mockery::mock(RfqAwardService::class);
+        $awardService->shouldReceive('supplierDiagnostics')->andReturn([
+            'allowed' => false,
+            'reasons' => ['No hay presupuesto suficiente.'],
+            'budget_blocked' => true,
+            'budget_messages' => ['No hay presupuesto suficiente.'],
+            'budget_only_blocked' => true,
+        ]);
+        $this->app->instance(RfqAwardService::class, $awardService);
+
+        $this->get(route('rfq.comparison.index', $rfq))
+            ->assertOk()
+            ->assertSee('Avisar presupuesto');
     }
 }

@@ -8,6 +8,7 @@ use App\Models\QuotationGroup;
 use App\Models\Rfq;
 use App\Services\ApprovalService;
 use App\Services\QuotationRejectionWorkflowService;
+use App\Services\Rfq\BudgetBlockedNoticeService;
 use App\Services\Rfq\RfqAwardService;
 use App\Services\Rfq\RfqFolioService;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class RfqComparisonController extends Controller
         protected ApprovalService $approvalService,
         protected QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
         protected RfqAwardService $awardService,
+        protected BudgetBlockedNoticeService $budgetBlockedNotices,
         protected RfqFolioService $folioService
     ) {}
 
@@ -35,6 +37,7 @@ class RfqComparisonController extends Controller
             'rfqResponses' => fn ($query) => $query->whereIn('status', ['SUBMITTED', 'SELECTED', 'REJECTED']),
             'quotationSummary.rejector',
             'quotationSummary.currentApprover',
+            'budgetBlockedNotice.buyer',
             'activities',
         ]);
 
@@ -96,6 +99,31 @@ class RfqComparisonController extends Controller
             Log::error("Error en adjudicación RFQ {$rfq->id}: {$exception->getMessage()}");
 
             return back()->with('error', 'No fue posible registrar la adjudicación: '.$exception->getMessage());
+        }
+    }
+
+    public function sendBudgetBlockedNotice(Request $request, Rfq $rfq)
+    {
+        $data = $request->validate([
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $this->budgetBlockedNotices->send(
+                $rfq,
+                (int) $data['supplier_id'],
+                Auth::user(),
+                $data['note'] ?? null,
+            );
+
+            return back()->with('status', 'El requisitor fue informado por correo y notificación interna.');
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        } catch (Throwable $exception) {
+            Log::error("Error al avisar bloqueo presupuestal de RFQ {$rfq->id}: {$exception->getMessage()}");
+
+            return back()->with('error', 'No se pudo enviar el aviso de presupuesto.');
         }
     }
 

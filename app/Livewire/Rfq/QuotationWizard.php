@@ -7,7 +7,9 @@ use App\Exceptions\Rfq\DuplicateSupplierRfcException;
 use App\Exceptions\Rfq\IncompleteValidationException;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
+use App\Models\Rfq;
 use App\Models\Supplier;
+use App\Services\Rfq\BudgetBlockedNoticeService;
 use App\Services\Rfq\ManualQuoteService;
 use App\Services\Rfq\ProductPurchaseHistoryService;
 use App\Services\Rfq\RequisitionValidationService;
@@ -69,6 +71,16 @@ class QuotationWizard extends Component
     public $manualQuoteValidityDays = 30;
 
     public $manualQuoteAttachment = null;
+
+    public ?string $manualQuoteExistingAttachment = null;
+
+    public bool $manualQuoteEditing = false;
+
+    public bool $showManualBudgetNoticeModal = false;
+
+    public ?int $manualBudgetNoticeSupplierId = null;
+
+    public string $manualBudgetNoticeNote = '';
 
     public $manualHistoryItemId = null;
 
@@ -406,7 +418,14 @@ class QuotationWizard extends Component
 
         $group = QuotationGroup::with('items')->findOrFail($quotationGroupId);
 
+        $rfq = $this->requisition->rfqs()
+            ->where('quotation_group_id', $group->id)
+            ->active()
+            ->latest('id')
+            ->first();
+
         $this->manualQuoteGroupId = $group->id;
+        $this->manualQuoteEditing = $rfq?->source === 'external' && $rfq->status === 'RECEIVED';
         $this->manualQuoteSupplierId = null;
         $this->manualQuoteNewSupplier = [
             'company_name' => '',
@@ -418,24 +437,32 @@ class QuotationWizard extends Component
         ];
 
         $this->manualQuoteItems = [];
+        $responsesByItem = $this->manualQuoteEditing
+            ? $rfq->rfqResponses()->where('entry_source', 'buyer_manual')->get()->keyBy('requisition_item_id')
+            : collect();
+
         foreach ($group->items as $item) {
+            $response = $responsesByItem->get($item->id);
             $this->manualQuoteItems[$item->id] = [
-                'not_available' => false,
-                'unit_price' => null,
-                'iva_rate' => 16,
-                'currency' => 'MXN',
-                'delivery_days' => null,
-                'payment_terms' => null,
-                'warranty_terms' => null,
-                'brand' => null,
-                'model' => null,
-                'specifications' => null,
+                'not_available' => (bool) ($response?->not_available ?? false),
+                'unit_price' => $response?->unit_price,
+                'iva_rate' => $response?->iva_rate ?? 16,
+                'currency' => $response?->currency ?? 'MXN',
+                'delivery_days' => $response?->delivery_days,
+                'payment_terms' => $response?->payment_terms,
+                'warranty_terms' => $response?->warranty_terms,
+                'brand' => $response?->brand,
+                'model' => $response?->model,
+                'specifications' => $response?->specifications,
             ];
         }
 
-        $this->manualQuoteQuotationDate = now()->format('Y-m-d');
-        $this->manualQuoteValidityDays = 30;
+        $firstResponse = $responsesByItem->first();
+        $this->manualQuoteSupplierId = $firstResponse?->supplier_id;
+        $this->manualQuoteQuotationDate = ($firstResponse?->quotation_date ?? now())->format('Y-m-d');
+        $this->manualQuoteValidityDays = $firstResponse?->validity_days ?? 30;
         $this->manualQuoteAttachment = null;
+        $this->manualQuoteExistingAttachment = $firstResponse?->attachment_path;
         $this->resetErrorBag();
         $this->showManualQuoteModal = true;
     }
@@ -443,6 +470,8 @@ class QuotationWizard extends Component
     public function closeManualQuoteModal(): void
     {
         $this->showManualQuoteModal = false;
+        $this->manualQuoteEditing = false;
+        $this->manualQuoteExistingAttachment = null;
     }
 
     public function updatedManualQuoteSupplierId($supplierId): void
@@ -580,6 +609,81 @@ class QuotationWizard extends Component
         session()->flash('success', "Compra directa de {$supplier->company_name} enviada a validación presupuestal y autorización.");
     }
 
+    public function manualBudgetBlockedInfo(int $groupId): ?array
+    {
+        $rfq = Rfq::query()
+            ->where('requisition_id', $this->requisition->id)
+            ->where('quotation_group_id', $groupId)
+            ->active()
+            ->latest('id')
+            ->with(['budgetBlockedNotice.buyer', 'rfqResponses.requisitionItem', 'requisition.requester', 'requisition.items.costCenter'])
+            ->first();
+
+        if (! $rfq || $rfq->source !== 'external') {
+            return null;
+        }
+
+        $supplierId = app(ManualQuoteService::class)->editableBudgetBlockedSupplierId($rfq);
+        if (! $supplierId) {
+            return null;
+        }
+
+        return [
+            'rfq_id' => $rfq->id,
+            'supplier_id' => $supplierId,
+            'notice' => $rfq->budgetBlockedNotice,
+            'reasons' => app(\App\Services\Rfq\RfqAwardService::class)->supplierDiagnostics($rfq, $supplierId)['budget_messages'],
+        ];
+    }
+
+    public function openManualBudgetNotice(int $groupId): void
+    {
+        $info = $this->manualBudgetBlockedInfo($groupId);
+        if (! $info) {
+            session()->flash('error', 'Este grupo ya no está bloqueado únicamente por presupuesto.');
+
+            return;
+        }
+
+        $this->manualQuoteGroupId = $groupId;
+        $this->manualBudgetNoticeSupplierId = $info['supplier_id'];
+        $this->manualBudgetNoticeNote = '';
+        $this->showManualBudgetNoticeModal = true;
+    }
+
+    public function closeManualBudgetNotice(): void
+    {
+        $this->showManualBudgetNoticeModal = false;
+    }
+
+    public function sendManualBudgetNotice(): void
+    {
+        $this->validate(['manualBudgetNoticeNote' => ['nullable', 'string', 'max:1000']]);
+
+        $info = $this->manualBudgetBlockedInfo((int) $this->manualQuoteGroupId);
+        if (! $info || (int) $info['supplier_id'] !== (int) $this->manualBudgetNoticeSupplierId) {
+            session()->flash('error', 'Este grupo ya no está bloqueado únicamente por presupuesto.');
+
+            return;
+        }
+
+        try {
+            app(BudgetBlockedNoticeService::class)->send(
+                Rfq::findOrFail($info['rfq_id']),
+                (int) $info['supplier_id'],
+                Auth::user(),
+                $this->manualBudgetNoticeNote,
+            );
+        } catch (\DomainException $exception) {
+            session()->flash('error', $exception->getMessage());
+
+            return;
+        }
+
+        $this->showManualBudgetNoticeModal = false;
+        session()->flash('success', 'El requisitor fue informado por correo y notificación interna.');
+    }
+
     /**
      * Cargar datos de proveedores desde RFQs existentes (Paso 3)
      */
@@ -700,6 +804,14 @@ class QuotationWizard extends Component
             session()->flash('error', 'Este grupo ya tiene una compra directa en validación o autorizada.');
 
             return false;
+        }
+
+        if ($rfq?->source === 'external' && $rfq->status === 'RECEIVED') {
+            if (! Auth::user()?->hasRole('buyer') || ! app(ManualQuoteService::class)->editableBudgetBlockedSupplierId($rfq)) {
+                session()->flash('error', 'Esta compra directa sólo puede editarse por Compras cuando está bloqueada únicamente por presupuesto.');
+
+                return false;
+            }
         }
 
         return true;

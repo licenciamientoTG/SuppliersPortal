@@ -716,6 +716,7 @@ Route::middleware(['auth', 'lock', 'module.access:payments_billing'])->group(fun
 Route::middleware(['auth', 'lock'])->group(function () {
     // RFQ Selection
     Route::middleware('module.access:quotations')->post('/rfq/{rfq}/select', [RfqComparisonController::class, 'select'])->name('rfq.comparison.select');
+    Route::middleware('module.access:quotations')->post('/rfq/{rfq}/budget-blocked-notice', [RfqComparisonController::class, 'sendBudgetBlockedNotice'])->name('rfq.comparison.budget-blocked-notice');
     Route::middleware('module.access:quotations')->post('/rfq/{rfq}/reaward', [RfqComparisonController::class, 'reaward'])->name('rfq.comparison.reaward');
     Route::middleware('module.access:quotations')->post('/rfq/{rfq}/cancel-rejected', [RfqComparisonController::class, 'cancelRejected'])->name('rfq.comparison.cancel-rejected');
     Route::middleware('module.access:quotations')->post('/rfq/{rfq}/generate-complementary', [RfqComparisonController::class, 'generateComplementaryRfq'])->name('rfq.comparison.generate-complementary');

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -152,6 +153,11 @@ class Rfq extends Model
     public function quotationSummary()
     {
         return $this->hasOne(QuotationSummary::class);
+    }
+
+    public function budgetBlockedNotice(): HasOne
+    {
+        return $this->hasOne(RfqBudgetBlockedNotice::class);
     }
 
     public function successorRfqs(): HasMany

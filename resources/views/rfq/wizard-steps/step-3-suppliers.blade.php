@@ -25,6 +25,8 @@
             $manualSupplierIds = $activeRfq
                 ? $activeRfq->rfqResponses->where('entry_source', 'buyer_manual')->pluck('supplier_id')->unique()
                 : collect();
+            $manualBudgetInfo = $__livewire->manualBudgetBlockedInfo($group->id);
+            $canManageBudgetNotice = auth()->user()?->hasRole('buyer') ?? false;
             $statusLabel = match ($activeRfq?->status) {
                 'RECEIVED' => 'RFQ RECIBIDA',
                 'EVALUATED' => 'RFQ EVALUADA',
@@ -175,8 +177,28 @@
                                 class="btn btn-sm btn-outline-success"
                                 wire:click="openManualQuoteModal({{ $group->id }})"
                                 @disabled($activeRfq && $activeRfq->source !== 'external' && $activeRfq->status !== 'DRAFT')>
-                            <i class="ti ti-pencil-plus"></i> Precio conocido / compra directa
+                            <i class="ti {{ $manualBudgetInfo ? 'ti-pencil' : 'ti-pencil-plus' }}"></i> {{ $manualBudgetInfo ? 'Editar cotización manual' : 'Precio conocido / compra directa' }}
                         </button>
+
+                        @if($manualBudgetInfo)
+                            <div class="tg-budget-blocked-card mt-3" role="alert">
+                                <div class="tg-budget-blocked-icon"><i class="ti ti-wallet-off"></i></div>
+                                <div class="flex-grow-1">
+                                    <strong>Adjudicación pendiente por presupuesto</strong>
+                                    <span>La compra directa quedó registrada, pero no se reservó presupuesto ni se envió a autorización.</span>
+                                    @foreach($manualBudgetInfo['reasons'] as $reason)
+                                        <small>{{ $reason }}</small>
+                                    @endforeach
+                                </div>
+                                @if($manualBudgetInfo['notice'])
+                                    <div class="tg-budget-notice-sent"><i class="ti ti-circle-check"></i><span>Requisitor informado</span><small>{{ $manualBudgetInfo['notice']->notified_at->format('d/m/Y H:i') }}</small></div>
+                                @elseif($canManageBudgetNotice)
+                                    <button type="button" class="btn btn-sm btn-warning tg-budget-notice-action" wire:click="openManualBudgetNotice({{ $group->id }})">
+                                        <i class="ti ti-mail-forward"></i> Avisar al requisitor
+                                    </button>
+                                @endif
+                            </div>
+                        @endif
 
                         @if($manualSupplierIds->isNotEmpty())
                             <div class="d-flex flex-wrap gap-2 mt-2">
@@ -246,7 +268,7 @@
                 <div class="row mb-3 tg-manual-section">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Proveedor</label>
-                        <select class="form-select" wire:model.live="manualQuoteSupplierId">
+                        <select class="form-select" wire:model.live="manualQuoteSupplierId" @disabled($manualQuoteEditing)>
                             <option value="">-- Nuevo proveedor externo --</option>
                             @foreach($manualQuoteSelectableSuppliers as $sel)
                                 <option value="{{ $sel->id }}">{{ $sel->company_name }}{{ $sel->is_external ? ' (externo)' : '' }}</option>
@@ -264,7 +286,7 @@
                     </div>
                 </div>
 
-                @if(! $manualQuoteSupplierId)
+                @if(! $manualQuoteSupplierId && ! $manualQuoteEditing)
                     <div class="card tg-manual-external mb-3">
                         <div class="card-body">
                             <h6 class="text-info"><i class="ti ti-building-store"></i> Nuevo proveedor externo</h6>
@@ -367,6 +389,9 @@
                     <div class="col-md-8">
                         <label class="form-label fw-bold">Adjunto (opcional)</label>
                         <input type="file" class="form-control" wire:model="manualQuoteAttachment" accept=".pdf,.jpg,.jpeg,.png">
+                        @if($manualQuoteExistingAttachment)
+                            <small class="text-muted d-block mt-1"><i class="ti ti-paperclip"></i> Se conservará el adjunto actual si no cargas uno nuevo.</small>
+                        @endif
                         @error('manualQuoteAttachment') <small class="text-danger">{{ $message }}</small> @enderror
                     </div>
                 </div>
@@ -378,13 +403,40 @@
                         wire:click="saveManualQuote"
                         wire:loading.attr="disabled"
                         wire:target="saveManualQuote">
-                    <span wire:loading.remove wire:target="saveManualQuote"><i class="ti ti-device-floppy"></i> Guardar cotización</span>
+                    <span wire:loading.remove wire:target="saveManualQuote"><i class="ti ti-device-floppy"></i> {{ $manualQuoteEditing ? 'Guardar cambios y revalidar' : 'Guardar cotización' }}</span>
                     <span wire:loading wire:target="saveManualQuote"><i class="ti ti-loader rotating"></i> Guardando...</span>
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+@if($showManualBudgetNoticeModal)
+    <div class="modal fade show d-block tg-budget-notice-modal" tabindex="-1" style="background:rgba(17,37,57,.58);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <div><span class="tg-section-kicker">Comunicación al requisitor</span><h5 class="modal-title mt-1"><i class="ti ti-wallet-off text-warning me-2"></i>Presupuesto pendiente de revisar</h5></div>
+                    <button type="button" class="btn-close" wire:click="closeManualBudgetNotice"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div class="tg-budget-message-preview">No hay presupuesto disponible para continuar con esta adjudicación. Favor de revisarlo con el encargado de presupuesto.</div>
+                    <label class="form-label fw-semibold mt-3">Nota opcional de Compras</label>
+                    <textarea class="form-control" rows="3" wire:model="manualBudgetNoticeNote" maxlength="1000" placeholder="Agrega contexto útil para el requisitor, si aplica."></textarea>
+                    @error('manualBudgetNoticeNote') <small class="text-danger">{{ $message }}</small> @enderror
+                    <p class="small text-muted mb-0 mt-2"><i class="ti ti-mail me-1"></i>Se enviará por correo y como notificación interna. Este aviso sólo puede enviarse una vez por grupo.</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" wire:click="closeManualBudgetNotice">Cancelar</button>
+                    <button type="button" class="btn btn-warning" wire:click="sendManualBudgetNotice" wire:loading.attr="disabled" wire:target="sendManualBudgetNotice">
+                        <span wire:loading.remove wire:target="sendManualBudgetNotice"><i class="ti ti-send me-1"></i>Enviar aviso</span>
+                        <span wire:loading wire:target="sendManualBudgetNotice"><i class="ti ti-loader rotating me-1"></i>Enviando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 
 @if($manualHistoryItemId)
     <div class="modal fade show d-block" tabindex="-1" style="z-index:1070; background:rgba(17,37,57,.58);">
@@ -441,5 +493,5 @@
     .tg-supplier-transfer { display:grid; grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr); gap:.65rem; align-items:stretch; }.tg-supplier-column { overflow:hidden; min-width:0; border:1px solid #e2e9f0; border-radius:.65rem; background:#fbfdff; }.tg-supplier-column > header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.7rem .75rem; border-bottom:1px solid #e2e9f0; background:#fff; }.tg-supplier-column header strong,.tg-supplier-column header span { display:block; }.tg-supplier-column header strong { font-size:.8rem; }.tg-supplier-column header div > span { margin-top:.12rem; color:#718096; font-size:.69rem; }.tg-supplier-total,.tg-selected-column .supplier-count { min-width:1.65rem; padding:.18rem .45rem; border-radius:999px; color:#1269ac; background:#eaf6ff; font-size:.72rem; font-weight:700; text-align:center; }.tg-supplier-filter-wrap { position:relative; padding:.6rem; border-bottom:1px solid #e2e9f0; }.tg-supplier-filter-wrap i { position:absolute; top:50%; left:1rem; color:#718096; transform:translateY(-50%); }.tg-supplier-filter { width:100%; padding:.5rem .65rem .5rem 2rem; border:1px solid #d7e0e9; border-radius:.5rem; font-size:.78rem; outline:0; }.tg-supplier-filter:focus { border-color:#188ae2; box-shadow:0 0 0 .15rem rgba(24,138,226,.12); }.tg-supplier-card-list,.tg-selected-supplier-list { max-height:290px; overflow:auto; padding:.45rem; }.tg-supplier-card { display:grid; width:100%; grid-template-columns:auto 1fr auto; gap:.45rem; align-items:center; min-height:42px; margin-bottom:.3rem; padding:.45rem .55rem; border:1px solid transparent; border-radius:.5rem; color:#34465a; background:#fff; cursor:pointer; text-align:left; }.tg-supplier-card:hover { border-color:#9ed5f5; background:#f7fbff; }.tg-supplier-card.is-selected,.tg-supplier-card.is-filtered-out { display:none; }.tg-supplier-avatar { display:inline-flex; align-items:center; justify-content:center; width:1.55rem; height:1.55rem; border-radius:50%; color:#1269ac; background:#eaf6ff; font-size:.64rem; font-weight:700; }.tg-supplier-name { overflow:hidden; font-size:.75rem; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }.tg-supplier-add { color:#188ae2; font-size:.9rem; }.tg-transfer-divider { display:flex; align-items:center; justify-content:center; color:#188ae2; }.tg-selected-column { border-color:#b9dcf6; }.tg-selected-supplier { display:grid; width:100%; grid-template-columns:auto 1fr auto; gap:.45rem; align-items:center; min-height:42px; margin-bottom:.3rem; padding:.45rem .55rem; border:1px solid #dcecf8; border-radius:.5rem; color:#34465a; background:#fff; cursor:pointer; text-align:left; }.tg-selected-supplier:hover { border-color:#e7b8b8; background:#fffafa; }.tg-selected-supplier strong { overflow:hidden; font-size:.75rem; text-overflow:ellipsis; white-space:nowrap; }.tg-supplier-remove { display:inline-flex; align-items:center; justify-content:center; width:1.65rem; height:1.65rem; border-radius:.4rem; color:#d55757; }.tg-selected-supplier:hover .tg-supplier-remove { background:#fff1f1; }.tg-selected-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:.45rem; color:#8a97a8; font-size:.76rem; text-align:center; }.tg-selected-empty i { color:#b9c7d6; font-size:1.5rem; }.tg-selection-summary { display:flex; align-items:center; gap:.45rem; margin-top:.65rem; color:#526274; font-size:.76rem; }.tg-selection-summary i { color:#188ae2; }.tg-selection-summary .supplier-count { color:#1269ac; font-size:.95rem; }
     @media (max-width:767.98px) { .tg-invitations-header { flex-direction:column; }.tg-invitations-summary { width:100%; }.tg-invitations-summary > div { flex:1; } }
     @media (max-width:767.98px) { .tg-supplier-transfer { grid-template-columns:1fr; }.tg-transfer-divider { min-height:24px; transform:rotate(90deg); }.tg-supplier-card-list,.tg-selected-supplier-list { max-height:230px; } }
-    .tg-manual-modal { border:0; color:#26384b; background:#f5f5f5; }.tg-manual-modal-header { gap:.75rem; padding:1rem 1.35rem; color:#153952; background:#f7fbff; border-bottom:1px solid #e2e9f0; }.tg-manual-logo-spinner { width:2.4rem; height:2.4rem; flex:0 0 auto; object-fit:contain; animation:tg-manual-logo-spin 8s linear infinite; }.tg-manual-modal-header .modal-title { font-size:1rem; font-weight:750; }.tg-manual-modal-body { max-width:1500px; width:100%; margin:0 auto; padding:1.25rem; }.tg-manual-context { display:flex; gap:.7rem; align-items:flex-start; margin-bottom:1rem; padding:.8rem 1rem; border:1px solid #b9dbf6; border-radius:.75rem; color:#245476; background:#edf8ff; }.tg-manual-context > i { color:#188ae2; font-size:1.3rem; }.tg-manual-context strong,.tg-manual-context span { display:block; }.tg-manual-context span { margin-top:.12rem; font-size:.78rem; }.tg-manual-section { padding:1rem; border:1px solid #e2e9f0; border-radius:.8rem; background:#fff; }.tg-manual-section::before { display:block; flex:0 0 100%; max-width:100%; margin-bottom:.65rem; color:#188ae2; font-size:.76rem; font-weight:800; letter-spacing:.05em; content:'DATOS COMERCIALES'; }.tg-manual-section .form-label { color:#405369; font-size:.78rem; }.tg-manual-external { border:1px dashed #80c7f2 !important; border-radius:.8rem; background:#f7fbff; box-shadow:none; }.tg-manual-external .card-body { padding:1rem; }.tg-manual-table-shell { overflow:hidden; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-table-shell .table { margin:0; }.tg-manual-table-shell thead th { padding:.75rem .55rem; color:#526274; background:#f1f6fb; font-size:.72rem; vertical-align:middle; white-space:nowrap; }.tg-manual-table-shell tbody td { padding:.55rem; vertical-align:middle; }.tg-manual-table-shell tbody tr { transition:background .15s ease; }.tg-manual-table-shell tbody tr:hover { background:#f7fbff; }.tg-manual-attachment { padding:.85rem; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-modal-footer { padding:.9rem 1.35rem; border-top:1px solid #e2e9f0; background:#fff; }.tg-manual-modal-footer .btn-success { border-color:#4bd396; background:#4bd396; }.tg-manual-modal-footer .btn-success:hover { border-color:#34b57b; background:#34b57b; }@keyframes tg-manual-logo-spin { to { transform:rotate(360deg); } }@media (prefers-reduced-motion:reduce) { .tg-manual-logo-spinner { animation:none; }.tg-manual-table-shell tbody tr,[x-cloak] { transition:none !important; } }@media (max-width:767.98px) { .tg-manual-modal-body { padding:.75rem; }.tg-manual-section { padding:.75rem; }.tg-manual-context { font-size:.82rem; }.tg-manual-modal-footer { padding:.75rem; } }
+    .tg-manual-modal { border:0; color:#26384b; background:#f5f5f5; }.tg-manual-modal-header { gap:.75rem; padding:1rem 1.35rem; color:#153952; background:#f7fbff; border-bottom:1px solid #e2e9f0; }.tg-manual-logo-spinner { width:2.4rem; height:2.4rem; flex:0 0 auto; object-fit:contain; animation:tg-manual-logo-spin 8s linear infinite; }.tg-manual-modal-header .modal-title { font-size:1rem; font-weight:750; }.tg-manual-modal-body { max-width:1500px; width:100%; margin:0 auto; padding:1.25rem; }.tg-manual-context { display:flex; gap:.7rem; align-items:flex-start; margin-bottom:1rem; padding:.8rem 1rem; border:1px solid #b9dbf6; border-radius:.75rem; color:#245476; background:#edf8ff; }.tg-manual-context > i { color:#188ae2; font-size:1.3rem; }.tg-manual-context strong,.tg-manual-context span { display:block; }.tg-manual-context span { margin-top:.12rem; font-size:.78rem; }.tg-manual-section { padding:1rem; border:1px solid #e2e9f0; border-radius:.8rem; background:#fff; }.tg-manual-section::before { display:block; flex:0 0 100%; max-width:100%; margin-bottom:.65rem; color:#188ae2; font-size:.76rem; font-weight:800; letter-spacing:.05em; content:'DATOS COMERCIALES'; }.tg-manual-section .form-label { color:#405369; font-size:.78rem; }.tg-manual-external { border:1px dashed #80c7f2 !important; border-radius:.8rem; background:#f7fbff; box-shadow:none; }.tg-manual-external .card-body { padding:1rem; }.tg-manual-table-shell { overflow:hidden; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-table-shell .table { margin:0; }.tg-manual-table-shell thead th { padding:.75rem .55rem; color:#526274; background:#f1f6fb; font-size:.72rem; vertical-align:middle; white-space:nowrap; }.tg-manual-table-shell tbody td { padding:.55rem; vertical-align:middle; }.tg-manual-table-shell tbody tr { transition:background .15s ease; }.tg-manual-table-shell tbody tr:hover { background:#f7fbff; }.tg-manual-attachment { padding:.85rem; border:1px solid #e2e9f0; border-radius:.75rem; background:#fff; }.tg-manual-modal-footer { padding:.9rem 1.35rem; border-top:1px solid #e2e9f0; background:#fff; }.tg-manual-modal-footer .btn-success { border-color:#4bd396; background:#4bd396; }.tg-manual-modal-footer .btn-success:hover { border-color:#34b57b; background:#34b57b; }.tg-budget-blocked-card { display:flex; gap:.8rem; align-items:center; padding:.85rem 1rem; border:1px solid #f2ca73; border-radius:.75rem; color:#72520f; background:#fff8e7; }.tg-budget-blocked-icon { display:grid; flex:0 0 2rem; width:2rem; height:2rem; place-items:center; border-radius:.6rem; color:#a56c00; background:#fff0c6; }.tg-budget-blocked-card strong,.tg-budget-blocked-card span,.tg-budget-blocked-card small { display:block; }.tg-budget-blocked-card strong { font-size:.82rem; }.tg-budget-blocked-card span,.tg-budget-blocked-card small { margin-top:.12rem; color:#87651d; font-size:.73rem; }.tg-budget-notice-action { white-space:nowrap; }.tg-budget-notice-sent { min-width:110px; color:#218b64; font-size:.73rem; text-align:center; }.tg-budget-notice-sent span,.tg-budget-notice-sent small { color:#218b64; }.tg-budget-message-preview { padding:.8rem .9rem; border:1px solid #f0cf85; border-radius:.65rem; color:#705313; background:#fff8e7; font-size:.86rem; line-height:1.5; }@keyframes tg-manual-logo-spin { to { transform:rotate(360deg); } }@media (prefers-reduced-motion:reduce) { .tg-manual-logo-spinner { animation:none; }.tg-manual-table-shell tbody tr,[x-cloak] { transition:none !important; } }@media (max-width:767.98px) { .tg-manual-modal-body { padding:.75rem; }.tg-manual-section { padding:.75rem; }.tg-manual-context { font-size:.82rem; }.tg-manual-modal-footer { padding:.75rem; }.tg-budget-blocked-card { align-items:flex-start; flex-wrap:wrap; }.tg-budget-notice-action { width:100%; } }
 </style>

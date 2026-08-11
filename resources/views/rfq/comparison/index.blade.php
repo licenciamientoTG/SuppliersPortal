@@ -11,6 +11,10 @@
 @endsection
 
 @section('content')
+@php
+    $budgetBlockedNotice = $rfq->budgetBlockedNotice;
+    $canManageBudgetNotice = auth()->user()?->hasRole('buyer') ?? false;
+@endphp
 <div class="container-fluid">
     {{-- ENCABEZADO DE OPERACIONES --}}
     <div class="row">
@@ -51,6 +55,17 @@
                             <i class="ti ti-archive me-1"></i>Cancelar Requisición
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($budgetBlockedNotice)
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="tg-budget-notice-sent-card">
+                    <span class="tg-budget-notice-sent-icon"><i class="ti ti-mail-check"></i></span>
+                    <div><strong>Requisitor informado sobre presupuesto</strong><span>Compras envió el aviso el {{ $budgetBlockedNotice->notified_at->format('d/m/Y H:i') }} desde la alternativa de {{ $budgetBlockedNotice->supplier->company_name }}.</span></div>
                 </div>
             </div>
         </div>
@@ -392,6 +407,15 @@
                                                     {{ $selection['reasons'][0] }}
                                                 </div>
                                             @endif
+                                            @if(($selection['budget_only_blocked'] ?? false) && ! $budgetBlockedNotice && $canManageBudgetNotice)
+                                                <button type="button"
+                                                        class="btn btn-sm btn-warning mt-2 btn-budget-blocked-notice"
+                                                        data-supplier-id="{{ $supplier->id }}"
+                                                        data-supplier-name="{{ $supplier->company_name }}"
+                                                        data-supplier-total="${{ number_format($totalFinal, 2) }}">
+                                                    <i class="ti ti-mail-forward me-1"></i>Avisar presupuesto
+                                                </button>
+                                            @endif
                                         @endif
                                     @else
                                         <button class="btn btn-light btn-sm rounded-pill" disabled>En espera</button>
@@ -403,6 +427,34 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<style>
+    .tg-budget-notice-sent-card { display:flex; gap:.8rem; align-items:center; padding:.85rem 1rem; border:1px solid #b9e8d1; border-radius:.75rem; color:#236a47; background:#effbf4; }.tg-budget-notice-sent-card strong,.tg-budget-notice-sent-card span { display:block; }.tg-budget-notice-sent-card strong { font-size:.86rem; }.tg-budget-notice-sent-card span { margin-top:.15rem; font-size:.78rem; }.tg-budget-notice-sent-icon { display:grid; flex:0 0 2rem; width:2rem; height:2rem; place-items:center; border-radius:.6rem; color:#218b64; background:#dcf6e7; }.tg-budget-kicker { color:#188ae2; font-size:.7rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }.tg-budget-message-preview { padding:.8rem .9rem; border:1px solid #f0cf85; border-radius:.65rem; color:#705313; background:#fff8e7; font-size:.86rem; line-height:1.5; }.tg-budget-supplier-reference { padding:.7rem .8rem; border:1px solid #e2e9f0; border-radius:.65rem; background:#f7fbff; }.tg-budget-supplier-reference span,.tg-budget-supplier-reference strong,.tg-budget-supplier-reference small { display:block; }.tg-budget-supplier-reference span { color:#718096; font-size:.68rem; text-transform:uppercase; }.tg-budget-supplier-reference strong { color:#27364a; font-size:.84rem; }.tg-budget-supplier-reference small { color:#526274; font-size:.76rem; }@media (prefers-reduced-motion:reduce) { .btn-budget-blocked-notice { transition:none; } }
+</style>
+
+<div class="modal fade" id="budgetBlockedNoticeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ route('rfq.comparison.budget-blocked-notice', $rfq) }}" class="modal-content border-0 shadow-lg">
+            @csrf
+            <input type="hidden" name="supplier_id" id="budget_notice_supplier_id">
+            <div class="modal-header border-0 pb-0">
+                <div><span class="tg-budget-kicker">Comunicación al requisitor</span><h5 class="modal-title mt-1"><i class="ti ti-wallet-off text-warning me-2"></i>Presupuesto pendiente de revisar</h5></div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="tg-budget-message-preview">No hay presupuesto disponible para continuar con esta adjudicación. Favor de revisarlo con el encargado de presupuesto.</div>
+                <div class="tg-budget-supplier-reference mt-3"><span>Alternativa bloqueada</span><strong id="budget_notice_supplier_name"></strong><small id="budget_notice_supplier_total"></small></div>
+                <label class="form-label fw-semibold mt-3">Nota opcional de Compras</label>
+                <textarea name="note" class="form-control" rows="3" maxlength="1000" placeholder="Agrega contexto útil para el requisitor, si aplica."></textarea>
+                <p class="small text-muted mb-0 mt-2"><i class="ti ti-mail me-1"></i>Se enviará por correo y como notificación interna. El aviso sólo puede enviarse una vez por grupo.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-warning"><i class="ti ti-send me-1"></i>Enviar aviso</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -559,6 +611,13 @@
                 html: `<p class="mb-3"><strong>${name}</strong> no puede adjudicarse en este momento.</p>${html}`,
                 confirmButtonText: 'Entendido'
             });
+        });
+
+        $('.btn-budget-blocked-notice').on('click', function() {
+            $('#budget_notice_supplier_id').val($(this).data('supplier-id'));
+            $('#budget_notice_supplier_name').text($(this).data('supplier-name'));
+            $('#budget_notice_supplier_total').text($(this).data('supplier-total'));
+            new bootstrap.Modal(document.getElementById('budgetBlockedNoticeModal')).show();
         });
     });
 </script>

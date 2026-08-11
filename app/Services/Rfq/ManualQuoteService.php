@@ -6,6 +6,7 @@ use App\Exceptions\Rfq\AwardNotAllowedException;
 use App\Exceptions\Rfq\DuplicateSupplierRfcException;
 use App\Models\QuotationGroup;
 use App\Models\Requisition;
+use App\Models\Rfq;
 use App\Models\RfqResponse;
 use App\Models\Supplier;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +24,7 @@ class ManualQuoteService
     public function __construct(
         private RfqDraftService $drafts,
         private RfqAwardService $awards,
+        private BudgetBlockedNoticeService $budgetBlockedNotices,
     ) {}
 
     /**
@@ -100,6 +102,30 @@ class ManualQuoteService
         ]);
     }
 
+    public function editableBudgetBlockedSupplierId(Rfq $rfq): ?int
+    {
+        if ($rfq->source !== 'external' || $rfq->status !== 'RECEIVED' || $rfq->quotationSummary()->exists()) {
+            return null;
+        }
+
+        $supplierIds = $rfq->rfqResponses()
+            ->where('entry_source', 'buyer_manual')
+            ->where('status', 'SUBMITTED')
+            ->pluck('supplier_id')
+            ->unique()
+            ->values();
+
+        if ($supplierIds->count() !== 1) {
+            return null;
+        }
+
+        $rfq->loadMissing(['requisition.requester', 'requisition.items.costCenter', 'rfqResponses.requisitionItem']);
+
+        return $this->budgetBlockedNotices->isBlockedOnlyByBudget($rfq, (int) $supplierIds->first())
+            ? (int) $supplierIds->first()
+            : null;
+    }
+
     /**
      * Guarda la cotización manual completa de un grupo para un proveedor.
      *
@@ -128,6 +154,11 @@ class ManualQuoteService
         $rfq = DB::transaction(function () use ($requisition, $group, $supplier, $itemsData, $quotationDate, $validityDays, $attachment, $userId) {
             $rfq = $this->drafts->ensureExternalDraftForGroup($requisition, $group, $userId);
 
+            $editableSupplierId = $this->editableBudgetBlockedSupplierId($rfq);
+            if ($rfq->status === 'RECEIVED' && $editableSupplierId !== (int) $supplier->id) {
+                throw new \DomainException('Esta compra directa sólo puede editarse cuando está bloqueada únicamente por presupuesto y conserva el proveedor original.');
+            }
+
             $rfq->suppliers()->syncWithoutDetaching([
                 $supplier->id => ['invited_at' => now(), 'responded_at' => now()],
             ]);
@@ -137,6 +168,11 @@ class ManualQuoteService
                 : null;
 
             foreach ($itemsData as $itemId => $itemData) {
+                $existingResponse = RfqResponse::query()
+                    ->where('rfq_id', $rfq->id)
+                    ->where('supplier_id', $supplier->id)
+                    ->where('requisition_item_id', $itemId)
+                    ->first();
                 $notAvailable = (bool) ($itemData['not_available'] ?? false);
                 $unitPrice = $notAvailable ? 0 : (float) $itemData['unit_price'];
                 $ivaRate = $notAvailable ? 0 : (float) $itemData['iva_rate'];
@@ -167,7 +203,7 @@ class ManualQuoteService
                         'model' => $itemData['model'] ?? null,
                         'specifications' => $itemData['specifications'] ?? null,
                         'not_available' => $notAvailable,
-                        'attachment_path' => $attachmentPath,
+                        'attachment_path' => $attachmentPath ?? $existingResponse?->attachment_path,
                         'status' => 'SUBMITTED',
                         'submitted_at' => now(),
                         'entry_source' => 'buyer_manual',
