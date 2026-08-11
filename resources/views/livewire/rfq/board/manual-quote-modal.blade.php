@@ -121,6 +121,12 @@
                                                 </select>
                                             </td>
                                             <td>
+                                                <select class="form-select form-select-sm" wire:model="items.{{ $item->id }}.currency"
+                                                        @disabled($items[$item->id]['not_available'] ?? false)>
+                                                    <option value="MXN">MXN</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                                                </select>
+                                            </td>
+                                            <td>
                                                 <input type="number" min="0" class="form-control form-control-sm"
                                                        wire:model="items.{{ $item->id }}.delivery_days"
                                                        @disabled($items[$item->id]['not_available'] ?? false)>
@@ -136,6 +142,14 @@
                                                 @else
                                                     <span class="text-muted">Sin historial</span>
                                                 @endif
+                                                @if (! empty($items[$item->id]['payment_terms']))
+                                                    <br><small class="text-muted">Pago: {{ $items[$item->id]['payment_terms'] }}</small>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-primary w-100" wire:click="openPurchaseHistory({{ $item->id }})">
+                                                    <i class="ti ti-history"></i> Pedidos
+                                                </button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -158,6 +172,30 @@
                         <button type="button" class="btn btn-sm btn-primary" wire:click="save" wire:loading.attr="disabled">
                             <i class="ti ti-device-floppy me-1"></i>Guardar cotización
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($historyItemId)
+        <div class="modal fade show d-block" tabindex="-1" style="z-index:1070; background:rgba(17,37,57,.58);">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-light">
+                        <div><h6 class="modal-title mb-0"><i class="ti ti-history me-2"></i>Últimos 10 pedidos</h6><small class="text-muted">Selecciona una referencia para importar sus datos.</small></div>
+                        <button type="button" class="btn-close" wire:click="closePurchaseHistory"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        @forelse ($purchaseHistory as $reference)
+                            <button type="button" class="w-100 d-flex justify-content-between align-items-center gap-3 p-3 border-0 border-bottom bg-white text-start" wire:click="applyPurchaseHistory({{ $reference['id'] }})">
+                                <span><strong class="d-block">{{ $reference['supplier_name'] }}</strong><small class="text-muted">{{ $reference['folio'] }} · {{ $reference['ordered_at'] ? \Illuminate\Support\Carbon::parse($reference['ordered_at'])->format('d/m/Y') : 'Sin fecha' }}</small></span>
+                                <span class="text-end"><strong class="d-block">${{ number_format($reference['unit_price'], 2) }} {{ $reference['currency'] }}</strong><small class="text-muted">IVA {{ number_format($reference['iva_rate'], 2) }}% · {{ $reference['delivery_days'] ?? '—' }} días</small></span>
+                                <i class="ti ti-arrow-up-right text-primary fs-5"></i>
+                            </button>
+                        @empty
+                            <div class="text-center text-muted py-5">No hay pedidos emitidos para este producto.</div>
+                        @endforelse
                     </div>
                 </div>
             </div>
