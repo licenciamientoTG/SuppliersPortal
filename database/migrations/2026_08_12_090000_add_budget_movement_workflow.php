@@ -9,7 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('budget_movements', function (Blueprint $table) {
+            $table->dropIndex('budget_movements_status_index');
             $table->string('status', 30)->default('PENDIENTE_DIRECCION')->change();
+            $table->index('status');
         });
 
         Schema::create('budget_movement_approval_settings', function (Blueprint $table) {
