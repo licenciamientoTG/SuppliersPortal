@@ -33,7 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const single = document.querySelector('.js-single');
     const transfer = document.querySelector('.js-transfer');
     const form = document.querySelector('#budgetMovementForm');
-    const rawMoney = value => String(value || '').replace(/[^0-9.]/g, '');
+    const rawMoney = value => {
+        const [whole = '', ...decimals] = String(value || '').replace(/,/g, '').replace(/[^0-9.]/g, '').split('.');
+        return decimals.length ? `${whole}.${decimals.join('').slice(0, 2)}` : whole;
+    };
+    const liveMoney = value => {
+        const raw = rawMoney(value);
+        if (raw === '') return '';
+        const [whole, decimal] = raw.split('.');
+        const grouped = (whole || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return decimal === undefined ? grouped : `${grouped}.${decimal}`;
+    };
     const currency = value => Number(value || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 });
     const select2 = ($select) => { if ($select.hasClass('select2-hidden-accessible')) $select.select2('destroy'); $select.select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(document.body), placeholder: $select.data('placeholder'), minimumResultsForSearch: 0 }); };
     const refreshCedulas = account => { const $cedula = $('#'+account.data('target')); const selected = String($cedula.data('selected') || ''); const options = cedulas.filter(item => String(item.expense_category_id) === String(account.val())); if ($cedula.hasClass('select2-hidden-accessible')) $cedula.select2('destroy'); $cedula.empty().prop('disabled', !options.length).append(new Option(options.length ? 'Selecciona una subcuenta' : 'Primero selecciona una cuenta', '')); options.forEach(item => $cedula.append(new Option(item.name, item.id, false, String(item.id) === selected))); select2($cedula); $cedula.data('selected', ''); $cedula.trigger('change'); };
@@ -55,7 +65,26 @@ document.addEventListener('DOMContentLoaded', () => {
     $('.js-cost-center-select, .js-account-select').each(function () { select2($(this)); });
     $('.js-account-select').each(function () { refreshCedulas($(this)); }).on('change', function () { const $cedula = $('#'+$(this).data('target')); $cedula.data('selected', ''); refreshCedulas($(this)); });
     form.querySelectorAll('select, input[name="fiscal_year"]').forEach(input => input.addEventListener('change', refreshVisiblePreviews));
-    document.querySelectorAll('.js-money-input').forEach(input => { const formatMoney = () => { const value = rawMoney(input.value); input.value = value === '' ? '' : Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }; formatMoney(); input.addEventListener('focus', () => { input.value = rawMoney(input.value); }); input.addEventListener('input', refreshVisiblePreviews); input.addEventListener('blur', () => { formatMoney(); refreshVisiblePreviews(); }); });
+    document.querySelectorAll('.js-money-input').forEach(input => {
+        const formatWhileTyping = () => {
+            const previous = input.value;
+            const cursor = input.selectionStart ?? previous.length;
+            const significantBeforeCursor = rawMoney(previous.slice(0, cursor)).length;
+            const formatted = liveMoney(previous);
+            input.value = formatted;
+            let newCursor = 0;
+            let significant = 0;
+            while (newCursor < formatted.length && significant < significantBeforeCursor) {
+                if (/\d|\./.test(formatted[newCursor])) significant++;
+                newCursor++;
+            }
+            input.setSelectionRange(newCursor, newCursor);
+        };
+        const formatOnBlur = () => { const value = rawMoney(input.value); input.value = value === '' ? '' : Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+        formatOnBlur();
+        input.addEventListener('input', () => { formatWhileTyping(); refreshVisiblePreviews(); });
+        input.addEventListener('blur', () => { formatOnBlur(); refreshVisiblePreviews(); });
+    });
     form.addEventListener('submit', event => { document.querySelectorAll('.js-money-input').forEach(input => { input.value = rawMoney(input.value); }); const button = event.submitter; button.disabled = true; button.textContent = 'Enviando…'; });
     toggle();
 });
