@@ -365,7 +365,7 @@
                                             @endforeach
                                         </td>
                                         <td class="text-center">
-                                            <span class="tg-manual-quantity">{{ number_format((float) $item->quantity, 3) }}</span>
+                                            <span class="tg-manual-quantity">{{ rtrim(rtrim(number_format((float) $item->quantity, 2, '.', ''), '0'), '.') }}</span>
                                             <small class="d-block text-muted">{{ $item->unit ?: 'Unidad' }}</small>
                                         </td>
                                         <td class="text-center">
