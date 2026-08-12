@@ -743,6 +743,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/regular', [PurchaseOrderController::class, 'datatableRegular'])->name('purchase-orders.datatable.regular');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/direct', [PurchaseOrderController::class, 'datatableDirect'])->name('purchase-orders.datatable.direct');
+    Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');

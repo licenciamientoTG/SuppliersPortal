@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PurchaseOrder;
 use App\Models\DirectPurchaseOrder;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Notifications\ContractPurchaseOrderRejectedNotification;
 use App\Notifications\PurchaseOrderIssuedNotification;
-use App\Services\BudgetAllocationService;
-use App\Services\ApprovalDelegationService;
 use App\Services\ApprovalDecisionService;
+use App\Services\ApprovalDelegationService;
+use App\Services\BudgetAllocationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
-use Illuminate\Support\Facades\Auth;
 
 class PurchaseOrderController extends Controller
 {
@@ -38,8 +40,7 @@ class PurchaseOrderController extends Controller
         BudgetAllocationService $budgetAllocationService,
         ApprovalDelegationService $approvalDelegations,
         ApprovalDecisionService $approvalDecisions
-    )
-    {
+    ) {
         abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
         abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
 
@@ -54,16 +55,16 @@ class PurchaseOrderController extends Controller
             $budgetAllocationService->commitOrder($purchaseOrder);
 
             $purchaseOrder->forceFill([
-                'status'      => 'ISSUED',
+                'status' => 'ISSUED',
                 'approved_by' => Auth::id(),
                 'approved_at' => $now,
-                'issued_at'   => $now,
+                'issued_at' => $now,
             ])->save();
 
             $purchaseOrder->approvals()->create([
                 'approver_user_id' => Auth::id(),
-                'action'           => 'APPROVED',
-                'approved_at'      => $now,
+                'action' => 'APPROVED',
+                'approved_at' => $now,
             ]);
             $approvalDecisions->record($purchaseOrder, $principalId, Auth::user(), 'APPROVED');
 
@@ -74,7 +75,7 @@ class PurchaseOrderController extends Controller
                 } catch (\Throwable $exception) {
                     Log::error('Failed to notify supplier about approved contract purchase order.', [
                         'purchase_order_id' => $purchaseOrder->id,
-                        'exception'         => $exception,
+                        'exception' => $exception,
                     ]);
                 }
             });
@@ -92,8 +93,7 @@ class PurchaseOrderController extends Controller
         PurchaseOrder $purchaseOrder,
         ApprovalDelegationService $approvalDelegations,
         ApprovalDecisionService $approvalDecisions
-    )
-    {
+    ) {
         abort_unless($purchaseOrder->isApproverFor(Auth::user()), 403);
         abort_unless($purchaseOrder->isPendingApproval(), 422, 'La OC no está pendiente de autorización.');
 
@@ -108,17 +108,17 @@ class PurchaseOrderController extends Controller
             abort_unless($purchaseOrder->isPendingApproval(), 422, 'Esta autorización ya fue resuelta por otro integrante.');
             abort_unless($approvalDelegations->canAct(Auth::user(), $principalId), 403);
             $purchaseOrder->forceFill([
-                'status'               => 'REJECTED',
-                'rejected_by'          => Auth::id(),
-                'rejected_at'          => now(),
+                'status' => 'REJECTED',
+                'rejected_by' => Auth::id(),
+                'rejected_at' => now(),
                 'assigned_approver_id' => null,
             ])->save();
 
             $purchaseOrder->approvals()->create([
                 'approver_user_id' => Auth::id(),
-                'action'           => 'REJECTED',
-                'comments'         => $request->comments,
-                'approved_at'      => now(),
+                'action' => 'REJECTED',
+                'comments' => $request->comments,
+                'approved_at' => now(),
             ]);
             $approvalDecisions->record(
                 $purchaseOrder,
@@ -140,7 +140,7 @@ class PurchaseOrderController extends Controller
                 } catch (\Throwable $exception) {
                     Log::error('Failed to notify about rejected contract purchase order.', [
                         'purchase_order_id' => $purchaseOrder->id,
-                        'exception'         => $exception,
+                        'exception' => $exception,
                     ]);
                 }
             });
@@ -162,7 +162,7 @@ class PurchaseOrderController extends Controller
             return DataTables::of($purchaseOrders)
                 ->addIndexColumn()
                 ->addColumn('folio', function ($po) {
-                    return '<span class="fw-bold text-dark">' . $po->folio . '</span>';
+                    return '<span class="fw-bold text-dark">'.$po->folio.'</span>';
                 })
                 ->addColumn('fecha_emision', function ($po) {
                     return $po->created_at->format('d/m/Y H:i');
@@ -171,21 +171,21 @@ class PurchaseOrderController extends Controller
                     return $po->supplier->company_name ?? 'N/A';
                 })
                 ->addColumn('requisicion', function ($po) {
-                    return '<span class="badge bg-soft-secondary text-secondary">' .
-                        ($po->requisition->folio ?? 'N/A') .
+                    return '<span class="badge bg-soft-secondary text-secondary">'.
+                        ($po->requisition->folio ?? 'N/A').
                         '</span>';
                 })
                 ->addColumn('total', function ($po) {
-                    return '<span class="fw-bold text-primary">' . format_money($po->total, $po->currency) . '</span>';
+                    return '<span class="fw-bold text-primary">'.format_money($po->total, $po->currency).'</span>';
                 })
                 ->addColumn('status', function ($po) {
-                    return '<span class="badge bg-' . $po->getStatusBadgeClass() . '">'
-                        . $po->getStatusLabel() . '</span>';
+                    return '<span class="badge bg-'.$po->getStatusBadgeClass().'">'
+                        .$po->getStatusLabel().'</span>';
                 })
                 ->addColumn('actions', function ($po) {
                     $showUrl = route('purchase-orders.show', $po->id);
                     $buttons = '
-                        <a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="Ver Detalle">
+                        <a href="'.$showUrl.'" class="btn btn-sm btn-outline-primary" title="Ver Detalle">
                             <i class="ti ti-eye"></i>
                         </a>
                     ';
@@ -193,7 +193,7 @@ class PurchaseOrderController extends Controller
                     if ($po->canBeReceived()) {
                         $receiveUrl = route('receptions.create', $po->id);
                         $buttons .= '
-                            <a href="' . $receiveUrl . '" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
+                            <a href="'.$receiveUrl.'" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
                                 <i class="ti ti-package-import"></i>
                             </a>
                         ';
@@ -218,7 +218,7 @@ class PurchaseOrderController extends Controller
             return DataTables::of($directOrders)
                 ->addIndexColumn()
                 ->addColumn('folio', function ($ocd) {
-                    return '<span class="fw-bold text-dark">' . ($ocd->folio ?? 'DRAFT') . '</span>';
+                    return '<span class="fw-bold text-dark">'.($ocd->folio ?? 'DRAFT').'</span>';
                 })
                 ->addColumn('fecha_solicitud', function ($ocd) {
                     return $ocd->created_at->format('d/m/Y H:i');
@@ -227,25 +227,25 @@ class PurchaseOrderController extends Controller
                     return $ocd->supplier->company_name ?? 'N/A';
                 })
                 ->addColumn('solicitante', function ($ocd) {
-                    return '<span class="badge bg-soft-info text-info">' .
-                        $ocd->creator->name .
+                    return '<span class="badge bg-soft-info text-info">'.
+                        $ocd->creator->name.
                         '</span>';
                 })
                 ->addColumn('centro_costo', function ($ocd) {
                     return $ocd->primaryCostCenterLabel();
                 })
                 ->addColumn('total', function ($ocd) {
-                    return '<span class="fw-bold text-primary">' . format_money($ocd->total, $ocd->currency) . '</span>';
+                    return '<span class="fw-bold text-primary">'.format_money($ocd->total, $ocd->currency).'</span>';
                 })
                 ->addColumn('status', function ($ocd) {
-                    return '<span class="badge bg-' . $ocd->getStatusBadgeClass() . '">'
-                        . $ocd->getStatusLabel() . '</span>';
+                    return '<span class="badge bg-'.$ocd->getStatusBadgeClass().'">'
+                        .$ocd->getStatusLabel().'</span>';
                 })
                 ->addColumn('actions', function ($ocd) {
                     $showUrl = route('direct-purchase-orders.show', $ocd->id);
 
                     $buttons = '
-                        <a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="Ver Detalle">
+                        <a href="'.$showUrl.'" class="btn btn-sm btn-outline-primary" title="Ver Detalle">
                             <i class="ti ti-eye"></i>
                         </a>
                     ';
@@ -255,7 +255,7 @@ class PurchaseOrderController extends Controller
                     if ($canEdit) {
                         $editUrl = route('direct-purchase-orders.edit', $ocd->id);
                         $buttons .= '
-                            <a href="' . $editUrl . '" class="btn btn-sm btn-outline-warning ms-1" title="Editar">
+                            <a href="'.$editUrl.'" class="btn btn-sm btn-outline-warning ms-1" title="Editar">
                                 <i class="ti ti-edit"></i>
                             </a>
                         ';
@@ -270,7 +270,7 @@ class PurchaseOrderController extends Controller
                     if ($ocd->canBeReceived()) {
                         $receiveUrl = route('receptions.create-direct', $ocd->id);
                         $buttons .= '
-                            <a href="' . $receiveUrl . '" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
+                            <a href="'.$receiveUrl.'" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
                                 <i class="ti ti-package-import"></i>
                             </a>
                         ';
@@ -307,7 +307,36 @@ class PurchaseOrderController extends Controller
             'approvalDecisions.actor',
             'approvalDecisions.principal',
         ]);
+
         return view('purchase-orders.show', compact('purchaseOrder'));
+    }
+
+    /** Download the formal purchase order document once it has been issued. */
+    public function downloadPdf(PurchaseOrder $purchaseOrder): Response
+    {
+        abort_unless(in_array($purchaseOrder->status, [
+            'ISSUED',
+            'PARTIALLY_RECEIVED',
+            'RECEIVED',
+            'PAID',
+            'DELIVERED_PENDING_RECEPTION',
+        ], true), 422, 'La orden de compra debe estar emitida antes de generar su PDF.');
+
+        $purchaseOrder->load([
+            'items.requisitionItem.costCenter',
+            'supplier',
+            'creator',
+            'approver',
+            'assignedApprover',
+            'receivingLocation',
+            'requisition.company',
+            'requisition.requester',
+        ]);
+
+        return Pdf::loadView('purchase-orders.pdf', [
+            'purchaseOrder' => $purchaseOrder,
+            'logoPath' => public_path('images/logos/Logo.png'),
+        ])->setPaper('letter')->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
     }
 
     /**
