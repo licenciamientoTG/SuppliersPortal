@@ -14,6 +14,7 @@ use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
 use App\Notifications\BudgetMovementWorkflowNotification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -50,6 +51,69 @@ class BudgetMovementWorkflowController extends Controller
         abort_if($ownedCostCenters->isEmpty(), 403, 'No tienes centros de costo asignados como responsable.');
 
         return view('budget_movements.workflow.create', $this->formData($ownedCostCenters));
+    }
+
+    /**
+     * Returns the live balance for the selected budget line.  The form uses this
+     * strictly as a preview; the same balance is revalidated under a lock when
+     * the executive approval is applied.
+     */
+    public function budgetSnapshot(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'cost_center_id' => ['required', 'integer', Rule::exists('cost_centers', 'id')],
+            'fiscal_year' => ['required', 'integer', 'between:2020,2100'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'expense_category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
+            'budget_cedula_id' => ['required', 'integer', Rule::exists('budget_cedulas', 'id')],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'effect' => ['required', Rule::in(['INCREASE', 'DECREASE'])],
+            'context' => ['required', Rule::in(['single', 'origin', 'destination'])],
+        ]);
+
+        $actor = $request->user();
+        $isOwner = $this->ownedCenters($actor)->whereKey($data['cost_center_id'])->exists();
+        if ($data['context'] === 'origin') {
+            abort_unless($this->ownedCenters($actor)->exists(), 403, 'No tienes centros de costo asignados como responsable.');
+        } else {
+            abort_unless($isOwner, 403, 'Solo puedes consultar el presupuesto de centros de costo de los que eres responsable.');
+        }
+
+        $budget = AnnualBudget::query()
+            ->where('cost_center_id', $data['cost_center_id'])
+            ->where('fiscal_year', $data['fiscal_year'])
+            ->first();
+        $distributions = $budget
+            ? BudgetMonthlyDistribution::query()
+                ->where('annual_budget_id', $budget->id)
+                ->where('month', $data['month'])
+                ->where('expense_category_id', $data['expense_category_id'])
+                ->where('budget_cedula_id', $data['budget_cedula_id'])
+                ->get()
+            : collect();
+
+        $assigned = (float) $distributions->sum('assigned_amount');
+        $consumed = (float) $distributions->sum('consumed_amount');
+        $committed = (float) $distributions->sum('committed_amount');
+        $available = (float) $distributions->sum(fn (BudgetMonthlyDistribution $distribution) => $distribution->getAvailableAmount());
+        $amount = (float) ($data['amount'] ?? 0);
+        $sign = $data['effect'] === 'INCREASE' ? 1 : -1;
+
+        return response()->json([
+            'success' => true,
+            'has_budget' => $budget !== null && $distributions->isNotEmpty(),
+            'message' => $budget === null
+                ? 'No hay presupuesto anual registrado para este centro y año.'
+                : ($distributions->isEmpty() ? 'No hay presupuesto asignado a esta subcuenta en el mes seleccionado.' : null),
+            'assigned_amount' => $assigned,
+            'consumed_amount' => $consumed,
+            'committed_amount' => $committed,
+            'available_amount' => $available,
+            'movement_amount' => $amount,
+            'projected_assigned_amount' => $assigned + ($sign * $amount),
+            'projected_available_amount' => $available + ($sign * $amount),
+            'has_sufficient_available' => $data['effect'] === 'INCREASE' || $available >= $amount,
+        ]);
     }
 
     public function store(SaveBudgetMovementRequest $request): RedirectResponse

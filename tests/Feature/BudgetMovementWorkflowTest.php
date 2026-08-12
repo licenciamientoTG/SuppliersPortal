@@ -117,6 +117,37 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->assertDatabaseHas('budget_monthly_distributions', ['annual_budget_id' => $destinationBudget->id, 'month' => 2, 'assigned_amount' => 2000]);
     }
 
+    public function test_owner_can_view_current_and_projected_budget_for_a_selected_subaccount(): void
+    {
+        $budget = AnnualBudget::create(['cost_center_id' => $this->destination->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 5000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $budget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 2, 'assigned_amount' => 5000, 'consumed_amount' => 1200, 'committed_amount' => 300, 'created_by' => $this->director->id]);
+
+        $this->actingAs($this->requester)->getJson(route('budget_movements.budget-snapshot', [
+            'cost_center_id' => $this->destination->id,
+            'fiscal_year' => now()->year,
+            'month' => 2,
+            'expense_category_id' => $this->category->id,
+            'budget_cedula_id' => $this->cedula->id,
+            'amount' => 1000,
+            'effect' => 'DECREASE',
+            'context' => 'single',
+        ]))->assertOk()->assertJsonPath('available_amount', 3500)->assertJsonPath('projected_available_amount', 2500)->assertJsonPath('has_sufficient_available', true);
+    }
+
+    public function test_user_cannot_view_another_center_as_a_single_center_preview(): void
+    {
+        $this->actingAs($this->requester)->getJson(route('budget_movements.budget-snapshot', [
+            'cost_center_id' => $this->origin->id,
+            'fiscal_year' => now()->year,
+            'month' => 1,
+            'expense_category_id' => $this->category->id,
+            'budget_cedula_id' => $this->cedula->id,
+            'amount' => 1000,
+            'effect' => 'DECREASE',
+            'context' => 'single',
+        ]))->assertForbidden();
+    }
+
     private function transferPayload(): array
     {
         return ['movement_type' => 'TRANSFERENCIA', 'fiscal_year' => now()->year, 'movement_date' => now()->toDateString(), 'total_amount' => 1000, 'justification' => 'Se requiere redistribuir presupuesto para una necesidad operativa.', 'origin_cost_center_id' => $this->origin->id, 'origin_month' => 1, 'origin_expense_category_id' => $this->category->id, 'origin_budget_cedula_id' => $this->cedula->id, 'destination_cost_center_id' => $this->destination->id, 'destination_month' => 2, 'destination_expense_category_id' => $this->category->id, 'destination_budget_cedula_id' => $this->cedula->id];
