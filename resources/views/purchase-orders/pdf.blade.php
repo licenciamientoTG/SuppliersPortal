@@ -26,8 +26,10 @@
         .totals td { border-bottom: 1px solid #dce7ef; padding: 5px 7px; }
         .totals .grand td { background: #eaf8f1; border-top: 2px solid #4bd396; color: #126346; font-size: 11px; font-weight: bold; }
         .notes { border: 1px solid #dce7ef; color: #475569; padding: 8px; }
-        .signature { margin-top: 20px; text-align: center; width: 46%; }
-        .signature-line { border-top: 1px solid #64748b; margin: 0 auto 5px; width: 88%; }
+        .signatures { border-collapse: collapse; margin-top: 34px; width: 100%; }
+        .signature { padding: 0 5px; text-align: center; vertical-align: top; width: 33.33%; }
+        .signature-line { border-top: 1px solid #64748b; margin: 0 auto 7px; width: 86%; }
+        .signature-role { color: #475569; display: block; margin-top: 3px; }
         .footer { bottom: -20px; color: #94a3b8; font-size: 7px; left: 0; position: fixed; right: 0; text-align: center; }
     </style>
 </head>
@@ -81,7 +83,11 @@
     </table>
     <table class="totals"><tr><td>Subtotal</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->subtotal, 2) }}</td></tr><tr><td>IVA</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->iva_amount, 2) }}</td></tr><tr class="grand"><td>TOTAL {{ $purchaseOrder->currency }}</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->total, 2) }}</td></tr></table>
     @if($purchaseOrder->requisition?->description)<div class="section-title">Observaciones</div><div class="notes">{{ $purchaseOrder->requisition->description }}</div>@endif
-    <table style="width:100%"><tr><td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->creator?->name ?? '—' }}</strong><br>Elaboró</td><td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->approver?->name ?? $purchaseOrder->assignedApprover?->name ?? '—' }}</strong><br>Autorizó</td></tr></table>
+    <table class="signatures"><tr>
+        <td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->creator?->name ?? '—' }}</strong><span class="signature-role">Elaboró</span></td>
+        <td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->approver?->name ?? $purchaseOrder->assignedApprover?->name ?? '—' }}</strong><span class="signature-role">Autorizó</span></td>
+        <td class="signature"><div class="signature-line"></div><strong>{{ $supplier?->company_name ?? 'Proveedor' }}</strong><span class="signature-role">Conformidad del proveedor</span></td>
+    </tr></table>
     <div class="footer">Documento generado por Portal de Proveedores TotalGas · {{ now()->format('d/m/Y H:i') }}</div>
 </body>
 </html>
