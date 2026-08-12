@@ -16,11 +16,11 @@ return new class extends Migration
 
         Schema::create('budget_movement_approval_settings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('director_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('substitute_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('director_user_id')->nullable()->constrained('users')->noActionOnDelete();
+            $table->foreignId('substitute_user_id')->nullable()->constrained('users')->noActionOnDelete();
             $table->timestamp('substitute_starts_at')->nullable();
             $table->timestamp('substitute_ends_at')->nullable();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->timestamps();
         });
 
