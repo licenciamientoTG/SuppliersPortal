@@ -3,19 +3,19 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 22px 28px 34px; }
+        @page { margin: 18px 28px 30px; }
         * { box-sizing: border-box; }
-        body { color: #1f2937; font-family: DejaVu Sans, sans-serif; font-size: 9px; line-height: 1.45; }
+        body { color: #1f2937; font-family: DejaVu Sans, sans-serif; font-size: 8.5px; line-height: 1.32; }
         .header { border-bottom: 3px solid #188ae2; padding-bottom: 12px; width: 100%; }
         .logo { max-height: 42px; max-width: 155px; }
         .title { color: #123a5c; font-size: 19px; font-weight: bold; margin: 0; text-align: right; }
         .folio { color: #188ae2; font-size: 11px; font-weight: bold; text-align: right; margin-top: 4px; }
         .meta { color: #64748b; font-size: 8px; text-align: right; margin-top: 3px; }
-        .section-title { background: #edf7fe; border-left: 3px solid #188ae2; color: #123a5c; font-size: 9px; font-weight: bold; margin: 16px 0 7px; padding: 5px 7px; text-transform: uppercase; }
+        .section-title { background: #edf7fe; border-left: 3px solid #188ae2; color: #123a5c; font-size: 9px; font-weight: bold; margin: 12px 0 6px; padding: 5px 7px; text-transform: uppercase; }
         .info { border-collapse: collapse; width: 100%; }
-        .info td { border: 1px solid #dce7ef; padding: 6px 7px; vertical-align: top; width: 33.33%; }
-        .label { color: #64748b; display: block; font-size: 7px; font-weight: bold; text-transform: uppercase; }
-        .value { color: #1f2937; font-size: 9px; font-weight: bold; margin-top: 2px; }
+        .info td { border: 1px solid #dce7ef; padding: 5px 7px; vertical-align: top; }
+        .label { color: #64748b; display: block; font-size: 6.5px; font-weight: bold; text-transform: uppercase; }
+        .value { color: #1f2937; font-size: 8.5px; font-weight: bold; margin-top: 2px; }
         .items { border-collapse: collapse; margin-top: 6px; width: 100%; }
         .items th { background: #123a5c; color: #fff; font-size: 8px; padding: 7px 5px; text-align: left; }
         .items td { border-bottom: 1px solid #dce7ef; padding: 7px 5px; vertical-align: top; }
@@ -26,7 +26,7 @@
         .totals td { border-bottom: 1px solid #dce7ef; padding: 5px 7px; }
         .totals .grand td { background: #eaf8f1; border-top: 2px solid #4bd396; color: #126346; font-size: 11px; font-weight: bold; }
         .notes { border: 1px solid #dce7ef; color: #475569; padding: 8px; }
-        .signature { margin-top: 46px; text-align: center; width: 46%; }
+        .signature { margin-top: 20px; text-align: center; width: 46%; }
         .signature-line { border-top: 1px solid #64748b; margin: 0 auto 5px; width: 88%; }
         .footer { bottom: -20px; color: #94a3b8; font-size: 7px; left: 0; position: fixed; right: 0; text-align: center; }
     </style>
@@ -35,6 +35,21 @@
     @php
         $currencySymbol = ($purchaseOrder->currency ?? 'MXN') === 'USD' ? 'US$' : '$';
         $company = $purchaseOrder->requisition?->company;
+        $supplier = $purchaseOrder->supplier;
+        $receivingLocation = $purchaseOrder->receivingLocation;
+        $supplierAddress = collect([
+            $supplier?->address,
+            $supplier?->postal_code ? 'C.P. '.$supplier->postal_code : null,
+        ])->filter()->implode(' - ');
+        $deliveryAddressDetails = collect([
+            $receivingLocation?->address,
+            $receivingLocation?->city,
+            $receivingLocation?->state,
+            $receivingLocation?->postal_code ? 'C.P. '.$receivingLocation->postal_code : null,
+        ])->filter();
+        $deliveryAddress = $deliveryAddressDetails->isNotEmpty()
+            ? $deliveryAddressDetails->push($receivingLocation?->country)->filter()->implode(', ')
+            : null;
     @endphp
     <table class="header"><tr>
         <td style="width:48%">@if(is_file($logoPath)) <img class="logo" src="{{ $logoPath }}" alt="TotalGas"> @else <strong style="font-size:17px;color:#188ae2">TOTALGAS</strong> @endif</td>
@@ -43,15 +58,21 @@
 
     <div class="section-title">Datos generales</div>
     <table class="info"><tr>
-        <td><span class="label">Empresa compradora</span><span class="value">{{ $company?->legal_name ?? $company?->name ?? '—' }}</span><br><span class="label" style="margin-top:5px">RFC</span><span class="value">{{ $company?->rfc ?? '—' }}</span></td>
-        <td><span class="label">Proveedor</span><span class="value">{{ $purchaseOrder->supplier?->company_name ?? '—' }}</span><br><span class="label" style="margin-top:5px">RFC</span><span class="value">{{ $purchaseOrder->supplier?->rfc ?? '—' }}</span><br><span class="label" style="margin-top:5px">Contacto</span><span class="value">{{ $purchaseOrder->supplier?->contact_person ?? '—' }}</span></td>
-        <td><span class="label">Requisición origen</span><span class="value">{{ $purchaseOrder->requisition?->folio ?? '—' }}</span><br><span class="label" style="margin-top:5px">Condiciones de pago</span><span class="value">{{ $purchaseOrder->payment_terms ?? '—' }}</span><br><span class="label" style="margin-top:5px">Tiempo estimado de entrega</span><span class="value">{{ $purchaseOrder->estimated_delivery_days ? $purchaseOrder->estimated_delivery_days.' días' : '—' }}</span></td>
+        <td style="width:42%"><span class="label">Empresa compradora</span><span class="value">{{ $company?->legal_name ?? $company?->name ?? '—' }}</span><br><span class="label" style="margin-top:5px">RFC</span><span class="value">{{ $company?->rfc ?? '—' }}</span>@if($company?->phone)<br><span class="label" style="margin-top:5px">Teléfono</span><span class="value">{{ $company->phone }}</span>@endif @if($company?->email)<br><span class="label" style="margin-top:5px">Correo</span><span class="value">{{ $company->email }}</span>@endif</td>
+        <td style="width:58%"><span class="label">Proveedor</span><span class="value">{{ $supplier?->company_name ?? '—' }}</span><br><span class="label" style="margin-top:5px">RFC</span><span class="value">{{ $supplier?->rfc ?? '—' }}</span>@if($supplierAddress)<br><span class="label" style="margin-top:5px">Dirección</span><span class="value">{{ $supplierAddress }}</span>@endif<br><span class="label" style="margin-top:5px">Contacto</span><span class="value">{{ $supplier?->contact_person ?? '—' }}@if($supplier?->contact_phone) · {{ $supplier->contact_phone }}@endif</span>@if($supplier?->phone_number)<br><span class="label" style="margin-top:5px">Teléfono</span><span class="value">{{ $supplier->phone_number }}</span>@endif @if($supplier?->email)<br><span class="label" style="margin-top:5px">Correo</span><span class="value">{{ $supplier->email }}</span>@endif</td>
+    </tr></table>
+
+    <div class="section-title">Condiciones de la orden</div>
+    <table class="info"><tr>
+        <td style="width:34%"><span class="label">Requisición origen</span><span class="value">{{ $purchaseOrder->requisition?->folio ?? '—' }}</span></td>
+        <td style="width:33%"><span class="label">Condiciones de pago</span><span class="value">{{ $purchaseOrder->payment_terms ?? '—' }}</span></td>
+        <td style="width:33%"><span class="label">Tiempo estimado de entrega</span><span class="value">{{ $purchaseOrder->estimated_delivery_days ? $purchaseOrder->estimated_delivery_days.' días' : '—' }}</span></td>
     </tr></table>
 
     <div class="section-title">Entrega</div>
     <table class="info"><tr>
-        <td style="width:50%"><span class="label">Punto de entrega</span><span class="value">{{ $purchaseOrder->receivingLocation ? $purchaseOrder->receivingLocation->code.' · '.$purchaseOrder->receivingLocation->name : '—' }}</span></td>
-        <td style="width:50%"><span class="label">Solicitante</span><span class="value">{{ $purchaseOrder->requisition?->requester?->name ?? $purchaseOrder->creator?->name ?? '—' }}</span></td>
+        <td style="width:60%"><span class="label">Punto de entrega</span><span class="value">{{ $receivingLocation ? $receivingLocation->code.' · '.$receivingLocation->name : '—' }}</span>@if($deliveryAddress)<br><span class="label" style="margin-top:5px">Dirección de entrega</span><span class="value">{{ $deliveryAddress }}</span>@endif @if($receivingLocation?->manager_name)<br><span class="label" style="margin-top:5px">Responsable de recepción</span><span class="value">{{ $receivingLocation->manager_name }}</span>@endif</td>
+        <td style="width:40%"><span class="label">Solicitante</span><span class="value">{{ $purchaseOrder->requisition?->requester?->name ?? $purchaseOrder->creator?->name ?? '—' }}</span>@if($receivingLocation?->phone)<br><span class="label" style="margin-top:5px">Teléfono de entrega</span><span class="value">{{ $receivingLocation->phone }}</span>@endif @if($receivingLocation?->email)<br><span class="label" style="margin-top:5px">Correo de entrega</span><span class="value">{{ $receivingLocation->email }}</span>@endif</td>
     </tr></table>
 
     <div class="section-title">Partidas</div>
