@@ -328,6 +328,8 @@ class PurchaseOrderController extends Controller
             'creator',
             'approver',
             'assignedApprover',
+            'quotationSummary.selector',
+            'quotationSummary.rfq.creator',
             'receivingLocation',
             'requisition.company',
             'requisition.requester',

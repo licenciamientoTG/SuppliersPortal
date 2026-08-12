@@ -27,8 +27,9 @@
         .totals .grand td { background: #eaf8f1; border-top: 2px solid #4bd396; color: #126346; font-size: 11px; font-weight: bold; }
         .notes { border: 1px solid #dce7ef; color: #475569; padding: 8px; }
         .signatures { border-collapse: collapse; margin-top: 34px; width: 100%; }
-        .signature { padding: 0 5px; text-align: center; vertical-align: top; width: 33.33%; }
+        .signature { padding: 0 4px; text-align: center; vertical-align: top; width: 25%; }
         .signature-line { border-top: 1px solid #64748b; margin: 0 auto 7px; width: 86%; }
+        .signature-label { color: #1f2937; display: block; font-size: 7px; font-weight: bold; margin-bottom: 28px; text-transform: uppercase; }
         .signature-role { color: #475569; display: block; margin-top: 3px; }
         .footer { bottom: -20px; color: #94a3b8; font-size: 7px; left: 0; position: fixed; right: 0; text-align: center; }
     </style>
@@ -39,6 +40,11 @@
         $company = $purchaseOrder->requisition?->company;
         $supplier = $purchaseOrder->supplier;
         $receivingLocation = $purchaseOrder->receivingLocation;
+        $requester = $purchaseOrder->requisition?->requester;
+        $buyer = $purchaseOrder->quotationSummary?->selector
+            ?? $purchaseOrder->quotationSummary?->rfq?->creator
+            ?? $purchaseOrder->creator;
+        $authorizer = $purchaseOrder->approver ?? $purchaseOrder->assignedApprover;
         $supplierAddress = collect([
             $supplier?->address,
             $supplier?->postal_code ? 'C.P. '.$supplier->postal_code : null,
@@ -84,9 +90,10 @@
     <table class="totals"><tr><td>Subtotal</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->subtotal, 2) }}</td></tr><tr><td>IVA</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->iva_amount, 2) }}</td></tr><tr class="grand"><td>TOTAL {{ $purchaseOrder->currency }}</td><td class="number">{{ $currencySymbol }}{{ number_format((float)$purchaseOrder->total, 2) }}</td></tr></table>
     @if($purchaseOrder->requisition?->description)<div class="section-title">Observaciones</div><div class="notes">{{ $purchaseOrder->requisition->description }}</div>@endif
     <table class="signatures"><tr>
-        <td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->creator?->name ?? '—' }}</strong><span class="signature-role">Elaboró</span></td>
-        <td class="signature"><div class="signature-line"></div><strong>{{ $purchaseOrder->approver?->name ?? $purchaseOrder->assignedApprover?->name ?? '—' }}</strong><span class="signature-role">Autorizó</span></td>
-        <td class="signature"><div class="signature-line"></div><strong>{{ $supplier?->company_name ?? 'Proveedor' }}</strong><span class="signature-role">Conformidad del proveedor</span></td>
+        <td class="signature"><span class="signature-label">Elaboró</span><div class="signature-line"></div><strong>{{ $requester?->name ?? '—' }}</strong><span class="signature-role">Requisitor</span></td>
+        <td class="signature"><span class="signature-label">Solicita</span><div class="signature-line"></div><strong>{{ $buyer?->name ?? '—' }}</strong><span class="signature-role">Compras</span></td>
+        <td class="signature"><span class="signature-label">Aceptó</span><div class="signature-line"></div><strong>{{ $supplier?->company_name ?? 'Proveedor' }}</strong><span class="signature-role">Proveedor</span></td>
+        <td class="signature"><span class="signature-label">Autoriza</span><div class="signature-line"></div><strong>{{ $authorizer?->name ?? '—' }}</strong><span class="signature-role">{{ $authorizer?->job_title ?? 'Autorizador de la OC' }}</span></td>
     </tr></table>
     <div class="footer">Documento generado por Portal de Proveedores TotalGas · {{ now()->format('d/m/Y H:i') }}</div>
 </body>
