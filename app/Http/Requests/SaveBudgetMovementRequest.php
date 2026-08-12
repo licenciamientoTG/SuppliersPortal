@@ -9,12 +9,6 @@ class SaveBudgetMovementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $budgetMovement = $this->route('budget_movement');
-
-        if ($budgetMovement && $budgetMovement->status !== 'PENDIENTE') {
-            return false;
-        }
-
         return true;
     }
 

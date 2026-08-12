@@ -382,25 +382,6 @@
                             </div>
                         </div>
 
-                        <div class="row mb-3" id="budget_cedula_row">
-                            <label for="budget_cedula_id" class="col-sm-3 col-form-label">
-                                Subcuenta <span class="text-danger">*</span>
-                            </label>
-                            <div class="col-sm-9">
-                                <select class="form-select select2 @error('budget_cedula_id') is-invalid @enderror"
-                                    id="budget_cedula_id"
-                                    name="budget_cedula_id"
-                                    data-selected="{{ old('budget_cedula_id') }}"
-                                    disabled>
-                                    <option value="">Primero seleccione una cuenta</option>
-                                </select>
-                                <small class="text-muted">La ampliación se aplicará únicamente a esta subcuenta.</small>
-                                @error('budget_cedula_id')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
                         <!-- Mes -->
                         <div class="row mb-3">
                             <label for="month" class="col-sm-3 col-form-label">
@@ -448,6 +429,25 @@
                                 </select>
                                 @error('expense_category_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row mb-3" id="budget_cedula_row">
+                            <label for="budget_cedula_id" class="col-sm-3 col-form-label">
+                                Subcuenta <span class="text-danger">*</span>
+                            </label>
+                            <div class="col-sm-9">
+                                <select class="form-select select2 @error('budget_cedula_id') is-invalid @enderror"
+                                    id="budget_cedula_id"
+                                    name="budget_cedula_id"
+                                    data-selected="{{ old('budget_cedula_id') }}"
+                                    disabled>
+                                    <option value="">Primero seleccione una cuenta</option>
+                                </select>
+                                <small class="text-muted">La ampliación se aplicará únicamente a esta subcuenta.</small>
+                                @error('budget_cedula_id')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>

@@ -12,7 +12,14 @@
         'contracts',
     ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
 
-    $showFinanceSection = collect([
+    $hasBudgetMovementAccess = false;
+    try {
+        $hasBudgetMovementAccess = $user && ($user->hasRole('superadmin') || $user->hasRole('general_director') || \App\Models\CostCenter::query()->where('responsible_user_id', $user->id)->exists());
+    } catch (\Throwable $e) {
+        $hasBudgetMovementAccess = false;
+    }
+
+    $showFinanceSection = $hasBudgetMovementAccess || collect([
         'budget_control',
         'payments_billing',
     ])->contains(fn ($module) => $moduleAccess->userCanAccessModule($user, $module));
@@ -144,6 +151,16 @@
     </a>
 </li>
 @endmoduleAccess
+
+@if ($hasBudgetMovementAccess && ! $moduleAccess->userCanAccessModule($user, 'budget_control'))
+<li class="side-nav-item">
+    <a href="{{ route('budget_movements.index') }}"
+        class="side-nav-link {{ request()->routeIs('budget_movements.*') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-arrows-exchange"></i></span>
+        <span class="menu-text">Movimientos presupuestales</span>
+    </a>
+</li>
+@endif
 
 @if ($showPurchasingSection)
 <li class="side-nav-title">COMPRAS</li>

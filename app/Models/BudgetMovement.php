@@ -34,14 +34,24 @@ class BudgetMovement extends Model
      * Constantes para tipos de movimiento
      */
     const TYPE_TRANSFER = 'TRANSFERENCIA';
+
     const TYPE_INCREASE = 'AMPLIACION';
+
     const TYPE_DECREASE = 'REDUCCION';
 
     /**
      * Constantes para estados
      */
     const STATUS_PENDING = 'PENDIENTE';
+
+    const STATUS_PENDING_ORIGIN = 'PENDIENTE_ORIGEN';
+
+    const STATUS_PENDING_EXECUTIVE = 'PENDIENTE_DIRECCION';
+
+    const STATUS_RETURNED = 'DEVUELTO';
+
     const STATUS_APPROVED = 'APROBADO';
+
     const STATUS_REJECTED = 'RECHAZADO';
 
     /**
@@ -66,6 +76,11 @@ class BudgetMovement extends Model
     public function details(): HasMany
     {
         return $this->hasMany(BudgetMovementDetail::class);
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(BudgetMovementDecision::class)->latest();
     }
 
     /**
@@ -164,7 +179,12 @@ class BudgetMovement extends Model
      */
     public function isPending(): bool
     {
-        return $this->status === self::STATUS_PENDING;
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_PENDING_ORIGIN, self::STATUS_PENDING_EXECUTIVE], true);
+    }
+
+    public function isReturned(): bool
+    {
+        return $this->status === self::STATUS_RETURNED;
     }
 
     /**
