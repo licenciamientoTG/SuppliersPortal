@@ -208,7 +208,7 @@ class EmployeeController extends Controller
                     ? '<span class="badge bg-success">SI</span>'
                     : '<span class="badge bg-danger">NO</span>';
             })
-            ->orderColumn('employee_number', 'CAST(employee_number AS BIGINT) $1')
+            ->orderColumn('employee_number', 'TRY_CAST(employee_number AS BIGINT) $1')
             ->addColumn('actions', function (Employee $row) {
                 $photoBtn = '<button class="btn btn-sm btn-outline-info js-photo-btn me-1"
                                      data-id="'.e($row->id).'"
