@@ -155,10 +155,10 @@ class EmployeeController extends Controller
 
         return DataTables::of($query)
             ->filter(function ($query) use ($request) {
-                $activeFilter = $request->input('is_active', 'SI');
-
-                if ($activeFilter !== '') {
-                    $query->where('is_active', $activeFilter);
+                if (! $request->has('is_active')) {
+                    $query->where('is_active', 'SI');
+                } elseif ($request->filled('is_active')) {
+                    $query->where('is_active', $request->input('is_active'));
                 }
 
                 if ($request->filled('company')) {
