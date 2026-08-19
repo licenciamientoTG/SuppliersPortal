@@ -49,9 +49,9 @@ class ProductServiceController extends Controller
      */
     public function datatable(Request $request)
     {
-        // Las columnas del listado no muestran relaciones. Evitar eager loading
-        // aqui reduce consultas e hidratacion en cada pagina de DataTables.
-        $query = ProductService::query();
+        // La columna "Cuenta / Subcuenta" requiere la relacion subaccounts.account;
+        // el resto de columnas no muestran relaciones adicionales.
+        $query = ProductService::query()->with(['subaccounts.account']);
 
         $user = $request->user();
         $canManageCatalog = $user?->can('productos.administrar')
@@ -92,6 +92,13 @@ class ProductServiceController extends Controller
                 $display = $p->short_name ?? Str::limit($p->technical_description, 60);
 
                 return e($display);
+            })
+            ->addColumn('cuenta_subcuenta', function ($p) {
+                $pairs = $p->subaccounts
+                    ->filter(fn ($subaccount) => $subaccount->account)
+                    ->map(fn ($subaccount) => e($subaccount->account->name).'-'.e($subaccount->name));
+
+                return $pairs->isNotEmpty() ? $pairs->implode('<br>') : '<span class="text-muted">—</span>';
             })
             ->addColumn('actions', function ($p) {
                 $showUrl = route('products-services.show', $p->id);
@@ -148,7 +155,7 @@ class ProductServiceController extends Controller
 
                 return $html;
             })
-            ->rawColumns(['product_type_badge', 'status', 'actions'])
+            ->rawColumns(['product_type_badge', 'status', 'actions', 'cuenta_subcuenta'])
             ->make(true);
     }
 

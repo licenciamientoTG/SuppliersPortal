@@ -36,6 +36,7 @@
                             <th>Código</th>
                             <th>Tipo</th>
                             <th>Descripción</th>
+                            <th>Cuenta / Subcuenta</th>
                             <th>Unidad</th>
                             <th>Precio Est.</th>
                             <th>Estatus</th>
@@ -137,6 +138,12 @@
                     {
                         data: 'technical_description',
                         name: 'technical_description'
+                    },
+                    {
+                        data: 'cuenta_subcuenta',
+                        name: 'cuenta_subcuenta',
+                        orderable: false,
+                        searchable: false
                     },
                     {
                         data: 'unit_of_measure',
