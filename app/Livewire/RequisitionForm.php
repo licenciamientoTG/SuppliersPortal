@@ -403,6 +403,19 @@ class RequisitionForm extends Component
         $this->descriptionRemainingChars = $this->descriptionMaxLength - strlen($value);
     }
 
+    /**
+     * La carga de un adjunto actualiza una propiedad temporal de Livewire.
+     *
+     * La interfaz de partidas se administra deliberadamente en JavaScript para
+     * conservar los controles Select2 y el archivo seleccionado. Re-renderizar
+     * el componente completo al finalizar esa carga hace que Livewire intente
+     * reconciliar un DOM que no le pertenece y termina perdiendo el snapshot.
+     */
+    public function updatedItemAttachments(): void
+    {
+        $this->skipRender();
+    }
+
     // =====================================================
     // GESTIÓN DE PARTIDAS
     // =====================================================
