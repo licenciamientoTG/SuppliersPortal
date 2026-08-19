@@ -155,10 +155,10 @@ class EmployeeController extends Controller
 
         return DataTables::of($query)
             ->filter(function ($query) use ($request) {
-                $activeFilter = $request->input('is_active', 'SI');
-
-                if ($activeFilter !== '') {
-                    $query->where('is_active', $activeFilter);
+                if (! $request->has('is_active')) {
+                    $query->where('is_active', 'SI');
+                } elseif ($request->filled('is_active')) {
+                    $query->where('is_active', $request->input('is_active'));
                 }
 
                 if ($request->filled('company')) {
@@ -208,7 +208,7 @@ class EmployeeController extends Controller
                     ? '<span class="badge bg-success">SI</span>'
                     : '<span class="badge bg-danger">NO</span>';
             })
-            ->orderColumn('employee_number', 'CAST(employee_number AS BIGINT) $1')
+            ->orderColumn('employee_number', 'TRY_CAST(employee_number AS BIGINT) $1')
             ->addColumn('actions', function (Employee $row) {
                 $photoBtn = '<button class="btn btn-sm btn-outline-info js-photo-btn me-1"
                                      data-id="'.e($row->id).'"
