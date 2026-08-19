@@ -248,9 +248,15 @@
                                 <th width="100">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="requisitionItemsBody">
+                        {{--
+                            Las partidas se pintan desde JavaScript tras las llamadas renderless
+                            addItem/updateItem/removeItem. Al cargar un archivo Livewire sí realiza
+                            un ciclo de morph para actualizar su carga temporal; no debe intentar
+                            reconciliar este DOM administrado por JavaScript.
+                        --}}
+                        <tbody id="requisitionItemsBody" wire:ignore>
                             @forelse($items as $index => $item)
-                                <tr wire:key="item-{{ $index }}">
+                                <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $item['product_name'] }}</strong></td>
                                     <td>{{ $item['quantity'] }}</td>
