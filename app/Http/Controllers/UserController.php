@@ -52,13 +52,15 @@ class UserController extends Controller
             3 => 'phone',
             4 => 'job_title',
             5 => 'empresas',
-            6 => 'roles',
-            7 => 'is_active',
-            8 => 'acciones',
+            6 => 'centros_costo',
+            7 => 'perfil_presupuestal',
+            8 => 'roles',
+            9 => 'is_active',
+            10 => 'acciones',
         ];
 
         // Query base
-        $query = User::with(['roles:id,name', 'companies:id,name,code', 'costCenters:id,name,code,company_id']);
+        $query = User::with(['roles:id,name', 'companies:id,name,code', 'costCenters:id,name,code,company_id', 'budgetProfiles:id,name']);
 
         $recordsTotal = User::count();
 
@@ -90,7 +92,7 @@ class UserController extends Controller
 
         // Ordenamiento
         $orderable = $columns[$orderColumn] ?? 'id';
-        if (! in_array($orderable, ['empresas', 'roles', 'acciones'])) {
+        if (! in_array($orderable, ['empresas', 'centros_costo', 'perfil_presupuestal', 'roles', 'acciones'])) {
             $query->orderBy($orderable, $orderDir);
         } else {
             $query->orderBy('id', 'desc');
@@ -142,6 +144,28 @@ class UserController extends Controller
                                     title="'.e(nl2br($tooltip)).'">'.$badges.'</span>';
             }
 
+            // === BADGES DE PERFILES PRESUPUESTALES ===
+            $perfilesHtml = '<span class="text-muted">—</span>';
+            if ($user->budgetProfiles->isNotEmpty()) {
+
+                // Tooltip con lista completa
+                $tooltip = $user->budgetProfiles->pluck('name')->implode("\n");
+
+                // Mostrar solo los primeros 2 perfiles
+                $badges = $user->budgetProfiles->take(2)->map(function ($p) {
+                    return '<span class="badge bg-light text-dark border me-1">'.e($p->name).'</span>';
+                })->implode('');
+
+                // Si hay más de 2, mostrar contador adicional
+                if ($user->budgetProfiles->count() > 2) {
+                    $badges .= '<span class="badge bg-secondary">+'.($user->budgetProfiles->count() - 2).'</span>';
+                }
+
+                $perfilesHtml = '<span data-bs-toggle="tooltip" data-bs-placement="top"
+                                    data-bs-html="true"
+                                    title="'.e(nl2br($tooltip)).'">'.$badges.'</span>';
+            }
+
             return [
                 'id' => $user->id,
                 'name' => e($user->name),
@@ -150,6 +174,7 @@ class UserController extends Controller
                 'puesto' => e($user->job_title),
                 'empresas' => $empresasHtml,
                 'centros_costo' => $this->formatCostCentersHtml($user),
+                'perfil_presupuestal' => $perfilesHtml,
                 'roles' => $rolesHtml,
                 'activo' => $user->is_active,
                 'acciones' => view('users.staff.partials.actions', compact('user'))->render(),

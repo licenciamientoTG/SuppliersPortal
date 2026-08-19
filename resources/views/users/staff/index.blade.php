@@ -103,6 +103,7 @@
                         <th>Puesto</th>
                         <th>Empresas</th>
                         <th>Centros de Costo</th>
+                        <th>Perfil Presupuestal</th>
                         <th>Roles</th>
                         <th>Activo</th>
                         <th>Acciones</th>
@@ -187,6 +188,7 @@ $(function () {
                 searchable: false  // la búsqueda la hacemos en el servidor
             },
             { data: 'centros_costo', name: 'centros_costo', orderable: false, searchable: false },
+            { data: 'perfil_presupuestal', name: 'perfil_presupuestal', orderable: false, searchable: false },
             {
                 data: 'roles',
                 name: 'roles',
