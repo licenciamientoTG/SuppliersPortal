@@ -8,8 +8,10 @@ use App\Models\BudgetProfile;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\ProductService;
 use App\Models\User;
 use App\Models\UserAuthorizerRole;
+use App\Services\BudgetAccessService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -1114,5 +1116,25 @@ class UserController extends Controller
                 'message' => 'Error al actualizar centros de costo: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Muestra (solo lectura) los productos/servicios a los que el usuario tiene acceso,
+     * según las subcuentas permitidas por su departamento/perfiles presupuestales.
+     */
+    public function productsAccess(User $user)
+    {
+        $subaccountIds = app(BudgetAccessService::class)->subaccountIdsFor($user);
+
+        $products = $subaccountIds->isEmpty()
+            ? collect()
+            : ProductService::query()
+                ->active()
+                ->withAllowedSubaccounts($subaccountIds)
+                ->with('subaccounts.account')
+                ->orderBy('code')
+                ->get();
+
+        return view('users.staff.partials.products', compact('user', 'products'));
     }
 }

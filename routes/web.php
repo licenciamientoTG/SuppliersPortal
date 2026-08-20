@@ -161,6 +161,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/{user}/cost-centers/edit', [UserController::class, 'editCostCenters'])->name('cost-centers.edit');
         Route::patch('/{user}/cost-centers', [UserController::class, 'updateCostCenters'])->name('cost-centers.update');
 
+        // Productos/Servicios accesibles (solo lectura)
+        Route::get('/{user}/products', [UserController::class, 'productsAccess'])->name('products');
+
         // Supplier relación directa
     });
 
