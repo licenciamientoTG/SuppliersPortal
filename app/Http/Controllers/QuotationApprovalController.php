@@ -139,6 +139,7 @@ class QuotationApprovalController extends Controller
                     'directPurchaseOrder.supplier',
                     'quotationSummary.selectedSupplier',
                     'quotationSummary.rfq',
+                    'quotationSummary.requisition',
                 ])
                 ->where('status', 'COMMITTED')
                 ->whereIn('cost_center_id', $lines->pluck('cost_center_id')->unique())
@@ -175,6 +176,7 @@ class QuotationApprovalController extends Controller
                                 'supplier' => $supplier?->company_name ?? 'Sin proveedor',
                                 'committed_at' => $commitment->committed_at?->format('d/m/Y') ?? '-',
                                 'amount' => '$'.number_format((float) $commitment->committed_amount, 2),
+                                'detail' => $commitment->quotationSummary?->requisition?->description,
                                 'raw_amount' => (float) $commitment->committed_amount,
                                 'is_untraced' => false,
                                 'is_current' => (int) $commitment->quotation_summary_id === (int) $summary->id,
@@ -202,6 +204,7 @@ class QuotationApprovalController extends Controller
                             'supplier' => $summary->selectedSupplier?->company_name ?? 'Proveedor seleccionado',
                             'committed_at' => $summary->budget_reserved_at->format('d/m/Y'),
                             'amount' => '$'.number_format($currentReservation, 2),
+                            'detail' => $summary->requisition?->description ?: 'Sin título registrado para la requisición.',
                             'raw_amount' => $currentReservation,
                             'is_untraced' => false,
                             'is_current' => true,
@@ -217,6 +220,7 @@ class QuotationApprovalController extends Controller
                             'supplier' => 'Este importe existe en la distribución presupuestal, pero no tiene una orden registrada en la bitácora de compromisos.',
                             'committed_at' => '-',
                             'amount' => '$'.number_format($untracedAmount, 2),
+                            'detail' => null,
                             'raw_amount' => $untracedAmount,
                             'is_untraced' => true,
                             'is_current' => false,

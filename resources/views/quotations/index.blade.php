@@ -401,7 +401,7 @@
                 ? components.map(component => `
                     <div class="commitment-item ${component.is_untraced ? 'untraced' : ''} ${component.is_current ? 'current-commitment' : ''}">
                         <span class="badge bg-soft-primary text-primary">${escapeHtml(component.type)}</span>
-                        <div><strong class="d-block small">${escapeHtml(component.folio)}</strong><small>${escapeHtml(component.supplier)} · Comprometido el ${escapeHtml(component.committed_at)}</small></div>
+                        <div><strong class="d-block small">${escapeHtml(component.folio)}</strong><small>${escapeHtml(component.supplier)} · Comprometido el ${escapeHtml(component.committed_at)}</small>${component.detail ? `<small class="d-block mt-1">${escapeHtml(component.detail)}</small>` : ''}</div>
                         <strong>${escapeHtml(component.amount)}</strong>
                     </div>`).join('')
                 : '<p class="text-muted small mb-0">No hay compromisos activos registrados para esta combinación presupuestal.</p>';
