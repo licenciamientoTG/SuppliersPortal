@@ -141,7 +141,7 @@
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6 col-lg-3"><div class="budget-metric"><span>Asignado</span><strong id="modal_budget_assigned_total"></strong></div></div>
-                        <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-warning"><span>Comprometido</span><strong id="modal_budget_committed_total"></strong><small>Abre el detalle para ver su composición</small></div></div>
+                        <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-warning budget-metric-clickable" role="button" tabindex="0" aria-label="Abrir detalle del saldo comprometido"><span>Comprometido</span><strong id="modal_budget_committed_total"></strong><small>Haz clic para ver su composición</small></div></div>
                         <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-success"><span>Disponible</span><strong id="modal_budget_remaining_total"></strong></div></div>
                         <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-primary"><span>Esta solicitud</span><strong id="modal_budget_requested_total"></strong></div></div>
                     </div>
@@ -210,6 +210,8 @@
     .budget-metric strong { color: #25364a; font-size: 1.05rem; }
     .budget-metric small { display: block; margin-top: .25rem; color: #947217; font-size: .7rem; line-height: 1.25; }
     .budget-metric-warning { background: #fffaf0; border-color: #f6dfad; }
+    .budget-metric-clickable { cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+    .budget-metric-clickable:hover, .budget-metric-clickable:focus { box-shadow: 0 5px 12px rgba(148, 114, 23, .13); outline: 2px solid #e6bd63; outline-offset: 2px; transform: translateY(-2px); }
     .budget-metric-success { background: #f2fcf7; border-color: #ccefe0; }
     .budget-metric-success strong { color: #21875d; }
     .budget-metric-primary { background: #f1f8fe; border-color: #cfe7f8; }
@@ -230,6 +232,9 @@
     .commitment-item { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #edf1f5; }
     .commitment-item:last-child { border-bottom: 0; }
     .commitment-item small { color: #718096; }
+    .commitment-item.untraced { padding: .75rem; border: 1px dashed #e6bd63; border-radius: .5rem; background: #fffaf0; }
+    .commitment-pagination { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #edf1f5; }
+    .commitment-pagination small { color: #718096; }
     .review-table { border: 1px solid #e2e9f0; border-radius: .65rem; }
     .review-note { padding: .9rem 1rem; border-left: 3px solid #188ae2; border-radius: .35rem; background: #edf7fe; }
     .review-note small { display: block; margin-bottom: .3rem; color: #176eaf; font-weight: 700; }
@@ -251,6 +256,47 @@
         return String(value ?? '').replace(/[&<>'"]/g, character => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
         }[character]));
+    }
+
+    function renderCommitmentPage($detail, page) {
+        const pageSize = 5;
+        const $items = $detail.find('.commitment-item');
+        const pages = Math.ceil($items.length / pageSize);
+        const currentPage = Math.min(Math.max(page, 1), pages);
+
+        $items.each(function (index) {
+            $(this).toggleClass('d-none', index < (currentPage - 1) * pageSize || index >= currentPage * pageSize);
+        });
+
+        $detail.find('.commitment-page-current').text(`Página ${currentPage} de ${pages}`);
+        $detail.find('[data-commitment-page="previous"]').prop('disabled', currentPage === 1);
+        $detail.find('[data-commitment-page="next"]').prop('disabled', currentPage === pages);
+        $detail.data('commitment-page', currentPage);
+    }
+
+    function initializeCommitmentPagination() {
+        $('.commitment-detail').each(function () {
+            const $detail = $(this);
+            const itemCount = $detail.find('.commitment-item').length;
+
+            if (itemCount <= 5) {
+                return;
+            }
+
+            $detail.append(`
+                <div class="commitment-pagination">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-commitment-page="previous"><i class="ti ti-chevron-left"></i> Anterior</button>
+                    <small class="commitment-page-current"></small>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-commitment-page="next">Siguiente <i class="ti ti-chevron-right"></i></button>
+                </div>`);
+            renderCommitmentPage($detail, 1);
+        });
+
+        $(document).off('click.commitmentPagination', '[data-commitment-page]').on('click.commitmentPagination', '[data-commitment-page]', function () {
+            const $detail = $(this).closest('.commitment-detail');
+            const page = Number($detail.data('commitment-page') || 1);
+            renderCommitmentPage($detail, $(this).data('commitment-page') === 'next' ? page + 1 : page - 1);
+        });
     }
 
     function recalculateApprovedTotals() {
@@ -352,7 +398,7 @@
             const components = line.committed_components || [];
             const componentsHtml = components.length
                 ? components.map(component => `
-                    <div class="commitment-item">
+                    <div class="commitment-item ${component.is_untraced ? 'untraced' : ''}">
                         <span class="badge bg-soft-primary text-primary">${escapeHtml(component.type)}</span>
                         <div><strong class="d-block small">${escapeHtml(component.folio)}</strong><small>${escapeHtml(component.supplier)} · Comprometido el ${escapeHtml(component.committed_at)}</small></div>
                         <strong>${escapeHtml(component.amount)}</strong>
@@ -385,6 +431,7 @@
         }
 
         $('#modal_budget_lines').html(budgetHtml);
+        initializeCommitmentPagination();
 
         let itemsHtml = '';
         (data.items || []).forEach((item, index) => {
@@ -436,6 +483,15 @@
         $('#btn-approve').text('Autorizar cantidades');
         $('#btn-reject').text('Rechazar');
         $('#modalReview').modal('show');
+    });
+
+    $(document).on('click keydown', '.budget-metric-clickable', function (event) {
+        if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') {
+            return;
+        }
+
+        event.preventDefault();
+        $('.commitment-toggle').trigger('click');
     });
 </script>
 @endpush

@@ -170,17 +170,34 @@ class QuotationApprovalController extends Controller
                                 'supplier' => $supplier?->company_name ?? 'Sin proveedor',
                                 'committed_at' => $commitment->committed_at?->format('d/m/Y') ?? '-',
                                 'amount' => '$'.number_format((float) $commitment->committed_amount, 2),
+                                'raw_amount' => (float) $commitment->committed_amount,
+                                'is_untraced' => false,
                             ];
                         })
-                        ->values()
-                        ->all();
+                        ->values();
+
+                    $untracedAmount = (float) ($line['committed_raw'] ?? 0) - $components->sum('raw_amount');
+
+                    if ($untracedAmount > 0.000001) {
+                        $components->push([
+                            'type' => 'Histórico',
+                            'folio' => 'Saldo comprometido sin traza',
+                            'supplier' => 'Este importe existe en la distribución presupuestal, pero no tiene una orden registrada en la bitácora de compromisos.',
+                            'committed_at' => '-',
+                            'amount' => '$'.number_format($untracedAmount, 2),
+                            'raw_amount' => $untracedAmount,
+                            'is_untraced' => true,
+                        ]);
+                    }
 
                     return collect($line)->except([
                         'assigned_raw',
                         'committed_raw',
                         'available_raw',
                         'requested_raw',
-                    ])->put('committed_components', $components)->all();
+                    ])->put('committed_components', $components
+                        ->map(fn (array $component) => collect($component)->except('raw_amount')->all())
+                        ->all())->all();
                 })->all(),
                 'assigned_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['assigned_raw'] ?? 0), 2),
                 'committed_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['committed_raw'] ?? 0), 2),
