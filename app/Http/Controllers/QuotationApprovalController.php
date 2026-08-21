@@ -147,14 +147,19 @@ class QuotationApprovalController extends Controller
                 ->get();
 
             return [
-                'lines' => $lines->map(function (array $line) use ($commitmentComponents) {
-                    $components = $commitmentComponents
+                'lines' => $lines->map(function (array $line) use ($commitmentComponents, $summary) {
+                    $matchingCommitments = $commitmentComponents
                         ->filter(fn (BudgetCommitment $commitment) => (int) $commitment->cost_center_id === (int) $line['cost_center_id']
                             && (int) $commitment->expense_category_id === (int) $line['expense_category_id']
                             && (int) ($commitment->budget_cedula_id ?? 0) === (int) ($line['budget_cedula_id'] ?? 0)
                             && $commitment->application_month === $line['application_month']
-                        )
-                        ->map(function (BudgetCommitment $commitment) {
+                        );
+
+                    $currentSummaryIsTraced = $matchingCommitments
+                        ->contains(fn (BudgetCommitment $commitment) => (int) $commitment->quotation_summary_id === (int) $summary->id);
+
+                    $components = $matchingCommitments
+                        ->map(function (BudgetCommitment $commitment) use ($summary) {
                             $order = $commitment->purchaseOrder
                                 ?? $commitment->directPurchaseOrder
                                 ?? $commitment->quotationSummary;
@@ -172,11 +177,38 @@ class QuotationApprovalController extends Controller
                                 'amount' => '$'.number_format((float) $commitment->committed_amount, 2),
                                 'raw_amount' => (float) $commitment->committed_amount,
                                 'is_untraced' => false,
+                                'is_current' => (int) $commitment->quotation_summary_id === (int) $summary->id,
                             ];
                         })
                         ->values();
 
                     $untracedAmount = (float) ($line['committed_raw'] ?? 0) - $components->sum('raw_amount');
+
+                    if (
+                        ! $currentSummaryIsTraced
+                        && $summary->isPending()
+                        && $summary->budget_reserved_at
+                        && ! $summary->budget_released_at
+                        && $untracedAmount > 0.000001
+                    ) {
+                        $currentReservation = min((float) $line['requested_raw'], $untracedAmount);
+
+                        $components->prepend([
+                            'type' => 'Cotización en revisión',
+                            'folio' => trim(collect([
+                                $summary->rfq?->folio,
+                                $summary->requisition?->folio,
+                            ])->filter()->implode(' · ')) ?: 'Requisición actual',
+                            'supplier' => $summary->selectedSupplier?->company_name ?? 'Proveedor seleccionado',
+                            'committed_at' => $summary->budget_reserved_at->format('d/m/Y'),
+                            'amount' => '$'.number_format($currentReservation, 2),
+                            'raw_amount' => $currentReservation,
+                            'is_untraced' => false,
+                            'is_current' => true,
+                        ]);
+
+                        $untracedAmount -= $currentReservation;
+                    }
 
                     if ($untracedAmount > 0.000001) {
                         $components->push([
@@ -187,6 +219,7 @@ class QuotationApprovalController extends Controller
                             'amount' => '$'.number_format($untracedAmount, 2),
                             'raw_amount' => $untracedAmount,
                             'is_untraced' => true,
+                            'is_current' => false,
                         ]);
                     }
 

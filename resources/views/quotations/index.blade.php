@@ -233,6 +233,7 @@
     .commitment-item:last-child { border-bottom: 0; }
     .commitment-item small { color: #718096; }
     .commitment-item.untraced { padding: .75rem; border: 1px dashed #e6bd63; border-radius: .5rem; background: #fffaf0; }
+    .commitment-item.current-commitment { padding: .75rem; border: 1px solid #b9def7; border-radius: .5rem; background: #f1f8fe; }
     .commitment-pagination { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #edf1f5; }
     .commitment-pagination small { color: #718096; }
     .review-table { border: 1px solid #e2e9f0; border-radius: .65rem; }
@@ -398,7 +399,7 @@
             const components = line.committed_components || [];
             const componentsHtml = components.length
                 ? components.map(component => `
-                    <div class="commitment-item ${component.is_untraced ? 'untraced' : ''}">
+                    <div class="commitment-item ${component.is_untraced ? 'untraced' : ''} ${component.is_current ? 'current-commitment' : ''}">
                         <span class="badge bg-soft-primary text-primary">${escapeHtml(component.type)}</span>
                         <div><strong class="d-block small">${escapeHtml(component.folio)}</strong><small>${escapeHtml(component.supplier)} · Comprometido el ${escapeHtml(component.committed_at)}</small></div>
                         <strong>${escapeHtml(component.amount)}</strong>
