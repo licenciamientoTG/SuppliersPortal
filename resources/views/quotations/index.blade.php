@@ -73,8 +73,6 @@
                                             data-supplier="{{ $summary->selectedSupplier?->company_name ?? 'N/A' }}"
                                             data-payment="{{ $summaryItems->first()?->rfqResponse?->payment_terms ?? 'No especificado' }}"
                                             data-delivery="{{ $summaryItems->max(fn ($item) => (int) ($item->rfqResponse?->delivery_days ?? 0)) }}"
-                                            data-role="{{ $summary->authorizerRole?->name ?? 'Sin rol' }}"
-                                            data-limit="{{ $summary->effective_authorization_limit !== null ? number_format((float) $summary->effective_authorization_limit, 2) : 'Sin limite' }}"
                                             data-budget='@json($summary->budget_snapshot)'
                                             data-items='@json(json_decode($itemsJson, true))'>
                                             Revisar
@@ -127,10 +125,8 @@
                     <div class="review-section-heading"><span>Contexto de la selección</span></div>
                     <div class="row g-2">
                         <div class="col-md-4"><div class="review-data"><span>Proveedor seleccionado</span><strong id="modal_supplier"></strong></div></div>
-                        <div class="col-md-2"><div class="review-data"><span>Condiciones de pago</span><strong id="modal_payment_terms"></strong></div></div>
-                        <div class="col-md-2"><div class="review-data"><span>Entrega</span><strong id="modal_delivery_days"></strong></div></div>
-                        <div class="col-md-2"><div class="review-data"><span>Facultad aplicada</span><strong id="modal_role"></strong></div></div>
-                        <div class="col-md-2"><div class="review-data"><span>Límite efectivo</span><strong id="modal_limit"></strong></div></div>
+                        <div class="col-md-4"><div class="review-data"><span>Condiciones de pago</span><strong id="modal_payment_terms"></strong></div></div>
+                        <div class="col-md-4"><div class="review-data"><span>Entrega</span><strong id="modal_delivery_days"></strong></div></div>
                     </div>
                 </section>
 
@@ -218,12 +214,9 @@
     .budget-metric-primary strong { color: #188ae2; }
     .budget-lines { display: grid; gap: .65rem; }
     .budget-line { border: 1px solid #e2e9f0; border-radius: .65rem; overflow: hidden; }
-    .budget-line-main { display: grid; grid-template-columns: minmax(200px, 1.6fr) repeat(4, minmax(90px, .7fr)); gap: .75rem; align-items: center; padding: .85rem; }
+    .budget-line-main { padding: .85rem; }
     .budget-line-label strong { display: block; color: #25364a; font-size: .88rem; }
     .budget-line-label small { color: #718096; }
-    .budget-line-value { text-align: right; }
-    .budget-line-value span { display: block; color: #718096; font-size: .68rem; text-transform: uppercase; }
-    .budget-line-value strong { font-size: .85rem; color: #334e68; }
     .commitment-toggle { width: 100%; padding: .65rem .85rem; border: 0; border-top: 1px solid #e2e9f0; background: #f7fbff; color: #176eaf; text-align: left; font-size: .8rem; font-weight: 600; }
     .commitment-toggle:hover, .commitment-toggle:focus { background: #edf7fe; color: #0d5d99; }
     .commitment-toggle i { transition: transform .18s ease; }
@@ -240,7 +233,6 @@
     .review-note { padding: .9rem 1rem; border-left: 3px solid #188ae2; border-radius: .35rem; background: #edf7fe; }
     .review-note small { display: block; margin-bottom: .3rem; color: #176eaf; font-weight: 700; }
     .review-rejection { padding: 1rem; border: 1px solid #f1b7b7; border-radius: .65rem; background: #fff7f7; }
-    @media (max-width: 767.98px) { .budget-line-main { grid-template-columns: 1fr 1fr; } .budget-line-label { grid-column: 1 / -1; } .budget-line-value { text-align: left; } }
     @media (prefers-reduced-motion: reduce) { .approval-review-modal *, .approval-review-modal *::before, .approval-review-modal *::after { transition: none !important; } }
 </style>
 @endpush
@@ -378,8 +370,6 @@
         $('#modal_payment_terms').text(data.payment || 'N/A');
         $('#modal_delivery_days').text((data.delivery || 0) + ' dias');
         $('#modal_justification').text(data.justification || 'Sin justificacion registrada.');
-        $('#modal_role').text(data.role || 'Sin rol');
-        $('#modal_limit').text(data.limit ? '$' + data.limit : 'Sin limite');
 
         const budget = data.budget || {};
         $('#modal_budget_assigned_total').text(budget.assigned_total || '-');
@@ -415,10 +405,6 @@
                             <small>${escapeHtml(line.expense_category || 'Sin cuenta')} · ${escapeHtml(line.budget_cedula || 'Sin subcuenta')} · ${escapeHtml(line.application_month || '-')}</small>
                             ${line.message ? `<small class="d-block mt-1 ${line.is_available ? 'text-success' : 'text-danger'}">${escapeHtml(line.message)}</small>` : ''}
                         </div>
-                        <div class="budget-line-value"><span>Asignado</span><strong>${escapeHtml(line.assigned_amount || '-')}</strong></div>
-                        <div class="budget-line-value"><span>Comprometido</span><strong>${escapeHtml(line.committed_amount || '-')}</strong></div>
-                        <div class="budget-line-value"><span>Disponible</span><strong>${escapeHtml(line.available_amount || '-')}</strong></div>
-                        <div class="budget-line-value"><span>Solicitud</span><strong>${escapeHtml(line.requested_amount || '-')}</strong></div>
                     </div>
                     <button class="commitment-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${componentId}" aria-expanded="false" aria-controls="${componentId}">
                         ${componentLabel} <i class="ti ti-chevron-down float-end"></i>
