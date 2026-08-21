@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BudgetCommitment;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\QuotationSummary;
 use App\Models\QuotationSummaryItem;
 use App\Notifications\QuotationApprovalApprovedNotification;
 use App\Notifications\QuotationApprovalRejectedNotification;
-use App\Services\BuyerNotificationService;
+use App\Services\ApprovalDecisionService;
+use App\Services\ApprovalDelegationService;
 use App\Services\BudgetAllocationService;
+use App\Services\BuyerNotificationService;
+use App\Services\CostCenterApprovalFlowService;
 use App\Services\QuotationRejectionWorkflowService;
 use App\Services\QuotationSummaryItemService;
-use App\Services\ApprovalDelegationService;
-use App\Services\ApprovalDecisionService;
-use App\Services\CostCenterApprovalFlowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -112,15 +113,15 @@ class QuotationApprovalController extends Controller
                         ])->filter()->implode(' - ')),
                         'expense_category' => $item?->expenseCategory?->name ?? 'Sin cuenta',
                         'budget_cedula' => $item?->budgetCedula?->name ?? 'Sin subcuenta',
-                        'requested_amount' => '$' . number_format((float) $line['amount'], 2),
+                        'requested_amount' => '$'.number_format((float) $line['amount'], 2),
                         'assigned_amount' => array_key_exists('assigned_amount', $budgetCheck)
-                            ? '$' . number_format((float) $budgetCheck['assigned_amount'], 2)
+                            ? '$'.number_format((float) $budgetCheck['assigned_amount'], 2)
                             : 'Consumo libre',
                         'committed_amount' => array_key_exists('committed_amount', $budgetCheck)
-                            ? '$' . number_format((float) $budgetCheck['committed_amount'], 2)
+                            ? '$'.number_format((float) $budgetCheck['committed_amount'], 2)
                             : '-',
                         'available_amount' => array_key_exists('available_amount', $budgetCheck)
-                            ? '$' . number_format((float) $budgetCheck['available_amount'], 2)
+                            ? '$'.number_format((float) $budgetCheck['available_amount'], 2)
                             : 'No limitado',
                         'is_available' => (bool) ($budgetCheck['available'] ?? false),
                         'message' => $budgetCheck['message'] ?? null,
@@ -132,17 +133,59 @@ class QuotationApprovalController extends Controller
                 })
                 ->values();
 
+            $commitmentComponents = BudgetCommitment::query()
+                ->with([
+                    'purchaseOrder.supplier',
+                    'directPurchaseOrder.supplier',
+                    'quotationSummary.selectedSupplier',
+                    'quotationSummary.rfq',
+                ])
+                ->where('status', 'COMMITTED')
+                ->whereIn('cost_center_id', $lines->pluck('cost_center_id')->unique())
+                ->whereIn('expense_category_id', $lines->pluck('expense_category_id')->unique())
+                ->whereIn('application_month', $lines->pluck('application_month')->unique())
+                ->get();
+
             return [
-                'lines' => $lines->map(fn (array $line) => collect($line)->except([
-                    'assigned_raw',
-                    'committed_raw',
-                    'available_raw',
-                    'requested_raw',
-                ])->all())->all(),
-                'assigned_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['assigned_raw'] ?? 0), 2),
-                'committed_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['committed_raw'] ?? 0), 2),
-                'available_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['available_raw'] ?? 0), 2),
-                'requested_total' => '$' . number_format((float) $lines->sum(fn (array $line) => $line['requested_raw'] ?? 0), 2),
+                'lines' => $lines->map(function (array $line) use ($commitmentComponents) {
+                    $components = $commitmentComponents
+                        ->filter(fn (BudgetCommitment $commitment) => (int) $commitment->cost_center_id === (int) $line['cost_center_id']
+                            && (int) $commitment->expense_category_id === (int) $line['expense_category_id']
+                            && (int) ($commitment->budget_cedula_id ?? 0) === (int) ($line['budget_cedula_id'] ?? 0)
+                            && $commitment->application_month === $line['application_month']
+                        )
+                        ->map(function (BudgetCommitment $commitment) {
+                            $order = $commitment->purchaseOrder
+                                ?? $commitment->directPurchaseOrder
+                                ?? $commitment->quotationSummary;
+                            $supplier = $commitment->purchaseOrder?->supplier
+                                ?? $commitment->directPurchaseOrder?->supplier
+                                ?? $commitment->quotationSummary?->selectedSupplier;
+
+                            return [
+                                'type' => $commitment->getOrderType(),
+                                'folio' => $commitment->getOrderFolio()
+                                    ?? $order?->folio
+                                    ?? 'Sin folio',
+                                'supplier' => $supplier?->company_name ?? 'Sin proveedor',
+                                'committed_at' => $commitment->committed_at?->format('d/m/Y') ?? '-',
+                                'amount' => '$'.number_format((float) $commitment->committed_amount, 2),
+                            ];
+                        })
+                        ->values()
+                        ->all();
+
+                    return collect($line)->except([
+                        'assigned_raw',
+                        'committed_raw',
+                        'available_raw',
+                        'requested_raw',
+                    ])->put('committed_components', $components)->all();
+                })->all(),
+                'assigned_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['assigned_raw'] ?? 0), 2),
+                'committed_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['committed_raw'] ?? 0), 2),
+                'available_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['available_raw'] ?? 0), 2),
+                'requested_total' => '$'.number_format((float) $lines->sum(fn (array $line) => $line['requested_raw'] ?? 0), 2),
                 'has_budget_totals' => $lines->contains(fn (array $line) => $line['assigned_raw'] !== null),
                 'error' => null,
             ];
@@ -245,6 +288,7 @@ class QuotationApprovalController extends Controller
                 if ($request->status === 'approved' && $summary->approvalSteps()->exists()) {
                     if (! $this->costCenterApprovalFlow->advance($summary, Auth::user(), $request->input('notes'))) {
                         $advancedOnly = true;
+
                         return;
                     }
                 }

@@ -94,109 +94,64 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalReview" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade approval-review-modal" id="modalReview" tabindex="-1" aria-labelledby="modalReviewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <form id="approval-form" method="POST" class="modal-content border-0 shadow-lg">
             @csrf
             <input type="hidden" name="status" id="decision_status">
 
-            <div class="modal-header bg-dark text-white border-0">
-                <h5 class="modal-title mb-0">Revision de seleccion pendiente</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0">
+                <div>
+                    <span class="review-kicker"><i class="ti ti-clipboard-check me-1"></i>Autorización pendiente</span>
+                    <h5 class="modal-title mt-1 mb-0" id="modalReviewTitle">Revisar selección de compra</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
 
-            <div class="modal-body">
-                <div class="row g-3 mb-3">
-                    <div class="col-md-4">
-                        <small class="text-muted d-block">RFQ</small>
-                        <strong id="modal_rfq"></strong>
+            <div class="modal-body pt-0">
+                <section class="review-hero mb-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div>
+                            <span class="text-white-50 small">Monto seleccionado con IVA</span>
+                            <div class="review-total" id="modal_total"></div>
+                        </div>
+                        <div class="review-hero-meta">
+                            <span>RFQ <strong id="modal_rfq"></strong></span>
+                            <span>Requisición <strong id="modal_folio_req"></strong></span>
+                            <span>Total por autorizar <strong id="modal_approved_total">$0.00</strong></span>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <small class="text-muted d-block">Requisicion</small>
-                        <strong id="modal_folio_req"></strong>
-                    </div>
-                    <div class="col-md-4">
-                        <small class="text-muted d-block">Facultad aplicada</small>
-                        <strong id="modal_role"></strong>
-                    </div>
-                </div>
+                </section>
 
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <small class="text-muted d-block">Proveedor seleccionado</small>
-                        <strong id="modal_supplier"></strong>
+                <section class="review-section mb-4">
+                    <div class="review-section-heading"><span>Contexto de la selección</span></div>
+                    <div class="row g-2">
+                        <div class="col-md-4"><div class="review-data"><span>Proveedor seleccionado</span><strong id="modal_supplier"></strong></div></div>
+                        <div class="col-md-2"><div class="review-data"><span>Condiciones de pago</span><strong id="modal_payment_terms"></strong></div></div>
+                        <div class="col-md-2"><div class="review-data"><span>Entrega</span><strong id="modal_delivery_days"></strong></div></div>
+                        <div class="col-md-2"><div class="review-data"><span>Facultad aplicada</span><strong id="modal_role"></strong></div></div>
+                        <div class="col-md-2"><div class="review-data"><span>Límite efectivo</span><strong id="modal_limit"></strong></div></div>
                     </div>
-                    <div class="col-md-3">
-                        <small class="text-muted d-block">Pago</small>
-                        <strong id="modal_payment_terms"></strong>
-                    </div>
-                    <div class="col-md-3">
-                        <small class="text-muted d-block">Entrega</small>
-                        <strong id="modal_delivery_days"></strong>
-                    </div>
-                </div>
+                </section>
 
-                <div class="alert alert-light border">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <small class="text-muted d-block">Monto seleccionado con IVA</small>
-                            <strong class="text-primary" id="modal_total"></strong>
-                        </div>
-                        <div class="col-md-4">
-                            <small class="text-muted d-block">Total aprobado capturado</small>
-                            <strong class="text-success" id="modal_approved_total">$0.00</strong>
-                        </div>
-                        <div class="col-md-4">
-                            <small class="text-muted d-block">Limite efectivo del aprobador</small>
-                            <strong id="modal_limit"></strong>
-                        </div>
+                <section class="review-section mb-4">
+                    <div class="review-section-heading d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <span>Impacto presupuestal</span>
+                        <small id="modal_budget_available_total" class="text-success fw-semibold"></small>
                     </div>
-                </div>
-
-                <div class="card border-0 bg-soft-success mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <small class="text-muted d-block mb-0">Presupuesto asignado a revisar</small>
-                            <strong class="text-success" id="modal_budget_available_total"></strong>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Asignado</small>
-                                <strong id="modal_budget_assigned_total"></strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Comprometido</small>
-                                <strong id="modal_budget_committed_total"></strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Disponible</small>
-                                <strong id="modal_budget_remaining_total"></strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Solicitud</small>
-                                <strong id="modal_budget_requested_total"></strong>
-                            </div>
-                        </div>
-                        <div id="modal_budget_error" class="alert alert-warning py-2 px-3 mb-2 d-none"></div>
-                        <div class="table-responsive border rounded bg-white">
-                            <table class="table table-sm mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>CC / Cuenta / Subcuenta</th>
-                                        <th>Mes</th>
-                                        <th class="text-end">Asignado</th>
-                                        <th class="text-end">Comprometido</th>
-                                        <th class="text-end">Disponible</th>
-                                        <th class="text-end">Solicitud</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="modal_budget_table"></tbody>
-                            </table>
-                        </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-lg-3"><div class="budget-metric"><span>Asignado</span><strong id="modal_budget_assigned_total"></strong></div></div>
+                        <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-warning"><span>Comprometido</span><strong id="modal_budget_committed_total"></strong><small>Abre el detalle para ver su composición</small></div></div>
+                        <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-success"><span>Disponible</span><strong id="modal_budget_remaining_total"></strong></div></div>
+                        <div class="col-6 col-lg-3"><div class="budget-metric budget-metric-primary"><span>Esta solicitud</span><strong id="modal_budget_requested_total"></strong></div></div>
                     </div>
-                </div>
+                    <div id="modal_budget_error" class="alert alert-warning py-2 px-3 mb-3 d-none"></div>
+                    <div id="modal_budget_lines" class="budget-lines"></div>
+                </section>
 
-                <div class="table-responsive border rounded mb-3">
+                <section class="review-section mb-4">
+                    <div class="review-section-heading"><span>Partidas a autorizar</span><small>Modifica cantidades si es necesario.</small></div>
+                    <div class="table-responsive review-table">
                     <table class="table table-sm table-striped mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -211,21 +166,20 @@
                         <tbody id="modal_items_table"></tbody>
                     </table>
                 </div>
+                </section>
 
-                <div class="card bg-light border-0 shadow-none mb-3">
-                    <div class="card-body">
-                        <small class="text-muted d-block mb-1">Justificacion del comprador</small>
+                <section class="review-note mb-3">
+                        <small>Justificación del comprador</small>
                         <p class="mb-0" id="modal_justification"></p>
-                    </div>
-                </div>
+                </section>
 
-                <div id="rejection_area" style="display:none;">
+                <div id="rejection_area" class="review-rejection" style="display:none;">
                     <label class="form-label text-danger fw-bold">Motivo del rechazo</label>
                     <textarea name="reason" id="rejection_reason" class="form-control border-danger" rows="3"></textarea>
                 </div>
             </div>
 
-            <div class="modal-footer bg-light border-0">
+            <div class="modal-footer border-0">
                 <button type="button" class="btn btn-outline-danger" id="btn-reject" onclick="setDecision('rejected')">Rechazar</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 <button type="button" class="btn btn-success" id="btn-approve" onclick="setDecision('approved')">Autorizar cantidades</button>
@@ -235,12 +189,68 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    .approval-review-modal .modal-content { border-radius: .85rem; overflow: hidden; }
+    .approval-review-modal .modal-header { padding: 1.25rem 1.5rem .75rem; }
+    .approval-review-modal .modal-body { padding: .5rem 1.5rem 1.5rem; background: #f7fbff; }
+    .approval-review-modal .modal-footer { padding: 1rem 1.5rem; background: #fff; box-shadow: 0 -4px 14px rgba(20, 55, 82, .06); }
+    .review-kicker { color: #188ae2; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .review-hero { padding: 1.25rem; border-radius: .75rem; color: #fff; background: #188ae2; box-shadow: 0 8px 20px rgba(24, 138, 226, .18); }
+    .review-total { font-size: clamp(1.7rem, 4vw, 2.35rem); font-weight: 700; line-height: 1.2; }
+    .review-hero-meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .82rem; }
+    .review-hero-meta span { display: grid; gap: .15rem; color: rgba(255,255,255,.72); }
+    .review-hero-meta strong { color: #fff; font-size: .95rem; }
+    .review-section { border: 1px solid #e2e9f0; border-radius: .75rem; background: #fff; padding: 1rem; }
+    .review-section-heading { margin-bottom: .75rem; color: #243b53; font-weight: 700; }
+    .review-section-heading > small { display: block; margin-top: .2rem; color: #7b8a9a; font-size: .78rem; font-weight: 400; }
+    .review-data, .budget-metric { height: 100%; padding: .8rem; border: 1px solid #e8eef4; border-radius: .65rem; background: #fff; }
+    .review-data span, .budget-metric span { display: block; margin-bottom: .25rem; color: #718096; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .review-data strong { color: #25364a; font-size: .9rem; }
+    .budget-metric strong { color: #25364a; font-size: 1.05rem; }
+    .budget-metric small { display: block; margin-top: .25rem; color: #947217; font-size: .7rem; line-height: 1.25; }
+    .budget-metric-warning { background: #fffaf0; border-color: #f6dfad; }
+    .budget-metric-success { background: #f2fcf7; border-color: #ccefe0; }
+    .budget-metric-success strong { color: #21875d; }
+    .budget-metric-primary { background: #f1f8fe; border-color: #cfe7f8; }
+    .budget-metric-primary strong { color: #188ae2; }
+    .budget-lines { display: grid; gap: .65rem; }
+    .budget-line { border: 1px solid #e2e9f0; border-radius: .65rem; overflow: hidden; }
+    .budget-line-main { display: grid; grid-template-columns: minmax(200px, 1.6fr) repeat(4, minmax(90px, .7fr)); gap: .75rem; align-items: center; padding: .85rem; }
+    .budget-line-label strong { display: block; color: #25364a; font-size: .88rem; }
+    .budget-line-label small { color: #718096; }
+    .budget-line-value { text-align: right; }
+    .budget-line-value span { display: block; color: #718096; font-size: .68rem; text-transform: uppercase; }
+    .budget-line-value strong { font-size: .85rem; color: #334e68; }
+    .commitment-toggle { width: 100%; padding: .65rem .85rem; border: 0; border-top: 1px solid #e2e9f0; background: #f7fbff; color: #176eaf; text-align: left; font-size: .8rem; font-weight: 600; }
+    .commitment-toggle:hover, .commitment-toggle:focus { background: #edf7fe; color: #0d5d99; }
+    .commitment-toggle i { transition: transform .18s ease; }
+    .commitment-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+    .commitment-detail { padding: .75rem .85rem; background: #fff; }
+    .commitment-item { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #edf1f5; }
+    .commitment-item:last-child { border-bottom: 0; }
+    .commitment-item small { color: #718096; }
+    .review-table { border: 1px solid #e2e9f0; border-radius: .65rem; }
+    .review-note { padding: .9rem 1rem; border-left: 3px solid #188ae2; border-radius: .35rem; background: #edf7fe; }
+    .review-note small { display: block; margin-bottom: .3rem; color: #176eaf; font-weight: 700; }
+    .review-rejection { padding: 1rem; border: 1px solid #f1b7b7; border-radius: .65rem; background: #fff7f7; }
+    @media (max-width: 767.98px) { .budget-line-main { grid-template-columns: 1fr 1fr; } .budget-line-label { grid-column: 1 / -1; } .budget-line-value { text-align: left; } }
+    @media (prefers-reduced-motion: reduce) { .approval-review-modal *, .approval-review-modal *::before, .approval-review-modal *::after { transition: none !important; } }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     let approvalSubmitting = false;
 
     function money(value) {
         return '$' + Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
+        }[character]));
     }
 
     function recalculateApprovedTotals() {
@@ -337,28 +347,44 @@
             .text(budget.error || '');
 
         let budgetHtml = '';
-        (budget.lines || []).forEach(line => {
+        (budget.lines || []).forEach((line, index) => {
+            const componentId = `commitment-components-${index}`;
+            const components = line.committed_components || [];
+            const componentsHtml = components.length
+                ? components.map(component => `
+                    <div class="commitment-item">
+                        <span class="badge bg-soft-primary text-primary">${escapeHtml(component.type)}</span>
+                        <div><strong class="d-block small">${escapeHtml(component.folio)}</strong><small>${escapeHtml(component.supplier)} · Comprometido el ${escapeHtml(component.committed_at)}</small></div>
+                        <strong>${escapeHtml(component.amount)}</strong>
+                    </div>`).join('')
+                : '<p class="text-muted small mb-0">No hay compromisos activos registrados para esta combinación presupuestal.</p>';
+            const componentLabel = components.length === 1 ? 'Ver 1 componente del comprometido' : `Ver ${components.length} componentes del comprometido`;
+
             budgetHtml += `
-                <tr>
-                    <td>
-                        <div class="fw-semibold">${line.cost_center || 'Sin centro de costo'}</div>
-                        <div class="text-muted small">${line.expense_category || 'Sin cuenta'} - ${line.budget_cedula || 'Sin subcuenta'}</div>
-                        ${line.message ? `<div class="small ${line.is_available ? 'text-success' : 'text-danger'}">${line.message}</div>` : ''}
-                    </td>
-                    <td>${line.application_month || '-'}</td>
-                    <td class="text-end">${line.assigned_amount || '-'}</td>
-                    <td class="text-end">${line.committed_amount || '-'}</td>
-                    <td class="text-end">${line.available_amount || '-'}</td>
-                    <td class="text-end fw-semibold">${line.requested_amount || '-'}</td>
-                </tr>
-            `;
+                <article class="budget-line">
+                    <div class="budget-line-main">
+                        <div class="budget-line-label">
+                            <strong>${escapeHtml(line.cost_center || 'Sin centro de costo')}</strong>
+                            <small>${escapeHtml(line.expense_category || 'Sin cuenta')} · ${escapeHtml(line.budget_cedula || 'Sin subcuenta')} · ${escapeHtml(line.application_month || '-')}</small>
+                            ${line.message ? `<small class="d-block mt-1 ${line.is_available ? 'text-success' : 'text-danger'}">${escapeHtml(line.message)}</small>` : ''}
+                        </div>
+                        <div class="budget-line-value"><span>Asignado</span><strong>${escapeHtml(line.assigned_amount || '-')}</strong></div>
+                        <div class="budget-line-value"><span>Comprometido</span><strong>${escapeHtml(line.committed_amount || '-')}</strong></div>
+                        <div class="budget-line-value"><span>Disponible</span><strong>${escapeHtml(line.available_amount || '-')}</strong></div>
+                        <div class="budget-line-value"><span>Solicitud</span><strong>${escapeHtml(line.requested_amount || '-')}</strong></div>
+                    </div>
+                    <button class="commitment-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${componentId}" aria-expanded="false" aria-controls="${componentId}">
+                        ${componentLabel} <i class="ti ti-chevron-down float-end"></i>
+                    </button>
+                    <div class="collapse" id="${componentId}"><div class="commitment-detail">${componentsHtml}</div></div>
+                </article>`;
         });
 
         if (!budgetHtml) {
-            budgetHtml = '<tr><td colspan="6" class="text-center text-muted py-3">No se encontro desglose presupuestal para esta seleccion.</td></tr>';
+            budgetHtml = '<div class="text-center text-muted py-3">No se encontró desglose presupuestal para esta selección.</div>';
         }
 
-        $('#modal_budget_table').html(budgetHtml);
+        $('#modal_budget_lines').html(budgetHtml);
 
         let itemsHtml = '';
         (data.items || []).forEach((item, index) => {
