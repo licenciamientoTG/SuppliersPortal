@@ -24,6 +24,9 @@ class TaxGroupItem extends Model
     protected function casts(): array
     {
         return [
+            'tax_group_id' => 'integer',
+            'tax_code_id' => 'integer',
+            'ledger_account_id' => 'integer',
             'is_iva_base' => 'boolean',
             'is_excluded_from_cfdi' => 'boolean',
         ];

@@ -46,5 +46,6 @@ class TaxGroupSeederTest extends TestCase
         $this->assertCount(3, $group->items);
         $this->assertSame('RET IVA 10.66%', $group->items->firstWhere('one_goal_id', 6)?->taxCode?->name);
         $this->assertSame('21610000', $group->items->firstWhere('one_goal_id', 6)?->ledgerAccount?->code);
+        $this->assertIsInt($group->items->firstWhere('one_goal_id', 6)?->ledger_account_id);
     }
 }
