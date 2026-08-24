@@ -59,6 +59,7 @@ use App\Http\Controllers\SupplierPortalController;
 use App\Http\Controllers\SupplierSirocController;
 use App\Http\Controllers\TaxCodeController;
 use App\Http\Controllers\TaxController;
+use App\Http\Controllers\TaxGroupController;
 use App\Http\Controllers\Tools\CfdiGeneratorController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSessionMonitorController;
@@ -272,6 +273,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
         Route::get('tax-codes', [TaxCodeController::class, 'index'])->name('tax-codes.index');
         Route::get('tax-codes/datatable', [TaxCodeController::class, 'datatable'])->name('tax-codes.datatable');
+
+        Route::get('tax-groups', [TaxGroupController::class, 'index'])->name('tax-groups.index');
+        Route::get('tax-groups/datatable', [TaxGroupController::class, 'datatable'])->name('tax-groups.datatable');
+        Route::get('tax-groups/{taxGroup}', [TaxGroupController::class, 'show'])->name('tax-groups.show');
+        Route::put('tax-groups/{taxGroup}', [TaxGroupController::class, 'update'])->name('tax-groups.update');
 
         Route::get('departments/datatable', [DepartmentController::class, 'datatable'])->name('departments.datatable');
         Route::resource('departments', DepartmentController::class)->except(['show']);

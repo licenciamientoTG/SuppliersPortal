@@ -57,6 +57,8 @@
         || request()->routeIs('departments.*')
         || request()->routeIs('receiving-locations.*')
         || request()->routeIs('taxes.*')
+        || request()->routeIs('tax-codes.*')
+        || request()->routeIs('tax-groups.*')
         || request()->routeIs('authorizer-roles.*')
         || request()->routeIs('approval-levels.*')
         || request()->routeIs('sat-retenciones.*')
@@ -546,6 +548,12 @@
                 <a href="{{ route('tax-codes.index') }}"
                     class="side-nav-link {{ request()->routeIs('tax-codes.*') ? 'active' : '' }}">
                     <span class="menu-text">Catálogo de impuestos</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ route('tax-groups.index') }}"
+                    class="side-nav-link {{ request()->routeIs('tax-groups.*') ? 'active' : '' }}">
+                    <span class="menu-text">Grupos de impuestos</span>
                 </a>
             </li>
             <li class="side-nav-item">

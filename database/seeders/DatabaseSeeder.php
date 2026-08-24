@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             BudgetProfileSeeder::class,
             TaxSeeder::class,
             TaxCodeSeeder::class,
+            LedgerAccountSeeder::class,
+            TaxGroupSeeder::class,
             ExpenseCategorySeeder::class,
             BudgetCedulaSeeder::class,
             AccountSubaccountSeeder::class,
