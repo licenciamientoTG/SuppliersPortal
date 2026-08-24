@@ -57,6 +57,7 @@ use App\Http\Controllers\SupplierDocumentTypeController;
 use App\Http\Controllers\SupplierInvoiceController;
 use App\Http\Controllers\SupplierPortalController;
 use App\Http\Controllers\SupplierSirocController;
+use App\Http\Controllers\TaxCodeController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\Tools\CfdiGeneratorController;
 use App\Http\Controllers\UserController;
@@ -268,6 +269,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
         Route::get('taxes/datatable', [TaxController::class, 'datatable'])->name('taxes.datatable');
         Route::resource('taxes', TaxController::class)->except(['show']);
+
+        Route::get('tax-codes', [TaxCodeController::class, 'index'])->name('tax-codes.index');
+        Route::get('tax-codes/datatable', [TaxCodeController::class, 'datatable'])->name('tax-codes.datatable');
 
         Route::get('departments/datatable', [DepartmentController::class, 'datatable'])->name('departments.datatable');
         Route::resource('departments', DepartmentController::class)->except(['show']);

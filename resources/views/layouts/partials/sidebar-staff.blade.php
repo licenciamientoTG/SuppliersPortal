@@ -543,9 +543,9 @@
                 </a>
             </li>
             <li class="side-nav-item">
-                <a href="{{ route('taxes.index') }}"
-                    class="side-nav-link {{ request()->routeIs('taxes.*') ? 'active' : '' }}">
-                    <span class="menu-text">IVA</span>
+                <a href="{{ route('tax-codes.index') }}"
+                    class="side-nav-link {{ request()->routeIs('tax-codes.*') ? 'active' : '' }}">
+                    <span class="menu-text">Catálogo de impuestos</span>
                 </a>
             </li>
             <li class="side-nav-item">
