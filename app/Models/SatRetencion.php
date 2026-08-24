@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SatRetencion extends Model
 {
@@ -11,6 +12,7 @@ class SatRetencion extends Model
 
     protected $fillable = [
         'clave',
+        'tax_code_id',
         'nombre',
         'impuesto',
         'descripcion',
@@ -25,9 +27,9 @@ class SatRetencion extends Model
     ];
 
     protected $casts = [
-        'porcentaje'              => 'decimal:4',
+        'porcentaje' => 'decimal:4',
         'requiere_cfdi_retencion' => 'boolean',
-        'activo'                  => 'boolean',
+        'activo' => 'boolean',
     ];
 
     // ── Scopes ──────────────────────────────────────────────
@@ -35,6 +37,11 @@ class SatRetencion extends Model
     public function scopeActivos(Builder $query): Builder
     {
         return $query->where('activo', true);
+    }
+
+    public function taxCode(): BelongsTo
+    {
+        return $this->belongsTo(TaxCode::class);
     }
 
     public function scopeDeImpuesto(Builder $query, string $impuesto): Builder
