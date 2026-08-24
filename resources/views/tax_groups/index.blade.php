@@ -27,7 +27,7 @@
             <h5 class="mb-1"><i class="ti ti-layers-linked text-primary me-1"></i> Grupos compuestos de impuestos</h5>
             <p class="text-muted mb-0">Configuración importada de One Goal: cada componente conserva su impuesto simple y cuenta contable.</p>
         </div>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">Origen: One Goal</span>
+        <a href="{{ route('tax-groups.create') }}" class="btn btn-primary"><i class="ti ti-plus me-1"></i> Nuevo grupo</a>
     </div>
     <div class="card-body">
         <div class="row g-3 mb-4">

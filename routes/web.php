@@ -27,6 +27,7 @@ use App\Http\Controllers\ExpenseCedulaCatalogController;
 use App\Http\Controllers\FinanceInvoiceController;
 use App\Http\Controllers\FinancialProvisionController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\LedgerAccountController;
 use App\Http\Controllers\LockScreenController;
 use App\Http\Controllers\LogViewerController;
 use App\Http\Controllers\MonitoringController;
@@ -274,10 +275,24 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('tax-codes', [TaxCodeController::class, 'index'])->name('tax-codes.index');
         Route::get('tax-codes/datatable', [TaxCodeController::class, 'datatable'])->name('tax-codes.datatable');
 
-        Route::get('tax-groups', [TaxGroupController::class, 'index'])->name('tax-groups.index');
         Route::get('tax-groups/datatable', [TaxGroupController::class, 'datatable'])->name('tax-groups.datatable');
+        Route::get('tax-groups/create', [TaxGroupController::class, 'create'])->name('tax-groups.create');
+        Route::post('tax-groups', [TaxGroupController::class, 'store'])->name('tax-groups.store');
+        Route::get('tax-groups', [TaxGroupController::class, 'index'])->name('tax-groups.index');
         Route::get('tax-groups/{taxGroup}', [TaxGroupController::class, 'show'])->name('tax-groups.show');
+        Route::get('tax-groups/{taxGroup}/edit', [TaxGroupController::class, 'edit'])->name('tax-groups.edit');
         Route::put('tax-groups/{taxGroup}', [TaxGroupController::class, 'update'])->name('tax-groups.update');
+        Route::post('tax-groups/{taxGroup}/items', [TaxGroupController::class, 'addItem'])->name('tax-groups.items.store');
+        Route::post('tax-groups/{taxGroup}/deactivate', [TaxGroupController::class, 'deactivate'])->name('tax-groups.deactivate');
+        Route::post('tax-groups/{taxGroup}/items/{taxGroupItem}/deactivate', [TaxGroupController::class, 'deactivateItem'])->name('tax-groups.items.deactivate');
+
+        Route::get('ledger-accounts/datatable', [LedgerAccountController::class, 'datatable'])->name('ledger-accounts.datatable');
+        Route::get('ledger-accounts/create', [LedgerAccountController::class, 'create'])->name('ledger-accounts.create');
+        Route::post('ledger-accounts', [LedgerAccountController::class, 'store'])->name('ledger-accounts.store');
+        Route::get('ledger-accounts', [LedgerAccountController::class, 'index'])->name('ledger-accounts.index');
+        Route::get('ledger-accounts/{ledgerAccount}/edit', [LedgerAccountController::class, 'edit'])->name('ledger-accounts.edit');
+        Route::put('ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'update'])->name('ledger-accounts.update');
+        Route::post('ledger-accounts/{ledgerAccount}/deactivate', [LedgerAccountController::class, 'deactivate'])->name('ledger-accounts.deactivate');
 
         Route::get('departments/datatable', [DepartmentController::class, 'datatable'])->name('departments.datatable');
         Route::resource('departments', DepartmentController::class)->except(['show']);

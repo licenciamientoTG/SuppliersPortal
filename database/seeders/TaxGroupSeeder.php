@@ -55,6 +55,7 @@ class TaxGroupSeeder extends Seeder
                         'withholding_type_id' => (int) $row['withholding_type_id'],
                         'is_excluded_from_cfdi' => (bool) $row['is_excluded_from_cfdi'],
                         'sat_tax_object' => $row['item_sat_tax_object'] ?: null,
+                        'is_active' => true,
                     ],
                 );
             }

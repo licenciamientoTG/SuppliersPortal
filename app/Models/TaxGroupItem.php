@@ -19,6 +19,7 @@ class TaxGroupItem extends Model
         'withholding_type_id',
         'is_excluded_from_cfdi',
         'sat_tax_object',
+        'is_active',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class TaxGroupItem extends Model
             'ledger_account_id' => 'integer',
             'is_iva_base' => 'boolean',
             'is_excluded_from_cfdi' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 

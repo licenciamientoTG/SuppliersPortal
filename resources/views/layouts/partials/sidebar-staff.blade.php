@@ -59,6 +59,7 @@
         || request()->routeIs('taxes.*')
         || request()->routeIs('tax-codes.*')
         || request()->routeIs('tax-groups.*')
+        || request()->routeIs('ledger-accounts.*')
         || request()->routeIs('authorizer-roles.*')
         || request()->routeIs('approval-levels.*')
         || request()->routeIs('sat-retenciones.*')
@@ -554,6 +555,12 @@
                 <a href="{{ route('tax-groups.index') }}"
                     class="side-nav-link {{ request()->routeIs('tax-groups.*') ? 'active' : '' }}">
                     <span class="menu-text">Grupos de impuestos</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ route('ledger-accounts.index') }}"
+                    class="side-nav-link {{ request()->routeIs('ledger-accounts.*') ? 'active' : '' }}">
+                    <span class="menu-text">Cuentas contables</span>
                 </a>
             </li>
             <li class="side-nav-item">

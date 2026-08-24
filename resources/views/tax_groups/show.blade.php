@@ -21,7 +21,7 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <a href="{{ route('tax-groups.index') }}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i> Volver</a>
-    <span class="badge {{ $taxGroup->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $taxGroup->is_active ? 'Activo' : 'Inactivo' }}</span>
+    <div class="d-flex gap-2"><a href="{{ route('tax-groups.edit', $taxGroup) }}" class="btn btn-outline-primary">Editar grupo</a><span class="badge {{ $taxGroup->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $taxGroup->is_active ? 'Activo' : 'Inactivo' }}</span></div>
 </div>
 
 <div class="tax-group-header p-4 mb-3">
@@ -51,7 +51,7 @@
         </div>
         <div class="table-responsive">
             <table class="table tax-group-items align-middle mb-0">
-                <thead><tr><th>Impuesto simple</th><th class="text-end">Tasa / cuota</th><th>Cuenta contable</th><th class="text-center">CFDI</th></tr></thead>
+                <thead><tr><th>Impuesto simple</th><th class="text-end">Tasa / cuota</th><th>Cuenta contable</th><th class="text-center">CFDI</th><th class="text-end">Acción</th></tr></thead>
                 <tbody>
                     @forelse ($taxGroup->items as $item)
                         <tr>
@@ -72,16 +72,35 @@
                             <td class="text-center">
                                 @if ($item->is_excluded_from_cfdi)<span class="badge bg-secondary">Excluir</span>
                                 @else<span class="badge bg-info">Objeto {{ $item->sat_tax_object ?: $taxGroup->sat_tax_object ?: '—' }}</span>@endif
+                                @if (! $item->is_active)<div><span class="badge bg-secondary mt-1">Inactivo</span></div>@endif
+                            </td>
+                            <td class="text-end">
+                                @if ($item->is_active)
+                                    <button type="submit" form="deactivate-item-{{ $item->id }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Desactivar este componente? Se conservará para historial.')">Desactivar</button>
+                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="text-center text-muted py-4">Este grupo no tiene componentes en One Goal.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted py-4">Este grupo no tiene componentes en One Goal.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 </form>
+
+@foreach ($taxGroup->items->where('is_active', true) as $item)
+    <form id="deactivate-item-{{ $item->id }}" method="POST" action="{{ route('tax-groups.items.deactivate', [$taxGroup, $item]) }}" class="d-none">@csrf</form>
+@endforeach
+
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body border-bottom"><h6 class="mb-0">Agregar componente</h6></div>
+    <form method="POST" action="{{ route('tax-groups.items.store', $taxGroup) }}" class="card-body row g-3 align-items-end">@csrf
+        <div class="col-md-5"><label class="form-label">Impuesto simple</label><select name="tax_code_id" required class="form-select">@foreach($taxCodes as $code)<option value="{{ $code->id }}">{{ $code->name }} · {{ number_format((float) $code->rate, 4) }}{{ $code->calculation_type === 'percentage' ? '%' : '' }}</option>@endforeach</select></div>
+        <div class="col-md-5"><label class="form-label">Cuenta contable</label><select name="ledger_account_id" class="form-select"><option value="">Sin cuenta</option>@foreach($ledgerAccounts as $account)<option value="{{ $account->id }}">{{ $account->display_label }}</option>@endforeach</select></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100">Agregar</button></div>
+    </form>
+</div>
 @endsection
 
 @push('scripts')
