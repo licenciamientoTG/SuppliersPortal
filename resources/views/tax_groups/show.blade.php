@@ -57,7 +57,6 @@
                         <tr>
                             <td>
                                 <strong>{{ $item->taxCode?->name ?? 'No localizado' }}</strong>
-                                <div class="small text-muted">Código One Goal #{{ $item->one_goal_tax_code_id }} · Renglón #{{ $item->one_goal_id }}</div>
                             </td>
                             <td class="text-end">{{ $item->taxCode?->calculation_type === 'fixed_quota' ? '$' : '' }}{{ $item->taxCode ? number_format((float) $item->taxCode->rate, 4).($item->taxCode->calculation_type === 'percentage' ? '%' : '') : '—' }}</td>
                             <td class="tax-group-account">
