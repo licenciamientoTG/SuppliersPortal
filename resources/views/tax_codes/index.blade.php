@@ -16,6 +16,7 @@
     .tax-catalog-table thead th { background: #f7fbff; color: #355070; border-bottom-color: #dce8f3; white-space: nowrap; }
     .tax-catalog-table tbody tr { transition: background-color .18s ease, transform .18s ease; }
     .tax-catalog-table tbody tr:hover { background: #f7fbff; transform: translateY(-1px); }
+    .tax-catalog-copy-btn, .tax-catalog-copy-btn:hover, .tax-catalog-copy-btn:focus { background: #188ae2; border-color: #188ae2; color: #fff; }
     .badge.bg-purple { background-color: #7868e6; color: #fff; }
     @media (prefers-reduced-motion: reduce) { .tax-catalog-table tbody tr { transition: none; } }
 </style>
@@ -71,7 +72,7 @@
             dom: '<"d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center mb-3"Bf>rt<"d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center mt-3"lip>',
             buttons: [
                 { extend: 'excel', text: '<i class="ti ti-file-spreadsheet me-1"></i> Exportar Excel', className: 'btn btn-success btn-sm' },
-                { extend: 'copy', text: '<i class="ti ti-copy me-1"></i> Copiar', className: 'btn btn-outline-secondary btn-sm' }
+                { extend: 'copy', text: '<i class="ti ti-copy me-1"></i> Copiar', className: 'btn btn-primary btn-sm tax-catalog-copy-btn' }
             ],
             ajax: { url: "{{ route('tax-codes.datatable') }}", type: 'GET' },
             columns: [
