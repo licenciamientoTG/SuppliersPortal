@@ -9,7 +9,6 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
-use App\Services\CostCenterDistributionService;
 use App\Models\QuotationSummaryItem;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -271,7 +270,7 @@ class BudgetAllocationService
             ->where('supplier_id', $summary->selected_supplier_id)
             ->where('status', 'SUBMITTED')
             ->where('not_available', false)
-            ->map(function ($response) use ($summary) {
+            ->map(function ($response) {
                 $requisitionItem = $response->requisitionItem;
 
                 if (! $requisitionItem?->expense_category_id || ! $requisitionItem?->budget_cedula_id) {
@@ -312,6 +311,11 @@ class BudgetAllocationService
             })
             ->values()
             ->all();
+    }
+
+    public function buildDirectPurchaseOrderBudgetLines(DirectPurchaseOrder $directPurchaseOrder): array
+    {
+        return $this->getOrderBudgetLines($directPurchaseOrder);
     }
 
     private function commitLine(Model $order, array $line): void
@@ -607,7 +611,12 @@ class BudgetAllocationService
                 })
                 ->flatten(1)
                 ->groupBy(fn ($line) => implode('|', [$line['cost_center_id'], $line['expense_category_id'], $line['budget_cedula_id'], $line['application_month']]))
-                ->map(function ($lines) { $first = $lines->first(); $first['amount'] = (float) $lines->sum('amount'); return $first; })
+                ->map(function ($lines) {
+                    $first = $lines->first();
+                    $first['amount'] = (float) $lines->sum('amount');
+
+                    return $first;
+                })
                 ->values()
                 ->all();
         }
@@ -650,7 +659,12 @@ class BudgetAllocationService
                     });
                 })
                 ->groupBy(fn ($line) => implode('|', [$line['cost_center_id'], $line['expense_category_id'], $line['budget_cedula_id'], $line['application_month']]))
-                ->map(function ($lines) { $first = $lines->first(); $first['amount'] = (float) $lines->sum('amount'); return $first; })
+                ->map(function ($lines) {
+                    $first = $lines->first();
+                    $first['amount'] = (float) $lines->sum('amount');
+
+                    return $first;
+                })
                 ->filter(fn (array $line) => ! empty($line['expense_category_id']))
                 ->values()
                 ->all();
@@ -693,6 +707,7 @@ class BudgetAllocationService
                 $line['cost_center_id'] = $allocation['cost_center_id'];
                 $line['amount'] = $allocation['amount'];
                 $line['budget_type'] = $allocation['budget_type'];
+
                 return $line;
             })->all();
     }

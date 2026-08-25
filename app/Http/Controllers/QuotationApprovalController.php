@@ -12,6 +12,7 @@ use App\Notifications\QuotationApprovalRejectedNotification;
 use App\Services\ApprovalDecisionService;
 use App\Services\ApprovalDelegationService;
 use App\Services\BudgetAllocationService;
+use App\Services\BudgetImpactSnapshotService;
 use App\Services\BuyerNotificationService;
 use App\Services\CostCenterApprovalFlowService;
 use App\Services\QuotationRejectionWorkflowService;
@@ -27,6 +28,7 @@ class QuotationApprovalController extends Controller
 {
     public function __construct(
         private BudgetAllocationService $budgetAllocationService,
+        private BudgetImpactSnapshotService $budgetImpactSnapshotService,
         private BuyerNotificationService $buyerNotificationService,
         private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
         private QuotationSummaryItemService $quotationSummaryItemService,
@@ -76,7 +78,7 @@ class QuotationApprovalController extends Controller
                     'items.requisitionItem.budgetCedula',
                     'items.rfqResponse'
                 );
-                $summary->setAttribute('budget_snapshot', $this->buildBudgetSnapshot($summary));
+                $summary->setAttribute('budget_snapshot', $this->budgetImpactSnapshotService->forQuotationSummary($summary));
             });
 
         return view('quotations.index', compact('pendingApprovals'));

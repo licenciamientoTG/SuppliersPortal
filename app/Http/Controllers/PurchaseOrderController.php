@@ -10,6 +10,7 @@ use App\Notifications\PurchaseOrderIssuedNotification;
 use App\Services\ApprovalDecisionService;
 use App\Services\ApprovalDelegationService;
 use App\Services\BudgetAllocationService;
+use App\Services\BudgetImpactSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -344,11 +345,12 @@ class PurchaseOrderController extends Controller
     /**
      * Ver detalle de OCD
      */
-    public function showDirect(DirectPurchaseOrder $directPurchaseOrder)
+    public function showDirect(DirectPurchaseOrder $directPurchaseOrder, BudgetImpactSnapshotService $budgetImpactSnapshotService)
     {
         $directPurchaseOrder->load([
             'items.expenseCategory',
             'items.costCenter',
+            'items.budgetCedula',
             'supplier',
             'creator',
             'receivingLocation',
@@ -365,6 +367,8 @@ class PurchaseOrderController extends Controller
             'receptions.receivingLocation',
         ]);
 
-        return view('purchase-orders.show-direct', compact('directPurchaseOrder'));
+        $budgetSnapshot = $budgetImpactSnapshotService->forDirectPurchaseOrder($directPurchaseOrder);
+
+        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot'));
     }
 }

@@ -29,6 +29,31 @@
     .timeline-step { display: flex; align-items: flex-start; gap: 0.75rem; }
     .timeline-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
         display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+    .ocd-budget-impact { padding: 1rem; border: 1px solid #e2e9f0; border-radius: .75rem; background: #f7fbff; }
+    .ocd-budget-heading { color: #243b53; font-weight: 700; }
+    .ocd-budget-metric { height: 100%; padding: .8rem; border: 1px solid #e8eef4; border-radius: .65rem; background: #fff; }
+    .ocd-budget-metric span { display: block; margin-bottom: .25rem; color: #718096; font-size: .72rem; font-weight: 600; text-transform: uppercase; }
+    .ocd-budget-metric strong { color: #25364a; font-size: 1.05rem; }
+    .ocd-budget-metric.committed { cursor: pointer; border-color: #f6dfad; background: #fffaf0; }
+    .ocd-budget-metric.committed:focus, .ocd-budget-metric.committed:hover { outline: 2px solid #e6bd63; outline-offset: 2px; }
+    .ocd-budget-metric.committed small { display: block; margin-top: .25rem; color: #947217; font-size: .7rem; }
+    .ocd-budget-metric.available { border-color: #ccefe0; background: #f2fcf7; }
+    .ocd-budget-metric.available strong { color: #21875d; }
+    .ocd-budget-metric.request { border-color: #cfe7f8; background: #f1f8fe; }
+    .ocd-budget-metric.request strong { color: #188ae2; }
+    .ocd-budget-line { overflow: hidden; border: 1px solid #e2e9f0; border-radius: .65rem; background: #fff; }
+    .ocd-budget-line-main { padding: .85rem; }
+    .ocd-budget-line-main strong { display: block; color: #25364a; font-size: .88rem; }
+    .ocd-budget-line-main small { color: #718096; }
+    .ocd-commitment-toggle { width: 100%; padding: .65rem .85rem; border: 0; border-top: 1px solid #e2e9f0; background: #f7fbff; color: #176eaf; text-align: left; font-size: .8rem; font-weight: 600; }
+    .ocd-commitment-detail { padding: .75rem .85rem; background: #fff; }
+    .ocd-commitment-item { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #edf1f5; }
+    .ocd-commitment-item:last-child { border-bottom: 0; }
+    .ocd-commitment-item small { color: #718096; }
+    .ocd-commitment-item.current { padding: .75rem; border: 1px solid #b9def7; border-radius: .5rem; background: #f1f8fe; }
+    .ocd-commitment-item.untraced { padding: .75rem; border: 1px dashed #e6bd63; border-radius: .5rem; background: #fffaf0; }
+    .ocd-commitment-pagination { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #edf1f5; }
+    @media (prefers-reduced-motion: reduce) { .ocd-budget-impact *, .ocd-budget-impact *::before, .ocd-budget-impact *::after { transition: none !important; } }
 </style>
 @endpush
 
@@ -369,7 +394,78 @@
                 </div>
 
                 {{-- ═══════════════════════════════════════════════
-                     JUSTIFICACIÓN
+                     IMPACTO PRESUPUESTAL
+                ═══════════════════════════════════════════════ --}}
+                <section class="ocd-budget-impact mb-4">
+                    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                        <span class="ocd-budget-heading">Impacto presupuestal</span>
+                        <small class="text-success fw-semibold">
+                            {{ $budgetSnapshot['has_budget_totals'] ? 'Disponible actual: '.$budgetSnapshot['available_total'] : 'Centro de consumo libre o sin límite' }}
+                        </small>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-lg-3"><div class="ocd-budget-metric"><span>Asignado</span><strong>{{ $budgetSnapshot['assigned_total'] }}</strong></div></div>
+                        <div class="col-6 col-lg-3"><div class="ocd-budget-metric committed" role="button" tabindex="0" data-ocd-open-all aria-label="Abrir detalle del saldo comprometido"><span>Comprometido</span><strong>{{ $budgetSnapshot['committed_total'] }}</strong><small>Haz clic para ver su composición</small></div></div>
+                        <div class="col-6 col-lg-3"><div class="ocd-budget-metric available"><span>Disponible</span><strong>{{ $budgetSnapshot['available_total'] }}</strong></div></div>
+                        <div class="col-6 col-lg-3"><div class="ocd-budget-metric request"><span>Esta OCD</span><strong>{{ $budgetSnapshot['requested_total'] }}</strong></div></div>
+                    </div>
+
+                    @if($budgetSnapshot['error'])
+                        <div class="alert alert-warning py-2 px-3 mb-3">{{ $budgetSnapshot['error'] }}</div>
+                    @endif
+
+                    <div class="d-grid gap-2">
+                        @forelse($budgetSnapshot['lines'] as $lineIndex => $line)
+                            @php
+                                $components = collect($line['committed_components'] ?? []);
+                                $componentId = 'ocd-commitment-components-'.$lineIndex;
+                            @endphp
+                            <article class="ocd-budget-line">
+                                <div class="ocd-budget-line-main">
+                                    <strong>{{ $line['cost_center'] ?: 'Sin centro de costo' }}</strong>
+                                    <small>{{ $line['expense_category'] }} · {{ $line['budget_cedula'] }} · {{ $line['application_month'] }}</small>
+                                    @if($line['message'])
+                                        <small class="d-block mt-1 {{ $line['is_available'] ? 'text-success' : 'text-danger' }}">{{ $line['message'] }}</small>
+                                    @endif
+                                </div>
+                                <button class="ocd-commitment-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $componentId }}" aria-expanded="false" aria-controls="{{ $componentId }}">
+                                    {{ $components->count() === 1 ? 'Ver 1 componente del comprometido' : 'Ver '.$components->count().' componentes del comprometido' }} <i class="ti ti-chevron-down float-end"></i>
+                                </button>
+                                <div class="collapse" id="{{ $componentId }}">
+                                    <div class="ocd-commitment-detail" data-ocd-commitment-detail>
+                                        @forelse($components as $componentIndex => $component)
+                                            <div class="ocd-commitment-item {{ $component['is_current'] ? 'current' : '' }} {{ $component['is_untraced'] ? 'untraced' : '' }} {{ $componentIndex >= 5 ? 'd-none' : '' }}" data-ocd-commitment-item>
+                                                <span class="badge bg-soft-primary text-primary">{{ $component['type'] }}</span>
+                                                <div>
+                                                    <strong class="d-block small">{{ $component['folio'] }}</strong>
+                                                    <small>{{ $component['supplier'] }} · Comprometido el {{ $component['committed_at'] }}</small>
+                                                    @if($component['detail'])
+                                                        <small class="d-block mt-1">{{ $component['detail'] }}</small>
+                                                    @endif
+                                                </div>
+                                                <strong>{{ $component['amount'] }}</strong>
+                                            </div>
+                                        @empty
+                                            <p class="text-muted small mb-0">No hay compromisos activos registrados para esta combinación presupuestal.</p>
+                                        @endforelse
+                                        @if($components->count() > 5)
+                                            <div class="ocd-commitment-pagination" data-ocd-pagination data-page="1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-ocd-page="previous"><i class="ti ti-chevron-left"></i> Anterior</button>
+                                                <small data-ocd-page-label>Página 1 de {{ (int) ceil($components->count() / 5) }}</small>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-ocd-page="next">Siguiente <i class="ti ti-chevron-right"></i></button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </article>
+                        @empty
+                            <div class="text-center text-muted py-3">No se encontró desglose presupuestal para esta OCD.</div>
+                        @endforelse
+                    </div>
+                </section>
+
+                {{-- ═══════════════════════════════════════════════
+                      JUSTIFICACIÓN
                 ═══════════════════════════════════════════════ --}}
                 @if($ocd->justification)
                 <div class="row mb-4">
@@ -565,6 +661,44 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function renderOcdCommitmentPage(pagination, page) {
+        const detail = pagination.closest('[data-ocd-commitment-detail]');
+        const items = Array.from(detail.querySelectorAll('[data-ocd-commitment-item]'));
+        const pageSize = 5;
+        const totalPages = Math.ceil(items.length / pageSize);
+        const currentPage = Math.min(Math.max(page, 1), totalPages);
+
+        items.forEach((item, index) => {
+            item.classList.toggle('d-none', index < (currentPage - 1) * pageSize || index >= currentPage * pageSize);
+        });
+
+        pagination.dataset.page = currentPage;
+        pagination.querySelector('[data-ocd-page-label]').textContent = `Página ${currentPage} de ${totalPages}`;
+        pagination.querySelector('[data-ocd-page="previous"]').disabled = currentPage === 1;
+        pagination.querySelector('[data-ocd-page="next"]').disabled = currentPage === totalPages;
+    }
+
+    document.querySelectorAll('[data-ocd-pagination]').forEach((pagination) => {
+        renderOcdCommitmentPage(pagination, 1);
+        pagination.querySelectorAll('[data-ocd-page]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const page = Number(pagination.dataset.page || 1);
+                renderOcdCommitmentPage(pagination, button.dataset.ocdPage === 'next' ? page + 1 : page - 1);
+            });
+        });
+    });
+
+    document.querySelectorAll('[data-ocd-open-all]').forEach((card) => {
+        const toggleCommitments = () => document.querySelectorAll('.ocd-commitment-toggle').forEach((button) => button.click());
+        card.addEventListener('click', toggleCommitments);
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleCommitments();
+            }
+        });
+    });
+
     @if(session('success'))
         Swal.fire({ title: '¡Operación Exitosa!', text: "{{ session('success') }}", icon: 'success', confirmButtonColor: '#28a745' });
     @endif
