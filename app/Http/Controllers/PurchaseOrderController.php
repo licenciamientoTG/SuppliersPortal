@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\RequisitionItem;
 use App\Models\User;
 use App\Notifications\ContractPurchaseOrderRejectedNotification;
 use App\Notifications\PurchaseOrderIssuedNotification;
@@ -164,6 +166,60 @@ class PurchaseOrderController extends Controller
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
             ->with('success', "OC {$purchaseOrder->folio} rechazada.");
+    }
+
+    /** Anexa una instrucción de Compras a la nota existente de una partida. */
+    public function appendSupplierNote(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $purchaseOrderItem)
+    {
+        abort_unless($request->user()?->hasAnyRole(['buyer', 'superadmin']), 403);
+        abort_unless(in_array($purchaseOrder->status, [
+            'ISSUED',
+            'PARTIALLY_RECEIVED',
+            'DELIVERED_PENDING_RECEPTION',
+        ], true), 422, 'Solo es posible anexar notas a una OC emitida que sigue en proceso.');
+
+        $data = $request->validate([
+            'note' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $item = $purchaseOrder->items()
+            ->whereKey($purchaseOrderItem->id)
+            ->firstOrFail();
+
+        abort_unless($item->requisition_item_id, 422, 'La partida no está vinculada a una requisición.');
+
+        DB::transaction(function () use ($data, $item, $purchaseOrder, $request): void {
+            $requisitionItem = RequisitionItem::query()
+                ->lockForUpdate()
+                ->findOrFail($item->requisition_item_id);
+
+            $originalNote = trim((string) $requisitionItem->notes);
+            $appendedNote = trim($data['note']);
+            $entry = sprintf(
+                'Nota adicional de Compras · %s · %s%s%s',
+                now()->format('d/m/Y H:i'),
+                $request->user()->name,
+                PHP_EOL,
+                $appendedNote,
+            );
+
+            $requisitionItem->update([
+                'notes' => $originalNote === '' ? $entry : $originalNote.PHP_EOL.PHP_EOL.$entry,
+            ]);
+
+            activity('purchase_orders')
+                ->performedOn($purchaseOrder)
+                ->causedBy($request->user())
+                ->event('supplier_note_appended')
+                ->withProperties([
+                    'purchase_order_item_id' => $item->id,
+                    'requisition_item_id' => $requisitionItem->id,
+                    'note' => $appendedNote,
+                ])
+                ->log('Compras anexó una nota para el proveedor en la partida '.$item->id.'.');
+        });
+
+        return back()->with('success', 'La nota adicional de Compras fue anexada a la partida.');
     }
 
     /**

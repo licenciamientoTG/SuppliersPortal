@@ -17,6 +17,9 @@
         footer, .topbar, .sidenav-menu, .page-title-head { display: none !important; }
         .page-content, .page-container { padding: 0 !important; margin: 0 !important; }
     }
+    .js-append-supplier-note { transition: box-shadow .18s ease, transform .18s ease; }
+    .js-append-supplier-note:hover { box-shadow: 0 .25rem .65rem rgba(24, 138, 226, .18); transform: translateY(-1px); }
+    @media (prefers-reduced-motion: reduce) { .js-append-supplier-note { transition: none; } }
 </style>
 @endpush
 
@@ -54,6 +57,8 @@
 @php
     $canAuthorize = $purchaseOrder->isPendingApproval()
         && $purchaseOrder->isApproverFor(Auth::user());
+    $canAppendSupplierNote = Auth::user()?->hasAnyRole(['buyer', 'superadmin'])
+        && in_array($purchaseOrder->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true);
 @endphp
 
 <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
@@ -187,20 +192,28 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($purchaseOrder->items as $index => $item): ?>
+                    <?php foreach ($purchaseOrder->items as $index => $item) { ?>
                         <?php
                             $requisitionItem = $item->requisitionItem;
-                            $currencySymbol = ($purchaseOrder->currency ?? 'MXN') === 'USD' ? 'US$' : '$';
-                            $ivaRate = $item->subtotal > 0
-                                ? round(((float) $item->iva_amount / (float) $item->subtotal) * 100)
-                                : 16;
+                        $currencySymbol = ($purchaseOrder->currency ?? 'MXN') === 'USD' ? 'US$' : '$';
+                        $ivaRate = $item->subtotal > 0
+                            ? round(((float) $item->iva_amount / (float) $item->subtotal) * 100)
+                            : 16;
                         ?>
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td>
                                 <div class="fw-semibold">{{ $item->description }}</div>
                                 @if ($requisitionItem?->notes)
-                                    <div class="small text-primary mt-1"><i class="ti ti-note me-1"></i><strong>Nota para proveedor:</strong> {{ $requisitionItem->notes }}</div>
+                                    <div class="small text-primary mt-1"><i class="ti ti-note me-1"></i><strong>Nota para proveedor:</strong> {!! nl2br(e($requisitionItem->notes)) !!}</div>
+                                @endif
+                                @if ($canAppendSupplierNote && $requisitionItem)
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary mt-2 js-append-supplier-note"
+                                            data-action="{{ route('purchase-orders.items.supplier-note', [$purchaseOrder, $item]) }}"
+                                            data-description="{{ $item->description }}">
+                                        <i class="ti ti-message-plus me-1"></i>{{ $requisitionItem->notes ? 'Anexar nota de Compras' : 'Agregar nota para proveedor' }}
+                                    </button>
                                 @endif
                             </td>
                             <td class="text-center">{{ number_format((float) $item->quantity, 2) }}</td>
@@ -209,7 +222,7 @@
                             <td class="text-end">{{ $ivaRate }}%</td>
                             <td class="text-end fw-bold">{{ $currencySymbol }}{{ number_format((float) $item->total, 2) }}</td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php } ?>
                 </tbody>
                 <tfoot>
                     @php
@@ -302,6 +315,12 @@
         <input type="hidden" name="comments" id="reject-po-comments">
     </form>
 @endif
+@if($canAppendSupplierNote)
+    <form id="form-append-supplier-note" method="POST" class="d-none">
+        @csrf
+        <input type="hidden" name="note" id="append-supplier-note-value">
+    </form>
+@endif
 @endsection
 
 @push('scripts')
@@ -347,6 +366,37 @@
             }
         });
     }
+    @endif
+
+    @if($canAppendSupplierNote)
+    document.querySelectorAll('.js-append-supplier-note').forEach((button) => {
+        button.addEventListener('click', () => {
+            Swal.fire({
+                title: 'Nota adicional de Compras',
+                text: `Esta nota se anexará a la instrucción existente para el proveedor en: ${button.dataset.description}`,
+                input: 'textarea',
+                inputLabel: 'Instrucción adicional (opcional antes de abrir este diálogo)',
+                inputPlaceholder: 'Ej. Favor de entregar con remisión sellada.',
+                inputAttributes: { maxlength: 1000, 'aria-label': 'Nota adicional para proveedor' },
+                showCancelButton: true,
+                confirmButtonColor: '#188ae2',
+                confirmButtonText: 'Anexar nota',
+                cancelButtonText: 'Cancelar',
+                preConfirm: (value) => {
+                    if (!value || value.trim().length < 3) {
+                        Swal.showValidationMessage('Captura una nota de al menos 3 caracteres.');
+                        return false;
+                    }
+                    return value.trim();
+                },
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                document.getElementById('form-append-supplier-note').action = button.dataset.action;
+                document.getElementById('append-supplier-note-value').value = result.value;
+                document.getElementById('form-append-supplier-note').submit();
+            });
+        });
+    });
     @endif
 </script>
 @endpush
