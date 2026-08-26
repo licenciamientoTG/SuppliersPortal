@@ -200,7 +200,7 @@
                             <td>
                                 <div class="fw-semibold">{{ $item->description }}</div>
                                 @if ($requisitionItem?->notes)
-                                    <div class="small text-muted">{{ $requisitionItem->notes }}</div>
+                                    <div class="small text-primary mt-1"><i class="ti ti-note me-1"></i><strong>Nota para proveedor:</strong> {{ $requisitionItem->notes }}</div>
                                 @endif
                             </td>
                             <td class="text-center">{{ number_format((float) $item->quantity, 2) }}</td>

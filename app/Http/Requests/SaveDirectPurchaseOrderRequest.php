@@ -108,7 +108,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             // ✅ AGREGADOS: Campos adicionales de la partida
             'items.*.unit_of_measure' => ['nullable', 'string', 'max:50'],
             'items.*.sku' => ['nullable', 'string', 'max:100'],
-            'items.*.notes' => ['nullable', 'string'],
+            'items.*.notes' => ['nullable', 'string', 'max:1000'],
 
             // Documentos
             'quotation_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],

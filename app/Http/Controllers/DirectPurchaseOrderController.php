@@ -14,13 +14,14 @@ use App\Models\User;
 use App\Notifications\DirectPurchaseOrderApprovedNotification;
 use App\Notifications\DirectPurchaseOrderRejectedNotification;
 use App\Notifications\DirectPurchaseOrderReturnedNotification;
+use App\Notifications\MailDeliveryFailedNotification;
 use App\Notifications\NewDirectPurchaseOrderNotification;
+use App\Services\ApprovalDecisionService;
+use App\Services\ApprovalDelegationService;
 use App\Services\AuthorizerResolutionService;
 use App\Services\BudgetAllocationService;
-use App\Services\PricingService;
-use App\Services\ApprovalDelegationService;
-use App\Services\ApprovalDecisionService;
 use App\Services\CostCenterApprovalFlowService;
+use App\Services\PricingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -199,6 +200,7 @@ class DirectPurchaseOrderController extends Controller
 
             if (! $this->costCenterApprovalFlow->advance($directPurchaseOrder, Auth::user(), $request->input('comments'))) {
                 DB::commit();
+
                 return redirect()->route('direct-purchase-orders.show', $directPurchaseOrder)->with('success', 'Aprobación registrada; la orden avanzó al siguiente responsable.');
             }
             $directPurchaseOrder->update([
@@ -220,15 +222,13 @@ class DirectPurchaseOrderController extends Controller
                 $this->approvalDecisions->record($directPurchaseOrder, $principalId, Auth::user(), 'APPROVED', $request->input('comments'));
             }
 
-            if ($directPurchaseOrder->supplier) {
-                $directPurchaseOrder->supplier->notify(new DirectPurchaseOrderApprovedNotification($directPurchaseOrder));
-            }
-
             DB::commit();
+
+            $this->notifySupplierAboutApprovedOrder($directPurchaseOrder);
 
             return redirect()
                 ->route('direct-purchase-orders.show', $directPurchaseOrder->id)
-                ->with('success', 'La Orden de Compra fue aprobada, la reserva quedó confirmada y el proveedor fue notificado.');
+                ->with('success', 'La Orden de Compra fue aprobada y la reserva quedó confirmada.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -553,6 +553,7 @@ class DirectPurchaseOrderController extends Controller
 
         if ($this->costCenterApprovalFlow->initialize($directPurchaseOrder)) {
             $this->budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
+
             return;
         }
         $resolution = $this->authorizerResolutionService->resolveForDirectPurchaseOrder($directPurchaseOrder);
@@ -616,6 +617,39 @@ class DirectPurchaseOrderController extends Controller
                         (int) $recipient->id === (int) $approver->id ? null : $approver
                     )
                 ));
+        }
+    }
+
+    /**
+     * El correo es una notificación secundaria: la aprobación ya confirmada
+     * nunca debe revertirse por una indisponibilidad del proveedor SMTP.
+     */
+    private function notifySupplierAboutApprovedOrder(DirectPurchaseOrder $directPurchaseOrder): void
+    {
+        try {
+            $directPurchaseOrder->loadMissing('supplier', 'creator');
+            $directPurchaseOrder->supplier?->notify(new DirectPurchaseOrderApprovedNotification($directPurchaseOrder));
+        } catch (\Throwable $exception) {
+            Log::error('Failed to notify supplier about approved direct purchase order.', [
+                'direct_purchase_order_id' => $directPurchaseOrder->id,
+                'direct_purchase_order_folio' => $directPurchaseOrder->folio,
+                'exception' => $exception,
+            ]);
+
+            try {
+                User::role('superadmin')->get()->each->notify(
+                    new MailDeliveryFailedNotification(
+                        'de aprobación al proveedor',
+                        $directPurchaseOrder->folio,
+                        $directPurchaseOrder->id,
+                    )
+                );
+            } catch (\Throwable $notificationException) {
+                Log::error('Failed to notify superadmins about a mail delivery failure.', [
+                    'direct_purchase_order_id' => $directPurchaseOrder->id,
+                    'exception' => $notificationException,
+                ]);
+            }
         }
     }
 

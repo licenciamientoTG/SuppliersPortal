@@ -46,6 +46,7 @@
         'supplier_account_rejected' => ['icon' => 'ti ti-user-x', 'color' => 'danger', 'title' => 'Alta rechazada'],
         'staff_welcome' => ['icon' => 'ti ti-user-check', 'color' => 'success', 'title' => 'Bienvenida al portal'],
         'new_product_requested' => ['icon' => 'ti ti-package-import', 'color' => 'primary', 'title' => 'Producto solicitado'],
+        'mail_delivery_failed' => ['icon' => 'ti ti-mail-x', 'color' => 'danger', 'title' => 'Fallo de correo'],
     ];
 @endphp
 

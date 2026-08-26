@@ -20,6 +20,7 @@
         'cost_center_id' => $item->cost_center_id,
         'expense_category_id' => $item->expense_category_id,
         'description' => $item->description,
+        'notes' => $item->notes,
         'quantity' => $item->quantity,
         'unit_price' => $item->unit_price,
         'iva_rate' => $item->iva_rate,
@@ -33,6 +34,7 @@
             'cost_center_id' => '',
             'expense_category_id' => '',
             'description' => '',
+            'notes' => '',
             'quantity' => '',
             'unit_price' => '',
             'iva_rate' => '16',
@@ -150,7 +152,7 @@
                             <thead class="table-light small">
                                 <tr>
                                     <th style="width:27%">Centro de costo</th>
-                                    <th style="width:30%">Producto</th>
+                                    <th style="width:30%">Producto / nota para proveedor</th>
                                     <th style="width:6%">Cant.</th>
                                     <th style="width:8%">P. Unit.</th>
                                     <th style="width:10%">IVA</th>
@@ -184,6 +186,11 @@
                                                    value="{{ $item['description'] ?? '' }}"
                                                    required
                                                    maxlength="500">
+                                            <textarea name="items[{{ $index }}][notes]"
+                                                      class="form-control form-control-sm border-0 mt-1 item-notes"
+                                                      rows="2"
+                                                      maxlength="1000"
+                                                      placeholder="Nota para el proveedor (opcional)">{{ $item['notes'] ?? '' }}</textarea>
                                         </td>
                                         <td>
                                             <input type="number"
@@ -946,7 +953,10 @@ $(document).ready(function() {
                         <option value="">Seleccione...</option>
                     </select>
                 </td>
-                <td><input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500"></td>
+                <td>
+                    <input type="text" name="items[${itemIndex}][description]" class="form-control form-control-sm border-0 item-description" placeholder="Descripción" required maxlength="500">
+                    <textarea name="items[${itemIndex}][notes]" class="form-control form-control-sm border-0 mt-1 item-notes" rows="2" maxlength="1000" placeholder="Nota para el proveedor (opcional)"></textarea>
+                </td>
                 <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control form-control-sm border-0 item-quantity" step="0.01" min="0.01" required></td>
                 <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control form-control-sm border-0 item-unit-price" step="0.01" min="0.01" required></td>
                 <td>

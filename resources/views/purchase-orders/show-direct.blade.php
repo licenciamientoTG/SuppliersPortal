@@ -508,7 +508,7 @@
                                             <small class="text-muted"><i class="ti ti-barcode me-1"></i>{{ $item->sku }}</small>
                                         @endif
                                         @if($item->notes)
-                                            <small class="text-muted d-block fst-italic">{{ $item->notes }}</small>
+                                            <small class="text-primary d-block mt-1"><i class="ti ti-note me-1"></i><strong>Nota para proveedor:</strong> {{ $item->notes }}</small>
                                         @endif
                                     </td>
                                     <td class="small text-muted">
