@@ -274,15 +274,12 @@ class SupplierRegistrationController extends Controller
 
     private function sendWelcomeToSupplier(Supplier $supplier, string $plainPassword): void
     {
-        try {
-            $supplier->notify(new SupplierWelcomeNotification($plainPassword));
-        } catch (\Exception $e) {
-            Log::error('Error al enviar correo de bienvenida al proveedor.', [
-                'supplier_id' => $supplier->id,
-                'supplier_email' => $supplier->email,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        app(\App\Services\SafeNotificationService::class)->notify(
+            new SupplierWelcomeNotification($plainPassword),
+            [$supplier],
+            'de bienvenida al proveedor',
+            $supplier->company_name,
+        );
     }
 
     private function notifyBuyersAboutNewSupplier(Supplier $supplier): void
@@ -299,19 +296,12 @@ class SupplierRegistrationController extends Controller
                 return;
             }
 
-            foreach ($recipients as $recipient) {
-                try {
-                    $recipient->notify(new NewSupplierRegistrationForBuyerNotification($supplier));
-                } catch (\Exception $e) {
-                    Log::error('Error al enviar notificación de nueva alta de proveedor.', [
-                        'supplier_id' => $supplier->id,
-                        'supplier_rfc' => $supplier->rfc,
-                        'recipient_id' => $recipient->id,
-                        'recipient_email' => $recipient->email,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new NewSupplierRegistrationForBuyerNotification($supplier),
+                $recipients,
+                'de nueva alta de proveedor',
+                $supplier->company_name,
+            );
         } catch (\Exception $e) {
             Log::error('Error general al notificar nueva alta de proveedor.', [
                 'supplier_id' => $supplier->id,

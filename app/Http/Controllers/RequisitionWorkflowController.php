@@ -13,6 +13,7 @@ use App\Notifications\RequisitionRejectedNotification;
 use App\Notifications\RequisitionSubmittedNotification;
 use App\Services\BuyerNotificationService;
 use App\Services\QuotationRejectionWorkflowService;
+use App\Services\SafeNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class RequisitionWorkflowController extends Controller
     public function __construct(
         private QuotationRejectionWorkflowService $quotationRejectionWorkflowService,
         private BuyerNotificationService $buyerNotificationService,
+        private SafeNotificationService $safeNotifications,
     ) {}
 
     public function validationInbox(Request $request)
@@ -120,7 +122,13 @@ class RequisitionWorkflowController extends Controller
         ]);
 
         if ($requisition->requester) {
-            $requisition->requester->notify(new RequisitionInQuotationNotification($requisition));
+            $this->safeNotifications->notify(
+                new RequisitionInQuotationNotification($requisition),
+                [$requisition->requester],
+                'de requisición en cotización',
+                $requisition->folio,
+                route('requisitions.show', $requisition),
+            );
         }
 
         $requisition->loadMissing(['requester', 'company']);
@@ -172,16 +180,27 @@ class RequisitionWorkflowController extends Controller
 
             $feedback->load('buyer');
 
-            Mail::to($requisition->requester->email)
-                ->cc($buyer->email)
-                ->send(new RequisitionFeedbackMail(
-                    $requisition,
-                    $feedback,
-                    $buyer,
-                    route('requisitions.show', $requisition->id)
-                ));
+            $this->safeNotifications->attempt(
+                'de retroalimentación de requisición',
+                fn () => Mail::to($requisition->requester->email)
+                    ->cc($buyer->email)
+                    ->send(new RequisitionFeedbackMail(
+                        $requisition,
+                        $feedback,
+                        $buyer,
+                        route('requisitions.show', $requisition->id)
+                    )),
+                $requisition->folio,
+                route('requisitions.show', $requisition),
+            );
 
-            $requisition->requester->notify(new RequisitionFeedbackNotification($requisition, $feedback));
+            $this->safeNotifications->notify(
+                new RequisitionFeedbackNotification($requisition, $feedback),
+                [$requisition->requester],
+                'interna de retroalimentación de requisición',
+                $requisition->folio,
+                route('requisitions.show', $requisition),
+            );
 
             return $this->respond($request, true, 'Retroalimentacion enviada al requisitor correctamente.');
         } catch (\Throwable $e) {
@@ -226,7 +245,13 @@ class RequisitionWorkflowController extends Controller
                 ->log('Requisición rechazada por el departamento de compras');
 
             if ($requisition->requester) {
-                $requisition->requester->notify(new RequisitionRejectedNotification($requisition));
+                $this->safeNotifications->notify(
+                    new RequisitionRejectedNotification($requisition),
+                    [$requisition->requester],
+                    'de rechazo de requisición',
+                    $requisition->folio,
+                    route('requisitions.show', $requisition),
+                );
             }
 
             return $this->respond($request, true, '❌ Requisición rechazada. El solicitante ha sido notificado por correo y sistema.');
@@ -294,7 +319,13 @@ class RequisitionWorkflowController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            $requisition->requester?->notify(new RequisitionSubmittedNotification($requisition));
+            $this->safeNotifications->notify(
+                new RequisitionSubmittedNotification($requisition),
+                $requisition->requester ? [$requisition->requester] : [],
+                'de envío de requisición a Compras',
+                $requisition->folio,
+                route('requisitions.show', $requisition),
+            );
             $this->buyerNotificationService->notify(
                 new NewRequisitionForPurchasingNotification($requisition->fresh(['requester', 'company', 'department']))
             );

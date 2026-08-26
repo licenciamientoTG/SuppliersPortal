@@ -12,14 +12,14 @@ class MailDeliveryFailedNotificationTest extends TestCase
         $notification = new MailDeliveryFailedNotification(
             'de aprobación al proveedor',
             'OCD-2026-0002',
-            15,
+            route('direct-purchase-orders.show', 15),
         );
 
         $data = $notification->toArray((object) []);
 
         $this->assertSame(['database'], $notification->via((object) []));
         $this->assertSame('mail_delivery_failed', $data['type']);
-        $this->assertSame(15, $data['order_id']);
+        $this->assertSame(route('direct-purchase-orders.show', 15), $data['url']);
         $this->assertStringContainsString('OCD-2026-0002', $data['message']);
     }
 }

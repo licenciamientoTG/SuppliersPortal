@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enum\RequisitionStatus;
-use App\Models\QuotationGroup;
 use App\Models\QuotationSummary;
 use App\Models\Requisition;
 use App\Models\Rfq;
@@ -20,6 +19,7 @@ class QuotationRejectionWorkflowService
         private AuthorizerResolutionService $authorizerResolutionService,
         private BuyerNotificationService $buyerNotificationService,
         private QuotationSummaryItemService $quotationSummaryItemService,
+        private SafeNotificationService $safeNotifications,
     ) {}
 
     public function handleApprovalRejection(QuotationSummary $summary, int $userId, string $reason): void
@@ -277,12 +277,24 @@ class QuotationRejectionWorkflowService
     private function notifyRfqCancellation(Rfq $rfq, string $reason): void
     {
         if ($rfq->requisition && $rfq->requisition->requester) {
-            $rfq->requisition->requester->notify(new RfqCancelledForRequesterNotification($rfq, $reason));
+            $this->safeNotifications->notify(
+                new RfqCancelledForRequesterNotification($rfq, $reason),
+                [$rfq->requisition->requester],
+                'de cancelación de RFQ al requisitor',
+                $rfq->folio,
+                route('rfq.show', $rfq),
+            );
         }
 
         if ($rfq->status !== 'DRAFT') {
             foreach ($rfq->suppliers as $supplier) {
-                $supplier->notify(new RfqCancelledForSupplierNotification($rfq, $reason));
+                $this->safeNotifications->notify(
+                    new RfqCancelledForSupplierNotification($rfq, $reason),
+                    [$supplier],
+                    'de cancelación de RFQ al proveedor',
+                    $rfq->folio,
+                    route('rfq.show', $rfq),
+                );
             }
         }
     }
@@ -348,6 +360,6 @@ class QuotationRejectionWorkflowService
     {
         $count = Rfq::whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])->count() + 1;
 
-        return 'RFQ-' . now()->format('Ymd') . '-' . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+        return 'RFQ-'.now()->format('Ymd').'-'.str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 }

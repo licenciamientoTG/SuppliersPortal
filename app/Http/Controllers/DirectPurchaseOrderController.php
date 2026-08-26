@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Notifications\DirectPurchaseOrderApprovedNotification;
 use App\Notifications\DirectPurchaseOrderRejectedNotification;
 use App\Notifications\DirectPurchaseOrderReturnedNotification;
-use App\Notifications\MailDeliveryFailedNotification;
 use App\Notifications\NewDirectPurchaseOrderNotification;
 use App\Services\ApprovalDecisionService;
 use App\Services\ApprovalDelegationService;
@@ -22,6 +21,7 @@ use App\Services\AuthorizerResolutionService;
 use App\Services\BudgetAllocationService;
 use App\Services\CostCenterApprovalFlowService;
 use App\Services\PricingService;
+use App\Services\SafeNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +36,8 @@ class DirectPurchaseOrderController extends Controller
         private AuthorizerResolutionService $authorizerResolutionService,
         private ApprovalDelegationService $approvalDelegations,
         private ApprovalDecisionService $approvalDecisions,
-        private CostCenterApprovalFlowService $costCenterApprovalFlow
+        private CostCenterApprovalFlowService $costCenterApprovalFlow,
+        private SafeNotificationService $safeNotifications,
     ) {}
 
     public function create()
@@ -286,16 +287,17 @@ class DirectPurchaseOrderController extends Controller
             );
 
             $creator = $directPurchaseOrder->creator;
-            if ($creator) {
-                $creator->notify(new DirectPurchaseOrderRejectedNotification($directPurchaseOrder, $request->comments));
-            }
-
-            $buyers = User::role('buyer')->get();
-            foreach ($buyers as $buyer) {
-                if ($buyer->id !== Auth::id()) {
-                    $buyer->notify(new DirectPurchaseOrderRejectedNotification($directPurchaseOrder, $request->comments));
-                }
-            }
+            $recipients = User::role('buyer')->get()
+                ->when($creator, fn ($users) => $users->prepend($creator))
+                ->reject(fn (User $user) => $user->id === Auth::id())
+                ->unique('id');
+            $this->safeNotifications->notify(
+                new DirectPurchaseOrderRejectedNotification($directPurchaseOrder, $request->comments),
+                $recipients,
+                'de rechazo de OCD',
+                $directPurchaseOrder->folio,
+                route('direct-purchase-orders.show', $directPurchaseOrder),
+            );
 
             DB::commit();
 
@@ -359,9 +361,13 @@ class DirectPurchaseOrderController extends Controller
             ]);
 
             $creator = $directPurchaseOrder->creator;
-            if ($creator) {
-                $creator->notify(new DirectPurchaseOrderReturnedNotification($directPurchaseOrder, $request->comments));
-            }
+            $this->safeNotifications->notify(
+                new DirectPurchaseOrderReturnedNotification($directPurchaseOrder, $request->comments),
+                $creator ? [$creator] : [],
+                'de devolución de OCD',
+                $directPurchaseOrder->folio,
+                route('direct-purchase-orders.show', $directPurchaseOrder),
+            );
 
             DB::commit();
 
@@ -610,13 +616,19 @@ class DirectPurchaseOrderController extends Controller
         $approver = $directPurchaseOrder->assignedApprover;
 
         if ($approver) {
-            $this->approvalDelegations->recipientsForPrincipal($approver)
-                ->each(fn (User $recipient) => $recipient->notify(
+            $recipients = $this->approvalDelegations->recipientsForPrincipal($approver);
+            foreach ($recipients as $recipient) {
+                $this->safeNotifications->notify(
                     new NewDirectPurchaseOrderNotification(
                         $directPurchaseOrder,
                         (int) $recipient->id === (int) $approver->id ? null : $approver
-                    )
-                ));
+                    ),
+                    [$recipient],
+                    'de solicitud de aprobación de OCD',
+                    $directPurchaseOrder->folio,
+                    route('direct-purchase-orders.show', $directPurchaseOrder),
+                );
+            }
         }
     }
 
@@ -626,31 +638,14 @@ class DirectPurchaseOrderController extends Controller
      */
     private function notifySupplierAboutApprovedOrder(DirectPurchaseOrder $directPurchaseOrder): void
     {
-        try {
-            $directPurchaseOrder->loadMissing('supplier', 'creator');
-            $directPurchaseOrder->supplier?->notify(new DirectPurchaseOrderApprovedNotification($directPurchaseOrder));
-        } catch (\Throwable $exception) {
-            Log::error('Failed to notify supplier about approved direct purchase order.', [
-                'direct_purchase_order_id' => $directPurchaseOrder->id,
-                'direct_purchase_order_folio' => $directPurchaseOrder->folio,
-                'exception' => $exception,
-            ]);
-
-            try {
-                User::role('superadmin')->get()->each->notify(
-                    new MailDeliveryFailedNotification(
-                        'de aprobación al proveedor',
-                        $directPurchaseOrder->folio,
-                        $directPurchaseOrder->id,
-                    )
-                );
-            } catch (\Throwable $notificationException) {
-                Log::error('Failed to notify superadmins about a mail delivery failure.', [
-                    'direct_purchase_order_id' => $directPurchaseOrder->id,
-                    'exception' => $notificationException,
-                ]);
-            }
-        }
+        $directPurchaseOrder->loadMissing('supplier', 'creator');
+        $this->safeNotifications->notify(
+            new DirectPurchaseOrderApprovedNotification($directPurchaseOrder),
+            $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : [],
+            'de aprobación al proveedor',
+            $directPurchaseOrder->folio,
+            route('direct-purchase-orders.show', $directPurchaseOrder),
+        );
     }
 
     private function syncItems(DirectPurchaseOrder $directPurchaseOrder, array $items): void

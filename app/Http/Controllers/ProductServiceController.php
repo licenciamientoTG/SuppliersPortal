@@ -837,9 +837,12 @@ class ProductServiceController extends Controller
 
             // Notificar a admins del catálogo
             $catalogAdmins = User::role(['catalog_admin', 'general_director', 'superadmin'])->get();
-            foreach ($catalogAdmins as $admin) {
-                $admin->notify(new NewProductRequestedNotification($productService, Auth::user()));
-            }
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new NewProductRequestedNotification($productService, Auth::user()),
+                $catalogAdmins,
+                'de nueva solicitud de producto',
+                $productService->code,
+            );
 
             return response()->json([
                 'success' => true,

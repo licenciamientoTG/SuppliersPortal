@@ -8,7 +8,6 @@ use App\Notifications\SupplierAccountReviewedNotification;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -274,14 +273,12 @@ class SupplierAdminController extends Controller
 
     private function notifySupplierApproval(Supplier $supplier, bool $approved, ?string $notes): void
     {
-        try {
-            $supplier->notify(new SupplierAccountReviewedNotification($approved, $notes));
-        } catch (\Throwable $exception) {
-            Log::error('No fue posible notificar el resultado del alta al proveedor.', [
-                'supplier_id' => $supplier->id,
-                'message' => $exception->getMessage(),
-            ]);
-        }
+        app(\App\Services\SafeNotificationService::class)->notify(
+            new SupplierAccountReviewedNotification($approved, $notes),
+            [$supplier],
+            'del resultado de alta de proveedor',
+            $supplier->company_name,
+        );
     }
 
     private function currencyBadges(?array $currencies): string

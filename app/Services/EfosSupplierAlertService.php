@@ -36,7 +36,11 @@ class EfosSupplierAlertService
             ->values()
             ->all();
 
-        $recipients->each->notify(new SupplierListedInEfosNotification($supplierData));
+        app(SafeNotificationService::class)->notify(
+            new SupplierListedInEfosNotification($supplierData),
+            $recipients,
+            'de alerta EFOS a Compras',
+        );
 
         return $deactivatedSuppliers->count();
     }

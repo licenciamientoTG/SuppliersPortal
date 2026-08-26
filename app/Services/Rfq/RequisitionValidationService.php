@@ -46,7 +46,13 @@ class RequisitionValidationService
         ]);
 
         if ($requisition->requester) {
-            $requisition->requester->notify(new RequisitionInQuotationNotification($requisition));
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new RequisitionInQuotationNotification($requisition),
+                [$requisition->requester],
+                'de requisición en cotización',
+                $requisition->folio,
+                route('requisitions.show', $requisition),
+            );
         }
     }
 }

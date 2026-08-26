@@ -25,12 +25,11 @@ class ReceptionService
      * @param  PurchaseOrder|DirectPurchaseOrder  $order
      * @param  array  $itemsData  Formato esperado por elemento:
      *                            ['receivable_item_id' => int, 'quantity_received' => float,
-     *                             'conformity' => string, 'nonconformity_type' => ?string,
-     *                             'nonconformity_notes' => ?string, 'photos' => ?array]
-     * @param  User   $receiver
-     * @param  array  $data       ['delivery_reference' => ?string, 'notes' => ?string, 'received_at' => ?Carbon]
+     *                            'conformity' => string, 'nonconformity_type' => ?string,
+     *                            'nonconformity_notes' => ?string, 'photos' => ?array]
+     * @param  array  $data  ['delivery_reference' => ?string, 'notes' => ?string, 'received_at' => ?Carbon]
      *
-     * @throws \RuntimeException  Si la orden no puede recibirse (ver validateCanReceive).
+     * @throws \RuntimeException Si la orden no puede recibirse (ver validateCanReceive).
      */
     public function receive(Model $order, array $itemsData, User $receiver, array $data): Reception
     {
@@ -40,16 +39,16 @@ class ReceptionService
 
             // 1. Crear cabecera de recepción
             $reception = Reception::create([
-                'folio'                 => Reception::generateNextFolio(),
-                'receivable_type'       => get_class($order),
-                'receivable_id'         => $order->id,
+                'folio' => Reception::generateNextFolio(),
+                'receivable_type' => get_class($order),
+                'receivable_id' => $order->id,
                 'receiving_location_id' => $data['receiving_location_id'] ?? $order->receiving_location_id,
-                'received_by'           => $receiver->id,
-                'status'                => Reception::STATUS_PENDING,
-                'delivery_reference'    => $data['delivery_reference'] ?? null,
-                'remission_path'        => $data['remission_path'] ?? null,
-                'notes'                 => $data['notes'] ?? null,
-                'received_at'           => $data['received_at'] ?? now(),
+                'received_by' => $receiver->id,
+                'status' => Reception::STATUS_PENDING,
+                'delivery_reference' => $data['delivery_reference'] ?? null,
+                'remission_path' => $data['remission_path'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'received_at' => $data['received_at'] ?? now(),
             ]);
 
             // 2. Procesar cada línea recibida
@@ -68,14 +67,14 @@ class ReceptionService
                 $conformity = $lineData['conformity'] ?? ReceptionItem::CONFORMITY_OK;
 
                 ReceptionItem::create([
-                    'reception_id'         => $reception->id,
+                    'reception_id' => $reception->id,
                     'receivable_item_type' => get_class($item),
-                    'receivable_item_id'   => $item->id,
-                    'quantity_received'    => $quantityReceived,
-                    'conformity'           => $conformity,
-                    'nonconformity_type'   => $lineData['nonconformity_type'] ?? null,
-                    'nonconformity_notes'  => $lineData['nonconformity_notes'] ?? null,
-                    'photos'               => $lineData['photos'] ?? null,
+                    'receivable_item_id' => $item->id,
+                    'quantity_received' => $quantityReceived,
+                    'conformity' => $conformity,
+                    'nonconformity_type' => $lineData['nonconformity_type'] ?? null,
+                    'nonconformity_notes' => $lineData['nonconformity_notes'] ?? null,
+                    'photos' => $lineData['photos'] ?? null,
                 ]);
 
                 // Solo se acumulan las cantidades CONFORMES en el ítem de la orden.
@@ -184,7 +183,7 @@ class ReceptionService
         if ($order instanceof DirectPurchaseOrder) {
             $order->loadMissing('items.expenseCategory');
             $hasServiceItems = $order->items->contains(
-                fn($item) => $item->expenseCategory?->isService() ?? false
+                fn ($item) => $item->expenseCategory?->isService() ?? false
             );
 
             if (! $hasServiceItems) {
@@ -194,13 +193,13 @@ class ReceptionService
 
         if (! $supplier->hasValidRepseRegistration()) {
             return "El proveedor '{$supplier->company_name}' tiene el registro REPSE vencido o sin número de registro. "
-                . "Consulta con el área de Compras antes de continuar.";
+                .'Consulta con el área de Compras antes de continuar.';
         }
 
         $daysLeft = $supplier->repseExpiresIn();
         if ($daysLeft !== null && $daysLeft <= 30) {
             return "El REPSE del proveedor '{$supplier->company_name}' vence en {$daysLeft} día(s). "
-                . "Notifica a Compras para su renovación.";
+                .'Notifica a Compras para su renovación.';
         }
 
         return null;
@@ -220,7 +219,7 @@ class ReceptionService
             return 'RECEIVED';
         }
 
-        return $items->every(fn($item) => $item->isFullyReceived())
+        return $items->every(fn ($item) => $item->isFullyReceived())
             ? 'RECEIVED'
             : 'PARTIALLY_RECEIVED';
     }
@@ -250,10 +249,10 @@ class ReceptionService
     private function resolveItemClass(Model $order): string
     {
         return match (true) {
-            $order instanceof PurchaseOrder       => PurchaseOrderItem::class,
+            $order instanceof PurchaseOrder => PurchaseOrderItem::class,
             $order instanceof DirectPurchaseOrder => DirectPurchaseOrderItem::class,
             default => throw new \RuntimeException(
-                'Tipo de orden no soportado para recepción: ' . get_class($order)
+                'Tipo de orden no soportado para recepción: '.get_class($order)
             ),
         };
     }
@@ -301,10 +300,8 @@ class ReceptionService
     private function itemBelongsToOrder(Model $order, Model $item): bool
     {
         return match (true) {
-            $order instanceof PurchaseOrder && $item instanceof PurchaseOrderItem =>
-                (int) $item->purchase_order_id === (int) $order->id,
-            $order instanceof DirectPurchaseOrder && $item instanceof DirectPurchaseOrderItem =>
-                (int) $item->direct_purchase_order_id === (int) $order->id,
+            $order instanceof PurchaseOrder && $item instanceof PurchaseOrderItem => (int) $item->purchase_order_id === (int) $order->id,
+            $order instanceof DirectPurchaseOrder && $item instanceof DirectPurchaseOrderItem => (int) $item->direct_purchase_order_id === (int) $order->id,
             default => false,
         };
     }
@@ -318,15 +315,15 @@ class ReceptionService
         $days = (int) $order->issued_at->diffInDays(now());
 
         [$color, $icon] = match (true) {
-            $days <= 7  => ['success', 'ti-circle-check'],
+            $days <= 7 => ['success', 'ti-circle-check'],
             $days <= 15 => ['warning', 'ti-alert-triangle'],
-            default     => ['danger',  'ti-circle-x'],
+            default => ['danger',  'ti-circle-x'],
         };
 
-        return '<span class="badge bg-' . $color . '">'
-            . '<i class="ti ' . $icon . ' me-1"></i>'
-            . $days . ' día(s)'
-            . '</span>';
+        return '<span class="badge bg-'.$color.'">'
+            .'<i class="ti '.$icon.' me-1"></i>'
+            .$days.' día(s)'
+            .'</span>';
     }
 
     /**
@@ -349,22 +346,13 @@ class ReceptionService
         $buyers = Cache::remember('buyers_list', 3600, function () {
             return User::role('buyer')->get(['id', 'name', 'email']);
         });
-        $buyers->each(fn($u) => $notifiables->push($u));
+        $buyers->each(fn ($u) => $notifiables->push($u));
 
-        $notifiables->unique('id')->each(function ($notifiable) use ($notification, $reception, $order) {
-            try {
-                $notifiable->notify($notification);
-            } catch (Throwable $exception) {
-                Log::warning('Reception notification delivery failed for a recipient.', [
-                    'reception_id' => $reception->id,
-                    'reception_folio' => $reception->folio,
-                    'order_id' => $order->id,
-                    'order_folio' => $order->folio,
-                    'notifiable_type' => get_class($notifiable),
-                    'notifiable_id' => $notifiable->id ?? null,
-                    'exception' => $exception,
-                ]);
-            }
-        });
+        app(SafeNotificationService::class)->notify(
+            $notification,
+            $notifiables->unique('id'),
+            'de recepción completada',
+            $reception->folio,
+        );
     }
 }

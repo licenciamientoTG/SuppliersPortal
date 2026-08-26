@@ -49,8 +49,11 @@ class ApprovalDecisionService
 
         if ($context['is_delegated']) {
             DB::afterCommit(function () use ($principalUserId, $decision, $approvable) {
-                User::find($principalUserId)?->notify(
-                    new DelegatedApprovalActionNotification($decision, $approvable)
+                $principal = User::find($principalUserId);
+                app(SafeNotificationService::class)->notify(
+                    new DelegatedApprovalActionNotification($decision, $approvable),
+                    $principal ? [$principal] : [],
+                    'de acción delegada de autorización',
                 );
             });
         }

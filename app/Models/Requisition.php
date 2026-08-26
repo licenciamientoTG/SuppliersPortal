@@ -480,7 +480,13 @@ class Requisition extends Model
             ]);
 
             try {
-                $this->requester->notify(new \App\Notifications\RequisitionSubmittedNotification($this));
+                app(\App\Services\SafeNotificationService::class)->notify(
+                    new \App\Notifications\RequisitionSubmittedNotification($this),
+                    [$this->requester],
+                    'de envío de requisición a Compras',
+                    $this->folio,
+                    route('requisitions.show', $this),
+                );
                 Log::info('✅ Notificación enviada al requisitor');
             } catch (\Exception $e) {
                 Log::error('❌ Error al enviar notificación al requisitor', [
@@ -508,7 +514,13 @@ class Requisition extends Model
 
                 foreach ($purchasingUsers as $purchaser) {
                     try {
-                        $purchaser->notify(new \App\Notifications\NewRequisitionForPurchasingNotification($this));
+                        app(\App\Services\SafeNotificationService::class)->notify(
+                            new \App\Notifications\NewRequisitionForPurchasingNotification($this),
+                            [$purchaser],
+                            'de nueva requisición para Compras',
+                            $this->folio,
+                            route('requisitions.show', $this),
+                        );
 
                         Log::info('✅ Notificación enviada a comprador', [
                             'purchaser_name' => $purchaser->name,

@@ -354,7 +354,13 @@ class BudgetMovementWorkflowController extends Controller
     private function notify(?User $recipient, BudgetMovement $movement, string $message): void
     {
         if ($recipient) {
-            rescue(fn () => $recipient->notify(new BudgetMovementWorkflowNotification($movement, $message)), report: false);
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new BudgetMovementWorkflowNotification($movement, $message),
+                [$recipient],
+                'de movimiento presupuestal',
+                (string) $movement->id,
+                route('budget_movements.show', $movement),
+            );
         }
     }
 

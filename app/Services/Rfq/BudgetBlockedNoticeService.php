@@ -67,7 +67,13 @@ class BudgetBlockedNoticeService
         });
 
         $notice->load(['rfq.quotationGroup', 'requisition.requester', 'supplier', 'buyer']);
-        $notice->requisition->requester->notify(new RfqBudgetBlockedNotification($notice));
+        app(\App\Services\SafeNotificationService::class)->notify(
+            new RfqBudgetBlockedNotification($notice),
+            [$notice->requisition->requester],
+            'de bloqueo presupuestal de RFQ',
+            $notice->requisition->folio,
+            route('requisitions.show', $notice->requisition),
+        );
 
         return $notice;
     }

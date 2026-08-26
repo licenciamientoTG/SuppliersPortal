@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Notifications\SupplierDocumentFileCompletedNotification;
 use App\Notifications\SupplierDocumentReviewedNotification;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class SupplierDocumentReviewService
 {
@@ -98,18 +97,20 @@ class SupplierDocumentReviewService
                 return;
             }
 
-            try {
-                $supplier->notify(new SupplierDocumentReviewedNotification($freshDocument, $accepted, $automatic));
+            app(SafeNotificationService::class)->notify(
+                new SupplierDocumentReviewedNotification($freshDocument, $accepted, $automatic),
+                [$supplier],
+                'de revisión de documento de proveedor',
+                (string) $freshDocument->id,
+            );
 
-                if ($fileCompleted) {
-                    $supplier->notify(new SupplierDocumentFileCompletedNotification($supplier->isApproved()));
-                }
-            } catch (\Throwable $exception) {
-                Log::error('No fue posible notificar la revisión de un documento al proveedor.', [
-                    'supplier_document_id' => $freshDocument->id,
-                    'supplier_id' => $supplier->id,
-                    'message' => $exception->getMessage(),
-                ]);
+            if ($fileCompleted) {
+                app(SafeNotificationService::class)->notify(
+                    new SupplierDocumentFileCompletedNotification($supplier->isApproved()),
+                    [$supplier],
+                    'de expediente completo de proveedor',
+                    (string) $freshDocument->id,
+                );
             }
         });
     }

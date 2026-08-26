@@ -2,10 +2,9 @@
 
 namespace App\Listeners;
 
+use App\Enum\RequisitionStatus;
 use App\Events\ProductServiceApproved;
 use App\Models\Requisition;
-use App\Models\RequisitionItem;
-use App\Enum\RequisitionStatus;
 use App\Notifications\RequisitionReactivatedNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -39,10 +38,11 @@ class ReactivatePausedRequisitions implements ShouldQueue
 
         if ($pausedRequisitions->isEmpty()) {
             Log::info("Producto {$product->code} aprobado, pero no hay requisiciones pausadas esperándolo.");
+
             return;
         }
 
-        Log::info("Producto {$product->code} aprobado. Reactivando " . $pausedRequisitions->count() . " requisiciones pausadas.");
+        Log::info("Producto {$product->code} aprobado. Reactivando ".$pausedRequisitions->count().' requisiciones pausadas.');
 
         foreach ($pausedRequisitions as $requisition) {
             DB::transaction(function () use ($requisition, $product) {
@@ -72,14 +72,18 @@ class ReactivatePausedRequisitions implements ShouldQueue
                             'old_status' => 'PAUSADA',
                             'new_status' => 'PENDING',
                             'product_approved' => $product->code,
-                            'auto_reactivated' => true
+                            'auto_reactivated' => true,
                         ])
                         ->log("Requisición reactivada automáticamente (producto {$product->code} aprobado)");
 
                     // 📧 Notificar al solicitante
                     if ($requisition->user) {
-                        $requisition->user->notify(
-                            new RequisitionReactivatedNotification($requisition, $product)
+                        app(\App\Services\SafeNotificationService::class)->notify(
+                            new RequisitionReactivatedNotification($requisition, $product),
+                            [$requisition->user],
+                            'de reactivación de requisición',
+                            $requisition->folio,
+                            route('requisitions.show', $requisition),
                         );
                     }
 
@@ -87,8 +91,8 @@ class ReactivatePausedRequisitions implements ShouldQueue
                 } else {
                     // ⏸️ Aún faltan productos por aprobar
                     $pendingProducts = $requisition->items
-                        ->filter(fn($item) => $item->productService && $item->productService->status !== 'ACTIVE')
-                        ->map(fn($item) => $item->productService->code)
+                        ->filter(fn ($item) => $item->productService && $item->productService->status !== 'ACTIVE')
+                        ->map(fn ($item) => $item->productService->code)
                         ->implode(', ');
 
                     Log::info("Requisición #{$requisition->id} sigue pausada. Faltan productos: {$pendingProducts}");
@@ -106,6 +110,6 @@ class ReactivatePausedRequisitions implements ShouldQueue
      */
     public function failed(ProductServiceApproved $event, \Throwable $exception): void
     {
-        Log::error('Error al reactivar requisiciones pausadas: ' . $exception->getMessage());
+        Log::error('Error al reactivar requisiciones pausadas: '.$exception->getMessage());
     }
 }

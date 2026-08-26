@@ -8,6 +8,7 @@ use App\Notifications\BuyerWorkflowNotification;
 use App\Notifications\NewRfqForSupplierNotification;
 use App\Notifications\RfqSentToSuppliersNotification;
 use App\Services\BuyerNotificationService;
+use App\Services\SafeNotificationService;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\Log;
  */
 class RfqSendService
 {
-    public function __construct(private BuyerNotificationService $buyerNotificationService) {}
+    public function __construct(
+        private BuyerNotificationService $buyerNotificationService,
+        private SafeNotificationService $safeNotifications,
+    ) {}
 
     /**
      * @throws InvalidRfqStateException si la RFQ no está en borrador o no tiene proveedores
@@ -37,7 +41,13 @@ class RfqSendService
         ]);
 
         if ($rfq->requisition && $rfq->requisition->requester) {
-            $rfq->requisition->requester->notify(new RfqSentToSuppliersNotification($rfq));
+            $this->safeNotifications->notify(
+                new RfqSentToSuppliersNotification($rfq),
+                [$rfq->requisition->requester],
+                'de RFQ enviada al requisitor',
+                $rfq->folio,
+                route('rfq.show', $rfq),
+            );
         }
 
         foreach ($rfq->suppliers as $supplier) {
@@ -45,7 +55,13 @@ class RfqSendService
                 'invited_at' => now(),
             ]);
 
-            $supplier->notify(new NewRfqForSupplierNotification($rfq));
+            $this->safeNotifications->notify(
+                new NewRfqForSupplierNotification($rfq),
+                [$supplier],
+                'de RFQ enviada al proveedor',
+                $rfq->folio,
+                route('rfq.show', $rfq),
+            );
 
             Log::info('RFQ notification sent to supplier account', [
                 'rfq_id' => $rfq->id,

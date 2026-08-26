@@ -135,7 +135,14 @@ class EmployeeController extends Controller
 
             $employee->update(['user_id' => $user->id]);
 
-            $user->notify(new StaffWelcomeNotification($plainPassword));
+            DB::afterCommit(function () use ($user, $plainPassword): void {
+                app(\App\Services\SafeNotificationService::class)->notify(
+                    new StaffWelcomeNotification($plainPassword),
+                    [$user],
+                    'de bienvenida de usuario',
+                    $user->email,
+                );
+            });
         });
 
         return response()->json(['success' => true, 'message' => 'Usuario creado y notificado correctamente.']);

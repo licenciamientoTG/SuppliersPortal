@@ -8,6 +8,8 @@ use Illuminate\Support\Collection;
 
 class BuyerNotificationService
 {
+    public function __construct(private SafeNotificationService $safeNotifications) {}
+
     /**
      * @param  iterable<mixed>  $additionalRecipients
      * @return Collection<int, User>
@@ -30,8 +32,10 @@ class BuyerNotificationService
      */
     public function notify(Notification $notification, iterable $additionalRecipients = []): void
     {
-        $this->recipients($additionalRecipients)
-            ->each
-            ->notify($notification);
+        $this->safeNotifications->notify(
+            $notification,
+            $this->recipients($additionalRecipients),
+            'de flujo de Compras',
+        );
     }
 }
