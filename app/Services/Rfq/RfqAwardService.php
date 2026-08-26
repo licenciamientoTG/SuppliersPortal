@@ -279,12 +279,15 @@ class RfqAwardService
         }
 
         $this->approvalDelegations->recipientsForPrincipal($principal)
-            ->each(fn ($recipient) => $recipient->notify(
+            ->each(fn ($recipient) => app(\App\Services\SafeNotificationService::class)->notify(
                 new QuotationApprovalRequestNotification(
                     $summary,
                     $escalated,
                     (int) $recipient->id === (int) $principal->id ? null : $principal
-                )
+                ),
+                [$recipient],
+                'de solicitud de aprobación de cotización',
+                $summary->requisition?->folio,
             ));
     }
 }

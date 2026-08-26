@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendSafeMailJob;
 use App\Mail\SupplierFeedbackMail;
 use App\Models\Supplier;
 use App\Models\SupplierDocument;
@@ -12,7 +13,6 @@ use App\Services\SupplierDocumentRequirementService;
 use App\Services\SupplierDocumentUploadPreparationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -243,17 +243,23 @@ class SupplierDocumentController extends Controller
             $mailable->replyTo($sender->email, $sender->name ?? null);
         }
 
-        $mail = Mail::to($toEmail);
+        $cc = [];
 
         if ($sender && filled($sender->email) && strcasecmp($sender->email, $toEmail) !== 0) {
-            $mail->cc($sender->email);
+            $cc[] = $sender->email;
         }
 
         if (filled(config('mail.feedback_cc'))) {
-            $mail->cc(config('mail.feedback_cc'));
+            $cc[] = config('mail.feedback_cc');
         }
 
-        $mail->send($mailable);
+        SendSafeMailJob::dispatch(
+            $toEmail,
+            $mailable,
+            array_unique($cc),
+            'de retroalimentación documental al proveedor',
+            $supplier->company_name,
+        );
 
         return response()->json(['ok' => true]);
     }

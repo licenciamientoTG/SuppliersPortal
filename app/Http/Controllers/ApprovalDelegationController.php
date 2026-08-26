@@ -8,8 +8,6 @@ use App\Notifications\ApprovalDelegationSummaryNotification;
 use App\Services\ApprovalDelegationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class ApprovalDelegationController extends Controller
 {
@@ -152,16 +150,11 @@ class ApprovalDelegationController extends Controller
             ? $delegation->activeMembers->pluck('delegate')->filter()
             : User::query()->whereIn('id', $delegateIds)->get();
 
-        $delegates->each(function (User $delegate) use ($delegation, $counts): void {
-            try {
-                $delegate->notify(new ApprovalDelegationSummaryNotification($delegation, $counts));
-            } catch (Throwable $exception) {
-                Log::warning('No fue posible enviar el resumen de activación de delegación.', [
-                    'approval_delegation_id' => $delegation->id,
-                    'delegate_user_id' => $delegate->id,
-                    'message' => $exception->getMessage(),
-                ]);
-            }
-        });
+        app(\App\Services\SafeNotificationService::class)->notify(
+            new ApprovalDelegationSummaryNotification($delegation, $counts),
+            $delegates,
+            'de resumen de delegación',
+            (string) $delegation->id,
+        );
     }
 }

@@ -42,7 +42,7 @@ class NotifyExpiringContracts extends Command
         $notified = 0;
         foreach ($contracts as $contract) {
             $notice = ContractExpiryNotification::firstOrCreate([
-                'contract_id'    => $contract->id,
+                'contract_id' => $contract->id,
                 'milestone_days' => $contract->days_to_expiry,
             ]);
 
@@ -50,7 +50,12 @@ class NotifyExpiringContracts extends Command
                 continue;
             }
 
-            $recipients->each->notify(new ContractExpiringNotification($contract, $contract->days_to_expiry));
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new ContractExpiringNotification($contract, $contract->days_to_expiry),
+                $recipients,
+                'de vencimiento de contrato',
+                $contract->folio ?? (string) $contract->id,
+            );
             $notified++;
         }
 

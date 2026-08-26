@@ -113,11 +113,11 @@ class CloseInactivePurchaseOrders extends Command
             DB::commit();
 
             if ($assignedApprover) {
-                $assignedApprover->notify(new DirectPurchaseOrderClosedByInactivityNotification($ocd));
+                app(\App\Services\SafeNotificationService::class)->notify(new DirectPurchaseOrderClosedByInactivityNotification($ocd), [$assignedApprover], 'de cierre por inactividad de OCD', $ocd->folio);
             }
 
             if ($creator) {
-                $creator->notify(new DirectPurchaseOrderClosedByInactivityNotification($ocd));
+                app(\App\Services\SafeNotificationService::class)->notify(new DirectPurchaseOrderClosedByInactivityNotification($ocd), [$creator], 'de cierre por inactividad de OCD', $ocd->folio);
             }
 
             Log::info("[CloseInactive] OCD {$ocd->folio} (ID: {$ocd->id}) cerrada por inactividad.", [
@@ -146,11 +146,11 @@ class CloseInactivePurchaseOrders extends Command
             $ocd->update(['inactivity_warning_sent_at' => now()]);
 
             if ($ocd->assignedApprover) {
-                $ocd->assignedApprover->notify(new DirectPurchaseOrderInactivityWarningNotification($ocd));
+                app(\App\Services\SafeNotificationService::class)->notify(new DirectPurchaseOrderInactivityWarningNotification($ocd), [$ocd->assignedApprover], 'de alerta de inactividad de OCD', $ocd->folio);
             }
 
             if ($ocd->creator) {
-                $ocd->creator->notify(new DirectPurchaseOrderInactivityWarningNotification($ocd));
+                app(\App\Services\SafeNotificationService::class)->notify(new DirectPurchaseOrderInactivityWarningNotification($ocd), [$ocd->creator], 'de alerta de inactividad de OCD', $ocd->folio);
             }
 
             Log::info("[CloseInactive] Alerta de inactividad enviada para OCD {$ocd->folio}.", [
@@ -232,12 +232,12 @@ class CloseInactivePurchaseOrders extends Command
             DB::commit();
 
             if ($po->creator) {
-                $po->creator->notify(new PurchaseOrderClosedByInactivityNotification($po));
+                app(\App\Services\SafeNotificationService::class)->notify(new PurchaseOrderClosedByInactivityNotification($po), [$po->creator], 'de cierre por inactividad de OC', $po->folio);
             }
 
             $requisitionCreator = $po->requisition?->creator ?? null;
             if ($requisitionCreator && $requisitionCreator->id !== $po->creator?->id) {
-                $requisitionCreator->notify(new PurchaseOrderClosedByInactivityNotification($po));
+                app(\App\Services\SafeNotificationService::class)->notify(new PurchaseOrderClosedByInactivityNotification($po), [$requisitionCreator], 'de cierre por inactividad de OC', $po->folio);
             }
 
             Log::info("[CloseInactive] OC estandar {$po->folio} (ID: {$po->id}) cerrada por inactividad.", [
@@ -268,12 +268,12 @@ class CloseInactivePurchaseOrders extends Command
             $po->update(['inactivity_warning_sent_at' => now()]);
 
             if ($po->creator) {
-                $po->creator->notify(new PurchaseOrderInactivityWarningNotification($po));
+                app(\App\Services\SafeNotificationService::class)->notify(new PurchaseOrderInactivityWarningNotification($po), [$po->creator], 'de alerta de inactividad de OC', $po->folio);
             }
 
             $requisitionCreator = $po->requisition?->creator ?? null;
             if ($requisitionCreator && $requisitionCreator->id !== $po->creator?->id) {
-                $requisitionCreator->notify(new PurchaseOrderInactivityWarningNotification($po));
+                app(\App\Services\SafeNotificationService::class)->notify(new PurchaseOrderInactivityWarningNotification($po), [$requisitionCreator], 'de alerta de inactividad de OC', $po->folio);
             }
 
             Log::info("[CloseInactive] Alerta de inactividad enviada para OC estandar {$po->folio}.", [

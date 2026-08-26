@@ -72,7 +72,12 @@ class PurchaseOrderController extends Controller
             DB::afterCommit(function () use ($purchaseOrder) {
                 try {
                     $purchaseOrder->loadMissing('supplier', 'creator');
-                    $purchaseOrder->supplier?->notify(new PurchaseOrderIssuedNotification($purchaseOrder));
+                    app(\App\Services\SafeNotificationService::class)->notify(
+                        new PurchaseOrderIssuedNotification($purchaseOrder),
+                        array_filter([$purchaseOrder->supplier]),
+                        'de OC de contrato emitida',
+                        $purchaseOrder->folio,
+                    );
                 } catch (\Throwable $exception) {
                     Log::error('Failed to notify supplier about approved contract purchase order.', [
                         'purchase_order_id' => $purchaseOrder->id,
@@ -133,11 +138,21 @@ class PurchaseOrderController extends Controller
                 try {
                     $notification = new ContractPurchaseOrderRejectedNotification($purchaseOrder, $request->comments);
                     $purchaseOrder->loadMissing('creator');
-                    $purchaseOrder->creator?->notify($notification);
+                    app(\App\Services\SafeNotificationService::class)->notify(
+                        $notification,
+                        array_filter([$purchaseOrder->creator]),
+                        'de rechazo de OC de contrato',
+                        $purchaseOrder->folio,
+                    );
 
                     User::role('buyer')->get()
                         ->reject(fn (User $u) => $u->id === Auth::id() || $u->id === $purchaseOrder->created_by)
-                        ->each->notify($notification);
+                        ->each(fn (User $user) => app(\App\Services\SafeNotificationService::class)->notify(
+                            $notification,
+                            [$user],
+                            'de rechazo de OC de contrato',
+                            $purchaseOrder->folio,
+                        ));
                 } catch (\Throwable $exception) {
                     Log::error('Failed to notify about rejected contract purchase order.', [
                         'purchase_order_id' => $purchaseOrder->id,
@@ -329,6 +344,7 @@ class PurchaseOrderController extends Controller
             'creator',
             'approver',
             'assignedApprover',
+            'quotationSummary.approver',
             'quotationSummary.selector',
             'quotationSummary.rfq.creator',
             'receivingLocation',

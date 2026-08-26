@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enum\RequisitionStatus;
+use App\Jobs\SendSafeMailJob;
 use App\Mail\RequisitionFeedbackMail;
 use App\Models\Requisition;
 use App\Notifications\BuyerWorkflowNotification;
@@ -18,7 +19,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class RequisitionWorkflowController extends Controller
 {
@@ -180,16 +180,16 @@ class RequisitionWorkflowController extends Controller
 
             $feedback->load('buyer');
 
-            $this->safeNotifications->attempt(
+            SendSafeMailJob::dispatch(
+                $requisition->requester->email,
+                new RequisitionFeedbackMail(
+                    $requisition,
+                    $feedback,
+                    $buyer,
+                    route('requisitions.show', $requisition->id)
+                ),
+                array_filter([$buyer->email]),
                 'de retroalimentación de requisición',
-                fn () => Mail::to($requisition->requester->email)
-                    ->cc($buyer->email)
-                    ->send(new RequisitionFeedbackMail(
-                        $requisition,
-                        $feedback,
-                        $buyer,
-                        route('requisitions.show', $requisition->id)
-                    )),
                 $requisition->folio,
                 route('requisitions.show', $requisition),
             );

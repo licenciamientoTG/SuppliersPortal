@@ -19,8 +19,7 @@ class ContractPurchaseOrderService
         private readonly BudgetAllocationService $budgetAllocationService,
         private readonly AuthorizerResolutionService $authorizerResolutionService,
         private readonly ApprovalDelegationService $approvalDelegations
-    ) {
-    }
+    ) {}
 
     /**
      * Genera una PurchaseOrder por cada proveedor distinto en la requisicion.
@@ -128,15 +127,23 @@ class ContractPurchaseOrderService
                             $principal = $po->assignedApprover;
                             if ($principal) {
                                 $this->approvalDelegations->recipientsForPrincipal($principal)
-                                    ->each(fn ($recipient) => $recipient->notify(
+                                    ->each(fn ($recipient) => app(SafeNotificationService::class)->notify(
                                         new ContractPurchaseOrderPendingApprovalNotification(
                                             $po,
                                             (int) $recipient->id === (int) $principal->id ? null : $principal
-                                        )
+                                        ),
+                                        [$recipient],
+                                        'de OC de contrato pendiente de aprobación',
+                                        $po->folio,
                                     ));
                             }
                         } else {
-                            $po->supplier?->notify(new PurchaseOrderIssuedNotification($po));
+                            app(SafeNotificationService::class)->notify(
+                                new PurchaseOrderIssuedNotification($po),
+                                array_filter([$po->supplier]),
+                                'de OC de contrato emitida',
+                                $po->folio,
+                            );
                         }
                     } catch (\Throwable $exception) {
                         Log::error('Failed to notify about contract purchase order.', [

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Jobs\SendSafeNotificationJob;
 use App\Models\User;
 use App\Notifications\MailDeliveryFailedNotification;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -30,6 +32,18 @@ class SafeNotificationService
                 continue;
             }
 
+            if ($recipient instanceof Model) {
+                SendSafeNotificationJob::dispatch(
+                    $recipient,
+                    $notification,
+                    $operation,
+                    $reference,
+                    $url,
+                );
+
+                continue;
+            }
+
             try {
                 $recipient->notify($notification);
             } catch (Throwable $exception) {
@@ -42,7 +56,7 @@ class SafeNotificationService
         }
 
         if ($failures !== []) {
-            $this->reportFailure($operation, $reference, $url, $failures);
+            $this->reportDeliveryFailure($operation, $reference, $url, $failures);
         }
     }
 
@@ -54,14 +68,14 @@ class SafeNotificationService
 
             return true;
         } catch (Throwable $exception) {
-            $this->reportFailure($operation, $reference, $url, [['exception' => $exception]]);
+            $this->reportDeliveryFailure($operation, $reference, $url, [['exception' => $exception]]);
 
             return false;
         }
     }
 
     /** @param array<int, array<string, mixed>> $failures */
-    private function reportFailure(string $operation, ?string $reference, ?string $url, array $failures): void
+    public function reportDeliveryFailure(string $operation, ?string $reference, ?string $url, array $failures): void
     {
         Log::error('Mail notification delivery failed; the main operation was preserved.', [
             'operation' => $operation,

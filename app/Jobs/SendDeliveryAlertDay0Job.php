@@ -2,17 +2,18 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\ReportsMailFailure;
 use App\Mail\DeliveryAlertDay0Mail;
-use App\Models\PurchaseOrder;
 use App\Models\DirectPurchaseOrder;
+use App\Models\PurchaseOrder;
 use App\Services\AlertRecipientService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Job Día 0 — Alerta Inmediata al registrar entrega del proveedor.
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SendDeliveryAlertDay0Job implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, ReportsMailFailure, SerializesModels;
 
     public function __construct(
         public string $orderType,
@@ -34,7 +35,7 @@ class SendDeliveryAlertDay0Job implements ShouldQueue
     {
         $order = $this->resolveOrder();
 
-        if (!$order || $order->status !== 'DELIVERED_PENDING_RECEPTION') {
+        if (! $order || $order->status !== 'DELIVERED_PENDING_RECEPTION') {
             // La estación ya capturó la recepción; no enviar alerta
             return;
         }
@@ -63,12 +64,13 @@ class SendDeliveryAlertDay0Job implements ShouldQueue
 
         if (empty($recipients)) {
             Log::warning("SendDeliveryAlertDay0Job: Sin destinatarios para OC {$order->folio}");
+
             return;
         }
 
         Mail::to($recipients)->send($mail);
 
-        Log::info("SendDeliveryAlertDay0Job: Alerta enviada para OC {$order->folio} a " . count($recipients) . " destinatarios");
+        Log::info("SendDeliveryAlertDay0Job: Alerta enviada para OC {$order->folio} a ".count($recipients).' destinatarios');
     }
 
     private function resolveOrder()
@@ -76,5 +78,10 @@ class SendDeliveryAlertDay0Job implements ShouldQueue
         return $this->orderType === 'direct'
             ? DirectPurchaseOrder::find($this->orderId)
             : PurchaseOrder::find($this->orderId);
+    }
+
+    protected function mailFailureReference(): ?string
+    {
+        return "{$this->orderType}:{$this->orderId}";
     }
 }

@@ -44,7 +44,10 @@
         $buyer = $purchaseOrder->quotationSummary?->selector
             ?? $purchaseOrder->quotationSummary?->rfq?->creator
             ?? $purchaseOrder->creator;
-        $authorizer = $purchaseOrder->approver ?? $purchaseOrder->assignedApprover;
+        // Las OC regulares se emiten tras aprobar el comparativo; su aprobador queda en QuotationSummary.
+        $authorizer = $purchaseOrder->approver
+            ?? $purchaseOrder->quotationSummary?->approver
+            ?? $purchaseOrder->assignedApprover;
         $supplierAddress = collect([
             $supplier?->address,
             $supplier?->postal_code ? 'C.P. '.$supplier->postal_code : null,

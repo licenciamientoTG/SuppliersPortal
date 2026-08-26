@@ -40,7 +40,12 @@ class NotifySupplierDocumentRenewals extends Command
                 $requirement->update(['status' => 'expired']);
                 $requirement->supplier->recalculateDocumentStatus();
             }
-            $requirement->supplier->notify(new SupplierDocumentRenewalNotification($requirement, max($days, 0)));
+            app(\App\Services\SafeNotificationService::class)->notify(
+                new SupplierDocumentRenewalNotification($requirement, max($days, 0)),
+                [$requirement->supplier],
+                'de renovación documental de proveedor',
+                $requirement->supplier->company_name,
+            );
         });
 
         return self::SUCCESS;
