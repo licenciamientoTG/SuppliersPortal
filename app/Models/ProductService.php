@@ -26,6 +26,7 @@ class ProductService extends Model
         'code',
         'technical_description',
         'short_name',
+        'sat_product_code',
         'product_type',
 
         // Clasificación

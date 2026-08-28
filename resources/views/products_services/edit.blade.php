@@ -118,6 +118,23 @@
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    <div class="mb-3">
+                        <label for="sat_product_code" class="form-label">Código SAT <span class="text-muted">(ClaveProdServ)</span></label>
+                        <input type="text"
+                               class="form-control @error('sat_product_code') is-invalid @enderror"
+                               id="sat_product_code"
+                               name="sat_product_code"
+                               value="{{ old('sat_product_code', $productService->sat_product_code) }}"
+                               inputmode="numeric"
+                               pattern="[0-9]{8}"
+                               maxlength="8"
+                               placeholder="Ej. 27112916">
+                        <div class="form-text">Clave de producto o servicio del SAT de 8 dígitos.</div>
+                        @error('sat_product_code')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
             </div>
 

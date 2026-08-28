@@ -97,6 +97,19 @@
                     </div>
                     @endif
 
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Código SAT:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            @if ($productService->sat_product_code)
+                                <code>{{ $productService->sat_product_code }}</code>
+                            @else
+                                <span class="text-muted">Sin asignar</span>
+                            @endif
+                        </div>
+                    </div>
+
                     {{-- Marca y Modelo --}}
                     @if($productService->brand || $productService->model)
                     <div class="row mb-3">

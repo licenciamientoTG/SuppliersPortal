@@ -36,6 +36,7 @@
                             <th>Código</th>
                             <th>Tipo</th>
                             <th>Descripción</th>
+                            <th>Código SAT</th>
                             <th>Cuenta / Subcuenta</th>
                             <th>Unidad</th>
                             <th>Precio Est.</th>
@@ -138,6 +139,11 @@
                     {
                         data: 'technical_description',
                         name: 'technical_description'
+                    },
+                    {
+                        data: 'sat_product_code',
+                        name: 'sat_product_code',
+                        defaultContent: '—'
                     },
                     {
                         data: 'cuenta_subcuenta',

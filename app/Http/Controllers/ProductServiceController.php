@@ -221,6 +221,7 @@ class ProductServiceController extends Controller
                 'code' => ProductService::nextCode(),
                 'technical_description' => $data['technical_description'] ?? null,
                 'short_name' => $data['short_name'] ?? null,
+                'sat_product_code' => $data['sat_product_code'] ?? null,
                 'product_type' => $data['product_type'],
 
                 // Clasificación presupuestal
@@ -340,6 +341,7 @@ class ProductServiceController extends Controller
                 // Identificación
                 'technical_description' => $data['technical_description'] ?? null,
                 'short_name' => $data['short_name'] ?? null,
+                'sat_product_code' => $data['sat_product_code'] ?? null,
                 'product_type' => $data['product_type'],
 
                 // Clasificación presupuestal
@@ -804,6 +806,7 @@ class ProductServiceController extends Controller
             'cost_center_id' => 'required|exists:cost_centers,id',
             'technical_description' => 'required|string|min:20|max:5000',
             'short_name' => 'nullable|string|max:100',
+            'sat_product_code' => ['nullable', 'string', 'regex:/^\\d{8}$/'],
             'product_type' => 'nullable|in:PRODUCTO,SERVICIO',
             'brand' => 'nullable|string|max:100',
             'model' => 'nullable|string|max:100',
@@ -821,6 +824,7 @@ class ProductServiceController extends Controller
                 'code' => ProductService::nextCode(),
                 'technical_description' => $validated['technical_description'],
                 'short_name' => $validated['short_name'] ?? null,
+                'sat_product_code' => $validated['sat_product_code'] ?? null,
                 'product_type' => $validated['product_type'] ?? 'PRODUCTO',
                 'brand' => $validated['brand'] ?? null,
                 'model' => $validated['model'] ?? null,

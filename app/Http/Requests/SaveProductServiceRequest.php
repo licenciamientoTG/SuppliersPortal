@@ -25,6 +25,7 @@ class SaveProductServiceRequest extends FormRequest
             // Identificación
             'technical_description' => 'nullable|string|max:5000',
             'short_name' => 'nullable|string|max:100',
+            'sat_product_code' => ['nullable', 'string', 'regex:/^\\d{8}$/'],
             'product_type' => 'required|in:PRODUCTO,SERVICIO',
 
             // Clasificación
@@ -144,6 +145,7 @@ class SaveProductServiceRequest extends FormRequest
         return [
             'technical_description' => 'descripción técnica',
             'short_name' => 'nombre corto',
+            'sat_product_code' => 'código SAT',
             'product_type' => 'tipo de producto',
             'budget_cedula_ids' => 'subcuentas',
             'budget_cedula_ids.*' => 'subcuenta',
@@ -172,6 +174,7 @@ class SaveProductServiceRequest extends FormRequest
         return [
             'technical_description.min' => 'La descripción técnica debe tener al menos 20 caracteres.',
             'technical_description.required' => 'La descripción técnica es obligatoria.',
+            'sat_product_code.regex' => 'El código SAT debe contener exactamente 8 dígitos.',
             'unit_of_measure.required' => 'La unidad de medida es obligatoria.',
             'product_type.required' => 'Debe especificar si es PRODUCTO o SERVICIO.',
             'product_type.in' => 'El tipo debe ser PRODUCTO o SERVICIO.',
