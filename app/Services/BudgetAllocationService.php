@@ -18,6 +18,9 @@ use RuntimeException;
 
 class BudgetAllocationService
 {
+    /** Tolerancia para comparaciones de importes en punto flotante. */
+    private const EPSILON = 0.000001;
+
     public function checkAvailability(
         int $costCenterId,
         int $year,
@@ -138,11 +141,18 @@ class BudgetAllocationService
         });
     }
 
+    /**
+     * Reconoce como consumo la parte del compromiso que corresponde a lo
+     * efectivamente recibido. Es acumulativo e idempotente: puede invocarse
+     * tras cada recepción parcial y sólo consume el incremento pendiente.
+     */
     public function consumeOrder(Model $order): void
     {
         DB::transaction(function () use ($order) {
+            $progress = $this->buildReceptionProgressMap($order);
+
             foreach ($this->getOrderBudgetLines($order) as $line) {
-                $this->consumeLine($order, $line);
+                $this->consumeLine($order, $line, $this->receptionRatioForLine($progress, $line));
             }
         });
     }
@@ -463,12 +473,26 @@ class BudgetAllocationService
         }
     }
 
-    private function consumeLine(Model $order, array $line): void
+    /**
+     * @param  float  $ratio  Avance de recepción de la línea (0 = nada recibido, 1 = recibida por completo).
+     */
+    private function consumeLine(Model $order, array $line, float $ratio = 1.0): void
     {
         $commitments = $this->findCommitmentsForLine($order, $line)
             ->where('status', 'COMMITTED');
 
         foreach ($commitments as $commitment) {
+            $committed = round((float) $commitment->committed_amount, 2);
+            $alreadyConsumed = round((float) $commitment->consumed_amount, 2);
+
+            // Consumo objetivo acumulado a la fecha, nunca por encima del compromiso.
+            $target = min($committed, round($committed * $ratio, 2));
+            $delta = round($target - $alreadyConsumed, 2);
+
+            if ($delta <= self::EPSILON) {
+                continue;
+            }
+
             if ($line['budget_type'] === 'ANNUAL' && $commitment->budget_cedula_id) {
                 $distribution = $this->resolveDistributionByCedula(
                     $line['cost_center_id'],
@@ -478,18 +502,157 @@ class BudgetAllocationService
                     (int) $line['expense_category_id']
                 );
 
-                if (! $distribution->commitToConsume((float) $commitment->committed_amount)) {
+                if (! $distribution->commitToConsume($delta)) {
                     throw new RuntimeException(
                         "No se pudo consumir presupuesto para la cédula {$commitment->budget_cedula_id}."
                     );
                 }
             }
 
+            $fullyConsumed = $target + self::EPSILON >= $committed;
+
             $commitment->update([
-                'status' => 'RECEIVED',
-                'received_at' => now(),
+                'consumed_amount' => $target,
+                'status' => $fullyConsumed ? 'RECEIVED' : 'COMMITTED',
+                'received_at' => $fullyConsumed ? now() : null,
             ]);
         }
+    }
+
+    /**
+     * Avance de recepción por línea presupuestal, expresado como
+     * ['clave' => ['total' => valor comprometible, 'received' => valor recibido]].
+     *
+     * El valor recibido de cada partida se prorratea con la misma expansión de
+     * centros de costo que se usó al comprometer, para que las claves coincidan.
+     *
+     * @return array{exact: array<string, array{total: float, received: float}>, category: array<string, array{total: float, received: float}>}
+     */
+    private function buildReceptionProgressMap(Model $order): array
+    {
+        $exact = [];
+        $category = [];
+
+        foreach ($this->receptionSourceItems($order) as $item) {
+            $quantity = (float) $item['quantity'];
+            $ratio = $quantity > self::EPSILON
+                ? max(0.0, min(1.0, (float) $item['quantity_received'] / $quantity))
+                : 0.0;
+
+            $allocations = app(CostCenterDistributionService::class)
+                ->expand((int) $item['cost_center_id'], (float) $item['total']);
+
+            foreach ($allocations as $allocation) {
+                $amount = (float) $allocation['amount'];
+                $costCenterId = (int) $allocation['cost_center_id'];
+                $expenseCategoryId = (int) $item['expense_category_id'];
+
+                $exactKey = implode('|', [
+                    $costCenterId,
+                    $expenseCategoryId,
+                    $item['budget_cedula_id'] !== null ? (int) $item['budget_cedula_id'] : 'null',
+                ]);
+                $categoryKey = implode('|', [$costCenterId, $expenseCategoryId]);
+
+                $exact[$exactKey]['total'] = ($exact[$exactKey]['total'] ?? 0.0) + $amount;
+                $exact[$exactKey]['received'] = ($exact[$exactKey]['received'] ?? 0.0) + ($amount * $ratio);
+
+                $category[$categoryKey]['total'] = ($category[$categoryKey]['total'] ?? 0.0) + $amount;
+                $category[$categoryKey]['received'] = ($category[$categoryKey]['received'] ?? 0.0) + ($amount * $ratio);
+            }
+        }
+
+        return ['exact' => $exact, 'category' => $category];
+    }
+
+    /**
+     * Normaliza las partidas de la orden a los datos necesarios para medir la recepción.
+     *
+     * @return array<int, array{cost_center_id: int|null, expense_category_id: int|null, budget_cedula_id: int|null, quantity: float, quantity_received: float, total: float}>
+     */
+    private function receptionSourceItems(Model $order): array
+    {
+        if ($order instanceof DirectPurchaseOrder) {
+            $order->loadMissing('items');
+
+            return $order->items
+                ->map(fn ($item) => [
+                    'cost_center_id' => $item->cost_center_id,
+                    'expense_category_id' => $item->expense_category_id,
+                    'budget_cedula_id' => $item->budget_cedula_id,
+                    'quantity' => (float) $item->quantity,
+                    'quantity_received' => (float) $item->quantity_received,
+                    'total' => (float) $item->total,
+                ])
+                ->values()
+                ->all();
+        }
+
+        if ($order instanceof PurchaseOrder) {
+            $order->loadMissing('items.requisitionItem');
+
+            return $order->items
+                ->filter(fn ($item) => $item->requisitionItem !== null && $item->requisitionItem->cost_center_id !== null)
+                ->map(fn ($item) => [
+                    'cost_center_id' => $item->requisitionItem->cost_center_id,
+                    'expense_category_id' => $item->requisitionItem->expense_category_id,
+                    'budget_cedula_id' => $item->requisitionItem->budget_cedula_id,
+                    'quantity' => (float) $item->quantity,
+                    'quantity_received' => (float) $item->quantity_received,
+                    'total' => (float) $item->total,
+                ])
+                ->values()
+                ->all();
+        }
+
+        // Una reserva de cotización no tiene partidas recibibles.
+        return [];
+    }
+
+    /**
+     * @param  array{exact: array<string, array{total: float, received: float}>, category: array<string, array{total: float, received: float}>}  $progress
+     */
+    private function receptionRatioForLine(array $progress, array $line): float
+    {
+        $costCenterId = (int) $line['cost_center_id'];
+        $expenseCategoryId = (int) $line['expense_category_id'];
+
+        $candidates = [
+            $progress['exact'][implode('|', [
+                $costCenterId,
+                $expenseCategoryId,
+                $line['budget_cedula_id'] !== null ? (int) $line['budget_cedula_id'] : 'null',
+            ])] ?? null,
+            // El compromiso pudo repartirse entre varias cédulas de la misma categoría.
+            $progress['category'][implode('|', [$costCenterId, $expenseCategoryId])] ?? null,
+            // Último recurso: avance global de la orden.
+            $this->aggregateProgress($progress['category']),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && (float) $candidate['total'] > self::EPSILON) {
+                return max(0.0, min(1.0, (float) $candidate['received'] / (float) $candidate['total']));
+            }
+        }
+
+        // Orden sin partidas medibles: se conserva el comportamiento histórico.
+        return 1.0;
+    }
+
+    /**
+     * @param  array<string, array{total: float, received: float}>  $buckets
+     * @return array{total: float, received: float}|null
+     */
+    private function aggregateProgress(array $buckets): ?array
+    {
+        if ($buckets === []) {
+            return null;
+        }
+
+        return [
+            'total' => (float) array_sum(array_column($buckets, 'total')),
+            'received' => (float) array_sum(array_column($buckets, 'received')),
+        ];
     }
 
     private function resolveDistributionsForCategory(

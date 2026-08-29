@@ -21,6 +21,7 @@ class BudgetCommitment extends Model
         'expense_category_id',
         'budget_cedula_id',
         'committed_amount',
+        'consumed_amount',
         'status',
         'committed_at',
         'released_at',
@@ -29,6 +30,7 @@ class BudgetCommitment extends Model
 
     protected $casts = [
         'committed_amount' => 'decimal:2',
+        'consumed_amount' => 'decimal:2',
         'committed_at' => 'datetime',
         'released_at' => 'datetime',
         'received_at' => 'datetime',

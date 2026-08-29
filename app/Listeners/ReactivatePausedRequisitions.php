@@ -29,11 +29,11 @@ class ReactivatePausedRequisitions implements ShouldQueue
 
         // Buscar requisiciones PAUSADAS que tienen ítems pendientes de este producto
         // (ítems que tienen el product_service_id pero la requisición está PAUSADA)
-        $pausedRequisitions = Requisition::where('status', RequisitionStatus::PAUSADA->value)
+        $pausedRequisitions = Requisition::where('status', RequisitionStatus::PAUSED->value)
             ->whereHas('items', function ($query) use ($product) {
                 $query->where('product_service_id', $product->id);
             })
-            ->with(['items', 'user'])
+            ->with(['items.productService', 'requester'])
             ->get();
 
         if ($pausedRequisitions->isEmpty()) {
@@ -69,18 +69,18 @@ class ReactivatePausedRequisitions implements ShouldQueue
                         ->causedBy(auth()->user() ?? $product->approver)
                         ->performedOn($requisition)
                         ->withProperties([
-                            'old_status' => 'PAUSADA',
-                            'new_status' => 'PENDING',
+                            'old_status' => RequisitionStatus::PAUSED->value,
+                            'new_status' => RequisitionStatus::PENDING->value,
                             'product_approved' => $product->code,
                             'auto_reactivated' => true,
                         ])
                         ->log("Requisición reactivada automáticamente (producto {$product->code} aprobado)");
 
                     // 📧 Notificar al solicitante
-                    if ($requisition->user) {
+                    if ($requisition->requester) {
                         app(\App\Services\SafeNotificationService::class)->notify(
                             new RequisitionReactivatedNotification($requisition, $product),
-                            [$requisition->user],
+                            [$requisition->requester],
                             'de reactivación de requisición',
                             $requisition->folio,
                             route('requisitions.show', $requisition),
