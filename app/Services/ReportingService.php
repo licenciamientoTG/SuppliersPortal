@@ -64,7 +64,63 @@ class ReportingService
         if (!empty($f['cost_center_id'])) $q->whereExists(fn (Builder $items) => $items->selectRaw('1')->from('requisition_items as ri')->whereColumn('ri.requisition_id', 'r.id')->where('ri.cost_center_id', $f['cost_center_id']));
         if (!empty($f['status'])) $q->where('r.status', $f['status']); return $q;
     }
-    private function pack(array $columns, Collection $rows, array $kpis = []): array { return compact('columns', 'rows', 'kpis'); }
+    private function pack(array $columns, Collection $rows, array $kpis = []): array
+    {
+        $rows = $rows->map(function ($row) {
+            if (isset($row->status)) {
+                $row->status = $this->statusLabel((string) $row->status);
+            }
+
+            foreach ([
+                'created_at', 'validated_at', 'cotizacion_aprobada', 'oc_emitida', 'recibido',
+                'issued_at', 'received_at', 'supplier_delivered_at', 'reception_deadline_at',
+            ] as $field) {
+                if (! empty($row->{$field} ?? null)) {
+                    $row->{$field} = Carbon::parse($row->{$field})->format('Y-m-d H:i:s');
+                }
+            }
+
+            foreach (['start_date', 'end_date'] as $field) {
+                if (! empty($row->{$field} ?? null)) {
+                    $row->{$field} = Carbon::parse($row->{$field})->toDateString();
+                }
+            }
+
+            return $row;
+        });
+
+        return compact('columns', 'rows', 'kpis');
+    }
+
+    private function statusLabel(string $status): string
+    {
+        return match (strtoupper($status)) {
+            'DRAFT' => 'Borrador',
+            'PENDING_VALIDATION' => 'Pendiente de validación',
+            'VALIDATED' => 'Validada',
+            'PENDING_RFQ' => 'Pendiente de cotización',
+            'RFQ_SENT' => 'Cotización solicitada',
+            'QUOTED', 'RECEIVED_QUOTES', 'IN_QUOTATION' => 'En cotización',
+            'PENDING_APPROVAL' => 'Pendiente de aprobación',
+            'APPROVED' => 'Aprobada',
+            'REJECTED' => 'Rechazada',
+            'RETURNED' => 'Devuelta a revisión',
+            'ISSUED' => 'Emitida',
+            'DELIVERED_PENDING_RECEPTION' => 'Entregada, pendiente de recepción',
+            'PARTIALLY_RECEIVED' => 'Recibida parcialmente',
+            'RECEIVED' => 'Recibida',
+            'COMPLETED' => 'Completada',
+            'CLOSED_BY_INACTIVITY' => 'Cerrada por inactividad',
+            'CANCELLED' => 'Cancelada',
+            'PAID' => 'Pagada',
+            'PENDING' => 'Pendiente',
+            'IN_PROGRESS' => 'En proceso',
+            'ACTIVE', 'VIGENTE' => 'Vigente',
+            'EXPIRED', 'EXPIRED_CONTRACT' => 'Vencido',
+            'SUSPENDED' => 'Suspendido',
+            default => str($status)->replace('_', ' ')->lower()->ucfirst()->toString(),
+        };
+    }
     private function ageExpression(string $from, string $to): string { return DB::getDriverName() === 'sqlsrv' ? 'DATEDIFF(day, r.created_at, CURRENT_TIMESTAMP)' : "CAST(julianday('now') - julianday(r.created_at) AS INTEGER)"; }
     private function betweenExpression(string $from, string $to): string { return DB::getDriverName() === 'sqlsrv' ? 'DATEDIFF(day,r.created_at,r.validated_at)' : 'CAST(julianday(r.validated_at) - julianday(r.created_at) AS INTEGER)'; }
 
