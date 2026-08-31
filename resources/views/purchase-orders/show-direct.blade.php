@@ -226,12 +226,10 @@
                 ═══════════════════════════════════════════════ --}}
                 <div class="row mb-4 align-items-start">
                     <div class="col-6">
-                        <img src="{{ asset('images/logos/logo_TotalGas_hor.png') }}" alt="TotalGas" height="50" class="mb-3">
-                        <h6 class="text-muted fw-bold mb-1">TOTALGAS MÉXICO</h6>
+                        <img src="{{ asset('images/logos/logo_TotalGas_hor.png') }}" alt="{{ $issuingCompany?->legal_name ?? $issuingCompany?->name ?? 'Empresa emisora' }}" height="50" class="mb-3">
+                        <h6 class="text-muted fw-bold mb-1">{{ $issuingCompany?->legal_name ?? $issuingCompany?->name ?? 'Empresa no identificada' }}</h6>
                         <p class="text-muted small mb-0">
-                            RFC: TGM123456789<br>
-                            Av. Tecnológico #1234<br>
-                            Ciudad Juárez, Chihuahua.
+                            RFC: {{ $issuingCompany?->rfc ?? 'No registrado' }}
                         </p>
                     </div>
                     <div class="col-6 text-end">

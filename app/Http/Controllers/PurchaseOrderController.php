@@ -460,7 +460,7 @@ class PurchaseOrderController extends Controller
     {
         $directPurchaseOrder->load([
             'items.expenseCategory',
-            'items.costCenter',
+            'items.costCenter.company',
             'items.budgetCedula',
             'supplier',
             'creator',
@@ -480,6 +480,11 @@ class PurchaseOrderController extends Controller
 
         $budgetSnapshot = $budgetImpactSnapshotService->forDirectPurchaseOrder($directPurchaseOrder);
 
-        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot'));
+        $issuingCompany = $directPurchaseOrder->items
+            ->pluck('costCenter.company')
+            ->filter()
+            ->first();
+
+        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot', 'issuingCompany'));
     }
 }
