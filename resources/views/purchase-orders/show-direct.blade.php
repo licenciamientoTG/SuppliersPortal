@@ -209,6 +209,9 @@
                         <a href="{{ route('direct-purchase-orders.pdf', $ocd) }}" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
                             <i class="ti ti-file-type-pdf me-1"></i>PDF
                         </a>
+                        <a href="{{ route('direct-purchase-orders.word', $ocd) }}" class="btn btn-sm btn-outline-primary" title="Descargar Word editable">
+                            <i class="ti ti-file-type-doc me-1"></i>Word
+                        </a>
                     @endif
                     <button onclick="window.print();" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-printer me-1"></i>Imprimir
