@@ -9,7 +9,7 @@
         ['label' => 'Aceptó', 'name' => $directPurchaseOrder->supplier?->company_name, 'role' => 'Proveedor'],
         ['label' => 'Autorizó', 'name' => $directPurchaseOrder->approver?->name, 'role' => $directPurchaseOrder->authorizerRole?->name ?? 'Autorizador de la OCD'],
         $directPurchaseOrder->receiver ? ['label' => 'Recibió', 'name' => $directPurchaseOrder->receiver->name, 'role' => 'Responsable de recepción'] : null,
-    ])->filter(fn ($signature) => filled($signature['name']))->values();
+    ])->filter(fn ($signature) => filled($signature['name'] ?? null))->values();
 @endphp
 @if($signatures->isNotEmpty())<table class="signatures"><tr>@foreach($signatures as $signature)<td class="signature" style="width:{{ 100 / $signatures->count() }}%"><span class="signature-label">{{ $signature['label'] }}</span><div class="signature-line"></div><strong>{{ $signature['name'] }}</strong><span class="signature-role">{{ $signature['role'] }}</span></td>@endforeach</tr></table>@endif
 </body></html>
