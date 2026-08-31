@@ -414,6 +414,25 @@ class PurchaseOrderController extends Controller
         ])->setPaper('letter')->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
     }
 
+    /** Download the formal direct purchase order document once it has been issued. */
+    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        abort_unless(in_array($directPurchaseOrder->status, [
+            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
+        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
+
+        $directPurchaseOrder->load([
+            'items.costCenter.company', 'items.expenseCategory', 'items.budgetCedula',
+            'supplier', 'creator', 'approver', 'receivingLocation',
+        ]);
+
+        return Pdf::loadView('purchase-orders.direct-pdf', [
+            'directPurchaseOrder' => $directPurchaseOrder,
+            'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
+            'logoPath' => public_path('images/logos/Logo.png'),
+        ])->setPaper('letter')->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
     /**
      * Ver detalle de OCD
      */

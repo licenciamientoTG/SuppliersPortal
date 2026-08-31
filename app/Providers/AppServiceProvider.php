@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\ExchangeRate;
 use App\Models\ReceivingLocation;
 use App\Models\SupplierDocument;
+use App\Models\Requisition;
+use App\Observers\RequisitionObserver;
 use App\Policies\ReceivingLocationPolicy;
 use App\Policies\SupplierDocumentPolicy;
 use App\Services\ComplianceDocumentQrExtractor;
@@ -35,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Requisition::observe(RequisitionObserver::class);
         Password::defaults(function () {
             return Password::min(8)->mixedCase()->numbers()->symbols();
         });

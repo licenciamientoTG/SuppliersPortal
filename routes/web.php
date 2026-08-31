@@ -40,6 +40,7 @@ use App\Http\Controllers\QuotationApprovalController;
 use App\Http\Controllers\QuotationPlannerController;
 use App\Http\Controllers\ReceivingLocationController;
 use App\Http\Controllers\ReceptionController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\RequisitionWorkflowController;
 use App\Http\Controllers\RfqComparisonController;
@@ -111,6 +112,13 @@ Route::middleware(['auth:web,supplier'])->group(function () {
 //  Panel protegido (auth + lock)
 // ============================================================================
 Route::middleware(['auth', 'lock'])->group(function () {
+
+    Route::middleware('module.access:reports')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/{report}', [ReportController::class, 'show'])->name('show');
+        Route::get('/{report}/data', [ReportController::class, 'data'])->name('data');
+        Route::get('/{report}/export/{format}', [ReportController::class, 'export'])->name('export');
+    });
 
     // ------------------------------------------------------------------------
     //  Dashboard
@@ -762,6 +770,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->put('/direct-purchase-orders/{directPurchaseOrder}', [DirectPurchaseOrderController::class, 'update'])->name('direct-purchase-orders.update');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/categories', [DirectPurchaseOrderController::class, 'getAvailableCategories'])->name('direct-purchase-orders.categories');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}', [PurchaseOrderController::class, 'showDirect'])->name('direct-purchase-orders.show');
+    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadDirectPdf'])->name('direct-purchase-orders.pdf');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/submit', [DirectPurchaseOrderController::class, 'submit'])->name('direct-purchase-orders.submit');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/approve', [DirectPurchaseOrderController::class, 'approve'])->name('direct-purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reject', [DirectPurchaseOrderController::class, 'reject'])->name('direct-purchase-orders.reject');

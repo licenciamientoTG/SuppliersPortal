@@ -8,6 +8,7 @@ class ModuleAccessService
 {
     private const MODULE_PERMISSIONS = [
         'dashboard' => null,
+        'reports' => 'reportes.ver',
         'requisitions' => 'requisiciones.ver',
         'products_services' => 'productos.ver',
         'budget_control' => 'catalogo_cuentas.ver',

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\SafeNotificationService;
+use App\Models\Supplier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,11 @@ class SendSafeNotificationJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Cancela también trabajos de correo a proveedores que ya estuvieran en cola.
+        if ($this->recipient instanceof Supplier) {
+            return;
+        }
+
         // notifyNow evita que una Notification que ya implemente ShouldQueue se vuelva a encolar.
         $this->recipient->notifyNow($this->notification);
     }

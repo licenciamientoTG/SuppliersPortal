@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enum\PaymentTerm;
-use App\Notifications\ResetPasswordNotification;
 use App\Services\SupplierDocumentRequirementService;
 use App\Support\SupplierFiscalCatalog;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Supplier extends Authenticatable
 {
@@ -334,6 +334,9 @@ class Supplier extends Authenticatable
 
     public function sendPasswordResetNotification($token): void
     {
-        $this->notify(new ResetPasswordNotification($token));
+        // Los correos salientes para proveedores están suspendidos temporalmente.
+        Log::info('Supplier password-reset notification skipped because supplier mail is disabled.', [
+            'supplier_id' => $this->id,
+        ]);
     }
 }

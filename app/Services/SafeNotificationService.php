@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\SendSafeNotificationJob;
 use App\Models\User;
+use App\Models\Supplier;
 use App\Notifications\MailDeliveryFailedNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notification;
@@ -28,6 +29,17 @@ class SafeNotificationService
         $failures = [];
 
         foreach ($recipients as $recipient) {
+            // Notificaciones a proveedores suspendidas temporalmente por operación.
+            // Se conserva el resto del flujo y las notificaciones internas.
+            if ($recipient instanceof Supplier) {
+                Log::info('Supplier notification skipped because outbound supplier mail is disabled.', [
+                    'supplier_id' => $recipient->getKey(),
+                    'operation' => $operation,
+                    'reference' => $reference,
+                ]);
+                continue;
+            }
+
             if (! method_exists($recipient, 'notify')) {
                 continue;
             }

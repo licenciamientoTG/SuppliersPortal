@@ -205,6 +205,11 @@
                             <i class="ti ti-arrow-back-up me-1"></i>Devolver a Revisión
                         </button>
                     @endif
+                    @if(in_array($ocd->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true))
+                        <a href="{{ route('direct-purchase-orders.pdf', $ocd) }}" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
+                            <i class="ti ti-file-type-pdf me-1"></i>PDF
+                        </a>
+                    @endif
                     <button onclick="window.print();" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-printer me-1"></i>Imprimir
                     </button>

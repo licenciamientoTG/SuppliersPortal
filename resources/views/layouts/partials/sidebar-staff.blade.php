@@ -66,6 +66,7 @@
         || request()->routeIs('roles.catalog');
     $openConfiguration = $openConfiguration || request()->routeIs('admin.approval-delegations.*');
     $openMonitoring = request()->routeIs('monitoring.*');
+    $openReports = request()->routeIs('reports.*');
 
     try {
         $activeRequisitionsCount = \App\Models\Requisition::whereNotIn('status', ['DRAFT', 'CANCELLED', 'COMPLETED'])->count();
@@ -151,6 +152,15 @@
         href="{{ route('dashboard') }}">
         <span class="menu-icon"><i class="ti ti-home"></i></span>
         <span class="menu-text">Dashboard</span>
+    </a>
+</li>
+@endmoduleAccess
+
+@moduleAccess('reports')
+<li class="side-nav-item">
+    <a href="{{ route('reports.index') }}" class="side-nav-link {{ $openReports ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-report-analytics"></i></span>
+        <span class="menu-text">Reportería</span>
     </a>
 </li>
 @endmoduleAccess

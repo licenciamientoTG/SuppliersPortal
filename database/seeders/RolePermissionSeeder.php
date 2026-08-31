@@ -106,6 +106,7 @@ class RolePermissionSeeder extends Seeder
             'departamentos.administrar',
             'perfiles_presupuestales.ver',
             'perfiles_presupuestales.administrar_propios',
+            'reportes.ver',
             'puestos.administrar',
         ];
 
@@ -126,6 +127,7 @@ class RolePermissionSeeder extends Seeder
             $generalDirectorRole = Role::findOrCreate('general_director', 'web');
             $catalogAdminRole = Role::findOrCreate('catalog_admin', 'web');
             $departmentHeadRole = Role::findOrCreate('department_head', 'web');
+            $reportViewerRole = Role::findOrCreate('report_viewer', 'web');
 
             // Asignaciones
             $superAdminRole->syncPermissions(Permission::all());
@@ -323,6 +325,8 @@ class RolePermissionSeeder extends Seeder
                 // Perfil
                 'edit_own_profile',
             ]);
+
+            $reportViewerRole->syncPermissions(['reportes.ver', 'edit_own_profile']);
 
             $staffRole->givePermissionTo([
                 'productos.ver',
