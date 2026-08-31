@@ -11,7 +11,7 @@
 
 @section('content')
 <div class="reports-hero d-flex flex-wrap align-items-center gap-3"><div class="report-icon"><i class="ti ti-chart-bar"></i></div><div><span class="reports-kicker">Control ejecutivo</span><h5 class="mb-1">Reportería integral</h5><p class="mb-0 text-muted small">Consulta el ciclo completo de requisiciones, compras, proveedores, presupuesto y contratos.</p></div></div>
-@foreach(collect($reports)->groupBy(fn($report) => $report[1]) as $group => $items)
+@foreach(collect($reports)->groupBy(fn($report) => $report[1], preserveKeys: true) as $group => $items)
 <h6 class="text-uppercase text-muted fs-12 mt-4 mb-2">{{ $group }}</h6><div class="row g-3">
 @foreach($items as $key => $report)<div class="col-md-6 col-xl-4"><a class="report-card d-block text-reset text-decoration-none" href="{{ route('reports.show',$key) }}"><div class="d-flex gap-3"><div class="report-icon"><i class="ti {{ $report[2] }}"></i></div><div><h6 class="mb-0">{{ $report[0] }}</h6><p>Filtros, indicadores, detalle y exportación.</p><span class="text-primary small fw-semibold">Abrir reporte <i class="ti ti-arrow-right"></i></span></div></div></a></div>@endforeach
 </div>@endforeach
