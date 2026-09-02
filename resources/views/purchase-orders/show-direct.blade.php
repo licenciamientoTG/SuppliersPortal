@@ -205,6 +205,14 @@
                             <i class="ti ti-arrow-back-up me-1"></i>Devolver a Revisión
                         </button>
                     @endif
+                    @if(in_array($ocd->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true))
+                        <a href="{{ route('direct-purchase-orders.pdf', $ocd) }}" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
+                            <i class="ti ti-file-type-pdf me-1"></i>PDF
+                        </a>
+                        <a href="{{ route('direct-purchase-orders.word', $ocd) }}" class="btn btn-sm btn-outline-primary" title="Descargar Word editable">
+                            <i class="ti ti-file-type-doc me-1"></i>Word
+                        </a>
+                    @endif
                     <button onclick="window.print();" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-printer me-1"></i>Imprimir
                     </button>
@@ -218,12 +226,10 @@
                 ═══════════════════════════════════════════════ --}}
                 <div class="row mb-4 align-items-start">
                     <div class="col-6">
-                        <img src="{{ asset('images/logos/logo_TotalGas_hor.png') }}" alt="TotalGas" height="50" class="mb-3">
-                        <h6 class="text-muted fw-bold mb-1">TOTALGAS MÉXICO</h6>
+                        <img src="{{ asset('images/logos/logo_TotalGas_hor.png') }}" alt="{{ $issuingCompany?->legal_name ?? $issuingCompany?->name ?? 'Empresa emisora' }}" height="50" class="mb-3">
+                        <h6 class="text-muted fw-bold mb-1">{{ $issuingCompany?->legal_name ?? $issuingCompany?->name ?? 'Empresa no identificada' }}</h6>
                         <p class="text-muted small mb-0">
-                            RFC: TGM123456789<br>
-                            Av. Tecnológico #1234<br>
-                            Ciudad Juárez, Chihuahua.
+                            RFC: {{ $issuingCompany?->rfc ?? 'No registrado' }}
                         </p>
                     </div>
                     <div class="col-6 text-end">

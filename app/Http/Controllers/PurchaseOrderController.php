@@ -414,6 +414,45 @@ class PurchaseOrderController extends Controller
         ])->setPaper('letter')->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
     }
 
+    /** Download the formal direct purchase order document once it has been issued. */
+    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        abort_unless(in_array($directPurchaseOrder->status, [
+            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
+        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
+
+        $directPurchaseOrder->load([
+            'items.costCenter.company', 'items.expenseCategory', 'items.budgetCedula',
+            'supplier', 'creator', 'approver', 'receiver', 'authorizerRole', 'receivingLocation',
+        ]);
+
+        return Pdf::loadView('purchase-orders.direct-pdf', [
+            'directPurchaseOrder' => $directPurchaseOrder,
+            'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
+            'logoPath' => public_path('images/logos/Logo.png'),
+        ])->setPaper('letter')->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
+    /** Download an editable Word-compatible version of an issued direct purchase order. */
+    public function downloadDirectWord(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        abort_unless(in_array($directPurchaseOrder->status, [
+            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
+        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su documento Word.');
+
+        $directPurchaseOrder->load([
+            'items.costCenter.company', 'supplier', 'creator', 'receivingLocation',
+        ]);
+
+        return response()->view('purchase-orders.direct-word', [
+            'directPurchaseOrder' => $directPurchaseOrder,
+            'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
+        ], 200, [
+            'Content-Type' => 'application/msword; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="orden-de-compra-directa-'.$directPurchaseOrder->folio.'.doc"',
+        ]);
+    }
+
     /**
      * Ver detalle de OCD
      */
@@ -421,7 +460,7 @@ class PurchaseOrderController extends Controller
     {
         $directPurchaseOrder->load([
             'items.expenseCategory',
-            'items.costCenter',
+            'items.costCenter.company',
             'items.budgetCedula',
             'supplier',
             'creator',
@@ -441,6 +480,11 @@ class PurchaseOrderController extends Controller
 
         $budgetSnapshot = $budgetImpactSnapshotService->forDirectPurchaseOrder($directPurchaseOrder);
 
-        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot'));
+        $issuingCompany = $directPurchaseOrder->items
+            ->pluck('costCenter.company')
+            ->filter()
+            ->first();
+
+        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot', 'issuingCompany'));
     }
 }

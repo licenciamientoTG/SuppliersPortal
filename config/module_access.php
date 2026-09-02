@@ -10,6 +10,9 @@ return [
         'dashboard' => [
             'roles' => ['staff', 'buyer', 'supplier', 'receiver', 'authorizer', 'superadmin', 'general_director', 'catalog_admin', 'accounting', 'department_head'],
         ],
+        'reports' => [
+            'roles' => ['report_viewer'],
+        ],
         'requisitions' => [
             'roles' => ['staff'],
         ],

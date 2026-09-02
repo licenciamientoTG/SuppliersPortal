@@ -210,6 +210,11 @@ class Requisition extends Model
         return $this->hasMany(RequisitionFeedback::class)->orderByDesc('sent_at')->orderByDesc('id');
     }
 
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(RequisitionStatusHistory::class)->orderBy('occurred_at');
+    }
+
     // =========================================================================
     // MÉTODOS DE LÓGICA DE NEGOCIO
     // =========================================================================
