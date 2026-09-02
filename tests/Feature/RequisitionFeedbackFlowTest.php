@@ -2,10 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\CheckLockScreen;
+use App\Http\Middleware\ModuleAccess;
 use App\Mail\RequisitionFeedbackMail;
+use App\Models\BudgetCedula;
+use App\Models\Company;
+use App\Models\CostCenter;
+use App\Models\ExpenseCategory;
+use App\Models\ProductService;
+use App\Models\ReceivingLocation;
 use App\Models\Requisition;
+use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -17,7 +27,7 @@ class RequisitionFeedbackFlowTest extends TestCase
     public function test_buyer_can_send_feedback_and_it_is_stored_with_mail_cc(): void
     {
         Mail::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['requisition' => $requisition, 'buyer' => $buyer, 'requester' => $requester] = $this->createRequisitionFixture();
 
@@ -48,7 +58,7 @@ class RequisitionFeedbackFlowTest extends TestCase
     public function test_feedback_history_keeps_multiple_messages(): void
     {
         Mail::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['requisition' => $requisition, 'buyer' => $buyer] = $this->createRequisitionFixture();
 
@@ -69,7 +79,7 @@ class RequisitionFeedbackFlowTest extends TestCase
 
     public function test_feedback_is_visible_in_requisition_detail_for_requester(): void
     {
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['requisition' => $requisition, 'buyer' => $buyer, 'requester' => $requester] = $this->createRequisitionFixture();
 
@@ -92,7 +102,7 @@ class RequisitionFeedbackFlowTest extends TestCase
 
     public function test_feedback_badge_and_history_are_visible_for_buyer_views(): void
     {
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['requisition' => $requisition, 'buyer' => $buyer] = $this->createRequisitionFixture();
 
@@ -120,124 +130,62 @@ class RequisitionFeedbackFlowTest extends TestCase
 
     private function createRequisitionFixture(): array
     {
-        $buyer = User::factory()->create(['email' => 'buyer@example.com']);
-        $requester = User::factory()->create(['email' => 'requester@example.com']);
+        Role::findOrCreate('buyer', 'web');
+        $buyer = User::factory()->create();
+        $buyer->assignRole('buyer');
+        $requester = User::factory()->create();
         $admin = User::factory()->create(['email' => 'admin@example.com']);
 
-        $categoryId = DB::table('categories')->insertGetId([
-            'name' => 'OPERACION',
-            'description' => 'Categoria de prueba',
-            'is_active' => true,
-            'created_by' => $admin->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $companyId = DB::table('companies')->insertGetId([
-            'code' => 'TGS',
-            'name' => 'TotalGas QA',
-            'legal_name' => 'TotalGas QA SA de CV',
-            'rfc' => 'TGS010101AAA',
-            'locale' => 'es_MX',
-            'timezone' => 'America/Mexico_City',
-            'currency_code' => 'MXN',
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $costCenterId = DB::table('cost_centers')->insertGetId([
-            'code' => 'CC-001',
-            'name' => 'Centro de costo QA',
-            'description' => 'Centro de costo para pruebas',
-            'purchase_type' => 'Gasto Operativo',
-            'company_id' => $companyId,
-            'category_id' => $categoryId,
+        $company = Company::factory()->create();
+        $costCenter = CostCenter::factory()->create([
+            'company_id' => $company->id,
             'responsible_user_id' => $admin->id,
             'budget_type' => 'ANNUAL',
-            'status' => 'ACTIVO',
+        ]);
+        $receivingLocation = ReceivingLocation::factory()->create(['company_id' => $company->id]);
+        $expenseCategory = ExpenseCategory::factory()->create(['created_by' => $admin->id]);
+        $budgetCedula = BudgetCedula::factory()->create([
+            'expense_category_id' => $expenseCategory->id,
             'created_by' => $admin->id,
-            'updated_by' => $admin->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $receivingLocationId = DB::table('receiving_locations')->insertGetId([
-            'company_id' => $companyId,
-            'code' => 'REC-001',
-            'name' => 'Recepcion QA',
-            'type' => 'corporate',
-            'is_active' => true,
-            'portal_blocked' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $expenseCategoryId = DB::table('expense_categories')->insertGetId([
-            'code' => 'EXP-001',
-            'name' => 'Gasto Operativo',
-            'description' => 'Categoria de gasto QA',
-            'status' => 'ACTIVO',
-            'created_by' => $admin->id,
-            'updated_by' => $admin->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $productServiceId = DB::table('products_services')->insertGetId([
-            'code' => 'PROD-000001',
+        $productService = ProductService::factory()->create([
             'technical_description' => 'Producto de prueba con descripcion tecnica suficiente para validaciones.',
             'short_name' => 'Producto QA',
-            'product_type' => 'PRODUCTO',
-            'category_id' => $categoryId,
-            'cost_center_id' => $costCenterId,
-            'company_id' => $companyId,
             'unit_of_measure' => 'PIEZA',
-            'estimated_price' => 100,
-            'currency_code' => 'MXN',
-            'status' => 'ACTIVE',
-            'is_active' => true,
             'created_by' => $admin->id,
-            'updated_by' => $admin->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $requisitionId = DB::table('requisitions')->insertGetId([
-            'company_id' => $companyId,
-            'receiving_location_id' => $receivingLocationId,
-            'department_id' => null,
+        $requisition = Requisition::factory()->create([
+            'company_id' => $company->id,
+            'receiving_location_id' => $receivingLocation->id,
             'folio' => 'REQ-2026-001',
             'requested_by' => $requester->id,
+            'created_by' => $requester->id,
             'required_date' => now()->toDateString(),
             'description' => 'Requisicion de prueba para retroalimentacion de compras.',
             'status' => 'PENDING',
-            'created_by' => $requester->id,
-            'updated_by' => $requester->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        DB::table('requisition_items')->insert([
-            'requisition_id' => $requisitionId,
-            'product_service_id' => $productServiceId,
+        RequisitionItem::factory()->create([
+            'requisition_id' => $requisition->id,
+            'product_service_id' => $productService->id,
             'line_number' => 1,
             'item_category' => 'producto',
-            'product_code' => 'PROD-000001',
+            'product_code' => $productService->code,
             'description' => 'Producto requerido para pruebas de retroalimentacion',
-            'expense_category_id' => $expenseCategoryId,
-            'cost_center_id' => $costCenterId,
+            'expense_category_id' => $expenseCategory->id,
+            'budget_cedula_id' => $budgetCedula->id,
+            'cost_center_id' => $costCenter->id,
             'quantity' => 2,
             'unit' => 'PZA',
             'notes' => 'Notas de prueba',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         return [
             'buyer' => $buyer,
             'requester' => $requester,
-            'requisition' => Requisition::query()->findOrFail($requisitionId),
+            'requisition' => $requisition->fresh(),
         ];
     }
 }

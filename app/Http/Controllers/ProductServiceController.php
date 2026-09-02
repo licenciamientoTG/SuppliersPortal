@@ -3,20 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Enum\ProductServiceStatus;
-use App\Events\ProductServiceApproved;
 use App\Http\Requests\SaveProductServiceRequest;
 use App\Models\Account;
 use App\Models\BudgetCedula;
 use App\Models\ContractProduct;
-use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\RequisitionItem;
 use App\Models\Subaccount;
 use App\Models\Supplier;
-use App\Models\User;
-use App\Notifications\NewProductRequestedNotification;
 use App\Services\BudgetAccessService;
 use App\Services\ProductBudgetClassificationService;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +21,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -510,8 +505,6 @@ class ProductServiceController extends Controller
             $productService->rejection_reason = null;
             $productService->save();
 
-            event(new ProductServiceApproved($productService));
-
             return redirect()
                 ->route('products-services.show', $productService)
                 ->with('success', 'Producto/Servicio aprobado correctamente. Ahora está disponible para requisiciones.');
@@ -796,83 +789,4 @@ class ProductServiceController extends Controller
         ];
     }
 
-    /**
-     * Crea un producto desde una requisici�n.
-     */
-    public function storeFromRequisition(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'cost_center_id' => 'required|exists:cost_centers,id',
-            'technical_description' => 'required|string|min:20|max:5000',
-            'short_name' => 'nullable|string|max:100',
-            'sat_product_code' => ['nullable', 'string', 'regex:/^\\d{8}$/'],
-            'product_type' => 'nullable|in:PRODUCTO,SERVICIO',
-            'brand' => 'nullable|string|max:100',
-            'model' => 'nullable|string|max:100',
-            'unit_of_measure' => 'nullable|string|max:30',
-            'estimated_price' => 'required|numeric|min:0',
-            'currency_code' => 'nullable|string|size:3|in:MXN,USD,EUR',
-            'default_vendor_id' => 'nullable|exists:suppliers,id',
-        ]);
-
-        return DB::transaction(function () use ($validated) {
-            $this->ensureCostCenterBelongsToCompany((int) $validated['cost_center_id'], (int) $validated['company_id']);
-
-            $productService = new ProductService;
-            $productService->fill([
-                'code' => ProductService::nextCode(),
-                'technical_description' => $validated['technical_description'],
-                'short_name' => $validated['short_name'] ?? null,
-                'sat_product_code' => $validated['sat_product_code'] ?? null,
-                'product_type' => $validated['product_type'] ?? 'PRODUCTO',
-                'brand' => $validated['brand'] ?? null,
-                'model' => $validated['model'] ?? null,
-                'unit_of_measure' => $validated['unit_of_measure'] ?? 'PIEZA',
-                'estimated_price' => $validated['estimated_price'],
-                'currency_code' => $validated['currency_code'] ?? 'MXN',
-                'default_vendor_id' => $validated['default_vendor_id'] ?? null,
-
-                'status' => ProductServiceStatus::PENDING->value,
-                'is_active' => false,
-                'created_by' => Auth::id(),
-            ]);
-            $productService->save();
-
-            // Notificar a admins del catálogo
-            $catalogAdmins = User::role(['catalog_admin', 'general_director', 'superadmin'])->get();
-            app(\App\Services\SafeNotificationService::class)->notify(
-                new NewProductRequestedNotification($productService, Auth::user()),
-                $catalogAdmins,
-                'de nueva solicitud de producto',
-                $productService->code,
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Producto solicitado correctamente. El Administrador del Catálogo lo revisará.',
-                'product' => [
-                    'id' => $productService->id,
-                    'code' => $productService->code,
-                    'description' => $productService->technical_description,
-                    'unit_of_measure' => $productService->unit_of_measure,
-                    'status' => $productService->status,
-                ],
-            ], 201);
-        });
-    }
-
-    protected function ensureCostCenterBelongsToCompany(int $costCenterId, int $companyId): CostCenter
-    {
-        $costCenter = CostCenter::query()
-            ->findOrFail($costCenterId);
-
-        if ((int) $costCenter->company_id !== $companyId) {
-            throw ValidationException::withMessages([
-                'cost_center_id' => 'El centro de costo no pertenece a la compañía seleccionada.',
-            ]);
-        }
-
-        return $costCenter;
-    }
 }

@@ -1,0 +1,773 @@
+{
+  "meta": {
+    "titulo": "Pendientes del módulo de compras — Portal de Proveedores",
+    "fecha_corte": "2026-08-28",
+    "version_codigo": "main @ d339514 + correcciones REC-01, R-01/R-02, PS-01 y OC-01/REC-02/PS-04",
+    "origen": "docs/analisis_modulo_compras_2026-08-28.json",
+    "estado_suite_pruebas": {
+      "total": 415,
+      "fallos": 38,
+      "verdes": 377,
+      "nota": "Linea base del 2026-08-28: 55 en rojo / 360 verdes. Tras PS-01 y OC-01/REC-02/PS-04: 38 en rojo / 377 verdes. 17 pruebas recuperadas, cero regresiones."
+    },
+    "como_usar": "Cada pendiente tiene 'id' (trazable al análisis original), 'severidad', 'decision_requerida' (quién debe decidir antes de programar) y 'esfuerzo'. Los del bloque 'criticos' se recomiendan primero.",
+    "pendiente_de_decision_del_usuario": "La contadora aún no ha priorizado. Este archivo es la lista completa para esa conversación."
+  },
+  "resueltos": [
+    {
+      "id": "REC-01",
+      "descripcion": "Toda recepción, incluso parcial, consumía el 100% del compromiso presupuestal de la línea y lo cerraba.",
+      "severidad_original": "crítico",
+      "fecha_correccion": "2026-08-28",
+      "cambios": [
+        "database/migrations/2026_08_28_140000_add_consumed_amount_to_budget_commitments_table.php (nueva columna consumed_amount + backfill de compromisos ya RECEIVED)",
+        "app/Models/BudgetCommitment.php (fillable y cast de consumed_amount)",
+        "app/Services/BudgetAllocationService.php (consumeOrder calcula avance de recepción por línea; consumeLine consume sólo el incremento pendiente, acumulativo e idempotente)"
+      ],
+      "pruebas": "tests/Feature/PartialReceptionBudgetConsumptionTest.php (6 casos)",
+      "verificacion_pendiente": "La migración se probó sobre SQLite en la suite, NO contra SQL Server. Ejecutar 'php artisan migrate' en un ambiente de prueba antes de productivo."
+    },
+    {
+      "id": "R-01 / R-02",
+      "descripcion": "El listener de reactivación usaba RequisitionStatus::PAUSADA (constante inexistente) y la relación 'user' (inexistente). Aprobar un producto nunca despausaba la requisición.",
+      "severidad_original": "crítico",
+      "fecha_correccion": "2026-08-28",
+      "cambios": [
+        "app/Listeners/ReactivatePausedRequisitions.php (PAUSADA→PAUSED, user→requester, eager loading de items.productService, propiedades de bitácora desde el enum)"
+      ],
+      "pruebas": "tests/Feature/ReactivatePausedRequisitionsTest.php (3 casos)",
+      "verificacion_pendiente": "Revisar la tabla failed_jobs en producción para reprocesar las requisiciones que quedaron atoradas en PAUSED, incluida la del 'Servicio de Instalación de internet' reportada por Omar Pérez."
+    },
+    {
+      "id": "PS-01",
+      "descripcion": "Producto creado desde requisicion nacia sin clasificacion presupuestal.",
+      "severidad_original": "critico",
+      "fecha_correccion": "2026-09-02",
+      "resolucion": "Se elimino por completo el alta de productos desde la requisicion, por decision de negocio: los productos solo se dan de alta desde el catalogo.",
+      "cambios": [
+        "app/Http/Controllers/ProductServiceController.php (se eliminan storeFromRequisition y ensureCostCenterBelongsToCompany, mas imports sin uso)",
+        "routes/web.php (se elimina la ruta products-services.store-from-requisition)",
+        "resources/views/requisitions/_request_product_modal.blade.php (eliminado; no estaba incluido en ninguna vista)",
+        "app/Notifications/NewProductRequestedNotification.php + plantilla de correo (eliminados)",
+        "Cadena de reactivacion automatica eliminada: app/Events/ProductServiceApproved.php, app/Listeners/ReactivatePausedRequisitions.php, app/Notifications/RequisitionReactivatedNotification.php + plantilla, registro en EventServiceProvider y el event() en approve()"
+      ],
+      "pruebas": "tests/Feature/ProductRequestFromRequisitionRemovedTest.php (4 casos). Se elimino tests/Feature/ReactivatePausedRequisitionsTest.php.",
+      "hallazgos": [
+        "La funcionalidad ya estaba huerfana en la interfaz: el modal no se incluia en ninguna vista y ningun boton lo abria. Solo el endpoint POST seguia alcanzable.",
+        "storeFromRequisition NUNCA pausaba la requisicion, pese a que el modal prometia el estado PAUSADA. La promesa era falsa desde el inicio."
+      ],
+      "verificacion_pendiente": "Ejecutar composer dump-autoload y php artisan optimize:clear al desplegar: el classmap conservaba 4 entradas apuntando a los archivos eliminados. Las requisiciones ya atoradas en PAUSED (caso Omar Perez) ahora solo salen con resume() manual, porque se elimino la reactivacion automatica."
+    },
+    {
+      "id": "OC-01 / REC-02 / PS-04",
+      "descripcion": "Falta de cobertura automatizada en Recepcion, OC Regular y retroalimentacion de requisiciones.",
+      "severidad_original": "alto",
+      "fecha_correccion": "2026-09-02",
+      "diagnostico_corregido": "El diagnostico original era INCORRECTO. SupplierFactory y ProductServiceFactory ya estaban correctas: ninguna contenia user_id ni category_id. Actualizarlas no habria arreglado nada. La causa real era que tres archivos de prueba construian sus grafos de objetos con 29 inserts crudos DB::table(), saltandose modelos y factories; cada migracion que agregaba una columna NOT NULL los rompia en silencio, una capa a la vez.",
+      "cambios": [
+        "tests/Feature/ReceptionFlowTest.php (helper reescrito con factories; autenticacion de proveedor movida al guard supplier)",
+        "tests/Feature/RegularPurchaseOrderFlowFixTest.php (helpers reescritos con factories)",
+        "tests/Feature/RequisitionFeedbackFlowTest.php (helper reescrito con factories)",
+        "app/Http/Controllers/RequisitionController.php (BUG REAL: select() despues de withCount() descartaba los conteos)",
+        "database/migrations/2026_06_29_000002_allow_partially_approved_quotation_summaries.php (rama sqlite faltante)"
+      ],
+      "resultado": "17 pruebas recuperadas: ReceptionFlowTest 6/6, RegularPurchaseOrderFlowFixTest 7/7, RequisitionFeedbackFlowTest 4/4. Suite: 55 -> 38 en rojo, sin regresiones.",
+      "hallazgos": [
+        "BUG DE PRODUCCION CORREGIDO: en RequisitionController::approvalDatatable el ->select('requisitions.*') iba DESPUES de withCount('items') y withCount('feedbacks'), lo que reinicia la clausula SELECT y descarta las subconsultas de conteo. Efecto real: en la bandeja de aprobacion el badge \"Retroalimentada\" nunca aparecia y items_count siempre venia nulo.",
+        "La migracion 2026_06_29_000002 (estado partially_approved) cubria mysql, pgsql y sqlsrv pero dejaba sqlite en default => null. En produccion (SQL Server) funciona; el hueco era solo del entorno de pruebas y ocultaba la cobertura de la aprobacion parcial.",
+        "Causa transversal: $this->withoutMiddleware() sin argumentos desactiva TODO el middleware, incluidos SubstituteBindings (rompe el route-model binding y produce 403 enganosos) y ShareErrorsFromSession (produce \"Undefined variable $errors\" y 500 en cualquier vista con el layout zircos). Se acoto a ModuleAccess y CheckLockScreen en los tres archivos."
+      ],
+      "pendiente_derivado": "En ReceptionFlowTest se acoto EnsureSupplierIsApproved en la prueba de entrega del proveedor: dejar al proveedor en regla documental es exactamente el pendiente RFQ-02/RFQ-03."
+    }
+  ],
+  "criticos": [
+    {
+      "id": "PS-02",
+      "titulo": "Clasificación contable de productos asignada por hash crc32",
+      "descripcion": "ProductBudgetClassificationService::deterministicSubaccountFor asigna la subcuenta presupuestal con crc32(código|nombre|id) % número_de_subcuentas, y accountNumbersFor genera account_sub y account_subsub con aritmética sobre crc32. Cuando falta clasificación, el sistema le asigna al producto una cuenta contable arbitraria pero estable.",
+      "impacto": "El gasto termina afectando una partida presupuestal que nadie eligió. No es un fallo visible: es un dato incorrecto que YA está en el catálogo.",
+      "severidad": "crítico",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/ProductBudgetClassificationService.php"
+      ],
+      "solucion_propuesta": "Prohibir la asignación automática. Si falta clasificación, dejar el producto en estado 'requiere clasificación contable' y exigir captura del administrador del catálogo. Auditar los productos ya clasificados por hash antes de operar en productivo.",
+      "decision_requerida": "Contadora: confirmar que ningún producto puede quedar sin cuenta capturada por una persona.",
+      "responsable_sugerido": "Contadora + administrador del catálogo, con soporte de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P003"
+    },
+    {
+      "id": "FAC-02",
+      "titulo": "No se consulta la lista 69-B del SAT al cargar facturas",
+      "descripcion": "El sistema sincroniza a diario la lista 69-B (SyncEfos69b, EFOS_CSV_URL) y alerta sobre proveedores listados, pero InvoiceService::validateInvoiceData no consulta SatEfos69b.",
+      "impacto": "Se puede cargar y conciliar una factura de un proveedor en lista negra del SAT.",
+      "severidad": "crítico",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/InvoiceService.php",
+        "app/Services/EfosSupplierAlertService.php",
+        "app/Models/SatEfos69b.php"
+      ],
+      "solucion_propuesta": "Agregar en validateInvoiceData una consulta por RFC emisor contra sat_efos_69b y bloquear (o marcar para revisión obligatoria de Contabilidad) si aparece como DEFINITIVO.",
+      "decision_requerida": "Contadora: ¿bloquear la carga o permitirla marcada para revisión?",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P012"
+    },
+    {
+      "id": "FIS-04",
+      "titulo": "Credenciales reales y respaldo de base de datos en el repositorio",
+      "descripcion": ".env versionado con usuario/contraseña de SQL Server y contraseña SMTP; .env.example replica los mismos valores (DB_PASSWORD, MAIL_PASSWORD, EMPLEADOS_API_KEY, EXCHANGERATE_API_KEY, APP_KEY). El commit 2ef4665 del 2026-08-28 incluyó un respaldo binario de base de datos de 18.6 MB en backups/.",
+      "impacto": "Exposición de credenciales productivas y de datos. Es lo único de esta lista que debería frenar una liberación por sí solo.",
+      "severidad": "crítico",
+      "categoria": "infraestructura",
+      "archivos": [
+        ".env",
+        ".env.example",
+        ".gitignore",
+        "backups/"
+      ],
+      "solucion_propuesta": "Rotar todas las credenciales expuestas, purgar .env y el .bak del historial de git, y agregar backups/ y .env a .gitignore.",
+      "decision_requerida": "Ninguna: es acción directa de TI.",
+      "responsable_sugerido": "Aldo Ochoa (TI) + Sistemas",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P006"
+    }
+  ],
+  "altos": [
+    {
+      "id": "AUT-01",
+      "titulo": "Responsables de centro de costo sin definir (caso Urovo)",
+      "descripcion": "El aprobador se resuelve por cost_centers.responsible_user_id; si su límite no alcanza, escala por la jerarquía de empleados. Jonathan Gómez figura como 'manager_name' de ubicaciones de recepción, campo de texto libre sin relación a users, que nunca puede convertirlo en aprobador.",
+      "impacto": "La disyuntiva Jonathan Gómez vs Maribel García es un dato de catálogo faltante, no un defecto de código.",
+      "severidad": "alto",
+      "categoria": "configuracion",
+      "archivos": [
+        "app/Services/CostCenterApprovalFlowService.php",
+        "app/Models/CostCenter.php",
+        "database/seeders/ReceivingLocationSeeder.php"
+      ],
+      "solucion_propuesta": "Definir formalmente el responsable de cada centro de costo y cargarlo en cost_centers.responsible_user_id.",
+      "decision_requerida": "Contadora + Compras + Dirección: tabla de responsables por centro de costo.",
+      "responsable_sugerido": "Contadora + Compras (Julio) + Dirección",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P007"
+    },
+    {
+      "id": "AUT-02",
+      "titulo": "El rol ilimitado se identifica por comparación de texto",
+      "descripcion": "AuthorizerResolutionService::isUnlimitedRole compara el nombre del rol contra la cadena literal 'Dirección General'.",
+      "impacto": "Renombrar el rol en el catálogo rompe silenciosamente la autorización de montos altos.",
+      "severidad": "alto",
+      "categoria": "configuracion",
+      "archivos": [
+        "app/Services/AuthorizerResolutionService.php"
+      ],
+      "solucion_propuesta": "Añadir columna booleana is_unlimited en authorizer_roles y usarla en lugar del nombre.",
+      "decision_requerida": "Ninguna.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P009"
+    },
+    {
+      "id": "AUT-03",
+      "titulo": "Sin aprobador de última instancia",
+      "descripcion": "Cuando no hay superior con límite suficiente, resolveForRequester lanza RuntimeException y detiene la operación.",
+      "impacto": "Expedientes de monto alto se bloquean con un error técnico y sin ruta alterna si el catálogo de empleados está incompleto.",
+      "severidad": "alto",
+      "categoria": "configuracion",
+      "archivos": [
+        "app/Services/AuthorizerResolutionService.php"
+      ],
+      "solucion_propuesta": "Definir un aprobador de última instancia configurable y degradar el error a un mensaje de negocio accionable.",
+      "decision_requerida": "Dirección: quién es el aprobador de última instancia.",
+      "responsable_sugerido": "Equipo de desarrollo + Dirección",
+      "esfuerzo": "baja",
+      "dependencias": [
+        "AUT-02"
+      ],
+      "ref_pendiente_general": "P009"
+    },
+    {
+      "id": "OCD-01",
+      "titulo": "Orden de Compra Directa sin tope de monto ni causales",
+      "descripcion": "No existe control que limite el uso de la OCD por importe ni por causal tipificada, y la OCD omite el comparativo de cotizaciones.",
+      "impacto": "Es el camino de menor control interno del sistema: admite cualquier importe sin cotizar.",
+      "severidad": "alto",
+      "categoria": "configuracion",
+      "archivos": [
+        "app/Http/Controllers/DirectPurchaseOrderController.php",
+        "app/Models/DirectPurchaseOrder.php"
+      ],
+      "solucion_propuesta": "Definir umbral y catálogo de causales; validarlos en store/submit.",
+      "decision_requerida": "Contadora + Dirección: umbral en pesos y causales admitidas.",
+      "responsable_sugerido": "Contadora + Dirección + Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P017"
+    },
+    {
+      "id": "PRE-01",
+      "titulo": "Código muerto con control presupuestal roto",
+      "descripcion": "BudgetService escribe movement_type 'COMMIT'/'RELEASE'/'CONSUME' pero su método totals() suma 'COMPROMISO'/'LIBERACION'/'CONSUMO'. Los nombres nunca coinciden: reportaría disponible = asignado.",
+      "impacto": "Hoy la clase no se invoca desde ningún controlador (sólo LegacyBudgetService la extiende, y tampoco se usa). Si alguien la reconecta, el control presupuestal deja de existir sin avisar.",
+      "severidad": "alto",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Services/BudgetService.php",
+        "app/Services/LegacyBudgetService.php"
+      ],
+      "solucion_propuesta": "Eliminar ambas clases del código base.",
+      "decision_requerida": "Ninguna.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P018"
+    },
+    {
+      "id": "PRE-02",
+      "titulo": "Centros de consumo libre exentos de toda validación",
+      "descripcion": "checkAvailability devuelve disponible=true de inmediato para centros FREE_CONSUMPTION y sus compromisos no descuentan de ninguna distribución, pese a existir el campo global_amount.",
+      "impacto": "No hay tope efectivo de gasto en esos centros.",
+      "severidad": "alto",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Services/BudgetAllocationService.php",
+        "app/Models/CostCenter.php"
+      ],
+      "solucion_propuesta": "Validar el acumulado de compromisos contra cost_centers.global_amount y su validity_date.",
+      "decision_requerida": "Contadora: confirmar que global_amount debe operar como tope duro.",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P019"
+    },
+    {
+      "id": "FAC-01",
+      "titulo": "El parser de CFDI ignora retenciones e IEPS",
+      "descripcion": "CfdiXmlParser extrae 8 atributos y suma exclusivamente los Traslados con Impuesto='002' (IVA). Ignora Retenciones, IEPS, tasa 0%, exento y TipoCambio.",
+      "impacto": "Una factura con retención de ISR o IVA se concilia contra la provisión por su Total y puede pasar como correcta con una provisión mal calculada.",
+      "severidad": "alto",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/CfdiXmlParser.php",
+        "app/Services/InvoiceService.php"
+      ],
+      "solucion_propuesta": "Extender el parser a Impuestos/Retenciones, TipoCambio, MetodoPago, FormaPago, UsoCFDI, RegimenFiscal y Conceptos con ClaveProdServ, y persistirlos en supplier_invoices.",
+      "decision_requerida": "Contadora: qué campos son obligatorios y cuáles informativos.",
+      "responsable_sugerido": "Equipo de desarrollo con especificación de la Contadora",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P013"
+    },
+    {
+      "id": "FAC-03",
+      "titulo": "Sin cotejo factura vs orden de compra",
+      "descripcion": "Sólo se compara factura contra la provisión de recepción. Si nunca hubo recepción, la factura se registra sin ningún contraste de importe y sólo se notifica a Contabilidad.",
+      "impacto": "Factura sin respaldo de recepción entra al sistema sin control de importe.",
+      "severidad": "alto",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/InvoiceService.php",
+        "app/Services/FinancialProvisionService.php"
+      ],
+      "solucion_propuesta": "Bloquear la carga de factura sin recepción previa, o exigir autorización explícita de Contabilidad para el caso excepcional.",
+      "decision_requerida": "Contadora: ¿se admite factura sin recepción? ¿bajo qué autorización?",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P014"
+    },
+    {
+      "id": "FAC-05",
+      "titulo": "Cero pruebas del módulo de facturas y provisiones",
+      "descripcion": "No existe ninguna prueba automatizada del flujo de carga y conciliación. Sólo CfdiGeneratorControllerTest cubre la herramienta interna de generación.",
+      "impacto": "El módulo de mayor exposición fiscal es el único sin red de seguridad.",
+      "severidad": "alto",
+      "categoria": "infraestructura",
+      "archivos": [
+        "tests/Feature"
+      ],
+      "solucion_propuesta": "Suite de InvoiceService: RFC no coincidente, receptor ajeno, UUID duplicado, conciliación con y sin discrepancia, factura sin recepción.",
+      "decision_requerida": "Ninguna.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P023",
+      "nota_desbloqueo": "Desbloqueado: OC-01 / REC-02 / PS-04 quedo resuelto el 2026-09-02."
+    },
+    {
+      "id": "CON-02",
+      "titulo": "Camino contrato→requisición→OC sin verificación",
+      "descripcion": "ContractRequisitionTest::test_livewire_submit_creates_completed_requisition_and_issued_po está en rojo.",
+      "impacto": "Este camino omite la autorización de cotización, por lo que es el de mayor riesgo de control interno sin cobertura.",
+      "severidad": "alto",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Livewire/ContractRequisitionForm.php",
+        "app/Services/ContractPurchaseOrderService.php",
+        "tests/Feature/ContractRequisitionTest.php"
+      ],
+      "solucion_propuesta": "Reparar factories y re-ejecutar.",
+      "decision_requerida": "Ninguna.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P005",
+      "nota_desbloqueo": "Desbloqueado: OC-01 / REC-02 / PS-04 quedo resuelto el 2026-09-02."
+    },
+    {
+      "id": "CON-03",
+      "titulo": "Contrato vencido sigue activo y consumible",
+      "descripcion": "ContractStatus sólo tiene active/cancelled. Un contrato expirado permanece 'active' y sólo se notifica por correo.",
+      "impacto": "No hay bloqueo automático del consumo de un contrato vencido.",
+      "severidad": "alto",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Enum/ContractStatus.php",
+        "app/Models/Contract.php",
+        "app/Services/ContractPurchaseOrderService.php"
+      ],
+      "solucion_propuesta": "Añadir estado EXPIRED + comando de cierre diario, y validar vigencia en generateFromRequisition.",
+      "decision_requerida": "Contadora: ¿bloquear o sólo advertir al consumir un contrato vencido?",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": "P021"
+    },
+    {
+      "id": "RFQ-01",
+      "titulo": "RFQ enviado no se cancela al modificarse la requisición",
+      "descripcion": "RfqDraftSyncBaselineTest espera CANCELLED y obtiene SENT. Fallo de aserción funcional, no de infraestructura.",
+      "impacto": "El proveedor puede estar cotizando sobre una requisición que ya cambió.",
+      "severidad": "alto",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Services/Rfq/RfqDraftService.php",
+        "tests/Feature/RfqDraftSyncBaselineTest.php"
+      ],
+      "solucion_propuesta": "Determinar si la regla cambió (actualizar prueba) o si es regresión (corregir servicio).",
+      "decision_requerida": "Compras: ¿modificar la requisición debe invalidar los RFQ ya enviados?",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [],
+      "ref_pendiente_general": null
+    },
+    {
+      "id": "COT-02",
+      "titulo": "El camino del proveedor autenticado nunca se ha ejercitado",
+      "descripcion": "Todas las pruebas internas se apoyaron en la captura manual del comprador (Julio). El portal del proveedor está construido pero nunca se validó de punta a punta con un proveedor real.",
+      "impacto": "Mayor riesgo no medido del proyecto. Es prerrequisito de la capacitación externa.",
+      "severidad": "alto",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Http/Controllers/SupplierPortalController.php"
+      ],
+      "solucion_propuesta": "Habilitar un proveedor piloto aprobado y correr un ciclo completo (RFQ → cotización → entrega → factura) antes de liberar.",
+      "decision_requerida": "Compras + Contadora: elegir el proveedor piloto.",
+      "responsable_sugerido": "Compras (Julio) + Contadora",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "ref_pendiente_general": "P024",
+      "nota_desbloqueo": "Desbloqueado: OC-01 / REC-02 / PS-04 quedo resuelto el 2026-09-02."
+    },
+    {
+      "id": "D.1",
+      "titulo": "Cuenta contable del SAT por producto y categorización fiscal",
+      "descripcion": "products_services.product_type sólo acepta 'PRODUCTO' o 'SERVICIO'. No existen las categorías bien / servicio profesional / arrendamiento / flete / subcontratación, ni columna ledger_account_id en products_services.",
+      "impacto": "Requerimiento fiscal explícito, no iniciado. El catálogo ledger_accounts ya está cargado desde One Goal (2130+ cuentas); falta el enlace.",
+      "severidad": "alto",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Http/Requests/SaveProductServiceRequest.php",
+        "app/Http/Controllers/ProductServiceController.php",
+        "app/Models/ProductService.php",
+        "app/Models/LedgerAccount.php"
+      ],
+      "solucion_propuesta": "Migración con categorización fiscal + ledger_account_id, campos en el formulario y en la ficha del producto.",
+      "decision_requerida": "Contadora: define la taxonomía y el mapeo producto↔cuenta. Bloquea al equipo de desarrollo.",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [
+        "PS-02"
+      ],
+      "ref_pendiente_general": "P010"
+    },
+    {
+      "id": "D.2",
+      "titulo": "Uso de CFDI en la autorización de la Orden de Compra",
+      "descripcion": "'uso_cfdi' sólo existe en la herramienta interna de generación de CFDI de prueba (superadmin). PurchaseOrderController::approve y DirectPurchaseOrderController::approve no lo capturan ni lo persisten; no hay columna para ello.",
+      "impacto": "Requerimiento fiscal explícito, no iniciado.",
+      "severidad": "alto",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Http/Controllers/PurchaseOrderController.php",
+        "app/Http/Controllers/DirectPurchaseOrderController.php",
+        "app/Services/CfdiGeneratorService.php"
+      ],
+      "solucion_propuesta": "Columna en purchase_orders y direct_purchase_orders, catálogo c_UsoCFDI, campo en la pantalla de autorización e impresión en el PDF de la OC.",
+      "decision_requerida": "Contadora: regla de negocio de Uso de CFDI por tipo de gasto.",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "media",
+      "dependencias": [
+        "D.1"
+      ],
+      "ref_pendiente_general": "P011"
+    },
+    {
+      "id": "D.6",
+      "titulo": "Motor de reglas de validación fiscal de facturas",
+      "descripcion": "Sólo existen 5 reglas fijas en InvoiceService::validateInvoiceData. No hay motor parametrizable, ni validación ante el SAT, ni cotejo contra 69-B, ni verificación de retenciones, ni comparación factura vs OC.",
+      "impacto": "Requerimiento fiscal explícito, parcialmente cubierto.",
+      "severidad": "alto",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/InvoiceService.php"
+      ],
+      "solucion_propuesta": "Motor de reglas parametrizable por tipo de gasto: factura vs OC, factura vs recepción, retenciones esperadas, Uso de CFDI esperado, régimen del emisor y vigencia REPSE.",
+      "decision_requerida": "Contadora: define el catálogo completo de reglas.",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "alta",
+      "dependencias": [
+        "D.2",
+        "FAC-01",
+        "FAC-02"
+      ],
+      "ref_pendiente_general": "P014"
+    }
+  ],
+  "medios": [
+    {
+      "id": "FAC-04",
+      "titulo": "Fuga de SQL en mensajes de error al proveedor",
+      "descripcion": "InvoiceService::resolveUploadErrorMessage devuelve al proveedor el mensaje crudo de la QueryException, con fragmentos de SQL y nombres de columnas.",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Http/Controllers/SupplierInvoiceController.php",
+        "app/Services/InvoiceService.php"
+      ],
+      "solucion_propuesta": "Registrar el detalle en log y devolver un mensaje genérico al usuario externo.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "REC-03",
+      "titulo": "Responsable de ubicación de recepción es texto libre",
+      "descripcion": "receiving_locations.manager_name es string (Jonathan Gomez aparece así en 12+ ubicaciones). No permite asignar responsabilidad, notificar ni auditar quién debía recibir.",
+      "severidad": "medio",
+      "categoria": "configuracion",
+      "archivos": [
+        "app/Models/ReceivingLocation.php",
+        "database/seeders/ReceivingLocationSeeder.php"
+      ],
+      "solucion_propuesta": "Migrar a manager_user_id con FK a users, conservando manager_name como respaldo.",
+      "responsable_sugerido": "Compras + Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "ref_pendiente_general": "P020"
+    },
+    {
+      "id": "OC-02",
+      "titulo": "La OC compromete presupuesto sin verificar disponibilidad primero",
+      "descripcion": "PurchaseOrderController::approve llama commitOrder() sin checkAvailability(). Si commitAmount devuelve false, se lanza RuntimeException dentro de la transacción.",
+      "severidad": "medio",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Http/Controllers/PurchaseOrderController.php",
+        "app/Services/BudgetAllocationService.php"
+      ],
+      "solucion_propuesta": "Llamar checkAvailability() antes de commitOrder y devolver un mensaje de negocio con el faltante exacto.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "AUT-05",
+      "titulo": "Delegación de firma sobre OCD sin verificar",
+      "descripcion": "ApprovalDelegationTest::test_delegate_can_approve_direct_purchase_order_for_principal en rojo.",
+      "severidad": "medio",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Services/ApprovalDelegationService.php",
+        "tests/Feature/ApprovalDelegationTest.php"
+      ],
+      "solucion_propuesta": "Reproducir manualmente la delegación sobre una OCD antes de liberar; es un flujo sensible de control interno.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "AUT-04",
+      "titulo": "Pruebas de notificación a compradores rotas por cambio de firma",
+      "descripcion": "QuotationRejectionWorkflowService ahora exige 5 dependencias y la prueba lo instancia con 3 (ArgumentCountError).",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Services/QuotationRejectionWorkflowService.php",
+        "tests/Feature/BuyerNotificationsInRequisitionQuotationFlowTest.php"
+      ],
+      "solucion_propuesta": "Resolver el servicio por el contenedor (app(...)) en las pruebas.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "CON-01",
+      "titulo": "Contratos fuera de la matriz de módulos",
+      "descripcion": "El grupo de rutas usa middleware 'role:buyer|superadmin' en lugar de 'module.access'. Contabilidad y Dirección quedan fuera del módulo.",
+      "severidad": "medio",
+      "categoria": "configuracion",
+      "archivos": [
+        "routes/web.php",
+        "config/module_access.php"
+      ],
+      "solucion_propuesta": "Crear la clave 'contracts' en config/module_access.php y migrar el grupo de rutas.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "ref_pendiente_general": "P022"
+    },
+    {
+      "id": "PRE-04",
+      "titulo": "15 pruebas presupuestales devuelven 403",
+      "descripcion": "AnnualBudgetStoreTest (2), BudgetCedulaDistributionTest (3), CostCenterImportTest (7) y CostCenterCrudTest (3) son anteriores a la matriz module_access.",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "config/module_access.php",
+        "tests/Feature/AnnualBudgetStoreTest.php",
+        "tests/Feature/CostCenterImportTest.php"
+      ],
+      "solucion_propuesta": "Asignar en las pruebas un rol contemplado por la matriz de módulos.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "FIS-02",
+      "titulo": "Conexión a One Goal no declarada",
+      "descripcion": "OneGoalSupplierSeeder configura la conexión en tiempo de ejecución con variables ONEGOAL_* que no están en .env.example ni en config/database.php.",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "database/seeders/OneGoalSupplierSeeder.php",
+        ".env.example",
+        "config/database.php"
+      ],
+      "solucion_propuesta": "Declarar la conexión 'onegoal' y documentar las variables.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "ref_pendiente_general": "P025"
+    },
+    {
+      "id": "FIS-03",
+      "titulo": "Dependencias de OCR/QR no documentadas ni verificadas",
+      "descripcion": "La validación INFONAVIT viene deshabilitada y depende de binarios externos (node, chrome, xvfb-run, pdftoppm, pdftotext, tesseract). Si faltan, la extracción degrada a captura manual sin aviso claro.",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        ".env.example",
+        "app/Services/InfonavitQrValidationService.php",
+        "app/Services/DocumentQrReaderService.php"
+      ],
+      "solucion_propuesta": "Documentar prerrequisitos del servidor y añadir un health-check en el panel de monitoreo.",
+      "responsable_sugerido": "TI / Sistemas",
+      "esfuerzo": "baja",
+      "ref_pendiente_general": "P027"
+    },
+    {
+      "id": "OCD-02",
+      "titulo": "Manejo de excepciones se fuga en el alta de OCD",
+      "descripcion": "DirectPurchaseOrderOptionalQuotationTest aparece como fallo y como prueba riesgosa ('did not remove its own error handlers').",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Http/Controllers/DirectPurchaseOrderController.php"
+      ],
+      "solucion_propuesta": "Revisar los try/catch y set_error_handler del flujo de alta.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "RFQ-02 / RFQ-03",
+      "titulo": "Pruebas del portal del proveedor y de adjudicación en rojo",
+      "descripcion": "RfqAwardBaselineTest redirige a '/' en vez de '/rfq'; SupplierPartialQuotationTest y SupplierRfqDetailRendersToggleTest reciben 302 por el guard auth:supplier + EnsureSupplierIsApproved.",
+      "severidad": "medio",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Services/Rfq/RfqAwardService.php",
+        "app/Http/Controllers/SupplierPortalController.php",
+        "database/factories/SupplierFactory.php"
+      ],
+      "solucion_propuesta": "Alinear SupplierFactory con el esquema de autenticación directa y verificar la ruta de redirección esperada.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja",
+      "dependencias": [],
+      "nota_desbloqueo": "Desbloqueado: OC-01 / REC-02 / PS-04 quedo resuelto el 2026-09-02."
+    },
+    {
+      "id": "D.3 / D.4",
+      "titulo": "Régimen fiscal vigente y opinión de cumplimiento sin consulta en línea",
+      "descripcion": "El régimen se captura una sola vez por OCR de la Constancia de Situación Fiscal y nunca se revalida. La opinión de cumplimiento es documental con revisión manual; sólo INFONAVIT tiene consulta automatizada (deshabilitada). No existe lógica para RESICO.",
+      "severidad": "medio",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/SupplierCsfExtractorService.php",
+        "app/Http/Controllers/DocumentReviewController.php",
+        "app/Services/InfonavitQrValidationService.php"
+      ],
+      "solucion_propuesta": "Evaluar y contratar un PAC o proveedor de servicios fiscales con validación de CFDI, consulta LCO y opinión 32-D.",
+      "decision_requerida": "Contadora + Dirección: decisión de compra del servicio.",
+      "responsable_sugerido": "Contadora + Dirección + TI",
+      "esfuerzo": "alta",
+      "ref_pendiente_general": "P015"
+    },
+    {
+      "id": "D.5",
+      "titulo": "REPSE sólo advierte, nunca bloquea",
+      "descripcion": "La validación existe y funciona (número + vigencia, aviso a 30 días) pero es sólo advertencia en recepción. No se valida al contratar, al emitir la OC ni al facturar, y la vigencia se captura a mano sin cotejo contra el padrón STPS.",
+      "severidad": "medio",
+      "categoria": "fiscal",
+      "archivos": [
+        "app/Services/ReceptionService.php",
+        "app/Models/Supplier.php",
+        "app/Http/Controllers/SupplierBankController.php"
+      ],
+      "solucion_propuesta": "Hacerla bloqueante en recepción de servicios especializados y extenderla a emisión de OC y carga de factura.",
+      "decision_requerida": "Contadora: ¿bloquea o sólo alerta?",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "media",
+      "ref_pendiente_general": "P016"
+    },
+    {
+      "id": "P026",
+      "titulo": "Sin alertas por umbral de consumo ni reporte de ejecución presupuestal",
+      "descripcion": "No existen alertas al 80/90/100% de consumo, ni cierre mensual/anual, ni reporte exportable presupuestado vs comprometido vs ejercido.",
+      "severidad": "medio",
+      "categoria": "funcionalidad",
+      "archivos": [
+        "app/Services/BudgetAllocationService.php",
+        "app/Services/MonitoringService.php"
+      ],
+      "solucion_propuesta": "Alertas por umbral configurable y reporte exportable para Contabilidad.",
+      "decision_requerida": "Contadora: define los umbrales.",
+      "responsable_sugerido": "Contadora + Equipo de desarrollo",
+      "esfuerzo": "media"
+    },
+    {
+      "id": "P028",
+      "titulo": "Plan de capacitación sin diseñar",
+      "descripcion": "El proveedor no ha sido capacitado y no participó en ninguna prueba. Falta el plan en dos frentes: interno (Compras, Contabilidad, receptores en estaciones) y externo (proveedores).",
+      "severidad": "medio",
+      "categoria": "funcionalidad",
+      "archivos": [],
+      "solucion_propuesta": "Diseñar programa escalonado, condicionado a que el ciclo del portal quede validado con el piloto.",
+      "decision_requerida": "Contadora + Compras.",
+      "responsable_sugerido": "Contadora + Compras",
+      "esfuerzo": "media",
+      "dependencias": [
+        "COT-02"
+      ]
+    }
+  ],
+  "bajos": [
+    {
+      "id": "R-03",
+      "titulo": "Comparación de estado de producto contra string literal",
+      "descripcion": "ReactivatePausedRequisitions compara $item->productService->status === 'ACTIVE' contra literal en vez del enum ProductServiceStatus. Acoplamiento frágil (el listener ya fue corregido en lo demás).",
+      "severidad": "bajo",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Listeners/ReactivatePausedRequisitions.php"
+      ],
+      "solucion_propuesta": "Usar ProductServiceStatus::ACTIVE->value.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "REC-04",
+      "titulo": "Caché de compradores sin invalidación",
+      "descripcion": "La lista de compradores se cachea 3600 s bajo la clave 'buyers_list' sin invalidarse al alta/baja de un usuario con rol buyer.",
+      "severidad": "bajo",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Services/ReceptionService.php"
+      ],
+      "solucion_propuesta": "Invalidar la clave en los eventos de asignación/remoción de rol.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "PRE-05",
+      "titulo": "Cadena con doble codificación",
+      "descripcion": "Mensaje 'No se pudo liberar presupuesto para la cÃ©dula' en BudgetAllocationService.",
+      "severidad": "bajo",
+      "categoria": "infraestructura",
+      "archivos": [
+        "app/Services/BudgetAllocationService.php"
+      ],
+      "solucion_propuesta": "Corregir a UTF-8 y añadir verificación de codificación.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    },
+    {
+      "id": "PROC-01",
+      "titulo": "Mensajes de commit no descriptivos",
+      "descripcion": "15 de los últimos 40 commits tienen como mensaje una sola letra ('a', 'b'), lo que impide reconstruir el historial de cambios para auditoría.",
+      "severidad": "bajo",
+      "categoria": "infraestructura",
+      "archivos": [],
+      "solucion_propuesta": "Disciplina de control de cambios: mensajes descriptivos y suite en verde como condición para integrar.",
+      "responsable_sugerido": "Equipo de desarrollo",
+      "esfuerzo": "baja"
+    }
+  ],
+  "orden_sugerido": {
+    "nota": "Sugerencia técnica, sujeta a la priorización de la Contadora.",
+    "1_bloqueante_de_liberacion": [
+      "FIS-04"
+    ],
+    "2_esfuerzo_bajo_beneficio_alto": [
+      "FAC-02",
+      "AUT-02",
+      "PRE-01"
+    ],
+    "3_riesgo_contable_acumulandose": [
+      "PS-02",
+      "PRE-02"
+    ],
+    "4_requieren_decision_de_negocio_primero": [
+      "AUT-01",
+      "OCD-01",
+      "D.1",
+      "D.2",
+      "CON-03",
+      "D.5"
+    ],
+    "5_verificacion_operativa": [
+      "COT-02",
+      "AUT-05",
+      "CON-02"
+    ],
+    "6_construccion_mayor": [
+      "FAC-01",
+      "FAC-03",
+      "D.6",
+      "D.3 / D.4",
+      "FAC-05",
+      "P026"
+    ]
+  },
+  "decisiones_que_bloquean_al_equipo_de_desarrollo": [
+    "Taxonomía fiscal del gasto y mapeo producto ↔ cuenta contable (D.1) — bloquea también D.2 y D.6",
+    "Uso de CFDI esperado por tipo de gasto (D.2)",
+    "Umbral en pesos y causales admitidas para Orden de Compra Directa (OCD-01)",
+    "Tabla de responsables por centro de costo (AUT-01) — resuelve el caso Urovo",
+    "Aprobador de última instancia para montos altos (AUT-03)",
+    "¿REPSE bloquea o sólo advierte? (D.5)",
+    "¿Se admite factura sin recepción previa y bajo qué autorización? (FAC-03)",
+    "¿global_amount de centros de consumo libre opera como tope duro? (PRE-02)",
+    "Umbrales de alerta de consumo presupuestal (P026)"
+  ]
+}

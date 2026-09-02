@@ -7,10 +7,6 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Illuminate\Auth\Events\Login;
 // Nuestro listener que actualizará last_login
 use App\Listeners\UpdateLastLogin;
-// Evento que se dispara cuando un producto/servicio es aprobado
-use App\Events\ProductServiceApproved;
-// Listener que reactiva requisiciones pausadas
-use App\Listeners\ReactivatePausedRequisitions;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -21,9 +17,6 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Login::class => [
             UpdateLastLogin::class,
-        ],
-        ProductServiceApproved::class => [
-            ReactivatePausedRequisitions::class,
         ],
     ];
 

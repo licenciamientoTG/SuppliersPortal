@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -16,6 +18,9 @@ return new class extends Migration
                 'partially_approved',
                 'rejected',
             ], 30),
+            // SQLite conserva el CHECK del enum original, que rechaza
+            // 'partially_approved'. Se reemplaza por una cadena simple.
+            'sqlite' => $this->relaxSqliteApprovalStatus(30),
             default => null,
         };
     }
@@ -34,8 +39,16 @@ return new class extends Migration
                 'approved',
                 'rejected',
             ], 20),
+            'sqlite' => $this->relaxSqliteApprovalStatus(20),
             default => null,
         };
+    }
+
+    private function relaxSqliteApprovalStatus(int $length): void
+    {
+        Schema::table('quotation_summaries', function (Blueprint $table) use ($length): void {
+            $table->string('approval_status', $length)->default('pending')->change();
+        });
     }
 
     private function rebuildSqlServerApprovalStatusConstraint(array $allowedStatuses, int $length): void

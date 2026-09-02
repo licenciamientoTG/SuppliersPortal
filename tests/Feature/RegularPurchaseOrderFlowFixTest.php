@@ -2,7 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\CheckLockScreen;
+use App\Http\Middleware\ModuleAccess;
+use App\Models\BudgetCedula;
+use App\Models\Company;
+use App\Models\CostCenter;
+use App\Models\ExpenseCategory;
+use App\Models\ProductService;
 use App\Models\PurchaseOrder;
+use App\Models\ReceivingLocation;
+use App\Models\Requisition;
+use App\Models\RequisitionItem;
+use App\Models\Rfq;
+use App\Models\RfqResponse;
 use App\Models\QuotationSummary;
 use App\Models\User;
 use App\Notifications\QuotationApprovalApprovedNotification;
@@ -23,7 +35,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
     public function test_approved_regular_quotation_creates_an_issued_purchase_order(): void
     {
         Notification::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['summary' => $summary, 'approver' => $approver, 'buyer' => $buyer] = $this->createRegularApprovalFixture();
 
@@ -53,7 +65,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
     public function test_rejected_regular_quotation_notifies_buyers(): void
     {
         Notification::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['summary' => $summary, 'approver' => $approver, 'buyer' => $buyer] = $this->createRegularApprovalFixture();
 
@@ -74,7 +86,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
     public function test_partially_approved_regular_quotation_creates_purchase_order_for_final_quantity(): void
     {
         Notification::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture();
         $summaryItem = app(QuotationSummaryItemService::class)->ensureItems($summary)->first();
@@ -109,7 +121,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
     public function test_reducing_quantity_requires_line_reason(): void
     {
         Notification::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture();
         $summaryItem = app(QuotationSummaryItemService::class)->ensureItems($summary)->first();
@@ -136,7 +148,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
     public function test_approved_total_cannot_exceed_current_authorizer_limit(): void
     {
         Notification::fake();
-        $this->withoutMiddleware();
+        $this->withoutMiddleware([ModuleAccess::class, CheckLockScreen::class]);
 
         ['summary' => $summary, 'approver' => $approver] = $this->createRegularApprovalFixture([
             'summary' => [
@@ -310,9 +322,9 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
 
         [
             'company_id' => $companyId,
-            'category_id' => $categoryId,
             'cost_center_id' => $costCenterId,
             'expense_category_id' => $expenseCategoryId,
+            'budget_cedula_id' => $budgetCedulaId,
             'product_service_id' => $productServiceId,
             'receiving_location_id' => $receivingLocationId,
         ] = $this->createCatalogContext($owner);
@@ -337,9 +349,9 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'updated_at' => now(),
         ], $overrides['requisition'] ?? []);
 
-        $requisitionId = DB::table('requisitions')->insertGetId($requisitionData);
+        $requisitionId = Requisition::factory()->create($requisitionData)->id;
 
-        $requisitionItemId = DB::table('requisition_items')->insertGetId([
+        $requisitionItemId = RequisitionItem::factory()->create([
             'requisition_id' => $requisitionId,
             'product_service_id' => $productServiceId,
             'line_number' => 1,
@@ -347,13 +359,12 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'product_code' => 'PROD-001',
             'description' => 'Mouse inalambrico Logitech',
             'expense_category_id' => $expenseCategoryId,
+            'budget_cedula_id' => $budgetCedulaId,
             'cost_center_id' => $costCenterId,
             'quantity' => 2,
             'unit' => 'PZA',
             'notes' => 'Uso corporativo',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        ])->id;
 
         $rfqData = array_merge([
             'folio' => uniqid('RFQ-2026-'),
@@ -368,9 +379,9 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'updated_at' => now(),
         ], $overrides['rfq'] ?? []);
 
-        $rfqId = DB::table('rfqs')->insertGetId($rfqData);
+        $rfqId = Rfq::factory()->create($rfqData)->id;
 
-        DB::table('rfq_responses')->insert([
+        RfqResponse::factory()->create([
             'rfq_id' => $rfqId,
             'supplier_id' => $supplier->id,
             'requisition_item_id' => $requisitionItemId,
@@ -413,7 +424,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'updated_at' => now(),
         ], $overrides['summary'] ?? []);
 
-        $summaryId = DB::table('quotation_summaries')->insertGetId($summaryData);
+        $summaryId = QuotationSummary::factory()->create($summaryData)->id;
 
         if (($overrides['create_purchase_order'] ?? true) === false) {
             return [
@@ -443,7 +454,7 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
             'updated_at' => now(),
         ], $overrides['purchase_order'] ?? []);
 
-        $purchaseOrderId = DB::table('purchase_orders')->insertGetId($purchaseOrderData);
+        $purchaseOrderId = PurchaseOrder::factory()->create($purchaseOrderData)->id;
 
         return PurchaseOrder::query()
             ->with(['quotationSummary.rfq', 'requisition'])
@@ -452,89 +463,54 @@ class RegularPurchaseOrderFlowFixTest extends TestCase
 
     private function createCatalogContext(User $owner): array
     {
-        $companyId = DB::table('companies')->insertGetId([
-            'code' => uniqid('EMP-'),
-            'name' => 'TotalGas QA',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $company = Company::factory()->create(['name' => 'TotalGas QA']);
 
-        $categoryId = DB::table('categories')->insertGetId([
-            'name' => uniqid('Categoria '),
-            'is_active' => true,
-            'created_by' => $owner->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $costCenterId = DB::table('cost_centers')->insertGetId([
-            'code' => uniqid('CC-'),
+        $costCenter = CostCenter::factory()->create([
             'name' => 'Centro de costo QA',
-            'purchase_type' => 'Gasto Operativo',
-            'company_id' => $companyId,
-            'category_id' => $categoryId,
+            'company_id' => $company->id,
             'responsible_user_id' => $owner->id,
             'budget_type' => 'FREE_CONSUMPTION',
-            'status' => 'ACTIVO',
             'created_by' => $owner->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $expenseCategoryId = DB::table('expense_categories')->insertGetId([
-            'code' => uniqid('EXP-'),
+        $expenseCategory = ExpenseCategory::factory()->create([
             'name' => 'Categoria de gasto QA',
-            'status' => 'ACTIVO',
             'created_by' => $owner->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $receivingLocationId = DB::table('receiving_locations')->insertGetId([
-            'company_id' => $companyId,
-            'code' => uniqid('LOC-'),
+        $budgetCedula = BudgetCedula::factory()->create([
+            'expense_category_id' => $expenseCategory->id,
+            'created_by' => $owner->id,
+        ]);
+
+        $receivingLocation = ReceivingLocation::factory()->create([
+            'company_id' => $company->id,
             'name' => 'Ubicacion QA',
             'type' => 'corporate',
-            'is_active' => true,
-            'portal_blocked' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $productServiceId = DB::table('products_services')->insertGetId([
-            'code' => uniqid('PROD-'),
+        $productService = ProductService::factory()->create([
             'technical_description' => 'Mouse inalambrico ergonomico para uso corporativo en estaciones y oficinas.',
             'short_name' => 'Mouse',
-            'product_type' => 'PRODUCTO',
-            'category_id' => $categoryId,
-            'cost_center_id' => $costCenterId,
-            'company_id' => $companyId,
             'unit_of_measure' => 'PZA',
-            'estimated_price' => 100,
-            'currency_code' => 'MXN',
-            'status' => 'ACTIVE',
-            'is_active' => true,
             'created_by' => $owner->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         return [
-            'company_id' => $companyId,
-            'category_id' => $categoryId,
-            'cost_center_id' => $costCenterId,
-            'expense_category_id' => $expenseCategoryId,
-            'product_service_id' => $productServiceId,
-            'receiving_location_id' => $receivingLocationId,
+            'company_id' => $company->id,
+            'cost_center_id' => $costCenter->id,
+            'expense_category_id' => $expenseCategory->id,
+            'budget_cedula_id' => $budgetCedula->id,
+            'product_service_id' => $productService->id,
+            'receiving_location_id' => $receivingLocation->id,
         ];
     }
 
     private function createSupplier(User $supplierUser)
     {
         return \App\Models\Supplier::factory()->create([
-            'user_id' => $supplierUser->id,
             'email' => $supplierUser->email,
-            'status' => 'approved',
+            'approval_status' => 'approved',
         ]);
     }
 }

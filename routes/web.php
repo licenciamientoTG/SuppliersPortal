@@ -546,7 +546,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::post('/{productService}/reactivate', [ProductServiceController::class, 'reactivate'])->name('reactivate');
 
         Route::get('/api/active', [ProductServiceController::class, 'apiActive'])->name('api.active');
-        Route::post('/from-requisition', [ProductServiceController::class, 'storeFromRequisition'])->name('store-from-requisition');
     });
 
     // ========================================================================

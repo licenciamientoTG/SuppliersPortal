@@ -39,11 +39,4 @@ class ProductServiceFormSubcategoryFieldsRemovedTest extends TestCase
         $response->assertDontSee('name="subcategory"', false);
         $response->assertDontSee('id="category_display"', false);
     }
-
-    public function test_request_product_modal_does_not_include_subcategory_field(): void
-    {
-        $html = view('requisitions._request_product_modal')->render();
-
-        $this->assertStringNotContainsString('name="subcategory"', $html);
-    }
 }

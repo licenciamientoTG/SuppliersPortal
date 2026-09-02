@@ -735,9 +735,9 @@ class RequisitionController extends Controller
     {
         // 1. Query Base: Eager Loading para evitar N+1
         $query = Requisition::with(['items.costCenter', 'requester', 'department'])
+            ->select('requisitions.*')
             ->withCount('items')
             ->withCount('feedbacks')
-            ->select('requisitions.*')
             ->where('status', RequisitionStatus::PENDING->value)
             ->orWhere('status', RequisitionStatus::IN_QUOTATION->value);
 

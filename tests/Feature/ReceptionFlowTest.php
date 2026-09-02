@@ -9,9 +9,13 @@ use App\Mail\DeliveryAlertDay0Mail;
 use App\Mail\DeliveryAlertDay2Mail;
 use App\Mail\DeliveryAlertDay3Mail;
 use App\Models\DirectPurchaseOrder;
-use App\Models\DirectPurchaseOrderItem;
 use App\Models\Reception;
 use App\Models\ReceptionItem;
+use App\Http\Middleware\EnsureSupplierIsApproved;
+use App\Models\Company;
+use App\Models\CostCenter;
+use App\Models\DirectPurchaseOrderItem;
+use App\Models\ExpenseCategory;
 use App\Models\ReceivingLocation;
 use App\Models\Supplier;
 use App\Models\User;
@@ -47,8 +51,11 @@ class ReceptionFlowTest extends TestCase
         Queue::fake();
         Carbon::setTestNow('2026-05-15 12:00:00');
 
-        [$order, , $supplierUser] = $this->createDirectOrder(['status' => 'ISSUED']);
-        $supplierUser->assignRole('supplier');
+        // El gating documental del portal se cubre en RFQ-02/RFQ-03; aqui se verifica
+        // unicamente el calculo del plazo de recepcion a partir de la entrega fisica.
+        $this->withoutMiddleware(EnsureSupplierIsApproved::class);
+
+        [$order, , $supplier] = $this->createDirectOrder(['status' => 'ISSUED']);
         $publicTestDisk = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'suppliersportal-test-public';
         config()->set('filesystems.disks.public.root', $publicTestDisk);
         if (! is_dir($publicTestDisk)) {
@@ -56,7 +63,7 @@ class ReceptionFlowTest extends TestCase
         }
         app('filesystem')->forgetDisk('public');
 
-        $this->actingAs($supplierUser)->post(route('supplier.deliveries.store'), [
+        $this->actingAs($supplier, 'supplier')->post(route('supplier.deliveries.store'), [
             'order_type' => 'direct',
             'order_id' => $order->id,
             'remission_file' => UploadedFile::fake()->create('remision.pdf', 100, 'application/pdf'),
@@ -179,58 +186,26 @@ class ReceptionFlowTest extends TestCase
     private function createDirectOrder(array $attributes = []): array
     {
         $creator = User::factory()->create();
-        $supplierUser = User::factory()->create();
-        $supplier = Supplier::factory()->create([
-            'user_id' => $supplierUser->id,
-            'email' => $supplierUser->email,
-        ]);
+        $supplier = Supplier::factory()->create();
 
-        $companyId = DB::table('companies')->insertGetId([
-            'code' => uniqid('TG'),
-            'name' => 'TotalGas',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $categoryId = DB::table('categories')->insertGetId([
-            'name' => uniqid('Operativo '),
-            'created_by' => $creator->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $costCenterId = DB::table('cost_centers')->insertGetId([
-            'code' => uniqid('CC'),
-            'name' => 'Centro de costo prueba',
-            'purchase_type' => 'Gasto Operativo',
-            'company_id' => $companyId,
-            'category_id' => $categoryId,
+        $company = Company::factory()->create(['name' => 'TotalGas']);
+        $costCenter = CostCenter::factory()->create([
+            'company_id' => $company->id,
             'responsible_user_id' => $creator->id,
             'budget_type' => 'FREE_CONSUMPTION',
-            'status' => 'ACTIVO',
             'created_by' => $creator->id,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
-        $expenseCategoryId = DB::table('expense_categories')->insertGetId([
-            'code' => uniqid('EXP'),
-            'name' => 'Gasto prueba',
-            'status' => 'ACTIVO',
-            'created_by' => $creator->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $location = ReceivingLocation::create([
-            'company_id' => $companyId,
-            'code' => uniqid('EST'),
+        $expenseCategory = ExpenseCategory::factory()->create(['created_by' => $creator->id]);
+        $location = ReceivingLocation::factory()->create([
+            'company_id' => $company->id,
             'name' => 'Estacion prueba',
             'type' => 'service_station',
-            'is_active' => true,
-            'portal_blocked' => false,
         ]);
 
         $order = DirectPurchaseOrder::create(array_merge([
             'folio' => uniqid('OCD-2026-'),
             'supplier_id' => $supplier->id,
-            'cost_center_id' => $costCenterId,
+            'cost_center_id' => $costCenter->id,
             'receiving_location_id' => $location->id,
             'application_month' => '2026-05',
             'justification' => 'Compra directa de prueba',
@@ -243,9 +218,10 @@ class ReceptionFlowTest extends TestCase
             'issued_at' => now(),
         ], $attributes));
 
-        DB::table('odc_direct_purchase_order_items')->insert([
+        DirectPurchaseOrderItem::factory()->create([
             'direct_purchase_order_id' => $order->id,
-            'expense_category_id' => $expenseCategoryId,
+            'expense_category_id' => $expenseCategory->id,
+            'cost_center_id' => $costCenter->id,
             'description' => 'Producto prueba',
             'quantity' => 5,
             'quantity_received' => 0,
@@ -255,11 +231,9 @@ class ReceptionFlowTest extends TestCase
             'iva_amount' => 80,
             'total' => 580,
             'unit_of_measure' => 'pz',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        return [$order->fresh(['items', 'supplier', 'receivingLocation']), $location, $supplierUser];
+        return [$order->fresh(['items', 'supplier', 'receivingLocation']), $location, $supplier];
     }
 
     private function createDeliveredOrderWithAlertRecipients(): array
