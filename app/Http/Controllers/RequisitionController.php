@@ -74,6 +74,7 @@ class RequisitionController extends Controller
     {
         // Usamos withCount para que el conteo venga en la consulta principal
         $query = Requisition::query()
+            ->visibleTo($request->user())
             ->with(['items.costCenter', 'requester', 'department'])
             ->withCount('items');
 
@@ -181,9 +182,9 @@ class RequisitionController extends Controller
                 $cancelUrl = route('requisitions.cancel', $r->id);
 
                 // Permisos
-                $canEdit = $r->canBeEdited();     // DRAFT o PAUSED
-                $canDelete = $r->canBeDeleted();   // Solo DRAFT
-                $canCancel = $r->canBeCancelled(); // PENDING, PAUSED, IN_QUOTATION
+                $canEdit = Auth::user()->can('update', $r) && $r->canBeEdited();
+                $canDelete = Auth::user()->can('update', $r) && $r->canBeDeleted();
+                $canCancel = Auth::user()->can('update', $r) && $r->canBeCancelled();
 
                 $csrfToken = csrf_token();
 
@@ -259,6 +260,8 @@ class RequisitionController extends Controller
      */
     public function editLivewire(Requisition $requisition)
     {
+        $this->authorize('update', $requisition);
+
         // REGLA DE ORO: Solo se editan borradores (Drafts)
         // Si intentan editar algo que ya está en 'pending', los mandamos de regreso a la base.
         if ($requisition->status !== RequisitionStatus::DRAFT && $requisition->status !== RequisitionStatus::REJECTED) {
@@ -275,6 +278,8 @@ class RequisitionController extends Controller
      */
     public function edit(Requisition $requisition): View
     {
+        $this->authorize('update', $requisition);
+
         if (! $requisition->canBeEdited()) {
             abort(403, 'No se puede editar una requisición en estado "'.$requisition->statusLabel().'".');
         }
@@ -287,6 +292,8 @@ class RequisitionController extends Controller
      */
     public function update(SaveRequisitionRequest $request, Requisition $requisition): RedirectResponse
     {
+        $this->authorize('update', $requisition);
+
         try {
             return DB::transaction(function () use ($request, $requisition) {
                 $data = $request->validated();
@@ -333,6 +340,8 @@ class RequisitionController extends Controller
      */
     public function destroy(Requisition $requisition): RedirectResponse
     {
+        $this->authorize('update', $requisition);
+
         return back()->with('error', 'Las requisiciones ya no se eliminan. Usa la cancelacion para conservar el expediente.');
     }
 
@@ -342,6 +351,8 @@ class RequisitionController extends Controller
      */
     public function cancel(Request $request, Requisition $requisition): RedirectResponse
     {
+        $this->authorize('update', $requisition);
+
         // Solo se pueden cancelar requisiciones en estados activos
         if (! $requisition->canBeCancelled()) {
             return back()->with(
@@ -384,6 +395,8 @@ class RequisitionController extends Controller
      */
     public function show(Requisition $requisition): View
     {
+        $this->authorize('view', $requisition);
+
         $requisition->load([
             'company',
             'receivingLocation',
@@ -412,6 +425,8 @@ class RequisitionController extends Controller
      */
     public function showItemAttachment(Requisition $requisition, RequisitionItem $item)
     {
+        $this->authorize('view', $requisition);
+
         abort_unless((int) $item->requisition_id === (int) $requisition->id, 404);
 
         $attachment = $item->attachment;
@@ -735,11 +750,14 @@ class RequisitionController extends Controller
     {
         // 1. Query Base: Eager Loading para evitar N+1
         $query = Requisition::with(['items.costCenter', 'requester', 'department'])
+            ->visibleTo($request->user())
             ->select('requisitions.*')
             ->withCount('items')
             ->withCount('feedbacks')
-            ->where('status', RequisitionStatus::PENDING->value)
-            ->orWhere('status', RequisitionStatus::IN_QUOTATION->value);
+            ->whereIn('status', [
+                RequisitionStatus::PENDING->value,
+                RequisitionStatus::IN_QUOTATION->value,
+            ]);
 
         return DataTables::of($query)
             ->addColumn('cost_center_name', function ($row) {
@@ -810,6 +828,8 @@ class RequisitionController extends Controller
      */
     public function reviewData(Requisition $requisition): JsonResponse
     {
+        $this->authorize('view', $requisition);
+
         // Cargamos relaciones (usando los nombres CORRECTOS en inglés)
         $requisition->load(['requester', 'items.costCenter', 'items.productService', 'items.expenseCategory']);
 
@@ -842,6 +862,8 @@ class RequisitionController extends Controller
      */
     public function validateTechnical(Request $request, Requisition $requisition): JsonResponse
     {
+        $this->authorize('view', $requisition);
+
         // Validamos que el Comprador haya marcado los checkboxes obligatorios [cite: 110-112]
         $request->validate([
             'specs_clear' => 'required|accepted', // "Las especificaciones son claras"
@@ -877,6 +899,8 @@ class RequisitionController extends Controller
      */
     public function reject(Request $request, Requisition $requisition): JsonResponse
     {
+        $this->authorize('view', $requisition);
+
         // La justificación es obligatoria y mínima de 50 caracteres [cite: 334-335]
         $request->validate([
             'reason' => 'required|string|min:50',

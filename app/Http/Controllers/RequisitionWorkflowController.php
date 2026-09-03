@@ -45,6 +45,8 @@ class RequisitionWorkflowController extends Controller
 
     public function showValidationPage(Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         if ($requisition->status !== RequisitionStatus::PENDING) {
             return redirect()
                 ->route('requisitions.inbox.validation')
@@ -67,6 +69,8 @@ class RequisitionWorkflowController extends Controller
 
     public function hold(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:500'],
         ]);
@@ -87,6 +91,8 @@ class RequisitionWorkflowController extends Controller
 
     public function resume(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         if ($requisition->status !== RequisitionStatus::PAUSED->value) {
             return $this->respond($request, false, 'La requisición no está pausada.');
         }
@@ -105,6 +111,8 @@ class RequisitionWorkflowController extends Controller
 
     public function approveForQuotation(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         if ($requisition->status === RequisitionStatus::IN_QUOTATION) {
             return $this->respond($request, true, 'Esta requisición ya está en proceso de cotización.');
         }
@@ -159,6 +167,8 @@ class RequisitionWorkflowController extends Controller
 
     public function feedback(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         $data = $request->validate([
             'message' => ['required', 'string', 'min:10', 'max:2000'],
         ]);
@@ -216,6 +226,8 @@ class RequisitionWorkflowController extends Controller
 
     public function reject(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         $data = $request->validate([
             'rejection_reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);
@@ -268,6 +280,8 @@ class RequisitionWorkflowController extends Controller
 
     public function cancel(Request $request, Requisition $requisition)
     {
+        $this->authorize('view', $requisition);
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:500'],
         ]);
@@ -300,6 +314,8 @@ class RequisitionWorkflowController extends Controller
 
     public function submitToApproval(Request $request, Requisition $requisition)
     {
+        $this->authorize('update', $requisition);
+
         if (! $requisition->canBeSubmitted() && ! $requisition->isPaused()) {
             return $this->respond($request, false, 'La requisición no puede ser enviada desde su estado actual.');
         }

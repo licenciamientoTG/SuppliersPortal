@@ -714,6 +714,22 @@ class Requisition extends Model
     }
 
     /**
+     * Limita el expediente a su solicitante. Compras y superadministración
+     * conservan visibilidad completa para operar el proceso.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->hasAnyRole(['buyer', 'superadmin'])) {
+            return $query;
+        }
+
+        return $query->where(function ($query) use ($user) {
+            $query->where('requested_by', $user->id)
+                ->orWhere('created_by', $user->id);
+        });
+    }
+
+    /**
      * Requisiciones de un año específico (basado en created_at).
      */
     public function scopeByYear($query, int $year)

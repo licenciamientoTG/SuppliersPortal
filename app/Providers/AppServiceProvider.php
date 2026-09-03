@@ -2,12 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\DirectPurchaseOrder;
 use App\Models\ExchangeRate;
+use App\Models\PurchaseOrder;
 use App\Models\ReceivingLocation;
-use App\Models\SupplierDocument;
 use App\Models\Requisition;
+use App\Models\SupplierDocument;
 use App\Observers\RequisitionObserver;
+use App\Policies\DirectPurchaseOrderPolicy;
+use App\Policies\PurchaseOrderPolicy;
 use App\Policies\ReceivingLocationPolicy;
+use App\Policies\RequisitionPolicy;
 use App\Policies\SupplierDocumentPolicy;
 use App\Services\ComplianceDocumentQrExtractor;
 use App\Services\DocumentIssueDateExtractionService;
@@ -45,6 +50,9 @@ class AppServiceProvider extends ServiceProvider
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION
         Gate::policy(ReceivingLocation::class, ReceivingLocationPolicy::class);
         Gate::policy(SupplierDocument::class, SupplierDocumentPolicy::class);
+        Gate::policy(Requisition::class, RequisitionPolicy::class);
+        Gate::policy(PurchaseOrder::class, PurchaseOrderPolicy::class);
+        Gate::policy(DirectPurchaseOrder::class, DirectPurchaseOrderPolicy::class);
 
         Blade::if('moduleAccess', function (string $module) {
             return app(ModuleAccessService::class)->userCanAccessModule(request()->user(), $module);

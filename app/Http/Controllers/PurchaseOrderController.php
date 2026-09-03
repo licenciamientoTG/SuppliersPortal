@@ -29,8 +29,8 @@ class PurchaseOrderController extends Controller
     public function index()
     {
         // Obtenemos contadores para mostrar en los tabs
-        $regularCount = PurchaseOrder::count();
-        $directCount = DirectPurchaseOrder::count();
+        $regularCount = PurchaseOrder::visibleTo(Auth::user())->count();
+        $directCount = DirectPurchaseOrder::visibleTo(Auth::user())->count();
 
         return view('purchase-orders.index', compact('regularCount', 'directCount'));
     }
@@ -228,7 +228,8 @@ class PurchaseOrderController extends Controller
     public function datatableRegular(Request $request)
     {
         if ($request->ajax()) {
-            $purchaseOrders = PurchaseOrder::with(['supplier', 'requisition', 'creator'])
+            $purchaseOrders = PurchaseOrder::visibleTo($request->user())
+                ->with(['supplier', 'requisition', 'creator'])
                 ->select('purchase_orders.*');
 
             return DataTables::of($purchaseOrders)
@@ -284,7 +285,8 @@ class PurchaseOrderController extends Controller
     public function datatableDirect(Request $request)
     {
         if ($request->ajax()) {
-            $directOrders = DirectPurchaseOrder::with(['supplier', 'creator', 'items.costCenter'])
+            $directOrders = DirectPurchaseOrder::visibleTo($request->user())
+                ->with(['supplier', 'creator', 'items.costCenter'])
                 ->select('odc_direct_purchase_orders.*');
 
             return DataTables::of($directOrders)
@@ -360,6 +362,8 @@ class PurchaseOrderController extends Controller
      */
     public function show(PurchaseOrder $purchaseOrder)
     {
+        $this->authorize('view', $purchaseOrder);
+
         $purchaseOrder->load([
             'items.requisitionItem',
             'supplier',
@@ -386,6 +390,8 @@ class PurchaseOrderController extends Controller
     /** Download the formal purchase order document once it has been issued. */
     public function downloadPdf(PurchaseOrder $purchaseOrder): Response
     {
+        $this->authorize('view', $purchaseOrder);
+
         abort_unless(in_array($purchaseOrder->status, [
             'ISSUED',
             'PARTIALLY_RECEIVED',
@@ -417,6 +423,8 @@ class PurchaseOrderController extends Controller
     /** Download the formal direct purchase order document once it has been issued. */
     public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
     {
+        $this->authorize('view', $directPurchaseOrder);
+
         abort_unless(in_array($directPurchaseOrder->status, [
             'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
         ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
@@ -436,6 +444,8 @@ class PurchaseOrderController extends Controller
     /** Download an editable Word-compatible version of an issued direct purchase order. */
     public function downloadDirectWord(DirectPurchaseOrder $directPurchaseOrder): Response
     {
+        $this->authorize('view', $directPurchaseOrder);
+
         abort_unless(in_array($directPurchaseOrder->status, [
             'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
         ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su documento Word.');
@@ -458,6 +468,8 @@ class PurchaseOrderController extends Controller
      */
     public function showDirect(DirectPurchaseOrder $directPurchaseOrder, BudgetImpactSnapshotService $budgetImpactSnapshotService)
     {
+        $this->authorize('view', $directPurchaseOrder);
+
         $directPurchaseOrder->load([
             'items.expenseCategory',
             'items.costCenter.company',

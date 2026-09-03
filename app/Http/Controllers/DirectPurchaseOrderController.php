@@ -139,6 +139,8 @@ class DirectPurchaseOrderController extends Controller
 
     public function submit(DirectPurchaseOrder $directPurchaseOrder)
     {
+        $this->authorize('update', $directPurchaseOrder);
+
         if ((int) $directPurchaseOrder->created_by !== (int) Auth::id()) {
             return back()->withErrors(['error' => 'Solo el creador puede enviar la OCD a aprobación.']);
         }
@@ -387,6 +389,8 @@ class DirectPurchaseOrderController extends Controller
 
     public function edit(DirectPurchaseOrder $directPurchaseOrder)
     {
+        $this->authorize('update', $directPurchaseOrder);
+
         if (! $directPurchaseOrder->canBeEdited()) {
             return redirect()
                 ->route('purchase-orders.index')
@@ -444,6 +448,8 @@ class DirectPurchaseOrderController extends Controller
 
     public function update(SaveDirectPurchaseOrderRequest $request, DirectPurchaseOrder $directPurchaseOrder)
     {
+        $this->authorize('update', $directPurchaseOrder);
+
         try {
             DB::beginTransaction();
 

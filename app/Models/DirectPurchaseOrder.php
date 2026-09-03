@@ -168,6 +168,7 @@ class DirectPurchaseOrder extends Model
     {
         return $this->hasMany(DirectPurchaseOrderItem::class);
     }
+
     public function approvalSteps(): MorphMany { return $this->morphMany(CostCenterApprovalStep::class, 'approvable'); }
 
     public function primaryCostCenter(): ?CostCenter
@@ -546,6 +547,21 @@ class DirectPurchaseOrder extends Model
     {
         return $query->where('assigned_approver_id', $userId)
             ->where('status', 'PENDING_APPROVAL');
+    }
+
+    /** Muestra solo las OCD creadas por el usuario o asignadas para aprobación. */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->hasAnyRole(['buyer', 'superadmin'])) {
+            return $query;
+        }
+
+        $principalIds = app(\App\Services\ApprovalDelegationService::class)->accessiblePrincipalIds($user);
+
+        return $query->where(function ($query) use ($user, $principalIds) {
+            $query->where('created_by', $user->id)
+                ->orWhereIn('assigned_approver_id', $principalIds);
+        });
     }
 
     public function scopeByMonth($query, string $month)
