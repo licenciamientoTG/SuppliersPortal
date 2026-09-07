@@ -26,6 +26,7 @@ class ReportsTest extends TestCase
             ->get(route('reports.index'))
             ->assertOk()
             ->assertSeeText('Reportería integral')
+            ->assertSeeText('Requisiciones por estatus')
             ->assertSeeText('Órdenes en riesgo');
     }
 

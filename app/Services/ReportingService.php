@@ -44,6 +44,25 @@ class ReportingService
     ];
 
     public function definition(string $report): array { abort_unless(isset(self::REPORTS[$report]), 404); return self::REPORTS[$report]; }
+
+    public function currentMonthStatusSummary(): array
+    {
+        $period = now();
+        $rows = DB::table('requisitions')
+            ->whereNull('deleted_at')
+            ->whereBetween('created_at', [$period->copy()->startOfMonth(), $period->copy()->endOfDay()])
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => $this->label((string) $row->status),
+                'total' => (int) $row->total,
+                'color' => $this->statusColor((string) $row->status),
+            ])->values()->all();
+
+        return ['period' => $period->translatedFormat('F Y'), 'total' => array_sum(array_column($rows, 'total')), 'rows' => $rows];
+    }
     public function metadata(string $report): array
     {
         [$title, $group] = $this->definition($report);
@@ -82,6 +101,7 @@ class ReportingService
         return compact('columns','rows','kpis');
     }
     private function label(string $status): string { return match(strtoupper($status)) {'DRAFT'=>'Borrador','PENDING'=>'Pendiente','PENDING_VALIDATION'=>'Pendiente de validación','VALIDATED'=>'Validada','PENDING_RFQ'=>'Pendiente de cotización','IN_QUOTATION'=>'En cotización','PENDING_APPROVAL'=>'Pendiente de aprobación','APPROVED'=>'Aprobada','REJECTED'=>'Rechazada','RETURNED'=>'Devuelta','ISSUED'=>'Emitida','DELIVERED_PENDING_RECEPTION'=>'Pendiente de recepción','PARTIALLY_RECEIVED'=>'Recibida parcialmente','RECEIVED','COMPLETED'=>'Completada','CLOSED_BY_INACTIVITY'=>'Cerrada por inactividad','CANCELLED'=>'Cancelada','PENDIENTE_DIRECCION'=>'Pendiente',default=>str($status)->replace('_',' ')->lower()->ucfirst()->toString()}; }
+    private function statusColor(string $status): string { return match(strtoupper($status)) {'COMPLETED','RECEIVED'=>'#4bd396','REJECTED','CANCELLED'=>'#ef5f5f','PENDING','PENDING_VALIDATION','PENDING_RFQ','PENDING_APPROVAL','RETURNED'=>'#f0ad4e','IN_QUOTATION'=>'#7c6ee6',default=>'#188ae2'}; }
     private function traceability(Carbon $from, Carbon $to, array $f): array
     {
         $asOf=$to->isFuture()?now():$to;$rows=$this->req($from,$to,$f)->leftJoin('users as u','u.id','=','r.requested_by')->leftJoin('departments as d','d.id','=','requester.department_id')->leftJoin('quotation_summaries as qs','qs.requisition_id','=','r.id')->leftJoin('purchase_orders as po','po.requisition_id','=','r.id')->selectRaw("r.folio,u.name as requisitor,COALESCE(d.name,'Sin departamento') as departamento,r.status,r.created_at,r.validated_at,MIN(qs.approved_at) as cotizacion_aprobada,MIN(po.issued_at) as issued_at,MIN(po.received_at) as received_at,MAX(qs.total) as monto")->groupBy('r.id','r.folio','u.name','d.name','r.status','r.created_at','r.validated_at')->orderByDesc('r.created_at')->get()->map(function($row)use($asOf){$row->dias_ciclo=Carbon::parse($row->created_at)->startOfDay()->diffInDays(Carbon::parse($row->received_at ?? $asOf)->startOfDay());return $row;});

@@ -17,7 +17,7 @@ class ReportController extends Controller
 {
     public function __construct(private readonly ReportingService $reports) {}
 
-    public function index() { return view('reports.index', ['reports' => ReportingService::REPORTS]); }
+    public function index() { return view('reports.index', ['reports' => ReportingService::REPORTS, 'monthlyStatus' => $this->reports->currentMonthStatusSummary()]); }
 
     public function show(Request $request, string $report)
     {
