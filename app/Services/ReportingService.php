@@ -47,7 +47,7 @@ class ReportingService
     public function metadata(string $report): array
     {
         [$title, $group] = $this->definition($report);
-        return ['title' => $title, 'group' => $group, 'filters' => self::FILTERS[$report], 'sla_days' => $report === 'purchasing-sla' ? $this->validationSlaDays() : null, 'description' => match ($report) {
+        return ['title' => $title, 'group' => $group, 'filters' => self::FILTERS[$report], 'money_fields' => $this->moneyFields($report), 'sla_days' => $report === 'purchasing-sla' ? $this->validationSlaDays() : null, 'description' => match ($report) {
             'purchasing-sla' => 'Mide cumplimiento de la meta de validación y prioriza los casos fuera de SLA.',
             'critical-orders' => 'Ordena las excepciones por urgencia de recepción y monto expuesto.',
             'contracts-usage' => 'Contrasta importe utilizado en requisiciones contra monto contratado y vigencia.',
@@ -98,6 +98,20 @@ class ReportingService
         }
 
         return (int) (ReportSetting::query()->where('key', 'purchasing_validation_sla_days')->value('value') ?? self::VALIDATION_SLA_DAYS);
+    }
+
+    private function moneyFields(string $report): array
+    {
+        return match ($report) {
+            'requisition-traceability' => ['monto'],
+            'requester-ranking' => ['monto_adjudicado'],
+            'requisitions-by-department' => ['monto'],
+            'supplier-performance', 'critical-orders', 'budget-movements-risk' => ['monto'],
+            'purchase-orders-control' => ['total'],
+            'budget-execution' => ['asignado', 'comprometido', 'consumido', 'disponible'],
+            'contracts-usage' => ['monto_contratado', 'monto_utilizado'],
+            default => [],
+        };
     }
     private function departments(Carbon $from, Carbon $to, array $f): array { $rows=$this->req($from,$to,$f)->leftJoin('departments as d','d.id','=','requester.department_id')->leftJoin('quotation_summaries as qs','qs.requisition_id','=','r.id')->selectRaw("COALESCE(d.name,'Sin departamento') as departamento,COUNT(DISTINCT r.id) as requisiciones,COUNT(DISTINCT r.requested_by) as requisitores,SUM(qs.total) as monto,SUM(CASE WHEN r.status='COMPLETED' THEN 1 ELSE 0 END) as completadas")->groupBy('d.name')->orderByDesc('requisiciones')->get();return $this->pack(['Departamento','Requisiciones','Requisitores','Monto','Completadas'],$rows,['Departamentos'=>$rows->count(),'Requisiciones'=>$rows->sum('requisiciones'),'Monto'=>$rows->sum('monto')]); }
     private function suppliers(Carbon $from, Carbon $to, array $f): array { $q=DB::table('purchase_orders as po')->join('suppliers as s','s.id','=','po.supplier_id')->join('requisitions as r','r.id','=','po.requisition_id')->whereNull('po.deleted_at')->whereBetween('po.created_at',[$from,$to]);if(!empty($f['supplier_id']))$q->where('po.supplier_id',$f['supplier_id']);if(!empty($f['company_id']))$q->where('r.company_id',$f['company_id']);$rows=$q->selectRaw("s.company_name as proveedor,COUNT(*) as ordenes,SUM(po.total) as monto,SUM(CASE WHEN po.status='RECEIVED' THEN 1 ELSE 0 END) as recibidas,SUM(CASE WHEN po.reception_deadline_at < ? AND po.status IN ('ISSUED','DELIVERED_PENDING_RECEPTION','PARTIALLY_RECEIVED') THEN 1 ELSE 0 END) as vencidas",[$to])->groupBy('s.id','s.company_name')->orderByDesc('monto')->get()->map(function($r){$r->cumplimiento_recepcion_pct=$r->ordenes?round($r->recibidas/$r->ordenes*100,1):0;return $r;});return $this->pack(['Proveedor','Órdenes','Monto','Recibidas','Vencidas','Cumplimiento recepción %'],$rows,['Proveedores'=>$rows->count(),'Monto'=>$rows->sum('monto'),'Órdenes'=>$rows->sum('ordenes'),'Órdenes vencidas'=>$rows->sum('vencidas')]); }

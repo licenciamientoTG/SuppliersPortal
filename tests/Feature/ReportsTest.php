@@ -80,6 +80,14 @@ class ReportsTest extends TestCase
         $this->assertSame('Operaciones', $result['rows']->first()->departamento);
     }
 
+    public function test_reports_identify_their_monetary_fields_for_currency_formatting(): void
+    {
+        $this->assertSame(
+            ['asignado', 'comprometido', 'consumido', 'disponible'],
+            app(ReportingService::class)->metadata('budget-execution')['money_fields'],
+        );
+    }
+
     private function reportViewer(): User
     {
         $user = User::factory()->create();
