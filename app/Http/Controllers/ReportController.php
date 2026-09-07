@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\ReportingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -20,18 +21,21 @@ class ReportController extends Controller
     public function show(Request $request, string $report)
     {
         [$title] = $this->reports->definition($report);
-        return view('reports.show', ['report' => $report, 'title' => $title, 'filters' => $this->reports->filters(), 'defaultFrom' => now()->startOfYear()->toDateString(), 'defaultTo' => now()->endOfYear()->toDateString()]);
+        return view('reports.show', ['report' => $report, 'title' => $title, 'meta' => $this->reports->metadata($report), 'filters' => $this->reports->filters(), 'defaultFrom' => now()->startOfYear()->toDateString(), 'defaultTo' => now()->endOfYear()->toDateString()]);
     }
 
     public function data(Request $request, string $report)
     {
+        $this->reports->definition($report);
+        $request->validate(['date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date', 'after_or_equal:date_from']]);
         $result = $this->reports->result($report, $request->all());
-        return DataTables::of($result['rows'])->with(['kpis' => $result['kpis'], 'columns' => $result['columns']])->toJson();
+        return DataTables::of($result['rows'])->with(['kpis' => $result['kpis'], 'columns' => $result['columns'], 'meta' => $result['meta']])->toJson();
     }
 
-    public function export(Request $request, string $report, string $format): StreamedResponse|Illuminate\Http\Response
+    public function export(Request $request, string $report, string $format): StreamedResponse|Response
     {
         abort_unless(in_array($format, ['xlsx', 'csv', 'pdf'], true), 404);
+        $request->validate(['date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date', 'after_or_equal:date_from']]);
         [$title] = $this->reports->definition($report); $result = $this->reports->result($report, $request->all());
         $filename = str($report)->slug('_').'_'.now()->format('Ymd_His');
         if ($format === 'pdf') return Pdf::loadView('reports.pdf', compact('title', 'result'))->setPaper('letter', 'landscape')->download("$filename.pdf");

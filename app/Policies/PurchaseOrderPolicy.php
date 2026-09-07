@@ -32,6 +32,7 @@ class PurchaseOrderPolicy
         return $requisition !== null && (
             (int) $requisition->requested_by === (int) $user->id
             || (int) $requisition->created_by === (int) $user->id
+            || (int) $requisition->department?->manager_user_id === (int) $user->id
         );
     }
 }

@@ -723,9 +723,14 @@ class Requisition extends Model
             return $query;
         }
 
-        return $query->where(function ($query) use ($user) {
+        $principalIds = app(\App\Services\ApprovalDelegationService::class)->accessiblePrincipalIds($user);
+
+        return $query->where(function ($query) use ($user, $principalIds) {
             $query->where('requested_by', $user->id)
-                ->orWhere('created_by', $user->id);
+                ->orWhere('created_by', $user->id)
+                ->orWhereHas('department', fn ($departmentQuery) => $departmentQuery->where('manager_user_id', $user->id))
+                ->orWhereHas('quotationSummaries', fn ($summaryQuery) => $summaryQuery->whereIn('current_approver_user_id', $principalIds))
+                ->orWhereHas('purchaseOrders', fn ($orderQuery) => $orderQuery->whereIn('assigned_approver_id', $principalIds));
         });
     }
 

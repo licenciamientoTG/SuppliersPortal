@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\CheckLockScreen;
 use App\Http\Middleware\ModuleAccess;
+use App\Models\Department;
 use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\Requisition;
@@ -67,5 +68,38 @@ class OwnRecordsAccessTest extends TestCase
             ->actingAs($user)
             ->get(route('direct-purchase-orders.show', $foreignOrder))
             ->assertForbidden();
+    }
+
+    public function test_department_manager_and_assigned_authorizer_see_records_in_their_scope(): void
+    {
+        $departmentManager = User::factory()->create();
+        $authorizer = User::factory()->create();
+        $requester = User::factory()->create();
+        $department = Department::create([
+            'name' => 'Departamento de prueba',
+            'abbreviated' => 'DPR',
+            'is_active' => true,
+            'manager_user_id' => $departmentManager->id,
+        ]);
+        $departmentRequisition = Requisition::factory()->create([
+            'department_id' => $department->id,
+            'requested_by' => $requester->id,
+            'created_by' => $requester->id,
+        ]);
+        $assignedOrder = PurchaseOrder::factory()->create([
+            'requisition_id' => $departmentRequisition->id,
+            'assigned_approver_id' => $authorizer->id,
+        ]);
+        $assignedDirectOrder = DirectPurchaseOrder::factory()->create([
+            'assigned_approver_id' => $authorizer->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->assertContains($departmentRequisition->id, Requisition::visibleTo($departmentManager)->pluck('id')->all());
+        $this->assertTrue(Gate::forUser($departmentManager)->allows('view', $departmentRequisition));
+        $this->assertContains($assignedOrder->id, PurchaseOrder::visibleTo($authorizer)->pluck('id')->all());
+        $this->assertTrue(Gate::forUser($authorizer)->allows('view', $departmentRequisition));
+        $this->assertContains($assignedDirectOrder->id, DirectPurchaseOrder::visibleTo($authorizer)->pluck('id')->all());
+        $this->assertTrue(Gate::forUser($authorizer)->allows('view', $assignedDirectOrder));
     }
 }

@@ -154,7 +154,8 @@ class PurchaseOrder extends Model
                 ->orWhereIn('assigned_approver_id', $principalIds)
                 ->orWhereHas('requisition', function ($requisitionQuery) use ($user) {
                     $requisitionQuery->where('requested_by', $user->id)
-                        ->orWhere('created_by', $user->id);
+                        ->orWhere('created_by', $user->id)
+                        ->orWhereHas('department', fn ($departmentQuery) => $departmentQuery->where('manager_user_id', $user->id));
                 });
         });
     }

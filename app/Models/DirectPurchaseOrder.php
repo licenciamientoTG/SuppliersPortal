@@ -560,7 +560,8 @@ class DirectPurchaseOrder extends Model
 
         return $query->where(function ($query) use ($user, $principalIds) {
             $query->where('created_by', $user->id)
-                ->orWhereIn('assigned_approver_id', $principalIds);
+                ->orWhereIn('assigned_approver_id', $principalIds)
+                ->orWhereHas('approvalSteps', fn ($stepQuery) => $stepQuery->whereIn('principal_user_id', $principalIds));
         });
     }
 

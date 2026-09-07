@@ -14,7 +14,7 @@ return [
             'roles' => ['report_viewer'],
         ],
         'requisitions' => [
-            'roles' => ['staff'],
+            'roles' => ['staff', 'department_head', 'authorizer', 'general_director'],
         ],
         'quotations' => [
             'roles' => ['buyer', 'supplier', 'authorizer', 'superadmin', 'general_director'],

@@ -17,7 +17,13 @@ class DirectPurchaseOrderPolicy
     {
         return $user->hasRole('buyer')
             || (int) $directPurchaseOrder->created_by === (int) $user->id
-            || app(ApprovalDelegationService::class)->canAct($user, $directPurchaseOrder->assigned_approver_id);
+            || app(ApprovalDelegationService::class)->canAct($user, $directPurchaseOrder->assigned_approver_id)
+            || $directPurchaseOrder->approvalSteps()
+                ->whereIn(
+                    'principal_user_id',
+                    app(ApprovalDelegationService::class)->accessiblePrincipalIds($user)
+                )
+                ->exists();
     }
 
     public function update(User $user, DirectPurchaseOrder $directPurchaseOrder): bool

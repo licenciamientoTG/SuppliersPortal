@@ -40,6 +40,15 @@ class ModuleAccessMatrixTest extends TestCase
             ->assertOk();
     }
 
+    public function test_department_head_and_authorizer_can_access_requisitions_module(): void
+    {
+        foreach (['department_head', 'authorizer'] as $role) {
+            $this->actingAs($this->userWithRole($role))
+                ->get(route('requisitions.index'))
+                ->assertOk();
+        }
+    }
+
     public function test_department_head_cannot_access_products_services_module(): void
     {
         $user = $this->userWithRole('department_head');
@@ -49,7 +58,7 @@ class ModuleAccessMatrixTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_staff_can_access_requisitions_but_not_purchase_orders(): void
+    public function test_staff_can_access_requisitions_and_purchase_orders(): void
     {
         $user = $this->userWithRole('staff');
 
@@ -59,7 +68,7 @@ class ModuleAccessMatrixTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('purchase-orders.index'))
-            ->assertForbidden();
+            ->assertOk();
     }
 
     public function test_buyer_dashboard_shows_only_modules_allowed_by_matrix(): void
