@@ -21,7 +21,7 @@ class ReportController extends Controller
     public function show(Request $request, string $report)
     {
         [$title] = $this->reports->definition($report);
-        return view('reports.show', ['report' => $report, 'title' => $title, 'meta' => $this->reports->metadata($report), 'filters' => $this->reports->filters(), 'defaultFrom' => now()->startOfYear()->toDateString(), 'defaultTo' => now()->endOfYear()->toDateString()]);
+        return view('reports.show', ['report' => $report, 'title' => $title, 'meta' => $this->reports->metadata($report), 'filters' => $this->reports->filters(), 'defaultFrom' => now()->startOfYear()->toDateString(), 'defaultTo' => now()->toDateString()]);
     }
 
     public function data(Request $request, string $report)
