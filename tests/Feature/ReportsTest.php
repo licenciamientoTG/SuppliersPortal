@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Requisition;
+use App\Services\ReportingService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -41,6 +44,40 @@ class ReportsTest extends TestCase
             ->assertOk()
             ->assertSee('name="contract_id"', false)
             ->assertSeeText('Consumo y vigencia de contratos');
+    }
+
+    public function test_superadmin_can_persist_the_validation_sla_goal(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('superadmin');
+
+        $this->actingAs($user)
+            ->put(route('reports.settings.validation-sla'), ['sla_days' => 4])
+            ->assertRedirect(route('reports.show', 'purchasing-sla'));
+
+        $this->assertDatabaseHas('report_settings', [
+            'key' => 'purchasing_validation_sla_days',
+            'value' => 4,
+        ]);
+    }
+
+    public function test_department_report_uses_the_requisitioners_department(): void
+    {
+        $department = Department::create(['name' => 'Operaciones', 'abbreviated' => 'OPS']);
+        $requester = User::factory()->create(['department_id' => $department->id]);
+        Requisition::factory()->create([
+            'requested_by' => $requester->id,
+            'created_by' => $requester->id,
+            'department_id' => null,
+            'created_at' => now(),
+        ]);
+
+        $result = app(ReportingService::class)->result('requisitions-by-department', [
+            'date_from' => now()->startOfDay()->toDateString(),
+            'date_to' => now()->endOfDay()->toDateString(),
+        ]);
+
+        $this->assertSame('Operaciones', $result['rows']->first()->departamento);
     }
 
     private function reportViewer(): User

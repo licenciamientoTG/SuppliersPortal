@@ -115,6 +115,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
     Route::middleware('module.access:reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::put('/settings/validation-sla', [ReportController::class, 'updateValidationSla'])->name('settings.validation-sla');
         Route::get('/{report}', [ReportController::class, 'show'])->name('show');
         Route::get('/{report}/data', [ReportController::class, 'data'])->name('data');
         Route::get('/{report}/export/{format}', [ReportController::class, 'export'])->name('export');

@@ -552,7 +552,7 @@ class RequisitionController extends Controller
         return Requisition::create([
             'company_id' => $data['company_id'],
             'receiving_location_id' => $data['receiving_location_id'],
-            'department_id' => $data['department_id'] ?? null,
+            'department_id' => Auth::user()->department_id,
             'folio' => Requisition::nextFolio(),
             'requested_by' => Auth::id(),
             'required_date' => now()->toDateString(),
@@ -575,7 +575,7 @@ class RequisitionController extends Controller
 
         // Solo permitir cambiar cost_center, department y receiving_location si está en draft
         if ($requisition->isDraft()) {
-            $updateData['department_id'] = $data['department_id'] ?? null;
+            $updateData['department_id'] = Auth::user()->department_id;
             $updateData['receiving_location_id'] = $data['receiving_location_id'];
         }
 

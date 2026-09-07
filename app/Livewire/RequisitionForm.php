@@ -242,6 +242,7 @@ class RequisitionForm extends Component
                 $requisition->update([
                     'company_id' => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
+                    'department_id' => Auth::user()->department_id,
                     'required_date' => now()->toDateString(),
                     'description' => $this->description,
                     'status' => $status === 'pending' ? 'draft' : $status, // Se cambiará después si es pending
@@ -282,6 +283,7 @@ class RequisitionForm extends Component
                 $requisition = Requisition::create([
                     'company_id' => $this->company_id,
                     'receiving_location_id' => $this->receiving_location_id,
+                    'department_id' => Auth::user()->department_id,
                     'folio' => Requisition::nextFolio(),
                     'requested_by' => Auth::id(),
                     'required_date' => now()->toDateString(),

@@ -6,6 +6,7 @@ use App\Services\ReportingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -30,6 +31,23 @@ class ReportController extends Controller
         $request->validate(['date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date', 'after_or_equal:date_from']]);
         $result = $this->reports->result($report, $request->all());
         return DataTables::of($result['rows'])->with(['kpis' => $result['kpis'], 'columns' => $result['columns'], 'meta' => $result['meta']])->toJson();
+    }
+
+    public function updateValidationSla(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('superadmin'), 403);
+
+        if (! Schema::hasTable('report_settings')) {
+            return back()->withErrors(['sla_days' => 'La configuración aún no está disponible. Aplica la migración pendiente.']);
+        }
+
+        $data = $request->validate(['sla_days' => ['required', 'integer', 'min:0', 'max:60']]);
+        \App\Models\ReportSetting::updateOrCreate(
+            ['key' => 'purchasing_validation_sla_days'],
+            ['value' => $data['sla_days']],
+        );
+
+        return redirect()->route('reports.show', 'purchasing-sla')->with('success', 'Meta de SLA actualizada.');
     }
 
     public function export(Request $request, string $report, string $format): StreamedResponse|Response
