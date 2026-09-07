@@ -48,20 +48,29 @@ class ReportingService
     public function currentMonthStatusSummary(): array
     {
         $period = now();
-        $rows = DB::table('requisitions')
-            ->whereNull('deleted_at')
-            ->whereBetween('created_at', [$period->copy()->startOfMonth(), $period->copy()->endOfDay()])
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->orderByDesc('total')
-            ->get()
-            ->map(fn ($row) => [
-                'label' => $this->label((string) $row->status),
-                'total' => (int) $row->total,
-                'color' => $this->statusColor((string) $row->status),
-            ])->values()->all();
+        $rows = DB::table('requisitions as r')
+            ->leftJoin('users as requester', 'requester.id', '=', 'r.requested_by')
+            ->leftJoin('departments as department', 'department.id', '=', 'requester.department_id')
+            ->whereNull('r.deleted_at')
+            ->whereBetween('r.created_at', [$period->copy()->startOfMonth(), $period->copy()->endOfDay()])
+            ->selectRaw("COALESCE(department.name, 'Sin departamento') as department, r.status, COUNT(*) as total")
+            ->groupBy('department.name', 'r.status')
+            ->get();
 
-        return ['period' => $period->translatedFormat('F Y'), 'total' => array_sum(array_column($rows, 'total')), 'rows' => $rows];
+        $statuses = $rows->pluck('status')->unique()->sortBy(fn ($status) => $this->label((string) $status))->values();
+        $departments = $rows->pluck('department')->unique()->sort()->values();
+        $series = $statuses->map(fn ($status) => [
+            'name' => $this->label((string) $status),
+            'color' => $this->statusColor((string) $status),
+            'data' => $departments->map(fn ($department) => (int) ($rows->first(fn ($row) => $row->department === $department && $row->status === $status)?->total ?? 0))->all(),
+        ])->all();
+
+        return [
+            'period' => $period->translatedFormat('F Y'),
+            'total' => (int) $rows->sum('total'),
+            'departments' => $departments->all(),
+            'series' => $series,
+        ];
     }
     public function metadata(string $report): array
     {
