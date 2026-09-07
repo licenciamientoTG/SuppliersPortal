@@ -45,14 +45,24 @@ class ReportingService
 
     public function definition(string $report): array { abort_unless(isset(self::REPORTS[$report]), 404); return self::REPORTS[$report]; }
 
-    public function currentMonthStatusSummary(): array
+    public function currentMonthStatusSummary(?string $month = null): array
     {
-        $period = now();
+        $period = now()->startOfMonth();
+        if ($month && preg_match('/^\d{4}-\d{2}$/', $month)) {
+            try {
+                $period = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+                if ($period->greaterThan(now()->startOfMonth())) {
+                    $period = now()->startOfMonth();
+                }
+            } catch (\Throwable) {
+                $period = now()->startOfMonth();
+            }
+        }
         $rows = DB::table('requisitions as r')
             ->leftJoin('users as requester', 'requester.id', '=', 'r.requested_by')
             ->leftJoin('departments as department', 'department.id', '=', 'requester.department_id')
             ->whereNull('r.deleted_at')
-            ->whereBetween('r.created_at', [$period->copy()->startOfMonth(), $period->copy()->endOfDay()])
+            ->whereBetween('r.created_at', [$period->copy()->startOfMonth(), $period->copy()->endOfMonth()])
             ->selectRaw("COALESCE(department.name, 'Sin departamento') as department, r.status, COUNT(*) as total")
             ->groupBy('department.name', 'r.status')
             ->get();
@@ -67,6 +77,10 @@ class ReportingService
 
         return [
             'period' => $period->translatedFormat('F Y'),
+            'month' => $period->format('Y-m'),
+            'previous_month' => $period->copy()->subMonth()->format('Y-m'),
+            'next_month' => $period->copy()->addMonth()->format('Y-m'),
+            'can_next' => $period->copy()->addMonth()->lessThanOrEqualTo(now()->startOfMonth()),
             'total' => (int) $rows->sum('total'),
             'departments' => $departments->all(),
             'series' => $series,
