@@ -14,18 +14,18 @@ class ReportingService
     public const VALIDATION_SLA_DAYS = 2;
 
     public const REPORTS = [
-        'requisition-traceability' => ['Trazabilidad por requisitor', 'Requisiciones', 'ti-route'],
-        'requester-ranking' => ['Demanda por requisitor', 'Requisiciones', 'ti-users'],
-        'requisition-funnel' => ['Embudo y antigüedad', 'Requisiciones', 'ti-filter'],
-        'purchasing-sla' => ['SLA de validación de Compras', 'Requisiciones', 'ti-clock-hour-4'],
-        'requisitions-by-department' => ['Demanda por departamento', 'Requisiciones', 'ti-building-community'],
-        'supplier-performance' => ['Gasto y cumplimiento de proveedores', 'Compras y proveedores', 'ti-building-store'],
-        'purchase-orders-control' => ['Control de OC y ODC', 'Órdenes y recepciones', 'ti-shopping-cart'],
-        'critical-orders' => ['Órdenes en riesgo', 'Órdenes y recepciones', 'ti-alert-triangle'],
-        'receptions-differences' => ['Recepciones y no conformidades', 'Órdenes y recepciones', 'ti-package-export'],
-        'budget-execution' => ['Ejecución presupuestal', 'Presupuesto y contratos', 'ti-chart-bar'],
-        'budget-movements-risk' => ['Movimientos presupuestales', 'Presupuesto y contratos', 'ti-arrows-exchange'],
-        'contracts-usage' => ['Consumo y vigencia de contratos', 'Presupuesto y contratos', 'ti-file-certificate'],
+        'requisition-traceability' => ['Trazabilidad por requisitor', 'Requisiciones', 'ti-route', 'Sigue cada requisición desde su creación hasta la recepción, con responsables, fechas y tiempos de ciclo.'],
+        'requester-ranking' => ['Demanda por requisitor', 'Requisiciones', 'ti-users', 'Compara el volumen, monto adjudicado y resultado de las requisiciones generadas por cada solicitante.'],
+        'requisition-funnel' => ['Embudo y antigüedad', 'Requisiciones', 'ti-filter', 'Identifica cuántas requisiciones hay en cada etapa y cuánto tiempo llevan esperando atención.'],
+        'purchasing-sla' => ['SLA de validación de Compras', 'Requisiciones', 'ti-clock-hour-4', 'Mide el tiempo de validación de Compras e identifica los casos que exceden la meta de SLA.'],
+        'requisitions-by-department' => ['Demanda por departamento', 'Requisiciones', 'ti-building-community', 'Analiza la carga de requisiciones, solicitantes, montos y cierres por departamento.'],
+        'supplier-performance' => ['Gasto y cumplimiento de proveedores', 'Compras y proveedores', 'ti-building-store', 'Evalúa el gasto por proveedor y su cumplimiento de recepción, incluyendo órdenes vencidas.'],
+        'purchase-orders-control' => ['Control de OC y ODC', 'Órdenes y recepciones', 'ti-shopping-cart', 'Consulta las órdenes de compra y directas emitidas, su monto, estatus y avance de recepción.'],
+        'critical-orders' => ['Órdenes en riesgo', 'Órdenes y recepciones', 'ti-alert-triangle', 'Prioriza órdenes próximas a vencer o vencidas para atender el riesgo de recepción y el monto expuesto.'],
+        'receptions-differences' => ['Recepciones y no conformidades', 'Órdenes y recepciones', 'ti-package-export', 'Da seguimiento a las recepciones realizadas y a las partidas reportadas como no conformes.'],
+        'budget-execution' => ['Ejecución presupuestal', 'Presupuesto y contratos', 'ti-chart-bar', 'Muestra el presupuesto asignado, comprometido, consumido y disponible por centro de costo y mes.'],
+        'budget-movements-risk' => ['Movimientos presupuestales', 'Presupuesto y contratos', 'ti-arrows-exchange', 'Revisa movimientos presupuestales y detecta los pendientes que requieren aprobación o seguimiento.'],
+        'contracts-usage' => ['Consumo y vigencia de contratos', 'Presupuesto y contratos', 'ti-file-certificate', 'Controla el consumo frente al monto contratado y anticipa contratos próximos a vencer.'],
     ];
 
     private const FILTERS = [
@@ -88,13 +88,8 @@ class ReportingService
     }
     public function metadata(string $report): array
     {
-        [$title, $group] = $this->definition($report);
-        return ['title' => $title, 'group' => $group, 'filters' => self::FILTERS[$report], 'money_fields' => $this->moneyFields($report), 'sla_days' => $report === 'purchasing-sla' ? $this->validationSlaDays() : null, 'description' => match ($report) {
-            'purchasing-sla' => 'Mide cumplimiento de la meta de validación y prioriza los casos fuera de SLA.',
-            'critical-orders' => 'Ordena las excepciones por urgencia de recepción y monto expuesto.',
-            'contracts-usage' => 'Contrasta importe utilizado en requisiciones contra monto contratado y vigencia.',
-            default => 'Filtra el periodo, revisa indicadores y abre el detalle para actuar sobre excepciones.',
-        }];
+        [$title, $group, , $description] = $this->definition($report);
+        return ['title' => $title, 'group' => $group, 'filters' => self::FILTERS[$report], 'money_fields' => $this->moneyFields($report), 'sla_days' => $report === 'purchasing-sla' ? $this->validationSlaDays() : null, 'description' => $description];
     }
     public function filters(): array
     {
