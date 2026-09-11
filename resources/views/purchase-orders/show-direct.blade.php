@@ -387,14 +387,6 @@
                             <div class="info-value small text-muted">{{ $ocd->reception_notes }}</div>
                         </div>
                         @endif
-                        @if($ocd->pdf_path)
-                        <div class="mt-2">
-                            <a href="{{ Storage::url($ocd->pdf_path) }}" target="_blank"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="ti ti-file-type-pdf me-1"></i>Ver PDF adjunto
-                            </a>
-                        </div>
-                        @endif
                     </div>
 
                 </div>
