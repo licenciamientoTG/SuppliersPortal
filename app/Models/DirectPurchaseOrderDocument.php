@@ -26,7 +26,6 @@ class DirectPurchaseOrderDocument extends Model
      * RELACIONES
      * =========================================
      */
-
     public function directPurchaseOrder(): BelongsTo
     {
         return $this->belongsTo(DirectPurchaseOrder::class);
@@ -72,7 +71,7 @@ class DirectPurchaseOrderDocument extends Model
      */
     public function getFileUrl(): string
     {
-        return Storage::url($this->file_path);
+        return route('direct-purchase-orders.documents.show', [$this->direct_purchase_order_id, $this->id]);
     }
 
     /**
@@ -80,14 +79,14 @@ class DirectPurchaseOrderDocument extends Model
      */
     public function getFileSize(): string
     {
-        $bytes = Storage::size($this->file_path);
+        $bytes = Storage::disk('local')->size($this->file_path);
         $units = ['B', 'KB', 'MB', 'GB'];
 
         for ($i = 0; $bytes > 1024; $i++) {
             $bytes /= 1024;
         }
 
-        return round($bytes, 2) . ' ' . $units[$i];
+        return round($bytes, 2).' '.$units[$i];
     }
 
     /**
@@ -167,13 +166,12 @@ class DirectPurchaseOrderDocument extends Model
      * EVENTOS DEL MODELO
      * =========================================
      */
-
     protected static function booted(): void
     {
         // Al eliminar un documento, también eliminar el archivo físico
         static::deleting(function (DirectPurchaseOrderDocument $document) {
-            if (Storage::exists($document->file_path)) {
-                Storage::delete($document->file_path);
+            if (Storage::disk('local')->exists($document->file_path)) {
+                Storage::disk('local')->delete($document->file_path);
             }
         });
     }

@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class DirectPurchaseOrderController extends Controller
 {
@@ -80,6 +81,36 @@ class DirectPurchaseOrderController extends Controller
             'expenseCategories',
             'receivingLocations'
         ));
+    }
+
+    /**
+     * Muestra un adjunto de una OCD desde almacenamiento privado.
+     */
+    public function showDocument(
+        DirectPurchaseOrder $directPurchaseOrder,
+        DirectPurchaseOrderDocument $document
+    ) {
+        $this->authorize('view', $directPurchaseOrder);
+
+        abort_unless(
+            (int) $document->direct_purchase_order_id === (int) $directPurchaseOrder->id,
+            404
+        );
+
+        $disk = Storage::disk('local');
+
+        abort_unless(
+            $disk->exists($document->file_path),
+            404,
+            'El archivo adjunto ya no está disponible.'
+        );
+
+        return $disk->response(
+            $document->file_path,
+            $document->original_filename,
+            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
+            'inline'
+        );
     }
 
     public function store(SaveDirectPurchaseOrderRequest $request)

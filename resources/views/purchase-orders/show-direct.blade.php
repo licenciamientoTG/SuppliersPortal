@@ -595,7 +595,7 @@
                                     <div>
                                         <p class="mb-0 small fw-bold">{{ $doc->original_filename }}</p>
                                         <small class="text-muted text-uppercase">{{ $doc->document_type }}</small>
-                                        <a href="{{ Storage::url($doc->file_path) }}" target="_blank" class="ms-2 text-info" title="Ver archivo">
+                                        <a href="{{ route('direct-purchase-orders.documents.show', [$directPurchaseOrder, $doc]) }}" target="_blank" class="ms-2 text-info" title="Ver archivo">
                                             <i class="ti ti-external-link"></i>
                                         </a>
                                     </div>

@@ -769,6 +769,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/edit', [DirectPurchaseOrderController::class, 'edit'])->name('direct-purchase-orders.edit');
     Route::middleware('module.access:purchase_orders')->put('/direct-purchase-orders/{directPurchaseOrder}', [DirectPurchaseOrderController::class, 'update'])->name('direct-purchase-orders.update');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/categories', [DirectPurchaseOrderController::class, 'getAvailableCategories'])->name('direct-purchase-orders.categories');
+    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/documents/{document}', [DirectPurchaseOrderController::class, 'showDocument'])->name('direct-purchase-orders.documents.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}', [PurchaseOrderController::class, 'showDirect'])->name('direct-purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadDirectPdf'])->name('direct-purchase-orders.pdf');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/word', [PurchaseOrderController::class, 'downloadDirectWord'])->name('direct-purchase-orders.word');
