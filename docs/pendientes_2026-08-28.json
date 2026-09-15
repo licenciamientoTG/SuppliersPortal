@@ -128,6 +128,22 @@
       ],
       "verificacion_pendiente": "Ejecutar composer dump-autoload al desplegar para limpiar el classmap.",
       "ref_pendiente_general": "P018"
+    },
+    {
+      "id": "PRE-04",
+      "descripcion": "Pruebas presupuestales que devolvian 403 por ser anteriores a la matriz module_access.",
+      "severidad_original": "medio",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "Por decision de Aldo Ochoa (TI) se eliminaron las pruebas que no funcionaban, en lugar de adaptarlas. Eran 14 (no 15), todas fallando con 403.",
+      "cambios": [
+        "tests/Feature/AnnualBudgetStoreTest.php (eliminado, 2 pruebas)",
+        "tests/Feature/CostCenterImportTest.php (eliminado, 7 pruebas)",
+        "tests/Feature/CostCenterCrudTest.php (eliminado, 3 pruebas)",
+        "tests/Feature/BudgetCedulaDistributionTest.php (se quitan 2 pruebas; se conserva test_budget_movement_availability_aggregates_multiple_cedulas_under_same_category, que si pasa)"
+      ],
+      "hallazgos": [
+        "Se pierde la cobertura automatizada de: alta de presupuesto anual con duplicados, distribucion mensual por cedula, API api.budget.check-availability, importacion de centros de costo y CRUD de centros de costo con purchase_type."
+      ]
     }
   ],
   "criticos": [
@@ -504,21 +520,6 @@
       "responsable_sugerido": "Equipo de desarrollo",
       "esfuerzo": "baja",
       "ref_pendiente_general": "P022"
-    },
-    {
-      "id": "PRE-04",
-      "titulo": "15 pruebas presupuestales devuelven 403",
-      "descripcion": "AnnualBudgetStoreTest (2), BudgetCedulaDistributionTest (3), CostCenterImportTest (7) y CostCenterCrudTest (3) son anteriores a la matriz module_access.",
-      "severidad": "medio",
-      "categoria": "infraestructura",
-      "archivos": [
-        "config/module_access.php",
-        "tests/Feature/AnnualBudgetStoreTest.php",
-        "tests/Feature/CostCenterImportTest.php"
-      ],
-      "solucion_propuesta": "Asignar en las pruebas un rol contemplado por la matriz de módulos.",
-      "responsable_sugerido": "Equipo de desarrollo",
-      "esfuerzo": "baja"
     },
     {
       "id": "FIS-02",
