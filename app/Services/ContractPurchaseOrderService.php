@@ -33,6 +33,8 @@ class ContractPurchaseOrderService
 
             $requisition->loadMissing('items.contract.supplier', 'requester');
 
+            $this->ensureContractsAreEligible($requisition);
+
             $itemsBySupplier = $requisition->items
                 ->groupBy(fn (RequisitionItem $item) => $item->contract?->supplier_id);
 
@@ -163,6 +165,17 @@ class ContractPurchaseOrderService
 
             return $purchaseOrders;
         });
+    }
+
+    private function ensureContractsAreEligible(Requisition $requisition): void
+    {
+        foreach ($requisition->items as $item) {
+            $contract = $item->contract;
+
+            if ($contract && ! $contract->isEligible()) {
+                throw new RuntimeException("El contrato {$contract->folio} ya no esta vigente o el proveedor fue inactivado. No se puede generar la orden de compra.");
+            }
+        }
     }
 
     private function ensureSingleCurrencyPerSupplier(Collection $itemsBySupplier): void

@@ -223,6 +223,69 @@ class ContractRequisitionTest extends TestCase
         app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
     }
 
+    public function test_service_blocks_purchase_order_for_expired_contract(): void
+    {
+        $contract = Contract::factory()->expired()->create();
+
+        $this->assertServiceRejectsContract($contract);
+    }
+
+    public function test_service_blocks_purchase_order_for_cancelled_contract(): void
+    {
+        $contract = Contract::factory()->cancelled()->create();
+
+        $this->assertServiceRejectsContract($contract);
+    }
+
+    private function assertServiceRejectsContract(Contract $contract): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $cp = ContractProduct::factory()->create(['contract_id' => $contract->id, 'unit_price' => 100, 'currency_code' => 'MXN']);
+        $expenseCategory = ExpenseCategory::factory()->create();
+        $budgetCedula = BudgetCedula::factory()->create(['expense_category_id' => $expenseCategory->id]);
+        $costCenter = CostCenter::factory()->create(['company_id' => $contract->company_id]);
+
+        $requisition = Requisition::factory()->create([
+            'source_type' => 'contract',
+            'company_id' => $contract->company_id,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+            'requested_by' => $user->id,
+        ]);
+
+        $requisition->items()->create([
+            'product_service_id' => $cp->product_service_id,
+            'description' => 'Test',
+            'item_category' => 'PRODUCTO',
+            'product_code' => 'TEST-'.$cp->id,
+            'quantity' => 1,
+            'unit' => 'PZA',
+            'expense_category_id' => $expenseCategory->id,
+            'budget_cedula_id' => $budgetCedula->id,
+            'cost_center_id' => $costCenter->id,
+            'contract_id' => $contract->id,
+            'contract_product_id' => $cp->id,
+            'unit_price' => $cp->unit_price,
+            'currency_code' => 'MXN',
+        ]);
+
+        $this->actingAs($user);
+
+        try {
+            app(ContractPurchaseOrderService::class)->generateFromRequisition($requisition);
+            $this->fail('Expected RuntimeException was not thrown.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                "El contrato {$contract->folio} ya no esta vigente o el proveedor fue inactivado. No se puede generar la orden de compra.",
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('purchase_orders', 0);
+    }
+
     public function test_livewire_submit_creates_completed_requisition_and_issued_po(): void
     {
         Notification::fake();

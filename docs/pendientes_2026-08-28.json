@@ -91,6 +91,43 @@
       "pruebas": "tests/Feature/InvoiceEfosValidationTest.php (3 casos)",
       "decision_aplicada": "Bloquear la carga, conforme a la regla 11 del documento Reglas_Validacion_Fiscal_CFDI_v2. Pendiente de visto bueno de la Contadora; si prefiere revision manual, se ajusta.",
       "verificacion_pendiente": "Suite completa sin regresiones: 47 fallos + 4 errores preexistentes, identicos con y sin el cambio (429 pruebas)."
+    },
+    {
+      "id": "PRE-02",
+      "descripcion": "Centros de consumo libre (FREE_CONSUMPTION) sin tope contra global_amount.",
+      "severidad_original": "alto",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "Descartado: no es un defecto. El comportamiento (checkAvailability devuelve disponible=true para centros de consumo libre) es el especificado por negocio. Confirmado por Aldo Ochoa (TI).",
+      "cambios": [],
+      "ref_pendiente_general": "P019"
+    },
+    {
+      "id": "CON-03",
+      "descripcion": "Contrato vencido o cancelado seguia siendo consumible al generar la OC.",
+      "severidad_original": "alto",
+      "fecha_correccion": "2026-09-15",
+      "diagnostico_corregido": "El formulario ContractRequisitionForm ya bloqueaba contratos vencidos (scopeEligible/isEligible en addItem y en submit), y el estado 'Vencido' ya se deriva de end_date (Contract::effective_status). El hueco real era ContractPurchaseOrderService::generateFromRequisition, que generaba la OC sin validar vigencia para cualquier otro llamador.",
+      "resolucion": "generateFromRequisition valida Contract::isEligible() en cada partida (activo, no vencido, proveedor aprobado y activo) y lanza RuntimeException antes de crear la OC. Se bloquea, no se advierte, igual que el formulario. No se agrego estado EXPIRED ni comando diario: el vencimiento ya se calcula por fecha.",
+      "cambios": [
+        "app/Services/ContractPurchaseOrderService.php (ensureContractsAreEligible)"
+      ],
+      "pruebas": "tests/Feature/ContractRequisitionTest.php (2 casos: contrato vencido y contrato cancelado)",
+      "verificacion_pendiente": "Suite completa sin regresiones: 47 fallos + 4 errores preexistentes, identicos antes y despues. Queda fuera de alcance: una OC de convenio que quedo PENDING_APPROVAL y se aprueba despues del vencimiento no revalida la vigencia.",
+      "ref_pendiente_general": "P021"
+    },
+    {
+      "id": "PRE-01",
+      "descripcion": "Codigo muerto con control presupuestal roto: BudgetService escribia COMMIT/RELEASE/CONSUME pero totals() sumaba COMPROMISO/LIBERACION/CONSUMO.",
+      "severidad_original": "alto",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "Se eliminaron BudgetService y LegacyBudgetService. Se verifico que ningun codigo de app, rutas ni pruebas los referenciaba; el control presupuestal vigente es BudgetAllocationService.",
+      "cambios": [
+        "app/Services/BudgetService.php (eliminado)",
+        "app/Services/LegacyBudgetService.php (eliminado)",
+        "docs/documento-tecnico-portal-proveedores.md (se retiran de las listas de servicios)"
+      ],
+      "verificacion_pendiente": "Ejecutar composer dump-autoload al desplegar para limpiar el classmap.",
+      "ref_pendiente_general": "P018"
     }
   ],
   "criticos": [
@@ -207,42 +244,6 @@
       "ref_pendiente_general": "P017"
     },
     {
-      "id": "PRE-01",
-      "titulo": "Código muerto con control presupuestal roto",
-      "descripcion": "BudgetService escribe movement_type 'COMMIT'/'RELEASE'/'CONSUME' pero su método totals() suma 'COMPROMISO'/'LIBERACION'/'CONSUMO'. Los nombres nunca coinciden: reportaría disponible = asignado.",
-      "impacto": "Hoy la clase no se invoca desde ningún controlador (sólo LegacyBudgetService la extiende, y tampoco se usa). Si alguien la reconecta, el control presupuestal deja de existir sin avisar.",
-      "severidad": "alto",
-      "categoria": "infraestructura",
-      "archivos": [
-        "app/Services/BudgetService.php",
-        "app/Services/LegacyBudgetService.php"
-      ],
-      "solucion_propuesta": "Eliminar ambas clases del código base.",
-      "decision_requerida": "Ninguna.",
-      "responsable_sugerido": "Equipo de desarrollo",
-      "esfuerzo": "baja",
-      "dependencias": [],
-      "ref_pendiente_general": "P018"
-    },
-    {
-      "id": "PRE-02",
-      "titulo": "Centros de consumo libre exentos de toda validación",
-      "descripcion": "checkAvailability devuelve disponible=true de inmediato para centros FREE_CONSUMPTION y sus compromisos no descuentan de ninguna distribución, pese a existir el campo global_amount.",
-      "impacto": "No hay tope efectivo de gasto en esos centros.",
-      "severidad": "alto",
-      "categoria": "funcionalidad",
-      "archivos": [
-        "app/Services/BudgetAllocationService.php",
-        "app/Models/CostCenter.php"
-      ],
-      "solucion_propuesta": "Validar el acumulado de compromisos contra cost_centers.global_amount y su validity_date.",
-      "decision_requerida": "Contadora: confirmar que global_amount debe operar como tope duro.",
-      "responsable_sugerido": "Contadora + Equipo de desarrollo",
-      "esfuerzo": "media",
-      "dependencias": [],
-      "ref_pendiente_general": "P019"
-    },
-    {
       "id": "FAC-01",
       "titulo": "El parser de CFDI ignora retenciones e IEPS",
       "descripcion": "CfdiXmlParser extrae 8 atributos y suma exclusivamente los Traslados con Impuesto='002' (IVA). Ignora Retenciones, IEPS, tasa 0%, exento y TipoCambio.",
@@ -315,25 +316,6 @@
       "dependencias": [],
       "ref_pendiente_general": "P005",
       "nota_desbloqueo": "Desbloqueado: OC-01 / REC-02 / PS-04 quedo resuelto el 2026-09-02."
-    },
-    {
-      "id": "CON-03",
-      "titulo": "Contrato vencido sigue activo y consumible",
-      "descripcion": "ContractStatus sólo tiene active/cancelled. Un contrato expirado permanece 'active' y sólo se notifica por correo.",
-      "impacto": "No hay bloqueo automático del consumo de un contrato vencido.",
-      "severidad": "alto",
-      "categoria": "funcionalidad",
-      "archivos": [
-        "app/Enum/ContractStatus.php",
-        "app/Models/Contract.php",
-        "app/Services/ContractPurchaseOrderService.php"
-      ],
-      "solucion_propuesta": "Añadir estado EXPIRED + comando de cierre diario, y validar vigencia en generateFromRequisition.",
-      "decision_requerida": "Contadora: ¿bloquear o sólo advertir al consumir un contrato vencido?",
-      "responsable_sugerido": "Equipo de desarrollo",
-      "esfuerzo": "media",
-      "dependencias": [],
-      "ref_pendiente_general": "P021"
     },
     {
       "id": "RFQ-01",
@@ -723,19 +705,16 @@
       "FIS-04"
     ],
     "2_esfuerzo_bajo_beneficio_alto": [
-      "AUT-02",
-      "PRE-01"
+      "AUT-02"
     ],
     "3_riesgo_contable_acumulandose": [
-      "PS-02",
-      "PRE-02"
+      "PS-02"
     ],
     "4_requieren_decision_de_negocio_primero": [
       "AUT-01",
       "OCD-01",
       "D.1",
       "D.2",
-      "CON-03",
       "D.5"
     ],
     "5_verificacion_operativa": [
@@ -760,7 +739,6 @@
     "Aprobador de última instancia para montos altos (AUT-03)",
     "¿REPSE bloquea o sólo advierte? (D.5)",
     "¿Se admite factura sin recepción previa y bajo qué autorización? (FAC-03)",
-    "¿global_amount de centros de consumo libre opera como tope duro? (PRE-02)",
     "Umbrales de alerta de consumo presupuestal (P026)"
   ]
 }
