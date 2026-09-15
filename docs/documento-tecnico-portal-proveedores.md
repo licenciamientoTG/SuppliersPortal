@@ -264,10 +264,8 @@ Controladores:
 
 Servicios:
 
-- `BudgetService`
 - `BudgetAllocationService`
 - `BudgetCategorySummaryService`
-- `LegacyBudgetService`
 - `Budget2026TsaImportService`
 - `Budget2026SmaImportService`
 - `Budget2026GasomexImportService`
@@ -524,10 +522,8 @@ Comunicacion y soporte:
 
 - `ApprovalService`
 - `AlertRecipientService`
-- `BudgetService`
 - `BudgetAllocationService`
 - `BudgetCategorySummaryService`
-- `LegacyBudgetService`
 - `CostCenterImportService`
 - `PricingService`
 - `ReceptionService`
