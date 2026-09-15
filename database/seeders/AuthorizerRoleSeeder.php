@@ -32,6 +32,7 @@ class AuthorizerRoleSeeder extends Seeder
                 ['name' => $role['name']],
                 [
                     'approval_limit' => $role['approval_limit'],
+                    'is_unlimited' => $role['approval_limit'] === null,
                     'is_active' => $role['is_active'],
                 ]
             );

@@ -10,12 +10,14 @@ class AuthorizerRole extends Model
     protected $fillable = [
         'name',
         'approval_limit',
+        'is_unlimited',
         'display_order',
         'is_active',
     ];
 
     protected $casts = [
         'approval_limit' => 'decimal:2',
+        'is_unlimited' => 'boolean',
         'display_order' => 'integer',
         'is_active' => 'boolean',
     ];

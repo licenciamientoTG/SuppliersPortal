@@ -144,6 +144,24 @@
       "hallazgos": [
         "Se pierde la cobertura automatizada de: alta de presupuesto anual con duplicados, distribucion mensual por cedula, API api.budget.check-availability, importacion de centros de costo y CRUD de centros de costo con purchase_type."
       ]
+    },
+    {
+      "id": "AUT-02",
+      "descripcion": "El rol autorizador sin limite se identificaba comparando el nombre contra el texto 'Dirección General'; renombrarlo rompia en silencio la autorizacion de montos altos.",
+      "severidad_original": "alto",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "Nueva columna booleana authorizer_roles.is_unlimited. AuthorizerResolutionService::isUnlimitedRole y la validacion de AuthorizerRoleController usan la bandera en lugar del nombre. Un rol marcado sin limite guarda approval_limit en null; uno sin marcar exige limite. Los formularios de crear/editar rol tienen el interruptor 'Sin límite'.",
+      "cambios": [
+        "database/migrations/2026_09_15_000001_add_is_unlimited_to_authorizer_roles_table.php (columna + backfill: marca 'Dirección General' con approval_limit null, preservando el comportamiento previo)",
+        "app/Models/AuthorizerRole.php (fillable y cast)",
+        "app/Services/AuthorizerResolutionService.php (isUnlimitedRole usa is_unlimited)",
+        "app/Http/Controllers/AuthorizerRoleController.php (valida y persiste is_unlimited)",
+        "resources/views/authorizer_roles/create.blade.php y edit.blade.php (interruptor 'Sin límite')",
+        "database/seeders/AuthorizerRoleSeeder.php (is_unlimited para roles sin limite)"
+      ],
+      "pruebas": "tests/Feature/AuthorizerResolutionServiceTest.php (+2 casos) y tests/Feature/AuthorizerRoleUnlimitedFlagTest.php (3 casos). Suite: 422 pruebas, 33 fallos + 4 errores preexistentes, sin regresiones.",
+      "verificacion_pendiente": "La migracion se probo sobre SQLite, NO contra SQL Server. Ejecutar 'php artisan migrate' en un ambiente de prueba y confirmar que el rol 'Dirección General' quedo con is_unlimited = 1 antes de productivo.",
+      "ref_pendiente_general": "P009"
     }
   ],
   "criticos": [
@@ -206,23 +224,6 @@
       "ref_pendiente_general": "P007"
     },
     {
-      "id": "AUT-02",
-      "titulo": "El rol ilimitado se identifica por comparación de texto",
-      "descripcion": "AuthorizerResolutionService::isUnlimitedRole compara el nombre del rol contra la cadena literal 'Dirección General'.",
-      "impacto": "Renombrar el rol en el catálogo rompe silenciosamente la autorización de montos altos.",
-      "severidad": "alto",
-      "categoria": "configuracion",
-      "archivos": [
-        "app/Services/AuthorizerResolutionService.php"
-      ],
-      "solucion_propuesta": "Añadir columna booleana is_unlimited en authorizer_roles y usarla en lugar del nombre.",
-      "decision_requerida": "Ninguna.",
-      "responsable_sugerido": "Equipo de desarrollo",
-      "esfuerzo": "baja",
-      "dependencias": [],
-      "ref_pendiente_general": "P009"
-    },
-    {
       "id": "AUT-03",
       "titulo": "Sin aprobador de última instancia",
       "descripcion": "Cuando no hay superior con límite suficiente, resolveForRequester lanza RuntimeException y detiene la operación.",
@@ -239,7 +240,8 @@
       "dependencias": [
         "AUT-02"
       ],
-      "ref_pendiente_general": "P009"
+      "ref_pendiente_general": "P009",
+      "nota_desbloqueo": "Desbloqueado: AUT-02 quedo resuelto el 2026-09-15 (bandera is_unlimited)."
     },
     {
       "id": "OCD-01",
@@ -705,9 +707,7 @@
     "1_bloqueante_de_liberacion": [
       "FIS-04"
     ],
-    "2_esfuerzo_bajo_beneficio_alto": [
-      "AUT-02"
-    ],
+    "2_esfuerzo_bajo_beneficio_alto": [],
     "3_riesgo_contable_acumulandose": [
       "PS-02"
     ],

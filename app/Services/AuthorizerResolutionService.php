@@ -208,7 +208,6 @@ class AuthorizerResolutionService
 
     private function isUnlimitedRole($role): bool
     {
-        return mb_strtolower((string) $role?->name) === mb_strtolower('Dirección General')
-            && $role?->approval_limit === null;
+        return (bool) $role?->is_unlimited;
     }
 }

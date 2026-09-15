@@ -36,7 +36,14 @@
                         @error('approval_limit')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
-                        <small class="text-muted">Solo Dirección General puede dejar este campo vacío para operar sin límite.</small>
+                        <small class="text-muted">Obligatorio, salvo que el rol esté marcado como sin límite.</small>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="hidden" name="is_unlimited" value="0">
+                        <input class="form-check-input" type="checkbox" name="is_unlimited" value="1" id="is_unlimited"
+                            {{ old('is_unlimited', $authorizerRole->is_unlimited) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="is_unlimited">Sin límite (autoriza cualquier monto)</label>
                     </div>
 
                     <div class="form-check form-switch mb-4">

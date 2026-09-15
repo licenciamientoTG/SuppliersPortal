@@ -40,6 +40,7 @@ class AuthorizerRoleController extends Controller
         AuthorizerRole::create([
             'name' => $data['name'],
             'approval_limit' => $data['approval_limit'] ?? null,
+            'is_unlimited' => $data['is_unlimited'],
             'is_active' => (bool) ($data['is_active'] ?? false),
         ]);
 
@@ -59,6 +60,7 @@ class AuthorizerRoleController extends Controller
         $authorizerRole->update([
             'name' => $data['name'],
             'approval_limit' => $data['approval_limit'] ?? null,
+            'is_unlimited' => $data['is_unlimited'],
             'is_active' => (bool) ($data['is_active'] ?? false),
         ]);
 
@@ -119,14 +121,17 @@ class AuthorizerRoleController extends Controller
                 Rule::unique('authorizer_roles', 'name')->ignore($authorizerRole?->id),
             ],
             'approval_limit' => ['nullable', 'numeric', 'min:0'],
+            'is_unlimited' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $isGeneralDirectorRole = mb_strtolower(trim((string) $data['name'])) === mb_strtolower('Dirección General');
+        $data['is_unlimited'] = (bool) ($data['is_unlimited'] ?? false);
 
-        if (($data['approval_limit'] ?? null) === null && ! $isGeneralDirectorRole) {
+        if ($data['is_unlimited']) {
+            $data['approval_limit'] = null;
+        } elseif (($data['approval_limit'] ?? null) === null) {
             throw ValidationException::withMessages([
-                'approval_limit' => 'Solo Dirección General puede quedar sin límite de autorización.',
+                'approval_limit' => 'Indica un límite de autorización o marca el rol como sin límite.',
             ]);
         }
 
