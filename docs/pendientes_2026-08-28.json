@@ -78,6 +78,19 @@
         "Causa transversal: $this->withoutMiddleware() sin argumentos desactiva TODO el middleware, incluidos SubstituteBindings (rompe el route-model binding y produce 403 enganosos) y ShareErrorsFromSession (produce \"Undefined variable $errors\" y 500 en cualquier vista con el layout zircos). Se acoto a ModuleAccess y CheckLockScreen en los tres archivos."
       ],
       "pendiente_derivado": "En ReceptionFlowTest se acoto EnsureSupplierIsApproved en la prueba de entrega del proveedor: dejar al proveedor en regla documental es exactamente el pendiente RFQ-02/RFQ-03."
+    },
+    {
+      "id": "FAC-02",
+      "descripcion": "No se consultaba la lista 69-B del SAT al cargar facturas: se podia registrar la factura de un proveedor listado como EFOS.",
+      "severidad_original": "critico",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "InvoiceService::validateInvoiceData rechaza la carga si el proveedor aparece en sat_efos_69b con situacion Definitivo o Presunto (mismo criterio que EfosSupplierAlertService, MonitoringService y Supplier::scopeNotEfos69b). Aplica a cargas del proveedor y de Finanzas; el rechazo ocurre antes de guardar archivos. Otras situaciones (p. ej. Desvirtuado) no bloquean.",
+      "cambios": [
+        "app/Services/InvoiceService.php (validacion EFOS 69-B en validateInvoiceData)"
+      ],
+      "pruebas": "tests/Feature/InvoiceEfosValidationTest.php (3 casos)",
+      "decision_aplicada": "Bloquear la carga, conforme a la regla 11 del documento Reglas_Validacion_Fiscal_CFDI_v2. Pendiente de visto bueno de la Contadora; si prefiere revision manual, se ajusta.",
+      "verificacion_pendiente": "Suite completa sin regresiones: 47 fallos + 4 errores preexistentes, identicos con y sin el cambio (429 pruebas)."
     }
   ],
   "criticos": [
@@ -97,25 +110,6 @@
       "esfuerzo": "media",
       "dependencias": [],
       "ref_pendiente_general": "P003"
-    },
-    {
-      "id": "FAC-02",
-      "titulo": "No se consulta la lista 69-B del SAT al cargar facturas",
-      "descripcion": "El sistema sincroniza a diario la lista 69-B (SyncEfos69b, EFOS_CSV_URL) y alerta sobre proveedores listados, pero InvoiceService::validateInvoiceData no consulta SatEfos69b.",
-      "impacto": "Se puede cargar y conciliar una factura de un proveedor en lista negra del SAT.",
-      "severidad": "crítico",
-      "categoria": "fiscal",
-      "archivos": [
-        "app/Services/InvoiceService.php",
-        "app/Services/EfosSupplierAlertService.php",
-        "app/Models/SatEfos69b.php"
-      ],
-      "solucion_propuesta": "Agregar en validateInvoiceData una consulta por RFC emisor contra sat_efos_69b y bloquear (o marcar para revisión obligatoria de Contabilidad) si aparece como DEFINITIVO.",
-      "decision_requerida": "Contadora: ¿bloquear la carga o permitirla marcada para revisión?",
-      "responsable_sugerido": "Equipo de desarrollo",
-      "esfuerzo": "baja",
-      "dependencias": [],
-      "ref_pendiente_general": "P012"
     },
     {
       "id": "FIS-04",
@@ -729,7 +723,6 @@
       "FIS-04"
     ],
     "2_esfuerzo_bajo_beneficio_alto": [
-      "FAC-02",
       "AUT-02",
       "PRE-01"
     ],

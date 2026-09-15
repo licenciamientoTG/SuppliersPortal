@@ -136,6 +136,13 @@ class InvoiceService
             ]);
         }
 
+        $efosStatus = $supplier->efos_status;
+        if (in_array($efosStatus, ['Definitivo', 'Presunto'], true)) {
+            throw ValidationException::withMessages([
+                'xml_file' => "El proveedor aparece en la lista 69-B del SAT (EFOS) con situación {$efosStatus}. No se puede registrar la factura.",
+            ]);
+        }
+
         $activeCompanyRfcs = Company::query()
             ->where('is_active', true)
             ->whereNotNull('rfc')
