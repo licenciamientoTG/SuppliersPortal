@@ -9,7 +9,7 @@ class BackfillProductBudgetClassifications extends Command
 {
     protected $signature = 'products:backfill-budget-classifications';
 
-    protected $description = 'Assign deterministic budget subaccounts and accounting numbers to incomplete products.';
+    protected $description = 'Complete budget relations for products whose subaccount was captured; products without a subaccount are skipped.';
 
     public function handle(ProductBudgetClassificationService $service): int
     {

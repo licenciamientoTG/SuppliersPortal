@@ -162,26 +162,27 @@
       "pruebas": "tests/Feature/AuthorizerResolutionServiceTest.php (+2 casos) y tests/Feature/AuthorizerRoleUnlimitedFlagTest.php (3 casos). Suite: 422 pruebas, 33 fallos + 4 errores preexistentes, sin regresiones.",
       "verificacion_pendiente": "La migracion se probo sobre SQLite, NO contra SQL Server. Ejecutar 'php artisan migrate' en un ambiente de prueba y confirmar que el rol 'Dirección General' quedo con is_unlimited = 1 antes de productivo.",
       "ref_pendiente_general": "P009"
+    },
+    {
+      "id": "PS-02",
+      "descripcion": "La clasificacion contable de productos sin subcuenta se asignaba con un hash crc32 (deterministicSubaccountFor) y se inventaban account_sub/account_subsub con aritmetica sobre crc32 (accountNumbersFor).",
+      "severidad_original": "critico",
+      "fecha_correccion": "2026-09-15",
+      "resolucion": "Se elimino toda asignacion automatica. ensureProductHasBudgetClassification y el comando products:backfill-budget-classifications solo sincronizan relaciones (cedula, cuenta, rubro) a partir de una subcuenta capturada por una persona; si el producto no tiene subcuenta queda sin clasificar y approve/reactivate ya lo bloquean con 'El producto debe tener al menos una subcuenta asignada'. Ya no se generan account_major/account_sub/account_subsub.",
+      "cambios": [
+        "app/Services/ProductBudgetClassificationService.php (se eliminan deterministicSubaccountFor y accountNumbersFor; backfill reporta products_skipped_without_subaccount)",
+        "app/Console/Commands/BackfillProductBudgetClassifications.php (descripcion)"
+      ],
+      "pruebas": "tests/Feature/ProductBudgetClassificationNoHashTest.php (4 casos). Ademas pasan 2 pruebas que antes fallaban por el hash: ProductServiceExpenseClassificationPersistenceTest::test_store_without_classification_persists_empty_relations y ::test_update_replaces_classification. Suite: 426 pruebas, 31 fallos + 4 errores, sin regresiones.",
+      "hallazgos": [
+        "account_major/account_sub/account_subsub eran datos muertos: solo los llenaba el hash y solo los leen ProductService::hasCompleteAccountingStructure, isAvailableForRequisitions y scopeForRequisitions, que ningun codigo invoca.",
+        "Antes de este cambio, crear o actualizar un producto sin subcuenta fallaba con error 500 si no existian subcuentas legacy activas."
+      ],
+      "verificacion_pendiente": "AUDITORIA EN PRODUCTIVO: los productos que ya fueron clasificados por hash conservan esa subcuenta y esos numeros de cuenta; en la base no hay marca que los distinga de los capturados. La Contadora y el administrador del catalogo deben revisar la clasificacion de los productos existentes.",
+      "ref_pendiente_general": "P003"
     }
   ],
   "criticos": [
-    {
-      "id": "PS-02",
-      "titulo": "Clasificación contable de productos asignada por hash crc32",
-      "descripcion": "ProductBudgetClassificationService::deterministicSubaccountFor asigna la subcuenta presupuestal con crc32(código|nombre|id) % número_de_subcuentas, y accountNumbersFor genera account_sub y account_subsub con aritmética sobre crc32. Cuando falta clasificación, el sistema le asigna al producto una cuenta contable arbitraria pero estable.",
-      "impacto": "El gasto termina afectando una partida presupuestal que nadie eligió. No es un fallo visible: es un dato incorrecto que YA está en el catálogo.",
-      "severidad": "crítico",
-      "categoria": "fiscal",
-      "archivos": [
-        "app/Services/ProductBudgetClassificationService.php"
-      ],
-      "solucion_propuesta": "Prohibir la asignación automática. Si falta clasificación, dejar el producto en estado 'requiere clasificación contable' y exigir captura del administrador del catálogo. Auditar los productos ya clasificados por hash antes de operar en productivo.",
-      "decision_requerida": "Contadora: confirmar que ningún producto puede quedar sin cuenta capturada por una persona.",
-      "responsable_sugerido": "Contadora + administrador del catálogo, con soporte de desarrollo",
-      "esfuerzo": "media",
-      "dependencias": [],
-      "ref_pendiente_general": "P003"
-    },
     {
       "id": "FIS-04",
       "titulo": "Credenciales reales y respaldo de base de datos en el repositorio",
@@ -391,7 +392,8 @@
       "dependencias": [
         "PS-02"
       ],
-      "ref_pendiente_general": "P010"
+      "ref_pendiente_general": "P010",
+      "nota_desbloqueo": "Desbloqueado: PS-02 quedo resuelto el 2026-09-15 (sin asignacion automatica por hash)."
     },
     {
       "id": "D.2",
@@ -708,9 +710,7 @@
       "FIS-04"
     ],
     "2_esfuerzo_bajo_beneficio_alto": [],
-    "3_riesgo_contable_acumulandose": [
-      "PS-02"
-    ],
+    "3_riesgo_contable_acumulandose": [],
     "4_requieren_decision_de_negocio_primero": [
       "AUT-01",
       "OCD-01",
