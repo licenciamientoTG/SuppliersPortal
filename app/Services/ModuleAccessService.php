@@ -66,6 +66,24 @@ class ModuleAccessService
             }
         }
 
+        // El grupo padre de Catálogos se muestra si el usuario puede abrir
+        // al menos una de sus vistas hijas.
+        if ($module === 'catalogs_config') {
+            foreach (array_keys($this->viewPermissions()) as $childModule) {
+                if (str_starts_with($childModule, 'catalog_')
+                    && $this->userCanAccessModule($user, $childModule)) {
+                    return true;
+                }
+            }
+        }
+
+        // Las vistas hijas de Catálogos se controlan exclusivamente por su
+        // permiso atomizado; el rol no debe reabrir todo el catálogo al
+        // quitar una vista específica desde el panel.
+        if (str_starts_with($module, 'catalog_')) {
+            return false;
+        }
+
         $allowedRoles = $this->normalizeRoles($this->rolesForModule($module));
 
         return ! empty($allowedRoles) && $user->hasAnyRole($allowedRoles);

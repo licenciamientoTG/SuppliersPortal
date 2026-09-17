@@ -40,12 +40,12 @@ class ViewPermissionsPanelTest extends TestCase
 
         $this->actingAs($admin)
             ->patch(route('roles.catalog.view-permissions.update', $role), [
-                'permissions' => ['catalogos.ver'],
+                'permissions' => ['catalogos.empresas.ver'],
             ])
             ->assertRedirect();
 
         $role->refresh();
-        $this->assertTrue($role->hasPermissionTo('catalogos.ver'));
+        $this->assertTrue($role->hasPermissionTo('catalogos.empresas.ver'));
         $this->assertTrue($role->hasPermissionTo('view_requisitions'));
     }
 
@@ -54,7 +54,7 @@ class ViewPermissionsPanelTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('superadmin');
         $user = User::factory()->create();
-        $user->givePermissionTo(Permission::findByName('catalogos.ver', 'web'));
+        $user->givePermissionTo(Permission::findByName('catalogos.empresas.ver', 'web'));
 
         $this->actingAs($user)
             ->get(route('companies.index'))
@@ -67,7 +67,7 @@ class ViewPermissionsPanelTest extends TestCase
         $this->assertDatabaseMissing('model_has_permissions', [
             'model_id' => $user->id,
             'model_type' => User::class,
-            'permission_id' => Permission::findByName('catalogos.ver', 'web')->id,
+            'permission_id' => Permission::findByName('catalogos.empresas.ver', 'web')->id,
         ]);
     }
 
@@ -86,5 +86,32 @@ class ViewPermissionsPanelTest extends TestCase
         $this->actingAs($user)
             ->get(route('companies.index'))
             ->assertOk();
+    }
+
+    public function test_catalog_permissions_are_atomized_and_roles_menu_is_hidden_from_catalog_admin(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+        $catalogAdmin = User::factory()->create();
+        $catalogAdmin->assignRole('catalog_admin');
+
+        $this->actingAs($catalogAdmin)
+            ->get(route('companies.index'))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->patch(route('roles.catalog.view-permissions.update', Role::findByName('catalog_admin', 'web')), [
+                'permissions' => ['catalogos.estaciones.ver'],
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($catalogAdmin)
+            ->get(route('companies.index'))
+            ->assertForbidden();
+
+        $this->actingAs($catalogAdmin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSeeText('Roles y Permisos');
     }
 }

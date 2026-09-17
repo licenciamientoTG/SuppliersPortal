@@ -53,6 +53,39 @@ return [
             'roles' => ['superadmin'],
         ],
         'catalogs_config' => [
+            'roles' => ['superadmin'],
+        ],
+        'catalog_companies' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_stations' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_departments' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_receiving_locations' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_tax_codes' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_tax_groups' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_ledger_accounts' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_authorizer_roles' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_delegations' => [
+            'roles' => ['superadmin'],
+        ],
+        'catalog_approval_levels' => [
+            'roles' => ['superadmin', 'catalog_admin'],
+        ],
+        'catalog_sat_withholdings' => [
             'roles' => ['superadmin', 'catalog_admin'],
         ],
         'reported_incidents' => [

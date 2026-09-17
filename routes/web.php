@@ -272,41 +272,45 @@ Route::middleware(['auth', 'lock'])->group(function () {
     //  Catalogs (Route::resource)
     // ========================================================================
     Route::middleware('module.access:catalogs_config')->group(function () {
-        Route::get('companies/datatable', [CompanyController::class, 'datatable'])->name('companies.datatable');
-        Route::resource('companies', CompanyController::class)->except(['show']);
+        Route::middleware('module.access:catalog_companies')->get('companies/datatable', [CompanyController::class, 'datatable'])->name('companies.datatable');
+        Route::middleware('module.access:catalog_companies')->resource('companies', CompanyController::class)->except(['show']);
 
-        Route::get('stations/datatable', [StationController::class, 'datatable'])->name('stations.datatable');
-        Route::resource('stations', StationController::class);
-        Route::post('stations/{station}/toggle-active', [StationController::class, 'toggleActive'])->name('stations.toggle-active');
-        Route::post('stations/{station}/link-company', [StationController::class, 'linkCompany'])->name('stations.link-company');
+        Route::middleware('module.access:catalog_stations')->get('stations/datatable', [StationController::class, 'datatable'])->name('stations.datatable');
+        Route::middleware('module.access:catalog_stations')->resource('stations', StationController::class);
+        Route::middleware('module.access:catalog_stations')->post('stations/{station}/toggle-active', [StationController::class, 'toggleActive'])->name('stations.toggle-active');
+        Route::middleware('module.access:catalog_stations')->post('stations/{station}/link-company', [StationController::class, 'linkCompany'])->name('stations.link-company');
 
-        Route::get('taxes/datatable', [TaxController::class, 'datatable'])->name('taxes.datatable');
-        Route::resource('taxes', TaxController::class)->except(['show']);
+        Route::middleware('module.access:catalog_tax_codes')->get('taxes/datatable', [TaxController::class, 'datatable'])->name('taxes.datatable');
+        Route::middleware('module.access:catalog_tax_codes')->resource('taxes', TaxController::class)->except(['show']);
 
-        Route::get('tax-codes', [TaxCodeController::class, 'index'])->name('tax-codes.index');
-        Route::get('tax-codes/datatable', [TaxCodeController::class, 'datatable'])->name('tax-codes.datatable');
+        Route::middleware('module.access:catalog_tax_codes')->get('tax-codes', [TaxCodeController::class, 'index'])->name('tax-codes.index');
+        Route::middleware('module.access:catalog_tax_codes')->get('tax-codes/datatable', [TaxCodeController::class, 'datatable'])->name('tax-codes.datatable');
 
-        Route::get('tax-groups/datatable', [TaxGroupController::class, 'datatable'])->name('tax-groups.datatable');
-        Route::get('tax-groups/create', [TaxGroupController::class, 'create'])->name('tax-groups.create');
-        Route::post('tax-groups', [TaxGroupController::class, 'store'])->name('tax-groups.store');
-        Route::get('tax-groups', [TaxGroupController::class, 'index'])->name('tax-groups.index');
-        Route::get('tax-groups/{taxGroup}', [TaxGroupController::class, 'show'])->name('tax-groups.show');
-        Route::get('tax-groups/{taxGroup}/edit', [TaxGroupController::class, 'edit'])->name('tax-groups.edit');
-        Route::put('tax-groups/{taxGroup}', [TaxGroupController::class, 'update'])->name('tax-groups.update');
-        Route::post('tax-groups/{taxGroup}/items', [TaxGroupController::class, 'addItem'])->name('tax-groups.items.store');
-        Route::post('tax-groups/{taxGroup}/deactivate', [TaxGroupController::class, 'deactivate'])->name('tax-groups.deactivate');
-        Route::post('tax-groups/{taxGroup}/items/{taxGroupItem}/deactivate', [TaxGroupController::class, 'deactivateItem'])->name('tax-groups.items.deactivate');
+        Route::middleware('module.access:catalog_tax_groups')->group(function () {
+            Route::get('tax-groups/datatable', [TaxGroupController::class, 'datatable'])->name('tax-groups.datatable');
+            Route::get('tax-groups/create', [TaxGroupController::class, 'create'])->name('tax-groups.create');
+            Route::post('tax-groups', [TaxGroupController::class, 'store'])->name('tax-groups.store');
+            Route::get('tax-groups', [TaxGroupController::class, 'index'])->name('tax-groups.index');
+            Route::get('tax-groups/{taxGroup}', [TaxGroupController::class, 'show'])->name('tax-groups.show');
+            Route::get('tax-groups/{taxGroup}/edit', [TaxGroupController::class, 'edit'])->name('tax-groups.edit');
+            Route::put('tax-groups/{taxGroup}', [TaxGroupController::class, 'update'])->name('tax-groups.update');
+            Route::post('tax-groups/{taxGroup}/items', [TaxGroupController::class, 'addItem'])->name('tax-groups.items.store');
+            Route::post('tax-groups/{taxGroup}/deactivate', [TaxGroupController::class, 'deactivate'])->name('tax-groups.deactivate');
+            Route::post('tax-groups/{taxGroup}/items/{taxGroupItem}/deactivate', [TaxGroupController::class, 'deactivateItem'])->name('tax-groups.items.deactivate');
+        });
 
-        Route::get('ledger-accounts/datatable', [LedgerAccountController::class, 'datatable'])->name('ledger-accounts.datatable');
-        Route::get('ledger-accounts/create', [LedgerAccountController::class, 'create'])->name('ledger-accounts.create');
-        Route::post('ledger-accounts', [LedgerAccountController::class, 'store'])->name('ledger-accounts.store');
-        Route::get('ledger-accounts', [LedgerAccountController::class, 'index'])->name('ledger-accounts.index');
-        Route::get('ledger-accounts/{ledgerAccount}/edit', [LedgerAccountController::class, 'edit'])->name('ledger-accounts.edit');
-        Route::put('ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'update'])->name('ledger-accounts.update');
-        Route::post('ledger-accounts/{ledgerAccount}/deactivate', [LedgerAccountController::class, 'deactivate'])->name('ledger-accounts.deactivate');
+        Route::middleware('module.access:catalog_ledger_accounts')->group(function () {
+            Route::get('ledger-accounts/datatable', [LedgerAccountController::class, 'datatable'])->name('ledger-accounts.datatable');
+            Route::get('ledger-accounts/create', [LedgerAccountController::class, 'create'])->name('ledger-accounts.create');
+            Route::post('ledger-accounts', [LedgerAccountController::class, 'store'])->name('ledger-accounts.store');
+            Route::get('ledger-accounts', [LedgerAccountController::class, 'index'])->name('ledger-accounts.index');
+            Route::get('ledger-accounts/{ledgerAccount}/edit', [LedgerAccountController::class, 'edit'])->name('ledger-accounts.edit');
+            Route::put('ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'update'])->name('ledger-accounts.update');
+            Route::post('ledger-accounts/{ledgerAccount}/deactivate', [LedgerAccountController::class, 'deactivate'])->name('ledger-accounts.deactivate');
+        });
 
-        Route::get('departments/datatable', [DepartmentController::class, 'datatable'])->name('departments.datatable');
-        Route::resource('departments', DepartmentController::class)->except(['show']);
+        Route::middleware('module.access:catalog_departments')->get('departments/datatable', [DepartmentController::class, 'datatable'])->name('departments.datatable');
+        Route::middleware('module.access:catalog_departments')->resource('departments', DepartmentController::class)->except(['show']);
     });
 
     Route::middleware('module.access:budget_control')->group(function () {
@@ -671,18 +675,18 @@ Route::middleware(['auth', 'lock', 'role:superadmin'])->prefix('tools')->name('t
 //  Approval Levels & Quotation Approvals (superadmin)
 // ============================================================================
 Route::middleware(['auth', 'lock', 'module.access:catalogs_config'])->group(function () {
-    Route::resource('approval-levels', ApprovalLevelController::class)
+    Route::middleware('module.access:catalog_approval_levels')->resource('approval-levels', ApprovalLevelController::class)
         ->only(['index', 'edit', 'update'])
         ->names('approval-levels');
 
-    Route::resource('authorizer-roles', AuthorizerRoleController::class)
+    Route::middleware('module.access:catalog_authorizer_roles')->resource('authorizer-roles', AuthorizerRoleController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->names('authorizer-roles');
 
     // SAT Retenciones
-    Route::get('sat-retenciones/datatable', [SatRetencionController::class, 'datatable'])
+    Route::middleware('module.access:catalog_sat_withholdings')->get('sat-retenciones/datatable', [SatRetencionController::class, 'datatable'])
         ->name('sat-retenciones.datatable');
-    Route::resource('sat-retenciones', SatRetencionController::class)
+    Route::middleware('module.access:catalog_sat_withholdings')->resource('sat-retenciones', SatRetencionController::class)
         ->except(['show'])
         ->parameters(['sat-retenciones' => 'sat_retencion']);
 });
@@ -803,10 +807,10 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:receptions')->get('/receptions/{reception}/remission', [ReceptionController::class, 'downloadRemission'])->name('receptions.remission.download');
 
     // Receiving Locations (rutas específicas ANTES del resource para evitar conflictos con {id})
-    Route::middleware('module.access:catalogs_config')->get('receiving-locations/data', [ReceivingLocationController::class, 'getData'])->name('receiving-locations.data');
-    Route::middleware('module.access:catalogs_config')->post('receiving-locations/{receiving_location}/block-portal', [ReceivingLocationController::class, 'blockPortal'])->name('receiving-locations.block-portal');
-    Route::middleware('module.access:catalogs_config')->post('receiving-locations/{receiving_location}/unblock-portal', [ReceivingLocationController::class, 'unblockPortal'])->name('receiving-locations.unblock-portal');
-    Route::middleware('module.access:catalogs_config')->resource('receiving-locations', ReceivingLocationController::class);
+    Route::middleware('module.access:catalog_receiving_locations')->get('receiving-locations/data', [ReceivingLocationController::class, 'getData'])->name('receiving-locations.data');
+    Route::middleware('module.access:catalog_receiving_locations')->post('receiving-locations/{receiving_location}/block-portal', [ReceivingLocationController::class, 'blockPortal'])->name('receiving-locations.block-portal');
+    Route::middleware('module.access:catalog_receiving_locations')->post('receiving-locations/{receiving_location}/unblock-portal', [ReceivingLocationController::class, 'unblockPortal'])->name('receiving-locations.unblock-portal');
+    Route::middleware('module.access:catalog_receiving_locations')->resource('receiving-locations', ReceivingLocationController::class);
 });
 
 // ============================================================================

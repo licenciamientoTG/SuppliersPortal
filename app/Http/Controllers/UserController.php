@@ -349,6 +349,7 @@ class UserController extends Controller
         $user->load(['roles.permissions', 'companies', 'costCenters', 'employee', 'authorizerAssignment.authorizerRole', 'activeAuthorizerException']);
 
         $viewPermissions = collect(config('view_permissions.modules', []))
+            ->filter(fn (array $definition) => ! ($definition['hidden'] ?? false))
             ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
             ->groupBy('category');
         $rolePermissionNames = $user->getPermissionsViaRoles()->pluck('name')->unique()->values();
@@ -590,6 +591,7 @@ class UserController extends Controller
         abort_unless(request()->user()?->hasRole('superadmin'), 403);
 
         $viewPermissions = collect(config('view_permissions.modules', []))
+            ->filter(fn (array $definition) => ! ($definition['hidden'] ?? false))
             ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
             ->groupBy('category');
         $viewPermissionNames = $viewPermissions->flatten(1)->pluck('permission');
@@ -610,6 +612,7 @@ class UserController extends Controller
         abort_unless($request->user()?->hasRole('superadmin'), 403);
 
         $viewPermissionNames = collect(config('view_permissions.modules', []))
+            ->filter(fn (array $definition) => ! ($definition['hidden'] ?? false))
             ->pluck('permission')
             ->filter()
             ->values();

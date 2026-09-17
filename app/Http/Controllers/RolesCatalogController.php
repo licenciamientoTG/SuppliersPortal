@@ -144,6 +144,7 @@ class RolesCatalogController extends Controller
             ->values();
 
         $viewPermissions = collect(config('view_permissions.modules', []))
+            ->filter(fn (array $definition) => ! ($definition['hidden'] ?? false))
             ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
             ->groupBy('category');
         $selectedRole = $roles->firstWhere('name', $request->string('role')->toString())
@@ -165,6 +166,7 @@ class RolesCatalogController extends Controller
         abort_if($role->name === 'superadmin', 422, 'Los permisos del superadmin son globales y no se editan.');
 
         $viewPermissionNames = collect(config('view_permissions.modules', []))
+            ->reject(fn (array $definition) => $definition['hidden'] ?? false)
             ->pluck('permission')
             ->filter()
             ->values();

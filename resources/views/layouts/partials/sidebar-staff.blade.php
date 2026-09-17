@@ -531,78 +531,102 @@
     </a>
     <div class="{{ $openConfiguration ? 'show' : '' }} collapse" id="sidebarConfigurations">
         <ul class="sub-menu">
+            @moduleAccess('catalog_companies')
             <li class="side-nav-item">
                 <a href="{{ route('companies.index') }}"
                     class="side-nav-link {{ request()->routeIs('companies.*') ? 'active' : '' }}">
                     <span class="menu-text">Empresas</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_stations')
             <li class="side-nav-item">
                 <a href="{{ route('stations.index') }}"
                     class="side-nav-link {{ request()->routeIs('stations.*') ? 'active' : '' }}">
                     <span class="menu-text">Estaciones</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_departments')
             <li class="side-nav-item">
                 <a href="{{ route('departments.index') }}"
                     class="side-nav-link {{ request()->routeIs('departments.*') ? 'active' : '' }}">
                     <span class="menu-text">Departamentos</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_receiving_locations')
             <li class="side-nav-item">
                 <a href="{{ route('receiving-locations.index') }}"
                     class="side-nav-link {{ request()->routeIs('receiving-locations.*') ? 'active' : '' }}">
                     <span class="menu-text">Ubicaciones de Recepcion</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_tax_codes')
             <li class="side-nav-item">
                 <a href="{{ route('tax-codes.index') }}"
                     class="side-nav-link {{ request()->routeIs('tax-codes.*') ? 'active' : '' }}">
                     <span class="menu-text">Catálogo de impuestos</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_tax_groups')
             <li class="side-nav-item">
                 <a href="{{ route('tax-groups.index') }}"
                     class="side-nav-link {{ request()->routeIs('tax-groups.*') ? 'active' : '' }}">
                     <span class="menu-text">Grupos de impuestos</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_ledger_accounts')
             <li class="side-nav-item">
                 <a href="{{ route('ledger-accounts.index') }}"
                     class="side-nav-link {{ request()->routeIs('ledger-accounts.*') ? 'active' : '' }}">
                     <span class="menu-text">Cuentas contables</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_authorizer_roles')
             <li class="side-nav-item">
                 <a href="{{ route('authorizer-roles.index') }}"
                     class="side-nav-link {{ request()->routeIs('authorizer-roles.*') ? 'active' : '' }}">
                     <span class="menu-text">Roles Autorizadores</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_delegations')
             <li class="side-nav-item">
                 <a href="{{ route('admin.approval-delegations.index') }}"
                     class="side-nav-link {{ request()->routeIs('admin.approval-delegations.*') ? 'active' : '' }}">
                     <span class="menu-text">Delegaciones activas</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @hasrole('superadmin')
             <li class="side-nav-item">
                 <a href="{{ route('roles.catalog') }}"
                     class="side-nav-link {{ request()->routeIs('roles.catalog') ? 'active' : '' }}">
                     <span class="menu-text">Roles y Permisos</span>
                 </a>
             </li>
+            @endhasrole
+            @moduleAccess('catalog_approval_levels')
             <li class="side-nav-item">
                 <a href="{{ route('approval-levels.index') }}"
                     class="side-nav-link {{ request()->routeIs('approval-levels.*') ? 'active' : '' }}">
                     <span class="menu-text">Niveles de Autorizacion</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('catalog_sat_withholdings')
             <li class="side-nav-item">
                 <a href="{{ route('sat-retenciones.index') }}"
                     class="side-nav-link {{ request()->routeIs('sat-retenciones.*') ? 'active' : '' }}">
                     <span class="menu-text">Retenciones SAT</span>
                 </a>
             </li>
+            @endmoduleAccess
         </ul>
     </div>
 </li>
