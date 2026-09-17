@@ -53,7 +53,7 @@ return [
             'roles' => ['superadmin'],
         ],
         'catalogs_config' => [
-            'roles' => ['superadmin'],
+            'roles' => ['superadmin', 'catalog_admin'],
         ],
         'reported_incidents' => [
             'roles' => ['superadmin'],

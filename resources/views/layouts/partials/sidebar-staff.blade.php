@@ -123,7 +123,7 @@
       - FINANZAS        → superadmin, accounting, general_director
       - PROVEEDORES     → superadmin, staff
       - HERRAMIENTAS    → superadmin only
-      - CONFIGURACIÓN   → superadmin only
+      - CONFIGURACIÓN   → superadmin, catalog_admin
 --}}
 
 @if($showMonitoringSection)

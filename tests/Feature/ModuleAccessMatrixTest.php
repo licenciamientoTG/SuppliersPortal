@@ -94,6 +94,15 @@ class ModuleAccessMatrixTest extends TestCase
             ->assertOk();
     }
 
+    public function test_catalog_admin_can_access_catalogs_config_module(): void
+    {
+        $user = $this->userWithRole('catalog_admin');
+
+        $this->actingAs($user)
+            ->get(route('companies.index'))
+            ->assertOk();
+    }
+
     private function userWithRole(string $role): User
     {
         Role::findOrCreate($role, 'web');
