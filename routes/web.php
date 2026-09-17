@@ -783,6 +783,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/approve', [DirectPurchaseOrderController::class, 'approve'])->name('direct-purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reject', [DirectPurchaseOrderController::class, 'reject'])->name('direct-purchase-orders.reject');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/return', [DirectPurchaseOrderController::class, 'return'])->name('direct-purchase-orders.return');
+    Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivateDirect'])->name('direct-purchase-orders.reactivate');
 
     // Purchase Orders
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
@@ -793,6 +794,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/items/{purchaseOrderItem}/supplier-note', [PurchaseOrderController::class, 'appendSupplierNote'])->name('purchase-orders.items.supplier-note');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+    Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivate'])->name('purchase-orders.reactivate');
 
     // Recepciones — rutas estáticas ANTES de {reception} para evitar conflictos de parámetro
     Route::middleware('module.access:receptions')->get('/receptions/overview', [ReceptionController::class, 'overview'])->name('receptions.overview');

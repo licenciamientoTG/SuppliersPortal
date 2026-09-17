@@ -251,6 +251,11 @@ class PurchaseOrder extends Model
         return $this->status === 'CLOSED_BY_INACTIVITY';
     }
 
+    public function canBeReactivated(): bool
+    {
+        return $this->isClosedByInactivity();
+    }
+
     /**
      * Una OC puede recibirse si fue emitida al proveedor (ISSUED),
      * si ya tiene una recepción parcial previa (PARTIALLY_RECEIVED),

@@ -23,6 +23,9 @@ use Yajra\DataTables\Facades\DataTables;
 
 class PurchaseOrderController extends Controller
 {
+    // Solicitado por el negocio: solo estos usuarios pueden reactivar OC/OCD cerradas por inactividad.
+    private const REACTIVATION_ALLOWED_USER_IDS = [2, 3];
+
     /**
      * Vista principal con tabs para OC Regulares y OCD
      */
@@ -168,6 +171,59 @@ class PurchaseOrderController extends Controller
             ->with('success', "OC {$purchaseOrder->folio} rechazada.");
     }
 
+    /**
+     * Reactiva una OC estándar cerrada por inactividad, regresándola a Emitida
+     * y re-comprometiendo su presupuesto. Restringido a usuarios autorizados.
+     */
+    public function reactivate(PurchaseOrder $purchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
+        abort_unless($purchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OC cerradas por inactividad.');
+
+        DB::transaction(function () use (&$purchaseOrder, $budgetAllocationService) {
+            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+            abort_unless($purchaseOrder->canBeReactivated(), 422, 'Esta OC ya no está cerrada por inactividad.');
+
+            $purchaseOrder->forceFill([
+                'status' => 'ISSUED',
+                'closed_at' => null,
+                'inactivity_warning_sent_at' => null,
+                'issued_at' => now(),
+            ])->save();
+
+            $budgetAllocationService->commitOrder($purchaseOrder);
+        });
+
+        return back()->with('success', "OC {$purchaseOrder->folio} reactivada. Se restableció el plazo de inactividad.");
+    }
+
+    /**
+     * Reactiva una OCD cerrada por inactividad, regresándola a Pendiente de
+     * Autorización y re-comprometiendo fondos. El aprobador debe reasignarse
+     * manualmente. Restringido a usuarios autorizados.
+     */
+    public function reactivateDirect(DirectPurchaseOrder $directPurchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
+        abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OCD cerradas por inactividad.');
+
+        DB::transaction(function () use (&$directPurchaseOrder, $budgetAllocationService) {
+            $directPurchaseOrder = DirectPurchaseOrder::query()->lockForUpdate()->findOrFail($directPurchaseOrder->id);
+            abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Esta OCD ya no está cerrada por inactividad.');
+
+            $directPurchaseOrder->forceFill([
+                'status' => 'PENDING_APPROVAL',
+                'closed_at' => null,
+                'inactivity_warning_sent_at' => null,
+                'submitted_at' => now(),
+            ])->save();
+
+            $budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
+        });
+
+        return back()->with('success', "OCD {$directPurchaseOrder->folio} reactivada. Asigna un aprobador para continuar el flujo.");
+    }
+
     /** Anexa una instrucción de Compras a la nota existente de una partida. */
     public function appendSupplierNote(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $purchaseOrderItem)
     {
@@ -272,6 +328,18 @@ class PurchaseOrderController extends Controller
                         ';
                     }
 
+                    if ($po->canBeReactivated() && in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true)) {
+                        $reactivateUrl = route('purchase-orders.reactivate', $po->id);
+                        $buttons .= '
+                            <form action="'.$reactivateUrl.'" method="POST" class="d-inline js-reactivate-po-form">
+                                '.csrf_field().'
+                                <button type="submit" class="btn btn-sm btn-outline-dark ms-1" title="Reactivar OC">
+                                    <i class="ti ti-refresh"></i>
+                                </button>
+                            </form>
+                        ';
+                    }
+
                     return $buttons;
                 })
                 ->rawColumns(['folio', 'requisicion', 'total', 'status', 'actions'])
@@ -347,6 +415,18 @@ class PurchaseOrderController extends Controller
                             <a href="'.$receiveUrl.'" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
                                 <i class="ti ti-package-import"></i>
                             </a>
+                        ';
+                    }
+
+                    if ($ocd->canBeReactivated() && in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true)) {
+                        $reactivateUrl = route('direct-purchase-orders.reactivate', $ocd->id);
+                        $buttons .= '
+                            <form action="'.$reactivateUrl.'" method="POST" class="d-inline js-reactivate-po-form">
+                                '.csrf_field().'
+                                <button type="submit" class="btn btn-sm btn-outline-dark ms-1" title="Reactivar OCD">
+                                    <i class="ti ti-refresh"></i>
+                                </button>
+                            </form>
                         ';
                     }
 

@@ -369,6 +369,11 @@ class DirectPurchaseOrder extends Model
         return $this->status === 'CLOSED_BY_INACTIVITY';
     }
 
+    public function canBeReactivated(): bool
+    {
+        return $this->isClosedByInactivity();
+    }
+
     /**
      * Fecha límite de aprobación (submitted_at + 7 días naturales).
      * Retorna null si aún no ha sido enviada a aprobación.
