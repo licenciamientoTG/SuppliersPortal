@@ -6,18 +6,6 @@ use App\Models\User;
 
 class ModuleAccessService
 {
-    private const MODULE_PERMISSIONS = [
-        'dashboard' => null,
-        'reports' => 'reportes.ver',
-        'requisitions' => 'requisiciones.ver',
-        'products_services' => 'productos.ver',
-        'budget_control' => 'catalogo_cuentas.ver',
-        'budget_profiles' => 'perfiles_presupuestales.ver',
-        'catalogs_config' => 'departamentos.administrar',
-        'staff_users' => 'usuarios.ver',
-        'employees' => 'usuarios.ver',
-    ];
-
     public function rolesForModule(string $module): array
     {
         return config("module_access.modules.{$module}.roles", []);
@@ -26,6 +14,16 @@ class ModuleAccessService
     public function moduleExists(string $module): bool
     {
         return config()->has("module_access.modules.{$module}");
+    }
+
+    public function viewPermissions(): array
+    {
+        return config('view_permissions.modules', []);
+    }
+
+    public function permissionForModule(string $module): ?string
+    {
+        return data_get($this->viewPermissions(), "{$module}.permission");
     }
 
     public function normalizeRoleLabel(string $role): string
@@ -56,9 +54,16 @@ class ModuleAccessService
             return false;
         }
 
-        $permission = self::MODULE_PERMISSIONS[$module] ?? null;
-        if ($permission && $user->can($permission)) {
-            return true;
+        $definition = $this->viewPermissions()[$module] ?? [];
+        $permissions = array_filter(array_merge(
+            [$definition['permission'] ?? null],
+            $definition['legacy_permissions'] ?? [],
+        ));
+
+        foreach ($permissions as $permission) {
+            if ($user->can($permission)) {
+                return true;
+            }
         }
 
         $allowedRoles = $this->normalizeRoles($this->rolesForModule($module));

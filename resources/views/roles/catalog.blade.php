@@ -41,9 +41,8 @@
                 <h5 class="mb-0 fw-semibold">
                     <i class="ti ti-shield-half me-2 text-primary"></i>Catálogo de Roles y Permisos
                 </h5>
-                <small class="text-muted">
-                    Vista de solo lectura &mdash; {{ $roles->count() }} roles del sistema &middot; {{ $totalPermissions }} permisos definidos.
-                    Los permisos se asignan a los roles en <code>RolePermissionSeeder</code>.
+                    <small class="text-muted">
+                    Administra los permisos de vistas para {{ $roles->count() }} roles del sistema. Los permisos de acciones actuales se conservan.
                 </small>
             </div>
             <div class="d-flex gap-2 flex-wrap">
@@ -55,113 +54,101 @@
     </div>
 </div>
 
-{{-- ===== GRILLA DE ROLES ===== --}}
-<div class="row g-4">
-    @foreach($roles as $role)
-        @php
-            $meta = $roleMeta[$role->name] ?? [
-                'label' => \Illuminate\Support\Str::headline($role->name),
-                'icon'  => 'ti-user',
-                'color' => '#6b7280',
-                'desc'  => '',
-            ];
+{{-- ===== SELECTOR Y DETALLE DEL ROL ===== --}}
+@php
+    $role = $selectedRole;
+    $meta = $roleMeta[$role->name] ?? ['label' => \Illuminate\Support\Str::headline($role->name), 'icon' => 'ti-user', 'color' => '#6b7280', 'desc' => ''];
+    $rolePermNames = $role->permissions->pluck('name')->toArray();
+    $permCount = count($rolePermNames);
+    $roleViewNames = $role->permissions->pluck('name')->intersect($viewPermissions->flatten(1)->pluck('permission'));
+    $grouped = collect($categories)->mapWithKeys(function ($catPerms, $catName) use ($rolePermNames) {
+        $matched = array_values(array_intersect($catPerms, $rolePermNames));
+        return $matched ? [$catName => $matched] : [];
+    });
+@endphp
 
-            // Permisos del rol como colección de nombres
-            $rolePermNames = $role->permissions->pluck('name')->toArray();
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom">
+        <div class="row align-items-end g-3">
+            <div class="col-12 col-md-7">
+                <label class="form-label small text-uppercase text-muted fw-semibold mb-1" for="roleSelector">Selecciona un rol</label>
+                <select id="roleSelector" class="form-select" onchange="if (this.value) window.location='{{ route('roles.catalog') }}?role='+encodeURIComponent(this.value)">
+                    @foreach($roles as $availableRole)
+                        @php $availableMeta = $roleMeta[$availableRole->name] ?? ['label' => \Illuminate\Support\Str::headline($availableRole->name)]; @endphp
+                        <option value="{{ $availableRole->name }}" @selected($availableRole->id === $role->id)>
+                            {{ $availableMeta['label'] }} · {{ $availableRole->users_count }} usuario(s)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-5 text-md-end">
+                <small class="text-muted">Consulta y modifica sólo los permisos del rol seleccionado.</small>
+            </div>
+        </div>
+    </div>
 
-            // Total de permisos asignados a este rol
-            $permCount = count($rolePermNames);
+    <div style="height:5px; background:{{ $meta['color'] }}; border-radius:0 0 .375rem .375rem;"></div>
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width:46px;height:46px;border-radius:50%;background:{{ $meta['color'] }}1a;border:2px solid {{ $meta['color'] }}33;">
+                <i class="ti {{ $meta['icon'] }} fs-5" style="color:{{ $meta['color'] }};"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h5 class="mb-1">{{ $meta['label'] }} <code class="text-muted" style="font-size:11px;">{{ $role->name }}</code></h5>
+                <p class="text-muted mb-0">{{ $meta['desc'] }}</p>
+            </div>
+            <div class="d-flex flex-column align-items-end gap-1">
+                <span class="badge rounded-pill text-bg-light border"><i class="ti ti-users me-1"></i>{{ $role->users_count }} usuarios</span>
+                <span class="badge rounded-pill text-bg-light border">{{ $permCount }} permisos actuales</span>
+            </div>
+        </div>
 
-            // Agrupar los permisos del rol por categoría
-            $grouped = [];
-            foreach ($categories as $catName => $catPerms) {
-                $matched = array_values(array_intersect($catPerms, $rolePermNames));
-                if (!empty($matched)) {
-                    $grouped[$catName] = $matched;
-                }
-            }
-        @endphp
-
-        <div class="col-12 col-xl-6">
-            <div class="card h-100 shadow-sm border-0 role-card" data-role="{{ $role->name }}">
-
-                {{-- Barra de color superior --}}
-                <div style="height:5px; background:{{ $meta['color'] }}; border-radius: .375rem .375rem 0 0;"></div>
-
-                {{-- Encabezado de la tarjeta --}}
-                <div class="card-header bg-white border-bottom py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        {{-- Icono circular con color del rol --}}
-                        <div class="role-icon-wrap d-flex align-items-center justify-content-center flex-shrink-0"
-                             style="width:44px;height:44px;border-radius:50%;background:{{ $meta['color'] }}1a;border:2px solid {{ $meta['color'] }}33;">
-                            <i class="ti {{ $meta['icon'] }} fs-5" style="color:{{ $meta['color'] }};"></i>
-                        </div>
-
-                        <div class="flex-grow-1 min-width-0">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="fw-semibold fs-6">{{ $meta['label'] }}</span>
-                                <code class="text-muted" style="font-size:11px;">{{ $role->name }}</code>
-                            </div>
-                            <small class="text-muted d-block">{{ $meta['desc'] }}</small>
-                        </div>
-
-                        <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
-                            <span class="badge rounded-pill text-bg-light border fw-normal"
-                                  title="{{ $role->users_count }} usuario(s) con este rol">
-                                <i class="ti ti-users me-1"></i>{{ $role->users_count }}
-                            </span>
-                            <span class="badge rounded-pill fw-normal"
-                                  style="background:{{ $meta['color'] }}1a;color:{{ $meta['color'] }};border:1px solid {{ $meta['color'] }}33;"
-                                  title="{{ $permCount }} permiso(s) asignado(s)">
-                                {{ $permCount }} permisos
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Cuerpo: permisos agrupados --}}
-                <div class="card-body py-3">
-                    @if($permCount === 0)
-                        <p class="text-muted text-center mb-0 py-2">
-                            <i class="ti ti-lock-off me-1"></i>Sin permisos asignados
-                        </p>
-
-                    @elseif($role->name === 'superadmin')
-                        {{-- Superadmin tiene todos los permisos --}}
-                        <div class="d-flex align-items-center gap-2 py-1">
-                            <i class="ti ti-infinity text-primary fs-5"></i>
-                            <span class="text-primary fw-semibold">Todos los permisos del sistema</span>
-                        </div>
-                        <small class="text-muted">
-                            Acceso completo a los {{ $totalPermissions }} permisos definidos, incluyendo cualquier permiso nuevo que se agregue.
-                        </small>
-
-                    @else
-                        @foreach($grouped as $catName => $catPerms)
-                            <div class="mb-2">
-                                <div class="text-uppercase fw-semibold mb-1"
-                                     style="font-size:10px;letter-spacing:.06em;color:#9ca3af;">
-                                    {{ $catName }}
-                                </div>
-                                <div class="d-flex flex-wrap gap-1">
-                                    @foreach($catPerms as $perm)
-                                        <span class="badge {{ $categoryBadgeClass[$catName] ?? 'text-bg-secondary' }} fw-normal"
-                                              style="font-size:11px;"
-                                              title="{{ $perm }}">
-                                            {{ $permLabels[$perm] ?? $perm }}
-                                        </span>
-                                    @endforeach
-                                </div>
+        <div class="rounded border p-3 mb-4" style="background:#f7fbff;border-color:#dbeaf7 !important;">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                <div><div class="fw-semibold text-primary"><i class="ti ti-eye me-1"></i>Permisos de vistas</div><small class="text-muted">Controlan qué módulos puede abrir el rol.</small></div>
+                @if($role->name === 'superadmin')
+                    <span class="badge text-bg-primary">Acceso total</span>
+                @else
+                    <span class="badge text-bg-light border">{{ $roleViewNames->count() }} asignados</span>
+                @endif
+            </div>
+            @if($role->name === 'superadmin')
+                <small class="text-muted">El superadmin conserva acceso global y no requiere selección manual.</small>
+            @else
+                <form method="POST" action="{{ route('roles.catalog.view-permissions.update', $role) }}">
+                    @csrf
+                    @method('PATCH')
+                    <div class="row g-2">
+                        @foreach($viewPermissions as $category => $definitions)
+                            <div class="col-12 col-lg-6">
+                                <div class="small text-uppercase text-muted fw-semibold mb-1">{{ $category }}</div>
+                                @foreach($definitions as $definition)
+                                    <label class="d-flex align-items-start gap-2 small mb-2"><input class="form-check-input mt-1" type="checkbox" name="permissions[]" value="{{ $definition['permission'] }}" @checked($roleViewNames->contains($definition['permission']))><span><strong>{{ $definition['label'] }}</strong><br><span class="text-muted">{{ $definition['description'] }}</span></span></label>
+                                @endforeach
                             </div>
                         @endforeach
-                    @endif
+                    </div>
+                    <button class="btn btn-sm btn-primary mt-2" type="submit"><i class="ti ti-device-floppy me-1"></i>Guardar vistas</button>
+                </form>
+            @endif
+        </div>
+
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold mb-2">Permisos operativos actuales</div>
+            @if($role->name === 'superadmin')
+                <div class="d-flex align-items-center gap-2"><i class="ti ti-infinity text-primary fs-5"></i><span class="text-primary fw-semibold">Todos los permisos del sistema</span></div>
+            @elseif($grouped->isEmpty())
+                <span class="text-muted">Sin permisos operativos asignados.</span>
+            @else
+                <div class="row g-2">
+                    @foreach($grouped as $catName => $catPerms)
+                        <div class="col-12 col-lg-6"><div class="text-uppercase fw-semibold mb-1" style="font-size:10px;letter-spacing:.06em;color:#9ca3af;">{{ $catName }}</div><div class="d-flex flex-wrap gap-1">@foreach($catPerms as $perm)<span class="badge {{ $categoryBadgeClass[$catName] ?? 'text-bg-secondary' }} fw-normal" style="font-size:11px;" title="{{ $perm }}">{{ $permLabels[$perm] ?? $perm }}</span>@endforeach</div></div>
+                    @endforeach
                 </div>
-
-            </div>{{-- .card --}}
-        </div>{{-- .col --}}
-
-    @endforeach
-</div>{{-- .row --}}
+            @endif
+        </div>
+    </div>
+</div>
 
 {{-- ===== TABLA RESUMEN (matriz rol × categoría) ===== --}}
 <div class="card shadow-sm border-0 mt-4">

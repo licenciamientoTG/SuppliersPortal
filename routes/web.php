@@ -164,6 +164,8 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
         Route::get('/{user}/roles/edit', [UserController::class, 'editRoles'])->name('roles.edit');
         Route::patch('/{user}/roles', [UserController::class, 'updateRoles'])->name('roles.update');
+        Route::get('/{user}/permissions/edit', [UserController::class, 'editPermissions'])->name('permissions.edit');
+        Route::patch('/{user}/permissions', [UserController::class, 'updatePermissions'])->name('permissions.update');
 
         // Companies (asignación por usuario)
         Route::get('/{user}/companies/edit', [UserController::class, 'editCompanies'])->name('companies.edit');
@@ -822,6 +824,10 @@ Route::middleware(['auth', 'lock', 'role:superadmin'])->get('/dev/logs', [LogVie
 Route::middleware(['auth', 'lock', 'role:superadmin'])
     ->get('/roles/catalog', [RolesCatalogController::class, 'index'])
     ->name('roles.catalog');
+
+Route::middleware(['auth', 'lock', 'role:superadmin'])
+    ->patch('/roles/catalog/{role}/view-permissions', [RolesCatalogController::class, 'updateViewPermissions'])
+    ->name('roles.catalog.view-permissions.update');
 
 // ============================================================================
 //  CSRF Token Refresh (previene error 419 en formularios multi-paso)

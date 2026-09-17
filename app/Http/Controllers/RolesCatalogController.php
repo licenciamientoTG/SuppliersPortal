@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RolesCatalogController extends Controller
@@ -129,7 +133,7 @@ class RolesCatalogController extends Controller
         'review_documents'        => 'Revisar documentos',
     ];
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $order = self::ROLE_ORDER;
 
@@ -139,11 +143,46 @@ class RolesCatalogController extends Controller
             ->sortBy(fn ($role) => ($idx = array_search($role->name, $order)) !== false ? $idx : 999)
             ->values();
 
+        $viewPermissions = collect(config('view_permissions.modules', []))
+            ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
+            ->groupBy('category');
+        $selectedRole = $roles->firstWhere('name', $request->string('role')->toString())
+            ?? $roles->first();
+
         return view('roles.catalog', [
             'roles'      => $roles,
             'roleMeta'   => self::ROLE_META,
             'categories' => self::PERMISSION_CATEGORIES,
             'permLabels' => self::PERMISSION_LABELS,
+            'viewPermissions' => $viewPermissions,
+            'selectedRole' => $selectedRole,
         ]);
+    }
+
+    public function updateViewPermissions(Request $request, Role $role): RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('superadmin'), 403);
+        abort_if($role->name === 'superadmin', 422, 'Los permisos del superadmin son globales y no se editan.');
+
+        $viewPermissionNames = collect(config('view_permissions.modules', []))
+            ->pluck('permission')
+            ->filter()
+            ->values();
+
+        $data = $request->validate([
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'in:'.$viewPermissionNames->implode(',')],
+        ]);
+
+        $selected = collect($data['permissions'] ?? [])->unique();
+        $existingNonView = $role->permissions()
+            ->whereNotIn('name', $viewPermissionNames)
+            ->pluck('permissions.name');
+
+        DB::transaction(function () use ($role, $existingNonView, $selected) {
+            $role->syncPermissions($existingNonView->merge($selected)->unique()->values()->all());
+        });
+
+        return back()->with('success', 'Permisos de vistas del rol actualizados correctamente.');
     }
 }

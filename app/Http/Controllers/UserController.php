@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
@@ -347,7 +348,20 @@ class UserController extends Controller
     {
         $user->load(['roles.permissions', 'companies', 'costCenters', 'employee', 'authorizerAssignment.authorizerRole', 'activeAuthorizerException']);
 
-        return view('users.staff.show', compact('user'));
+        $viewPermissions = collect(config('view_permissions.modules', []))
+            ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
+            ->groupBy('category');
+        $rolePermissionNames = $user->getPermissionsViaRoles()->pluck('name')->unique()->values();
+        $directPermissionNames = $user->getDirectPermissions()->pluck('name')->unique()->values();
+        $effectivePermissionNames = $rolePermissionNames->merge($directPermissionNames)->unique()->values();
+
+        return view('users.staff.show', compact(
+            'user',
+            'viewPermissions',
+            'rolePermissionNames',
+            'directPermissionNames',
+            'effectivePermissionNames'
+        ));
     }
 
     public function edit(User $user)
@@ -568,6 +582,52 @@ class UserController extends Controller
         $user->syncRoles($data['roles'] ?? []);
 
         // Respuesta JSON para que tu JS cierre el modal y recargue DataTable
+        return response()->json(['ok' => true]);
+    }
+
+    public function editPermissions(User $user)
+    {
+        abort_unless(request()->user()?->hasRole('superadmin'), 403);
+
+        $viewPermissions = collect(config('view_permissions.modules', []))
+            ->map(fn (array $definition, string $module) => $definition + ['module' => $module])
+            ->groupBy('category');
+        $viewPermissionNames = $viewPermissions->flatten(1)->pluck('permission');
+        $rolePermissions = $user->getPermissionsViaRoles()->pluck('name')->unique()->values();
+        $directPermissions = $user->getDirectPermissions()->pluck('name')->unique()->values();
+
+        return view('users.staff.partials.permissions_form', compact(
+            'user',
+            'viewPermissions',
+            'viewPermissionNames',
+            'rolePermissions',
+            'directPermissions'
+        ));
+    }
+
+    public function updatePermissions(Request $request, User $user)
+    {
+        abort_unless($request->user()?->hasRole('superadmin'), 403);
+
+        $viewPermissionNames = collect(config('view_permissions.modules', []))
+            ->pluck('permission')
+            ->filter()
+            ->values();
+
+        $data = $request->validate([
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'in:'.$viewPermissionNames->implode(',')],
+        ]);
+
+        $selected = collect($data['permissions'] ?? [])->unique();
+        $existingNonView = $user->getDirectPermissions()
+            ->whereNotIn('name', $viewPermissionNames)
+            ->pluck('name');
+
+        DB::transaction(function () use ($user, $existingNonView, $selected) {
+            $user->syncPermissions($existingNonView->merge($selected)->unique()->values()->all());
+        });
+
         return response()->json(['ok' => true]);
     }
 

@@ -110,10 +110,27 @@ class RolePermissionSeeder extends Seeder
             'puestos.administrar',
         ];
 
+        $permissions = array_values(array_unique(array_merge(
+            $permissions,
+            collect(config('view_permissions.modules', []))
+                ->pluck('permission')
+                ->filter()
+                ->all(),
+        )));
+
         DB::transaction(function () use ($permissions) {
             // Crear permisos (idempotente)
             foreach ($permissions as $name) {
-                Permission::findOrCreate($name, 'web');
+                $permission = Permission::findOrCreate($name, 'web');
+                $definition = collect(config('view_permissions.modules', []))
+                    ->first(fn (array $item) => ($item['permission'] ?? null) === $name);
+
+                if ($definition) {
+                    $permission->update([
+                        'description' => $definition['description'] ?? null,
+                        'is_active' => true,
+                    ]);
+                }
             }
 
             // Crear roles (idempotente)
@@ -346,6 +363,19 @@ class RolePermissionSeeder extends Seeder
                 'catalogo_cuentas.ver',
                 'catalogo_cuentas.editar',
             ]);
+
+            // Permisos de vista: se agregan sobre la matriz actual sin retirar
+            // permisos operativos existentes de los roles.
+            foreach (config('view_permissions.modules', []) as $module => $definition) {
+                $permission = $definition['permission'] ?? null;
+                if (! $permission) {
+                    continue;
+                }
+
+                foreach (config("module_access.modules.{$module}.roles", []) as $roleName) {
+                    Role::findOrCreate($roleName, 'web')->givePermissionTo($permission);
+                }
+            }
         });
 
         // Refresca caché de Spatie

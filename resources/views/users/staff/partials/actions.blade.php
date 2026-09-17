@@ -18,6 +18,13 @@
                 <i class="ti ti-shield-lock me-2 text-secondary"></i> Roles
             </a>
         </li>
+        @hasrole('superadmin')
+        <li>
+            <a class="dropdown-item js-open-user-modal" href="#" data-url="{{ route('users.permissions.edit', $user) }}">
+                <i class="ti ti-key me-2 text-primary"></i> Permisos adicionales
+            </a>
+        </li>
+        @endhasrole
         <li>
             <a class="dropdown-item js-open-user-modal" href="#" data-url="{{ route('users.companies.edit', $user) }}">
                 <i class="ti ti-building me-2 text-secondary"></i> Empresas

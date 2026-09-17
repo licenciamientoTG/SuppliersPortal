@@ -1,0 +1,31 @@
+<?php
+
+return [
+    'modules' => [
+        'dashboard' => ['permission' => 'dashboard.ver', 'label' => 'Dashboard', 'description' => 'Acceso al tablero principal.', 'category' => 'Inicio'],
+        'reports' => ['permission' => 'reportes.ver', 'label' => 'Reportería', 'description' => 'Consulta de reportes del portal.', 'category' => 'Información'],
+        'requisitions' => ['permission' => 'requisiciones.ver', 'label' => 'Requisiciones', 'description' => 'Consulta y operación de requisiciones.', 'category' => 'Compras'],
+        'quotations' => ['permission' => 'cotizaciones.ver', 'label' => 'Cotizaciones', 'description' => 'Acceso al flujo de cotizaciones y RFQ.', 'category' => 'Compras'],
+        'purchase_orders' => ['permission' => 'ordenes_compra.ver', 'label' => 'Órdenes de compra', 'description' => 'Consulta y operación de órdenes de compra.', 'category' => 'Compras'],
+        'receptions' => ['permission' => 'recepciones.ver', 'label' => 'Recepciones', 'description' => 'Acceso al módulo de recepciones.', 'category' => 'Compras'],
+        'products_services' => ['permission' => 'productos_servicios.ver', 'legacy_permissions' => ['productos.ver'], 'label' => 'Productos y servicios', 'description' => 'Consulta del catálogo de productos y servicios.', 'category' => 'Catálogo'],
+        'budget_control' => ['permission' => 'control_presupuestal.ver', 'legacy_permissions' => ['catalogo_cuentas.ver'], 'label' => 'Control presupuestal', 'description' => 'Consulta y operación presupuestal.', 'category' => 'Presupuesto'],
+        'budget_profiles' => ['permission' => 'perfiles_presupuestales.ver', 'legacy_permissions' => ['perfiles_presupuestales.ver'], 'label' => 'Perfiles presupuestales', 'description' => 'Acceso a perfiles y asignaciones presupuestales.', 'category' => 'Presupuesto'],
+        'payments_billing' => ['permission' => 'pagos_facturacion.ver', 'label' => 'Pagos y facturación', 'description' => 'Acceso a pagos, facturas y provisiones.', 'category' => 'Finanzas'],
+        'document_review' => ['permission' => 'revision_documental.ver', 'label' => 'Revisión documental', 'description' => 'Consulta y revisión documental de proveedores.', 'category' => 'Proveedores'],
+        'supplier_document_catalog' => ['permission' => 'catalogo_documental.ver', 'label' => 'Catálogo documental', 'description' => 'Administración del catálogo documental.', 'category' => 'Proveedores'],
+        'communicator' => ['permission' => 'comunicados.ver', 'label' => 'Comunicados', 'description' => 'Consulta y publicación de comunicados.', 'category' => 'Administración'],
+        'staff_users' => ['permission' => 'usuarios_staff.ver', 'legacy_permissions' => ['usuarios.ver'], 'label' => 'Usuarios Staff', 'description' => 'Administración de usuarios internos.', 'category' => 'Administración'],
+        'employees' => ['permission' => 'empleados.ver', 'legacy_permissions' => ['usuarios.ver'], 'label' => 'Empleados', 'description' => 'Consulta y administración de empleados.', 'category' => 'Administración'],
+        'catalogs_config' => ['permission' => 'catalogos.ver', 'legacy_permissions' => ['departamentos.administrar'], 'label' => 'Catálogos', 'description' => 'Acceso a los catálogos maestros del portal.', 'category' => 'Administración'],
+        'reported_incidents' => ['permission' => 'incidentes.ver', 'label' => 'Incidentes', 'description' => 'Consulta y gestión de incidentes reportados.', 'category' => 'Administración'],
+        'monitoring_alerts' => ['permission' => 'monitoreo_alertas.ver', 'label' => 'Monitoreo de alertas', 'description' => 'Consulta del centro de alertas.', 'category' => 'Monitoreo'],
+        'monitoring_operations' => ['permission' => 'monitoreo_operaciones.ver', 'label' => 'Monitoreo de operación', 'description' => 'Consulta del monitoreo de compras.', 'category' => 'Monitoreo'],
+        'monitoring_budget' => ['permission' => 'monitoreo_presupuesto.ver', 'label' => 'Monitoreo presupuestal', 'description' => 'Consulta del monitoreo de presupuesto.', 'category' => 'Monitoreo'],
+        'monitoring_suppliers' => ['permission' => 'monitoreo_proveedores.ver', 'label' => 'Monitoreo de proveedores', 'description' => 'Consulta del monitoreo de proveedores.', 'category' => 'Monitoreo'],
+        'monitoring_security' => ['permission' => 'monitoreo_seguridad.ver', 'label' => 'Monitoreo de seguridad', 'description' => 'Consulta del monitoreo de seguridad.', 'category' => 'Monitoreo'],
+        'supplier_documents' => ['permission' => 'documentos_proveedor.ver', 'label' => 'Documentos de proveedor', 'description' => 'Acceso del proveedor a sus documentos.', 'category' => 'Proveedores'],
+        'supplier_communicator' => ['permission' => 'comunicador_proveedor.ver', 'label' => 'Comunicador de proveedor', 'description' => 'Acceso del proveedor a comunicados.', 'category' => 'Proveedores'],
+        'supplier_billing' => ['permission' => 'facturacion_proveedor.ver', 'label' => 'Facturación de proveedor', 'description' => 'Acceso del proveedor a facturación.', 'category' => 'Proveedores'],
+    ],
+];

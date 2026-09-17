@@ -228,6 +228,37 @@
             </div>
         </div>
 
+        <div class="card info-card mb-4">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="ti ti-eye text-primary me-2"></i>Acceso efectivo a vistas</h5>
+                <span class="badge text-bg-primary">{{ $effectivePermissionNames->count() }} permiso(s)</span>
+            </div>
+            <div class="card-body">
+                @foreach($viewPermissions as $category => $definitions)
+                    @php
+                        $effectiveDefinitions = $definitions->filter(fn ($definition) => $effectivePermissionNames->contains($definition['permission']));
+                    @endphp
+                    @if($effectiveDefinitions->isNotEmpty())
+                        <div class="mb-3">
+                            <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:10px;letter-spacing:.06em;">{{ $category }}</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach($effectiveDefinitions as $definition)
+                                    <span class="badge bg-light text-dark border" title="{{ $definition['permission'] }}">
+                                        {{ $definition['label'] }}
+                                        @if($rolePermissionNames->contains($definition['permission']))
+                                            <small class="text-muted">· rol</small>
+                                        @else
+                                            <small class="text-primary">· directo</small>
+                                        @endif
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+
         {{-- Compañías asignadas --}}
         <div class="card info-card mb-4">
             <div class="card-header bg-transparent">
