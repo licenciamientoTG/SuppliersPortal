@@ -150,131 +150,122 @@
     </div>
 </div>
 
-{{-- ===== TABLA RESUMEN (matriz rol × categoría) ===== --}}
+{{-- ===== TABLA DE PERMISOS ===== --}}
 <div class="card shadow-sm border-0 mt-4">
-    <div class="card-header bg-white border-bottom">
-        <h6 class="mb-0 fw-semibold">
-            <i class="ti ti-table me-2 text-secondary"></i>Resumen — Permisos por categoría
-        </h6>
-        <small class="text-muted">Número de permisos que cada rol tiene en cada categoría.</small>
+    <div class="card-header bg-white border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h6 class="mb-0 fw-semibold"><i class="ti ti-table me-2 text-secondary"></i>Permisos por rol</h6>
+            <small id="permissions-table-description" class="text-muted">Resumen de permisos agrupados por área.</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="toggle-view-permissions-matrix"
+            aria-controls="permissions-by-area permissions-by-view" aria-expanded="false">
+            <i class="ti ti-layout-list me-1"></i>Ver por vista
+        </button>
     </div>
-    <div class="card-body p-0">
+
+    <div id="permissions-by-area" class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle mb-0 text-center" style="font-size:13px;">
                 <thead class="table-light">
                     <tr>
                         <th class="text-start ps-3" style="min-width:170px;">Rol</th>
                         @foreach(array_keys($categories) as $catName)
-                            <th style="min-width:90px; font-size:11px; white-space:nowrap;">
-                                {{ $catName }}
-                            </th>
+                            <th style="min-width:90px; font-size:11px; white-space:nowrap;">{{ $catName }}</th>
                         @endforeach
-                        <th style="min-width:110px; font-size:11px;">Vistas</th>
                         <th>Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($roles as $role)
                         @php
-                            $meta     = $roleMeta[$role->name] ?? ['label' => \Illuminate\Support\Str::headline($role->name), 'color' => '#6b7280', 'icon' => 'ti-user'];
-                            $rPerms   = $role->permissions->pluck('name')->toArray();
-                            $isSuper  = $role->name === 'superadmin';
+                            $rPerms = $role->permissions->pluck('name')->toArray();
+                            $isSuper = $role->name === 'superadmin';
                         @endphp
                         <tr>
-                            <td class="text-start ps-3">
-                                <span class="d-flex align-items-center gap-2">
-                                    <span class="d-inline-flex align-items-center justify-content-center flex-shrink-0"
-                                          style="width:22px;height:22px;border-radius:50%;background:{{ $meta['color'] }}1a;">
-                                        <i class="ti {{ $meta['icon'] }}" style="color:{{ $meta['color'] }};font-size:12px;"></i>
-                                    </span>
-                                    <span class="fw-medium">{{ $meta['label'] }}</span>
-                                </span>
-                            </td>
-
-                            @foreach($categories as $catName => $catPerms)
+                            <td class="text-start ps-3">{{ $roleMeta[$role->name]['label'] ?? \Illuminate\Support\Str::headline($role->name) }}</td>
+                            @foreach($categories as $catPerms)
                                 @php
-                                    $count = $isSuper
-                                        ? count($catPerms)
-                                        : count(array_intersect($catPerms, $rPerms));
+                                    $count = $isSuper ? count($catPerms) : count(array_intersect($catPerms, $rPerms));
                                     $max = count($catPerms);
                                 @endphp
                                 <td>
                                     @if($count === 0)
                                         <span class="text-muted">—</span>
                                     @elseif($count === $max)
-                                        <span class="badge text-bg-success fw-normal" title="{{ $count }}/{{ $max }}">{{ $count }}/{{ $max }}</span>
+                                        <span class="badge text-bg-success fw-normal">{{ $count }}/{{ $max }}</span>
                                     @else
-                                        <span class="badge text-bg-warning fw-normal text-dark" title="{{ $count }}/{{ $max }}">{{ $count }}/{{ $max }}</span>
+                                        <span class="badge text-bg-warning fw-normal text-dark">{{ $count }}/{{ $max }}</span>
                                     @endif
                                 </td>
                             @endforeach
-
-                            <td>
-                                <button type="button" class="btn btn-sm btn-outline-primary js-toggle-view-permissions"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#view-permissions-{{ $role->id }}"
-                                    aria-expanded="false"
-                                    aria-controls="view-permissions-{{ $role->id }}">
-                                    <i class="ti ti-eye me-1"></i>Ver vistas
-                                </button>
-                            </td>
-
-                            <td>
-                                @php $total = $isSuper ? $totalPermissions : count($rPerms); @endphp
-                                <strong>{{ $total }}</strong>
-                            </td>
-                        </tr>
-                        <tr class="collapse bg-light" id="view-permissions-{{ $role->id }}">
-                            <td colspan="{{ count($categories) + 3 }}" class="p-0">
-                                <div class="p-3 border-top border-bottom">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div>
-                                            <strong><i class="ti ti-list-details me-1 text-primary"></i>Vistas individuales de {{ $meta['label'] }}</strong>
-                                            <small class="text-muted d-block">Detalle permiso por permiso, sin agrupar por área.</small>
-                                        </div>
-                                        <a class="btn btn-sm btn-light border" href="{{ route('roles.catalog', ['role' => $role->name]) }}">
-                                            <i class="ti ti-adjustments-horizontal me-1"></i>Administrar rol
-                                        </a>
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover align-middle mb-0 bg-white">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Vista</th>
-                                                    <th>Permiso</th>
-                                                    <th>Área</th>
-                                                    <th class="text-center">Estado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($viewPermissions as $viewCategory => $definitions)
-                                                    @foreach($definitions as $definition)
-                                                        @php $viewGranted = $isSuper || in_array($definition['permission'], $rPerms, true); @endphp
-                                                        <tr>
-                                                            <td class="fw-semibold">{{ $definition['label'] }}</td>
-                                                            <td><code class="small">{{ $definition['permission'] }}</code></td>
-                                                            <td><span class="badge bg-light text-dark border">{{ $viewCategory }}</span></td>
-                                                            <td class="text-center">
-                                                                @if($viewGranted)
-                                                                    <span class="badge text-bg-success"><i class="ti ti-check me-1"></i>Asignado</span>
-                                                                @else
-                                                                    <span class="badge text-bg-light border text-muted"><i class="ti ti-minus me-1"></i>No asignado</span>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </td>
+                            <td><strong>{{ $isSuper ? $totalPermissions : count($rPerms) }}</strong></td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
     </div>
+
+    <div id="permissions-by-view" class="card-body p-0 d-none">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle mb-0" style="font-size:13px;">
+                <thead class="table-light text-center">
+                    <tr>
+                        <th class="text-start ps-3" style="min-width:250px;">Vista</th>
+                        <th style="min-width:220px;">Permiso</th>
+                        <th style="min-width:140px;">Área</th>
+                        @foreach($roles as $role)
+                            <th style="min-width:115px; white-space:nowrap;">{{ $roleMeta[$role->name]['label'] ?? \Illuminate\Support\Str::headline($role->name) }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($viewPermissions as $viewCategory => $definitions)
+                        @foreach($definitions as $definition)
+                            <tr>
+                                <td class="text-start ps-3 fw-semibold">{{ $definition['label'] }}</td>
+                                <td><code class="small">{{ $definition['permission'] }}</code></td>
+                                <td class="text-center"><span class="badge bg-light text-dark border">{{ $viewCategory }}</span></td>
+                                @foreach($roles as $role)
+                                    @php
+                                        $rolePermissions = $role->permissions->pluck('name')->toArray();
+                                        $granted = $role->name === 'superadmin' || in_array($definition['permission'], $rolePermissions, true);
+                                    @endphp
+                                    <td class="text-center">
+                                        @if($granted)
+                                            <span class="badge text-bg-success" title="Permiso asignado"><i class="ti ti-check"></i></span>
+                                        @else
+                                            <span class="badge text-bg-light border text-muted" title="Permiso no asignado"><i class="ti ti-minus"></i></span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+@push('scripts')
+<script>
+    document.getElementById('toggle-view-permissions-matrix')?.addEventListener('click', function () {
+        const summary = document.getElementById('permissions-by-area');
+        const detail = document.getElementById('permissions-by-view');
+        const showingDetail = detail.classList.contains('d-none');
+
+        summary.classList.toggle('d-none', showingDetail);
+        detail.classList.toggle('d-none', !showingDetail);
+        this.setAttribute('aria-expanded', showingDetail ? 'true' : 'false');
+        this.innerHTML = showingDetail
+            ? '<i class="ti ti-table me-1"></i>Ver por área'
+            : '<i class="ti ti-layout-list me-1"></i>Ver por vista';
+        document.getElementById('permissions-table-description').textContent = showingDetail
+            ? 'Todas las vistas del sistema, con los roles como columnas.'
+            : 'Resumen de permisos agrupados por área.';
+    });
+</script>
+@endpush
 
 @endsection
