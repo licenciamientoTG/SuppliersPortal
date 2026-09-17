@@ -486,9 +486,9 @@
 @endhasrole
 
 {{-- ═══════════════════════════════════════════════════
-     CONFIGURACIÓN — visible to: superadmin only
+     CONFIGURACIÓN — visible to: superadmin, catalog_admin
      ═══════════════════════════════════════════════════ --}}
-@hasrole('superadmin')
+@hasanyrole('superadmin|catalog_admin')
 <li class="side-nav-title">CONFIGURACIÓN</li>
 
 @moduleAccess('staff_users')
@@ -617,4 +617,4 @@
     </a>
 </li>
 @endmoduleAccess
-@endhasrole {{-- end CONFIGURACIÓN --}}
+@endhasanyrole {{-- end CONFIGURACIÓN --}}

@@ -101,6 +101,11 @@ class ModuleAccessMatrixTest extends TestCase
         $this->actingAs($user)
             ->get(route('companies.index'))
             ->assertOk();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSeeText('Catalogos');
     }
 
     private function userWithRole(string $role): User
