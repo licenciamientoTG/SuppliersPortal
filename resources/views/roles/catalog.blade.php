@@ -169,6 +169,7 @@
                                 {{ $catName }}
                             </th>
                         @endforeach
+                        <th style="min-width:110px; font-size:11px;">Vistas</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -209,8 +210,64 @@
                             @endforeach
 
                             <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary js-toggle-view-permissions"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#view-permissions-{{ $role->id }}"
+                                    aria-expanded="false"
+                                    aria-controls="view-permissions-{{ $role->id }}">
+                                    <i class="ti ti-eye me-1"></i>Ver vistas
+                                </button>
+                            </td>
+
+                            <td>
                                 @php $total = $isSuper ? $totalPermissions : count($rPerms); @endphp
                                 <strong>{{ $total }}</strong>
+                            </td>
+                        </tr>
+                        <tr class="collapse bg-light" id="view-permissions-{{ $role->id }}">
+                            <td colspan="{{ count($categories) + 3 }}" class="p-0">
+                                <div class="p-3 border-top border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong><i class="ti ti-list-details me-1 text-primary"></i>Vistas individuales de {{ $meta['label'] }}</strong>
+                                            <small class="text-muted d-block">Detalle permiso por permiso, sin agrupar por área.</small>
+                                        </div>
+                                        <a class="btn btn-sm btn-light border" href="{{ route('roles.catalog', ['role' => $role->name]) }}">
+                                            <i class="ti ti-adjustments-horizontal me-1"></i>Administrar rol
+                                        </a>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover align-middle mb-0 bg-white">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Vista</th>
+                                                    <th>Permiso</th>
+                                                    <th>Área</th>
+                                                    <th class="text-center">Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($viewPermissions as $viewCategory => $definitions)
+                                                    @foreach($definitions as $definition)
+                                                        @php $viewGranted = $isSuper || in_array($definition['permission'], $rPerms, true); @endphp
+                                                        <tr>
+                                                            <td class="fw-semibold">{{ $definition['label'] }}</td>
+                                                            <td><code class="small">{{ $definition['permission'] }}</code></td>
+                                                            <td><span class="badge bg-light text-dark border">{{ $viewCategory }}</span></td>
+                                                            <td class="text-center">
+                                                                @if($viewGranted)
+                                                                    <span class="badge text-bg-success"><i class="ti ti-check me-1"></i>Asignado</span>
+                                                                @else
+                                                                    <span class="badge text-bg-light border text-muted"><i class="ti ti-minus me-1"></i>No asignado</span>
+                                                                @endif
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
