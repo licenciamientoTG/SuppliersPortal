@@ -208,7 +208,7 @@
 
     <div id="permissions-by-view" class="card-body p-0 d-none">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle mb-0" style="font-size:13px;">
+            <table class="table table-bordered table-hover align-middle mb-0 permissions-view-matrix" style="font-size:13px;">
                 <thead class="table-light text-center">
                     <tr>
                         <th class="text-start ps-3" style="min-width:250px;">Vista</th>
@@ -247,6 +247,24 @@
         </div>
     </div>
 </div>
+
+@push('styles')
+<style>
+    .permissions-view-matrix th:first-child,
+    .permissions-view-matrix td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background-color: var(--bs-body-bg, #fff);
+        box-shadow: 3px 0 5px -4px rgba(15, 23, 42, .35);
+    }
+
+    .permissions-view-matrix thead th:first-child {
+        z-index: 3;
+        background-color: var(--bs-table-bg, #f8f9fa);
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
