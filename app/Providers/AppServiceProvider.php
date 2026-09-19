@@ -47,6 +47,12 @@ class AppServiceProvider extends ServiceProvider
             return Password::min(8)->mixedCase()->numbers()->symbols();
         });
 
+        Gate::before(function (\App\Models\User $user, string $ability) {
+            if ($user->hasRole('superadmin')) {
+                return true;
+            }
+        });
+
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION
         Gate::policy(ReceivingLocation::class, ReceivingLocationPolicy::class);
         Gate::policy(SupplierDocument::class, SupplierDocumentPolicy::class);

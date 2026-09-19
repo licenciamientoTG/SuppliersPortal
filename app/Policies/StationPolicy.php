@@ -8,6 +8,11 @@ use Illuminate\Auth\Access\Response;
 
 class StationPolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        return $user->hasRole('superadmin') ? true : null;
+    }
+
     /**
      * Determine whether the user can view any models.
      */

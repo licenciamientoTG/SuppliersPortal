@@ -11,10 +11,10 @@ return [
             'roles' => ['staff', 'buyer', 'supplier', 'receiver', 'authorizer', 'superadmin', 'general_director', 'catalog_admin', 'accounting', 'department_head'],
         ],
         'reports' => [
-            'roles' => ['report_viewer'],
+            'roles' => ['superadmin', 'report_viewer'],
         ],
         'requisitions' => [
-            'roles' => ['staff', 'department_head', 'authorizer', 'general_director'],
+            'roles' => ['superadmin', 'staff', 'department_head', 'authorizer', 'general_director'],
         ],
         'quotations' => [
             'roles' => ['buyer', 'supplier', 'authorizer', 'superadmin', 'general_director'],
@@ -92,16 +92,16 @@ return [
             'roles' => ['superadmin'],
         ],
         'monitoring_alerts' => [
-            'roles' => ['buyer', 'accounting', 'general_director'],
+            'roles' => ['superadmin', 'buyer', 'accounting', 'general_director'],
         ],
         'monitoring_operations' => [
-            'roles' => ['buyer', 'general_director'],
+            'roles' => ['superadmin', 'buyer', 'general_director'],
         ],
         'monitoring_budget' => [
-            'roles' => ['accounting', 'general_director'],
+            'roles' => ['superadmin', 'accounting', 'general_director'],
         ],
         'monitoring_suppliers' => [
-            'roles' => ['buyer', 'general_director'],
+            'roles' => ['superadmin', 'buyer', 'general_director'],
         ],
         'monitoring_security' => [
             'roles' => ['superadmin'],
