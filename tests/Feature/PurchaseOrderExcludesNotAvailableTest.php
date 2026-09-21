@@ -120,11 +120,11 @@ class PurchaseOrderExcludesNotAvailableTest extends TestCase
 
         $poItems = PurchaseOrderItem::where('purchase_order_id', $purchaseOrder->id)->get();
 
-        $this->assertCount(1, $poItems, 'La ODC debe contener exactamente la partida disponible.');
+        $this->assertCount(1, $poItems, 'La OCD debe contener exactamente la partida disponible.');
         $this->assertEquals($itemA->id, $poItems->first()->requisition_item_id);
         $this->assertFalse(
             $poItems->pluck('requisition_item_id')->contains($itemB->id),
-            'La partida not_available no debe aparecer en la ODC.'
+            'La partida not_available no debe aparecer en la OCD.'
         );
     }
 }
