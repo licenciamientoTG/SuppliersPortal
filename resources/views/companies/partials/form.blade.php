@@ -43,6 +43,67 @@
                 <input type="text" name="phone" class="form-control" value="{{ old('phone', $company->phone) }}">
             </div>
 
+            <div class="col-12">
+                <h6 class="text-primary border-bottom pb-1 mb-0 mt-2">
+                    <i class="ti ti-file-certificate me-1"></i>Datos fiscales
+                    <small class="text-muted fw-normal ms-1">Aparecen en el membrete de las órdenes de compra</small>
+                </h6>
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label">Régimen Fiscal</label>
+                <select name="tax_regime" class="form-select">
+                    <option value="">— Sin especificar —</option>
+                    @foreach(($taxRegimes ?? \App\Models\Company::taxRegimeOptions()) as $code => $label)
+                        <option value="{{ $code }}" @selected((string) old('tax_regime', $company->tax_regime) === (string) $code)>{{ $code }} · {{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Calle</label>
+                <input type="text" name="fiscal_street" class="form-control" maxlength="150" placeholder="Av. Insurgentes Sur" value="{{ old('fiscal_street', $company->fiscal_street) }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">No. Exterior</label>
+                <input type="text" name="fiscal_exterior_number" class="form-control" maxlength="20" placeholder="1234" value="{{ old('fiscal_exterior_number', $company->fiscal_exterior_number) }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">No. Interior <small class="text-muted">(opcional)</small></label>
+                <input type="text" name="fiscal_interior_number" class="form-control" maxlength="20" placeholder="5" value="{{ old('fiscal_interior_number', $company->fiscal_interior_number) }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Colonia</label>
+                <input type="text" name="fiscal_neighborhood" class="form-control" maxlength="100" placeholder="Del Valle" value="{{ old('fiscal_neighborhood', $company->fiscal_neighborhood) }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Municipio / Alcaldía</label>
+                <input type="text" name="fiscal_municipality" class="form-control" maxlength="100" placeholder="Benito Juárez" value="{{ old('fiscal_municipality', $company->fiscal_municipality) }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Estado</label>
+                <input type="text" name="fiscal_state" class="form-control" maxlength="50" placeholder="Ciudad de México" value="{{ old('fiscal_state', $company->fiscal_state) }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Código Postal</label>
+                <input type="text" name="fiscal_postal_code" class="form-control" maxlength="5" inputmode="numeric" pattern="\d{5}" title="5 dígitos" placeholder="03100" value="{{ old('fiscal_postal_code', $company->fiscal_postal_code) }}">
+            </div>
+
+            <div class="col-12">
+                <small class="text-muted">
+                    <i class="ti ti-info-circle me-1"></i>El domicilio es opcional, pero si capturas algún dato debes completar calle, número exterior, colonia, municipio, estado y código postal.
+                </small>
+                <h6 class="text-primary border-bottom pb-1 mb-0 mt-3">
+                    <i class="ti ti-settings me-1"></i>Configuración
+                </h6>
+            </div>
+
             <div class="col-md-4">
                 <label class="form-label">Dominio</label>
                 <input type="text" name="domain" class="form-control" value="{{ old('domain', $company->domain) }}">

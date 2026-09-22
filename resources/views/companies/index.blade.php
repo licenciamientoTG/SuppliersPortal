@@ -32,6 +32,8 @@
                         <th>Código</th>
                         <th>Nombre</th>
                         <th>RFC</th>
+                        <th>Régimen Fiscal</th>
+                        <th>Domicilio Fiscal</th>
                         <th>Email</th>
                         <th>Activo</th>
                         <th>Acciones</th>
@@ -105,6 +107,8 @@ $(function () {
             { data: 'code', name: 'code' },
             { data: 'name', name: 'name' },
             { data: 'rfc', name: 'rfc' },
+            { data: 'tax_regime_label', name: 'tax_regime' },
+            { data: 'fiscal_address', name: 'fiscal_address', orderable: false, className: 'small' },
             { data: 'email', name: 'email' },
             {
                 data: 'is_active',
