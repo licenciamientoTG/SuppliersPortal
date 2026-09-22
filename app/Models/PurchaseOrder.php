@@ -268,6 +268,14 @@ class PurchaseOrder extends Model
     }
 
     /**
+     * El documento formal (PDF) solo existe una vez que la OC fue emitida al proveedor.
+     */
+    public function canGeneratePdf(): bool
+    {
+        return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PAID', 'DELIVERED_PENDING_RECEPTION'], true);
+    }
+
+    /**
      * La OC puede recibir entrega de proveedor si está emitida o parcialmente recibida
      * y NO está ya en estado de entrega pendiente de captura.
      */

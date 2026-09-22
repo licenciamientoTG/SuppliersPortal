@@ -81,7 +81,7 @@
                                         <th>Requisición</th>
                                         <th>Total (MXN)</th>
                                         <th>Estado</th>
-                                        <th width="100px">Acciones</th>
+                                        <th width="150px">Acciones</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -112,7 +112,7 @@
                                         <th>Centro de Costo</th>
                                         <th>Total (MXN)</th>
                                         <th>Estado</th>
-                                        <th width="100px">Acciones</th>
+                                        <th width="150px">Acciones</th>
                                     </tr>
                                 </thead>
                             </table>

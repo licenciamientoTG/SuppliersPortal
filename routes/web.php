@@ -778,6 +778,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/documents/{document}', [DirectPurchaseOrderController::class, 'showDocument'])->name('direct-purchase-orders.documents.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}', [PurchaseOrderController::class, 'showDirect'])->name('direct-purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadDirectPdf'])->name('direct-purchase-orders.pdf');
+    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf/view', [PurchaseOrderController::class, 'viewDirectPdf'])->name('direct-purchase-orders.pdf.view');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/word', [PurchaseOrderController::class, 'downloadDirectWord'])->name('direct-purchase-orders.word');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/submit', [DirectPurchaseOrderController::class, 'submit'])->name('direct-purchase-orders.submit');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/approve', [DirectPurchaseOrderController::class, 'approve'])->name('direct-purchase-orders.approve');
@@ -790,6 +791,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/regular', [PurchaseOrderController::class, 'datatableRegular'])->name('purchase-orders.datatable.regular');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/direct', [PurchaseOrderController::class, 'datatableDirect'])->name('purchase-orders.datatable.direct');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+    Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}/pdf/view', [PurchaseOrderController::class, 'viewPdf'])->name('purchase-orders.pdf.view');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/items/{purchaseOrderItem}/supplier-note', [PurchaseOrderController::class, 'appendSupplierNote'])->name('purchase-orders.items.supplier-note');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');

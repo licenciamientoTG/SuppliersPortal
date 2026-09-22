@@ -14,6 +14,7 @@ use App\Services\ApprovalDelegationService;
 use App\Services\BudgetAllocationService;
 use App\Services\BudgetImpactSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -319,6 +320,15 @@ class PurchaseOrderController extends Controller
                         </a>
                     ';
 
+                    if ($po->canGeneratePdf()) {
+                        $pdfUrl = route('purchase-orders.pdf.view', $po->id);
+                        $buttons .= '
+                            <a href="'.$pdfUrl.'" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger ms-1" title="Ver PDF">
+                                <i class="ti ti-file-type-pdf"></i>
+                            </a>
+                        ';
+                    }
+
                     if ($po->canBeReceived()) {
                         $receiveUrl = route('receptions.create', $po->id);
                         $buttons .= '
@@ -409,6 +419,15 @@ class PurchaseOrderController extends Controller
                         ';
                     }
 
+                    if ($ocd->canGeneratePdf()) {
+                        $pdfUrl = route('direct-purchase-orders.pdf.view', $ocd->id);
+                        $buttons .= '
+                            <a href="'.$pdfUrl.'" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger ms-1" title="Ver PDF">
+                                <i class="ti ti-file-type-pdf"></i>
+                            </a>
+                        ';
+                    }
+
                     if ($ocd->canBeReceived()) {
                         $receiveUrl = route('receptions.create-direct', $ocd->id);
                         $buttons .= '
@@ -470,15 +489,32 @@ class PurchaseOrderController extends Controller
     /** Download the formal purchase order document once it has been issued. */
     public function downloadPdf(PurchaseOrder $purchaseOrder): Response
     {
+        return $this->purchaseOrderPdf($purchaseOrder)->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+    }
+
+    /** Show the formal purchase order document inline so the browser opens it in a new tab. */
+    public function viewPdf(PurchaseOrder $purchaseOrder): Response
+    {
+        return $this->purchaseOrderPdf($purchaseOrder)->stream('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+    }
+
+    /** Download the formal direct purchase order document once it has been issued. */
+    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        return $this->directPurchaseOrderPdf($directPurchaseOrder)->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
+    /** Show the formal direct purchase order document inline so the browser opens it in a new tab. */
+    public function viewDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        return $this->directPurchaseOrderPdf($directPurchaseOrder)->stream('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
+    private function purchaseOrderPdf(PurchaseOrder $purchaseOrder): DomPdf
+    {
         $this->authorize('view', $purchaseOrder);
 
-        abort_unless(in_array($purchaseOrder->status, [
-            'ISSUED',
-            'PARTIALLY_RECEIVED',
-            'RECEIVED',
-            'PAID',
-            'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra debe estar emitida antes de generar su PDF.');
+        abort_unless($purchaseOrder->canGeneratePdf(), 422, 'La orden de compra debe estar emitida antes de generar su PDF.');
 
         $purchaseOrder->load([
             'items.requisitionItem.costCenter',
@@ -494,31 +530,39 @@ class PurchaseOrderController extends Controller
             'requisition.requester',
         ]);
 
-        return Pdf::loadView('purchase-orders.pdf', [
+        return $this->renderPurchaseOrderPdf('purchase-orders.pdf', [
             'purchaseOrder' => $purchaseOrder,
-            'logoPath' => public_path('images/logos/Logo.png'),
-        ])->setPaper('letter')->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+        ]);
     }
 
-    /** Download the formal direct purchase order document once it has been issued. */
-    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    private function directPurchaseOrderPdf(DirectPurchaseOrder $directPurchaseOrder): DomPdf
     {
         $this->authorize('view', $directPurchaseOrder);
 
-        abort_unless(in_array($directPurchaseOrder->status, [
-            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
+        abort_unless($directPurchaseOrder->canGeneratePdf(), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
 
         $directPurchaseOrder->load([
             'items.costCenter.company', 'items.expenseCategory', 'items.budgetCedula',
             'supplier', 'creator', 'approver', 'receiver', 'authorizerRole', 'receivingLocation',
         ]);
 
-        return Pdf::loadView('purchase-orders.direct-pdf', [
+        return $this->renderPurchaseOrderPdf('purchase-orders.direct-pdf', [
             'directPurchaseOrder' => $directPurchaseOrder,
             'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
-            'logoPath' => public_path('images/logos/Logo.png'),
-        ])->setPaper('letter')->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+        ]);
+    }
+
+    /** Render an OC/OCD view as a letter PDF with the brand logo and "Página X de Y" in the footer. */
+    private function renderPurchaseOrderPdf(string $view, array $data): DomPdf
+    {
+        $pdf = Pdf::loadView($view, $data + [
+            'logoPath' => public_path('images/logos/logo_TotalGas_hor.png'),
+        ])->setPaper('letter');
+
+        $pdf->render();
+        $pdf->getDomPDF()->getCanvas()->page_text(540, 772, 'Página {PAGE_NUM} de {PAGE_COUNT}', 'Helvetica', 6.5, [0.6, 0.63, 0.68]);
+
+        return $pdf;
     }
 
     /** Download an editable Word-compatible version of an issued direct purchase order. */

@@ -435,6 +435,12 @@ class DirectPurchaseOrder extends Model
         return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION']);
     }
 
+    /** El documento formal (PDF/Word) solo existe una vez que la OCD fue emitida. */
+    public function canGeneratePdf(): bool
+    {
+        return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true);
+    }
+
     /**
      * La OCD puede recibir entrega de proveedor si está emitida o parcialmente recibida
      */
