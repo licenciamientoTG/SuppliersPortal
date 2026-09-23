@@ -84,13 +84,36 @@
 @push('scripts')
 <script>
     document.getElementById('backup-form')?.addEventListener('submit', function (event) {
-        if (!confirm('¿Generar un nuevo respaldo? Si ya hay {{ $keep }}, se eliminará el más antiguo.')) {
-            event.preventDefault();
+        event.preventDefault();
+        const form = this;
+
+        const submit = () => {
+            const button = document.getElementById('btn-backup');
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generando…';
+            form.submit(); // form.submit() no vuelve a disparar este listener
+        };
+
+        const title = '¿Generar un nuevo respaldo?';
+        const text = 'Si ya hay {{ $keep }}, se eliminará el más antiguo.';
+
+        if (typeof window.Swal === 'undefined') {
+            if (confirm(title + ' ' + text)) submit();
             return;
         }
-        const button = document.getElementById('btn-backup');
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generando…';
+
+        Swal.fire({
+            title,
+            text,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, generar',
+            cancelButtonText: 'Cancelar',
+            customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-secondary' },
+            buttonsStyling: false,
+        }).then((result) => {
+            if (result.isConfirmed) submit();
+        });
     });
 </script>
 @endpush
