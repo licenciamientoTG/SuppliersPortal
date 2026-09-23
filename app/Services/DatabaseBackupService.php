@@ -143,7 +143,6 @@ class DatabaseBackupService
         // SQLSRV devuelve el blob como string en lugar de stream resource, así que
         // el archivo completo se carga en memoria. Subimos el límite solo para esta
         // operación y lo restauramos al salir, sea cual sea el resultado.
-        $prevMemoryLimit = ini_get('memory_limit');
         ini_set('memory_limit', '1024M');
 
         try {
@@ -170,7 +169,7 @@ class DatabaseBackupService
                 $statement->closeCursor();
             }
         } finally {
-            ini_set('memory_limit', $prevMemoryLimit);
+            ini_set('memory_limit', '1024M');
         }
     }
 
