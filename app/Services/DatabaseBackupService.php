@@ -140,27 +140,37 @@ class DatabaseBackupService
      */
     protected function copyServerFile(string $readSql, string $localFile): void
     {
-        $statement = DB::connection()->getPdo()->prepare($readSql, $this->sqlsrvStatementOptions());
-        $statement->execute();
-
-        $content = null;
-        $statement->bindColumn(1, $content, \PDO::PARAM_LOB, 0, \PDO::SQLSRV_ENCODING_BINARY);
-
-        if (! $statement->fetch(\PDO::FETCH_BOUND)) {
-            throw new DatabaseBackupException('SQL Server no devolvió el archivo de respaldo.');
-        }
-
-        $target = fopen($localFile, 'wb');
+        // SQLSRV devuelve el blob como string en lugar de stream resource, así que
+        // el archivo completo se carga en memoria. Subimos el límite solo para esta
+        // operación y lo restauramos al salir, sea cual sea el resultado.
+        $prevMemoryLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '512M');
 
         try {
-            if (is_resource($content)) {
-                stream_copy_to_stream($content, $target);
-            } else {
-                fwrite($target, (string) $content);
+            $statement = DB::connection()->getPdo()->prepare($readSql, $this->sqlsrvStatementOptions());
+            $statement->execute();
+
+            $content = null;
+            $statement->bindColumn(1, $content, \PDO::PARAM_LOB, 0, \PDO::SQLSRV_ENCODING_BINARY);
+
+            if (! $statement->fetch(\PDO::FETCH_BOUND)) {
+                throw new DatabaseBackupException('SQL Server no devolvió el archivo de respaldo.');
+            }
+
+            $target = fopen($localFile, 'wb');
+
+            try {
+                if (is_resource($content)) {
+                    stream_copy_to_stream($content, $target);
+                } else {
+                    fwrite($target, (string) $content);
+                }
+            } finally {
+                fclose($target);
+                $statement->closeCursor();
             }
         } finally {
-            fclose($target);
-            $statement->closeCursor();
+            ini_set('memory_limit', $prevMemoryLimit);
         }
     }
 
