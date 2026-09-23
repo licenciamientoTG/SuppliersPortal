@@ -668,7 +668,7 @@ class BudgetAllocationService
             ->first();
 
         if (! $budget) {
-            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$costCenterId} en {$year}.");
+            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$this->costCenterLabel($costCenterId)} en {$year}.");
         }
 
         $distributions = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)
@@ -698,7 +698,7 @@ class BudgetAllocationService
             ->first();
 
         if (! $budget) {
-            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$costCenterId} en {$year}.");
+            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$this->costCenterLabel($costCenterId)} en {$year}.");
         }
 
         $distribution = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)
@@ -720,6 +720,14 @@ class BudgetAllocationService
         $name = BudgetCedula::withTrashed()->whereKey($cedulaId)->value('name');
 
         return $name !== null ? "\"{$name}\"" : "#{$cedulaId}";
+    }
+
+    /** Nombre del centro de costo entre comillas para mensajes de error; el id solo si ya no existe. */
+    private function costCenterLabel(int $costCenterId): string
+    {
+        $name = CostCenter::withTrashed()->whereKey($costCenterId)->value('name');
+
+        return $name !== null ? "\"{$name}\"" : "#{$costCenterId}";
     }
 
     private function allocateAmountAcrossDistributions(Collection $distributions, float $amount): array
