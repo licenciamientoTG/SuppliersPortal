@@ -309,8 +309,16 @@ class BudgetMovementWorkflowController extends Controller
         }
     }
 
+    /**
+     * Centros sobre los que el usuario puede solicitar movimientos: los que tiene como
+     * responsable, o todos los activos si es superadmin.
+     */
     private function ownedCenters(User $user)
     {
+        if ($user->hasRole('superadmin')) {
+            return CostCenter::active();
+        }
+
         return CostCenter::active()->where('responsible_user_id', $user->id);
     }
 
