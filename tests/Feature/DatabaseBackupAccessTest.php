@@ -29,7 +29,7 @@ class DatabaseBackupAccessTest extends TestCase
 
         config([
             'db_backups.local_path' => $this->backupDir,
-            'db_backups.sql_path' => '\\\\APP-SERVER\\portal-backups',
+            'db_backups.sql_path' => null,
             'db_backups.keep' => 3,
             'db_backups.allowed_emails' => ['aldo.ochoa@totalgas.com', 'daniel.ramirez@totalgas.com'],
         ]);
@@ -134,20 +134,15 @@ class DatabaseBackupAccessTest extends TestCase
             ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Cannot open backup device'));
     }
 
-    public function test_unconfigured_path_shows_notice_and_rejects_store(): void
+    public function test_generate_button_is_enabled_without_extra_configuration(): void
     {
         config(['db_backups.sql_path' => null]);
-        $user = $this->user('aldo.ochoa@totalgas.com');
 
-        $this->actingAs($user)->get(route('db-backups.index'))
+        $this->actingAs($this->user('aldo.ochoa@totalgas.com'))
+            ->get(route('db-backups.index'))
             ->assertOk()
-            ->assertSee('DB_BACKUP_SQL_PATH')
-            ->assertSee('id="btn-backup" disabled', false);
-
-        $this->actingAs($user)->post(route('db-backups.store'))
-            ->assertSessionHas('error');
-
-        $this->assertSame(0, DatabaseBackup::count());
+            ->assertDontSee('id="btn-backup" disabled', false)
+            ->assertDontSee('DB_BACKUP_SQL_PATH');
     }
 
     public function test_allowed_user_downloads_completed_backup(): void

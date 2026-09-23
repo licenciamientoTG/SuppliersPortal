@@ -27,7 +27,7 @@ class DatabaseBackupServiceTest extends TestCase
 
         config([
             'db_backups.local_path' => $this->backupDir,
-            'db_backups.sql_path' => '\\\\APP-SERVER\\portal-backups',
+            'db_backups.sql_path' => null,
             'db_backups.keep' => 3,
         ]);
 
@@ -84,20 +84,47 @@ class DatabaseBackupServiceTest extends TestCase
         $this->assertFileExists($this->backupDir.DIRECTORY_SEPARATOR.$backup->filename);
         $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]+_\d{8}_\d{6}\.bak$/', $backup->filename);
         $this->assertStringContainsString(
-            "TO DISK = N'\\\\APP-SERVER\\portal-backups\\{$backup->filename}'",
+            "TO DISK = N'C:\\SQL\\Backup\\suppliers_portal_backup.bak'",
             $this->service->statements[0]
         );
         $this->assertStringContainsString('WITH COPY_ONLY, INIT, CHECKSUM', $this->service->statements[0]);
+        $this->assertSame(
+            "SELECT BulkColumn FROM OPENROWSET(BULK N'C:\\SQL\\Backup\\suppliers_portal_backup.bak', SINGLE_BLOB) AS backup_file",
+            $this->service->statements[1]
+        );
     }
 
     public function test_build_sql_escapes_database_name_and_path(): void
     {
-        config(['db_backups.sql_path' => "\\\\srv\\o'brien\\"]);
-
         $this->assertSame(
-            "BACKUP DATABASE [we]]ird] TO DISK = N'\\\\srv\\o''brien\\x.bak' WITH COPY_ONLY, INIT, CHECKSUM, NAME = N'Portal manual backup'",
-            $this->service->buildBackupSql('we]ird', 'x.bak')
+            "BACKUP DATABASE [we]]ird] TO DISK = N'D:\\o''brien\\x.bak' WITH COPY_ONLY, INIT, CHECKSUM, NAME = N'Portal manual backup'",
+            $this->service->buildBackupSql('we]ird', "D:\\o'brien\\x.bak")
         );
+        $this->assertSame(
+            "SELECT BulkColumn FROM OPENROWSET(BULK N'D:\\o''brien\\x.bak', SINGLE_BLOB) AS backup_file",
+            $this->service->buildReadSql("D:\\o'brien\\x.bak")
+        );
+    }
+
+    public function test_configured_sql_path_overrides_server_default(): void
+    {
+        config(['db_backups.sql_path' => 'D:\\Respaldos\\']);
+
+        $this->assertSame('D:\\Respaldos\\suppliers_portal_backup.bak', $this->service->serverBackupFile());
+    }
+
+    public function test_fails_without_record_when_server_backup_path_is_unknown(): void
+    {
+        $this->service->defaultPath = null;
+
+        try {
+            $this->service->create(User::factory()->create());
+            $this->fail('Expected exception');
+        } catch (DatabaseBackupException $e) {
+            $this->assertStringContainsString('DB_BACKUP_SQL_PATH', $e->getMessage());
+        }
+
+        $this->assertSame(0, DatabaseBackup::count());
     }
 
     public function test_keeps_only_the_three_newest_backups(): void
@@ -144,7 +171,7 @@ class DatabaseBackupServiceTest extends TestCase
         $this->assertCount(3, File::files($this->backupDir));
     }
 
-    public function test_marks_failed_when_file_is_not_visible_locally(): void
+    public function test_marks_failed_when_copy_produces_no_file(): void
     {
         $this->service->writeFile = false;
 
@@ -152,11 +179,25 @@ class DatabaseBackupServiceTest extends TestCase
             $this->service->create(User::factory()->create());
             $this->fail('Expected exception');
         } catch (DatabaseBackupException $e) {
-            $this->assertStringContainsString('DB_BACKUP_SQL_PATH', $e->getMessage());
-            $this->assertStringContainsString('DB_BACKUP_LOCAL_PATH', $e->getMessage());
+            $this->assertStringContainsString('copiar', $e->getMessage());
         }
 
         $this->assertSame(DatabaseBackup::STATUS_FAILED, DatabaseBackup::sole()->status);
+    }
+
+    public function test_partial_copy_is_removed_when_copy_fails(): void
+    {
+        $this->service->copyFailWith = new \RuntimeException('conexión perdida');
+
+        try {
+            $this->service->create(User::factory()->create());
+            $this->fail('Expected exception');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('conexión perdida', $e->getMessage());
+        }
+
+        $this->assertSame(DatabaseBackup::STATUS_FAILED, DatabaseBackup::sole()->status);
+        $this->assertCount(0, File::files($this->backupDir));
     }
 
     public function test_failed_records_are_pruned_after_next_success(): void
@@ -193,20 +234,6 @@ class DatabaseBackupServiceTest extends TestCase
 
         $this->assertSame(0, DatabaseBackup::count());
         $this->assertSame([], $this->service->statements);
-    }
-
-    public function test_refuses_when_sql_path_is_not_configured(): void
-    {
-        config(['db_backups.sql_path' => null]);
-
-        $this->assertFalse($this->service->isConfigured());
-        $this->expectException(DatabaseBackupException::class);
-
-        try {
-            $this->service->create(User::factory()->create());
-        } finally {
-            $this->assertSame(0, DatabaseBackup::count());
-        }
     }
 
     public function test_logs_activity_for_created_backup(): void

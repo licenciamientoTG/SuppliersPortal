@@ -11,12 +11,14 @@ return [
     ))),
 
     /*
-    | Carpeta destino tal como la ve SQL Server (ruta UNC al share del servidor de la app).
+    | Carpeta en el disco del servidor SQL donde se escribe el .bak temporal antes de
+    | copiarlo al portal. Opcional: si se omite se usa la carpeta de respaldos
+    | predeterminada de la instancia (SERVERPROPERTY('InstanceDefaultBackupPath')).
     */
     'sql_path' => env('DB_BACKUP_SQL_PATH'),
 
     /*
-    | La misma carpeta vista desde la aplicación.
+    | Carpeta del portal donde se guardan las copias.
     */
     'local_path' => env('DB_BACKUP_LOCAL_PATH', storage_path('app/private/backups')),
 

@@ -8,13 +8,6 @@
 @endsection
 
 @section('content')
-@unless($configured)
-    <div class="alert alert-warning d-flex align-items-center gap-2">
-        <i class="ti ti-alert-triangle fs-20"></i>
-        <div>La ruta de respaldos no está configurada. Define <code>DB_BACKUP_SQL_PATH</code> en el <code>.env</code> para habilitar la generación.</div>
-    </div>
-@endunless
-
 <div class="card shadow-sm border-0">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
@@ -23,7 +16,7 @@
         </div>
         <form method="POST" action="{{ route('db-backups.store') }}" id="backup-form">
             @csrf
-            <button type="submit" class="btn btn-primary btn-sm" id="btn-backup" @disabled(! $configured)>
+            <button type="submit" class="btn btn-primary btn-sm" id="btn-backup">
                 <i class="ti ti-database-plus me-1"></i>Generar respaldo
             </button>
         </form>

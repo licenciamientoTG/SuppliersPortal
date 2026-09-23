@@ -20,7 +20,6 @@ class DatabaseBackupController extends Controller
     {
         return view('db-backups.index', [
             'backups' => DatabaseBackup::with('creator')->orderByDesc('id')->get(),
-            'configured' => $this->backups->isConfigured(),
             'keep' => (int) config('db_backups.keep', 3),
         ]);
     }
