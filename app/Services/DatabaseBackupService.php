@@ -136,40 +136,37 @@ class DatabaseBackupService
 
     /**
      * Lee el .bak del disco del servidor SQL a través de la conexión y lo escribe
-     * en la carpeta local por bloques (stream), sin cargarlo completo en memoria.
+     * en la carpeta local. Usa stream cuando el driver lo entrega así.
      */
     protected function copyServerFile(string $readSql, string $localFile): void
     {
-        // SQLSRV devuelve el blob como string en lugar de stream resource, así que
-        // el archivo completo se carga en memoria. Subimos el límite solo para esta
-        // operación y lo restauramos al salir, sea cual sea el resultado.
+        // En el servidor, pdo_sqlsrv devuelve el blob como string, así que el archivo
+        // completo se carga en memoria. El límite se sube para el resto de la petición:
+        // restaurarlo con el blob aún en memoria falla (PHP rechaza un límite menor al
+        // uso actual y Laravel convierte la advertencia en excepción).
         ini_set('memory_limit', '1024M');
 
+        $statement = DB::connection()->getPdo()->prepare($readSql, $this->sqlsrvStatementOptions());
+        $statement->execute();
+
+        $content = null;
+        $statement->bindColumn(1, $content, \PDO::PARAM_LOB, 0, \PDO::SQLSRV_ENCODING_BINARY);
+
+        if (! $statement->fetch(\PDO::FETCH_BOUND)) {
+            throw new DatabaseBackupException('SQL Server no devolvió el archivo de respaldo.');
+        }
+
+        $target = fopen($localFile, 'wb');
+
         try {
-            $statement = DB::connection()->getPdo()->prepare($readSql, $this->sqlsrvStatementOptions());
-            $statement->execute();
-
-            $content = null;
-            $statement->bindColumn(1, $content, \PDO::PARAM_LOB, 0, \PDO::SQLSRV_ENCODING_BINARY);
-
-            if (! $statement->fetch(\PDO::FETCH_BOUND)) {
-                throw new DatabaseBackupException('SQL Server no devolvió el archivo de respaldo.');
-            }
-
-            $target = fopen($localFile, 'wb');
-
-            try {
-                if (is_resource($content)) {
-                    stream_copy_to_stream($content, $target);
-                } else {
-                    fwrite($target, (string) $content);
-                }
-            } finally {
-                fclose($target);
-                $statement->closeCursor();
+            if (is_resource($content)) {
+                stream_copy_to_stream($content, $target);
+            } else {
+                fwrite($target, (string) $content);
             }
         } finally {
-            ini_set('memory_limit', '1024M');
+            fclose($target);
+            $statement->closeCursor();
         }
     }
 
