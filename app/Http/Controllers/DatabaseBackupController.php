@@ -50,6 +50,8 @@ class DatabaseBackupController extends Controller
 
         abort_unless(is_file($file), 404);
 
+        @set_time_limit((int) config('db_backups.timeout', 1800));
+
         return response()->download($file, $databaseBackup->filename);
     }
 }
