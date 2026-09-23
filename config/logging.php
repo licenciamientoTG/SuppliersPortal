@@ -8,6 +8,12 @@ use Monolog\Processor\PsrLogMessageProcessor;
 return [
 
     /*
+    | Usuarios (por id) que ven el ícono del Log del sistema y pueden abrir /dev/logs.
+    | Los superadmin también pueden abrir la ruta.
+    */
+    'viewer_user_ids' => [1, 2, 3],
+
+    /*
     |--------------------------------------------------------------------------
     | Default Log Channel
     |--------------------------------------------------------------------------

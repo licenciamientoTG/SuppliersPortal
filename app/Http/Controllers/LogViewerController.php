@@ -15,7 +15,7 @@ class LogViewerController extends Controller
 
     public function index()
     {
-        abort_unless(Auth::user()?->hasRole('superadmin'), 403);
+        abort_unless(Auth::user()?->can('view-system-log'), 403);
 
         $lines = [];
 

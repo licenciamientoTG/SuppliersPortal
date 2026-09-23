@@ -819,9 +819,9 @@ Route::middleware(['auth', 'lock'])->group(function () {
 });
 
 // ============================================================================
-//  Dev Tools (solo usuario id=1)
+//  Dev Tools (ids en config('logging.viewer_user_ids') y superadmin)
 // ============================================================================
-Route::middleware(['auth', 'lock', 'role:superadmin'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
+Route::middleware(['auth', 'lock', 'can:view-system-log'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
 
 // ============================================================================
 //  Respaldos de base de datos (solo correos en config('db_backups.allowed_emails'))
