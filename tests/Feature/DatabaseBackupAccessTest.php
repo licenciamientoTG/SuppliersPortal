@@ -164,7 +164,7 @@ class DatabaseBackupAccessTest extends TestCase
     {
         $user = $this->user('aldo.ochoa@totalgas.com');
 
-        $failed = $this->storedBackup(DatabaseBackup::STATUS_FAILED);
+        $failed = $this->storedBackup(DatabaseBackup::STATUS_FAILED, withFile: false);
         $this->actingAs($user)->get(route('db-backups.download', $failed))->assertNotFound();
 
         $failed->delete();
