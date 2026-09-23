@@ -75,14 +75,11 @@
                 <i class="ti ti-x me-1"></i>Rechazar OC
             </button>
         @endif
-        @if(in_array($purchaseOrder->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PAID', 'DELIVERED_PENDING_RECEPTION'], true))
-            <a href="{{ route('purchase-orders.pdf', $purchaseOrder) }}" class="btn btn-outline-danger me-1">
-                <i class="ti ti-file-type-pdf me-1"></i>Generar PDF
+        @if($purchaseOrder->canGeneratePdf())
+            <a href="{{ route('purchase-orders.pdf.view', $purchaseOrder) }}" target="_blank" rel="noopener" class="btn btn-outline-danger me-1" title="Ver PDF">
+                <i class="ti ti-file-type-pdf me-1"></i>PDF
             </a>
         @endif
-        <button type="button" onclick="window.print();" class="btn btn-primary">
-            <i class="ti ti-printer me-1"></i>Imprimir OC
-        </button>
     </div>
 </div>
 

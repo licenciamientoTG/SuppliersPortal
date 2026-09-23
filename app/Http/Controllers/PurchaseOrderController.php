@@ -565,28 +565,6 @@ class PurchaseOrderController extends Controller
         return $pdf;
     }
 
-    /** Download an editable Word-compatible version of an issued direct purchase order. */
-    public function downloadDirectWord(DirectPurchaseOrder $directPurchaseOrder): Response
-    {
-        $this->authorize('view', $directPurchaseOrder);
-
-        abort_unless(in_array($directPurchaseOrder->status, [
-            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su documento Word.');
-
-        $directPurchaseOrder->load([
-            'items.costCenter.company', 'supplier', 'creator', 'receivingLocation',
-        ]);
-
-        return response()->view('purchase-orders.direct-word', [
-            'directPurchaseOrder' => $directPurchaseOrder,
-            'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
-        ], 200, [
-            'Content-Type' => 'application/msword; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="orden-de-compra-directa-'.$directPurchaseOrder->folio.'.doc"',
-        ]);
-    }
-
     /**
      * Ver detalle de OCD
      */

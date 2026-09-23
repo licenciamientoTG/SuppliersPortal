@@ -780,7 +780,6 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}', [PurchaseOrderController::class, 'showDirect'])->name('direct-purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadDirectPdf'])->name('direct-purchase-orders.pdf');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf/view', [PurchaseOrderController::class, 'viewDirectPdf'])->name('direct-purchase-orders.pdf.view');
-    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/word', [PurchaseOrderController::class, 'downloadDirectWord'])->name('direct-purchase-orders.word');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/submit', [DirectPurchaseOrderController::class, 'submit'])->name('direct-purchase-orders.submit');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/approve', [DirectPurchaseOrderController::class, 'approve'])->name('direct-purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reject', [DirectPurchaseOrderController::class, 'reject'])->name('direct-purchase-orders.reject');
