@@ -55,9 +55,38 @@ class DatabaseBackupService
         }
 
         try {
+            $this->failStaleRunningBackups($timeout);
+
             return $this->runBackup($user, $timeout);
         } finally {
             $lock->release();
+        }
+    }
+
+    /**
+     * Si IIS/FastCGI mata la petición a mitad del BACKUP, el bloque finally nunca
+     * corre y la fila se queda en "running" para siempre. Antes de iniciar un nuevo
+     * respaldo, se marcan como fallidas las filas "running" cuyo tiempo de espera
+     * ya expiró.
+     */
+    private function failStaleRunningBackups(int $timeout): void
+    {
+        $stale = DatabaseBackup::where('status', DatabaseBackup::STATUS_RUNNING)
+            ->where('started_at', '<', now()->subSeconds($timeout))
+            ->get();
+
+        foreach ($stale as $backup) {
+            $file = $this->localFileFor($backup);
+
+            if (is_file($file)) {
+                @unlink($file);
+            }
+
+            $backup->update([
+                'status' => DatabaseBackup::STATUS_FAILED,
+                'error_message' => 'El proceso se interrumpió antes de terminar (tiempo de espera del servidor web).',
+                'finished_at' => now(),
+            ]);
         }
     }
 
@@ -68,7 +97,13 @@ class DatabaseBackupService
      */
     protected function runBackupStatement(string $sql, string $expectedLocalFile): void
     {
-        $statement = DB::connection()->getPdo()->prepare($sql);
+        $pdo = DB::connection()->getPdo();
+
+        $options = defined('PDO::SQLSRV_ATTR_DIRECT_QUERY')
+            ? [\PDO::SQLSRV_ATTR_DIRECT_QUERY => true, \PDO::SQLSRV_ATTR_QUERY_TIMEOUT => 0]
+            : [];
+
+        $statement = $pdo->prepare($sql, $options);
         $statement->execute();
 
         do {
@@ -123,11 +158,16 @@ class DatabaseBackupService
                 'finished_at' => now(),
             ]);
 
-            activity()
-                ->performedOn($backup)
-                ->causedBy($user)
-                ->withProperty('error', $e->getMessage())
-                ->log('Respaldo de base de datos fallido');
+            try {
+                activity()
+                    ->performedOn($backup)
+                    ->causedBy($user)
+                    ->withProperty('error', $e->getMessage())
+                    ->log('Respaldo de base de datos fallido');
+            } catch (Throwable $e2) {
+                // No dejar que un fallo al registrar la actividad enmascare la excepción original.
+                report($e2);
+            }
 
             throw $e;
         }
@@ -138,7 +178,13 @@ class DatabaseBackupService
             ->withProperty('size_bytes', $backup->size_bytes)
             ->log('Respaldo de base de datos generado');
 
-        $this->prune($backup, $user);
+        try {
+            $this->prune($backup, $user);
+        } catch (Throwable $e) {
+            // Un fallo en la rotación no debe reportarse como un respaldo fallido:
+            // el respaldo ya se completó con éxito.
+            report($e);
+        }
 
         return $backup->fresh();
     }

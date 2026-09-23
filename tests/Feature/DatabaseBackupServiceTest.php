@@ -219,4 +219,44 @@ class DatabaseBackupServiceTest extends TestCase
             'description' => 'Respaldo de base de datos generado',
         ]);
     }
+
+    public function test_stale_running_row_is_marked_failed_and_its_file_removed(): void
+    {
+        config(['db_backups.timeout' => 1800]);
+
+        $stale = DatabaseBackup::create([
+            'filename' => 'suppliersPortalDB_20260101_000000.bak',
+            'database_name' => 'suppliersPortalDB',
+            'status' => DatabaseBackup::STATUS_RUNNING,
+            'started_at' => now()->subHours(2),
+        ]);
+
+        File::ensureDirectoryExists($this->backupDir);
+        $staleFile = $this->backupDir.DIRECTORY_SEPARATOR.$stale->filename;
+        file_put_contents($staleFile, 'partial');
+
+        $this->service->create(User::factory()->create());
+
+        $this->assertDatabaseMissing('database_backups', ['id' => $stale->id]);
+        $this->assertFileDoesNotExist($staleFile);
+    }
+
+    public function test_recent_running_row_is_not_touched(): void
+    {
+        config(['db_backups.timeout' => 1800]);
+
+        $recent = DatabaseBackup::create([
+            'filename' => 'suppliersPortalDB_20260101_000000.bak',
+            'database_name' => 'suppliersPortalDB',
+            'status' => DatabaseBackup::STATUS_RUNNING,
+            'started_at' => now()->subMinute(),
+        ]);
+
+        $this->service->create(User::factory()->create());
+
+        $this->assertSame(
+            DatabaseBackup::STATUS_RUNNING,
+            $recent->fresh()->status
+        );
+    }
 }
