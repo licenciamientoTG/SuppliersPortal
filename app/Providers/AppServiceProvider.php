@@ -48,9 +48,19 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::before(function (\App\Models\User $user, string $ability) {
+            // Los respaldos de BD se limitan a la lista de correos, incluso para superadmin.
+            if ($ability === 'manage-db-backups') {
+                return null;
+            }
+
             if ($user->hasRole('superadmin')) {
                 return true;
             }
+        });
+
+        Gate::define('manage-db-backups', function ($user): bool {
+            return $user instanceof \App\Models\User
+                && in_array(strtolower(trim((string) $user->email)), config('db_backups.allowed_emails', []), true);
         });
 
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION

@@ -18,6 +18,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CostCenterController;
 use App\Http\Controllers\CostCenterImportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DirectPurchaseOrderController;
 use App\Http\Controllers\DocumentReviewController;
@@ -821,6 +822,18 @@ Route::middleware(['auth', 'lock'])->group(function () {
 //  Dev Tools (solo usuario id=1)
 // ============================================================================
 Route::middleware(['auth', 'lock', 'role:superadmin'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
+
+// ============================================================================
+//  Respaldos de base de datos (solo correos en config('db_backups.allowed_emails'))
+// ============================================================================
+Route::middleware(['auth', 'lock', 'can:manage-db-backups'])
+    ->prefix('admin/db-backups')
+    ->name('db-backups.')
+    ->group(function () {
+        Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
+        Route::post('/', [DatabaseBackupController::class, 'store'])->name('store');
+        Route::get('/{databaseBackup}/download', [DatabaseBackupController::class, 'download'])->name('download');
+    });
 
 // ============================================================================
 //  Rutas comentadas (sin uso actual, conservadas por decisión)
