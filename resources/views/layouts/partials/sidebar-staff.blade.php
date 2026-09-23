@@ -191,14 +191,16 @@
 </li>
 @endif
 
-@moduleAccess('requisitions')
+@moduleAccess('requisitions_main')
 <li class="side-nav-item">
     <a href="{{ route('requisitions.index') }}"
         class="side-nav-link {{ request()->routeIs('requisitions.*') || request()->routeIs('requisition-items.*') ? 'active' : '' }}">
         <span class="menu-icon"><i class="ti ti-clipboard-list"></i></span>
         <span class="menu-text">Requisiciones</span>
     </a>
-</li>
+    </li>
+@endmoduleAccess
+@moduleAccess('requisitions_contract')
 <li class="side-nav-item">
     <a href="{{ route('contracts.requisition.create') }}"
         class="side-nav-link {{ request()->routeIs('contracts.requisition.create') ? 'active' : '' }}">
@@ -219,7 +221,7 @@
     </a>
     <div class="{{ $openRfq ? 'show' : '' }} collapse" id="sidebarComprasRfq">
         <ul class="sub-menu">
-            @if ($moduleAccess->userCanAccessModule($user, 'quotations') && $user?->hasAnyRole(['buyer', 'superadmin']))
+            @if ($moduleAccess->userCanAccessModule($user, 'quotations_list') && $user?->hasAnyRole(['buyer', 'superadmin']))
             <li class="side-nav-item">
                 <a href="{{ route('quotes.index') }}"
                     class="side-nav-link {{ request()->routeIs('quotes.index') ? 'active' : '' }}">
@@ -231,21 +233,25 @@
             </li>
             @endif
 
+            @moduleAccess('quotations_approvals')
             <li class="side-nav-item">
                 <a href="{{ route('approvals.quotations.index') }}"
                     class="side-nav-link {{ request()->routeIs('approvals.quotations.*') ? 'active' : '' }}">
                     <span class="menu-text">Aprobar cotizacion</span>
                 </a>
             </li>
+            @endmoduleAccess
 
+            @moduleAccess('quotations_rfq')
             <li class="side-nav-item">
                 <a href="{{ route('rfq.index') }}"
                     class="side-nav-link {{ request()->routeIs('rfq.index') ? 'active' : '' }}">
                     <span class="menu-text">Listado de RFQs</span>
                 </a>
             </li>
+            @endmoduleAccess
 
-            @if ($user?->hasAnyRole(['buyer', 'superadmin']))
+            @if ($moduleAccess->userCanAccessModule($user, 'quotations_inbox') && $user?->hasAnyRole(['buyer', 'superadmin']))
             <li class="side-nav-item">
                 <a href="{{ route('rfq.inbox.pending') }}"
                     class="side-nav-link {{ request()->routeIs('rfq.inbox.pending') ? 'active' : '' }}">
@@ -316,50 +322,62 @@
     </a>
     <div class="{{ $openBudget ? 'show' : '' }} collapse" id="sidebarPresupuesto">
         <ul class="sub-menu">
+            @moduleAccess('budget_cost_centers')
             <li class="side-nav-item">
                 <a href="{{ route('cost-centers.index') }}"
                     class="side-nav-link {{ request()->routeIs('cost-centers.*') ? 'active' : '' }}">
                     <span class="menu-text">Centros de Costo</span>
                 </a>
             </li>
-            @can('catalogo_cuentas.ver')
+            @endmoduleAccess
+            @moduleAccess('budget_accounts')
             <li class="side-nav-item">
                 <a href="{{ route('accounts.index') }}"
                     class="side-nav-link {{ request()->routeIs('accounts.*') || request()->routeIs('subaccounts.*') ? 'active' : '' }}">
                     <span class="menu-text">Cuentas y Subcuentas</span>
                 </a>
             </li>
-            @endcan
+            @endmoduleAccess
+            @moduleAccess('budget_profiles')
             <li class="side-nav-item">
                 <a href="{{ route('budget-profiles.index') }}"
                     class="side-nav-link {{ request()->routeIs('budget-profiles.*') ? 'active' : '' }}">
                     <span class="menu-text">Perfiles presupuestales</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('budget_annual')
             <li class="side-nav-item">
                 <a href="{{ route('annual_budgets.index') }}"
                     class="side-nav-link {{ request()->routeIs('annual_budgets.*') ? 'active' : '' }}">
                     <span class="menu-text">Presupuestos Anuales</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('budget_monthly')
             <li class="side-nav-item">
                 <a href="{{ route('budget_monthly_distributions.index') }}"
                     class="side-nav-link {{ request()->routeIs('budget_monthly_distributions.*') ? 'active' : '' }}">
                     <span class="menu-text">Distribuciones Mensuales</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('budget_movements')
             <li class="side-nav-item">
                 <a href="{{ route('budget_movements.index') }}"
                     class="side-nav-link {{ request()->routeIs('budget_movements.*') ? 'active' : '' }}">
                     <span class="menu-text">Movimiento Presupuestal</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('budget_categories')
             <li class="side-nav-item">
                 <a href="{{ route('categories.index') }}"
                     class="side-nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
                     <span class="menu-text">Categorias</span>
                 </a>
             </li>
+            @endmoduleAccess
         </ul>
     </div>
 </li>
@@ -376,18 +394,22 @@
     </a>
     <div class="{{ $openPayments ? 'show' : '' }} collapse" id="sidebarPagos">
         <ul class="sub-menu">
+            @moduleAccess('billing_invoices')
             <li class="side-nav-item">
                 <a href="{{ route('invoices.index') }}"
                     class="side-nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
                     <span class="menu-text">Facturas</span>
                 </a>
             </li>
+            @endmoduleAccess
+            @moduleAccess('billing_provisions')
             <li class="side-nav-item">
                 <a href="{{ route('financial-provisions.index') }}"
                     class="side-nav-link {{ request()->routeIs('financial-provisions.*') ? 'active' : '' }}">
                     <span class="menu-text">Provisiones</span>
                 </a>
             </li>
+            @endmoduleAccess
         </ul>
     </div>
 </li>
@@ -488,10 +510,10 @@
 {{-- ═══════════════════════════════════════════════════
      CONFIGURACIÓN — visible to: superadmin, catalog_admin
      ═══════════════════════════════════════════════════ --}}
-@hasanyrole('superadmin|catalog_admin')
+@if ($moduleAccess->userCanAccessModule($user, 'staff_users') || $moduleAccess->userCanAccessModule($user, 'employees') || $moduleAccess->userCanAccessModule($user, 'catalogs_config'))
 <li class="side-nav-title">CONFIGURACIÓN</li>
 
-@moduleAccess('staff_users')
+@moduleAccess('staff_users_main')
 <li class="side-nav-item">
     <a class="side-nav-link {{ request()->routeIs('users.staff.index') ? 'active' : '' }}"
         href="{{ route('users.staff.index') }}">
@@ -501,6 +523,7 @@
 </li>
 @endmoduleAccess
 
+@moduleAccess('user_sessions')
 <li class="side-nav-item">
     <a class="side-nav-link {{ request()->routeIs('admin.user-sessions.*') ? 'active' : '' }}"
         href="{{ route('admin.user-sessions.index') }}">
@@ -508,6 +531,7 @@
         <span class="menu-text">Sesiones de usuarios</span>
     </a>
 </li>
+@endmoduleAccess
 
 @moduleAccess('employees')
 <li class="side-nav-item">
@@ -641,4 +665,4 @@
     </a>
 </li>
 @endmoduleAccess
-@endhasanyrole {{-- end CONFIGURACIÓN --}}
+@endif {{-- end CONFIGURACIÓN --}}

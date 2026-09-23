@@ -372,7 +372,13 @@ class RolePermissionSeeder extends Seeder
                     continue;
                 }
 
-                foreach (config("module_access.modules.{$module}.roles", []) as $roleName) {
+                $roles = config("module_access.modules.{$module}.roles");
+                $parent = $definition['parent'] ?? (str_starts_with($module, 'catalog_') ? 'catalogs_config' : null);
+                if ($roles === null && $parent) {
+                    $roles = config("module_access.modules.{$parent}.roles", []);
+                }
+
+                foreach ($roles ?? [] as $roleName) {
                     Role::findOrCreate($roleName, 'web')->givePermissionTo($permission);
                 }
             }

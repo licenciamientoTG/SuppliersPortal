@@ -34,6 +34,12 @@ Schedule::command('contracts:notify-expiring')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/contract-expiry-alerts.log'));
 
+// Alertas de RFQ vencidas para el requisitor y Compras
+Schedule::command('rfqs:notify-expired')
+    ->hourly()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/rfq-expiry-alerts.log'));
+
 Schedule::command('approval-delegations:expire')
     ->everyMinute()
     ->withoutOverlapping();
