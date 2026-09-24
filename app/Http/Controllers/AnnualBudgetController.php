@@ -254,6 +254,8 @@ class AnnualBudgetController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
+        app(\App\Services\BudgetBaselineService::class)->capture($annual_budget, \App\Models\BudgetBaseline::SOURCE_APPROVAL, Auth::id());
+
         return redirect()->route('annual_budgets.index')
             ->with('success', 'Presupuesto anual aprobado correctamente. Está listo para usar en requisiciones.');
     }

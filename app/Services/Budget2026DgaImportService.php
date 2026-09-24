@@ -7,13 +7,13 @@ use App\Models\BudgetCedula;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
 use App\Models\User;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
-use RuntimeException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
+use RuntimeException;
 
 class Budget2026DgaImportService
 {
@@ -39,7 +39,7 @@ class Budget2026DgaImportService
 
     protected function configValue(string $path, mixed $default = null): mixed
     {
-        return config($this->configKey() . '.' . $path, $default);
+        return config($this->configKey().'.'.$path, $default);
     }
 
     public function analyze(string $filePath, int $year = 2026): array
@@ -74,11 +74,13 @@ class Budget2026DgaImportService
         foreach ($availableSheets as $sheetName) {
             if ($ignored->contains($sheetName)) {
                 $report['ignored_sheets'][] = $sheetName;
+
                 continue;
             }
 
             if (! $sheetMap->has($sheetName)) {
                 $report['ignored_sheets'][] = $sheetName;
+
                 continue;
             }
 
@@ -91,11 +93,12 @@ class Budget2026DgaImportService
                     'cost_center_name' => $targetCostCenterName,
                     'company_name' => $targetCompanyName,
                 ];
+
                 continue;
             }
 
             $spreadsheet = $this->loadWorkbook($filePath, [$sheetName]);
-                $sheetReport = $this->analyzeSheet(
+            $sheetReport = $this->analyzeSheet(
                 $spreadsheet->getSheetByName($sheetName),
                 $sheetName,
                 $costCenter,
@@ -195,6 +198,11 @@ class Budget2026DgaImportService
                         BudgetMonthlyDistribution::query()->insert($chunk);
                     }
                 }
+
+                // La importación reemplaza las distribuciones: si el presupuesto está aprobado, esa es su nueva foto original.
+                if ($budget->status === 'APROBADO') {
+                    app(\App\Services\BudgetBaselineService::class)->capture($budget, \App\Models\BudgetBaseline::SOURCE_IMPORT, $actorId, true);
+                }
             }
         });
 
@@ -240,6 +248,7 @@ class Budget2026DgaImportService
                     'candidates' => $rowCandidates,
                     'annual_total' => array_sum($months),
                 ];
+
                 continue;
             }
 
@@ -326,7 +335,7 @@ class Budget2026DgaImportService
     private function resolveSectionCode($sheet, int $row, ?string $currentSectionCode): ?string
     {
         foreach (['A', 'I'] as $column) {
-            $value = $this->stringCell($sheet, $column . $row);
+            $value = $this->stringCell($sheet, $column.$row);
             if (! $value) {
                 continue;
             }
@@ -360,7 +369,7 @@ class Budget2026DgaImportService
         $months = [];
 
         foreach (self::MONTH_COLUMN_MAP as $column => $month) {
-            $value = $sheet->getCell($column . $row)->getCalculatedValue();
+            $value = $sheet->getCell($column.$row)->getCalculatedValue();
             if ($value === null || $value === '' || $value === '-') {
                 continue;
             }
@@ -378,10 +387,10 @@ class Budget2026DgaImportService
     private function extractRowCandidates($sheet, int $row): array
     {
         $candidates = collect([
-            $this->stringCell($sheet, 'I' . $row),
-            $this->stringCell($sheet, 'E' . $row),
-            $this->stringCell($sheet, 'C' . $row),
-            $this->stringCell($sheet, 'D' . $row),
+            $this->stringCell($sheet, 'I'.$row),
+            $this->stringCell($sheet, 'E'.$row),
+            $this->stringCell($sheet, 'C'.$row),
+            $this->stringCell($sheet, 'D'.$row),
         ])
             ->filter()
             ->values()
