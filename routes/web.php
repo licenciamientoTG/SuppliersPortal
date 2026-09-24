@@ -42,6 +42,7 @@ use App\Http\Controllers\QuotationPlannerController;
 use App\Http\Controllers\ReceivingLocationController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RequestedReportController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\RequisitionWorkflowController;
 use App\Http\Controllers\RfqComparisonController;
@@ -113,6 +114,9 @@ Route::middleware(['auth:web,supplier'])->group(function () {
 //  Panel protegido (auth + lock)
 // ============================================================================
 Route::middleware(['auth', 'lock'])->group(function () {
+
+    // Sección temporal: catálogo de reportes solicitados por Contabilidad y Finanzas.
+    Route::middleware('module.access:reports')->get('requested-reports', [RequestedReportController::class, 'index'])->name('requested-reports.index');
 
     Route::middleware('module.access:reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');

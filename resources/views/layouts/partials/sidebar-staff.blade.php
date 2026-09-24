@@ -163,6 +163,12 @@
         <span class="menu-text">Reportería</span>
     </a>
 </li>
+<li class="side-nav-item">
+    <a href="{{ route('requested-reports.index') }}" class="side-nav-link {{ request()->routeIs('requested-reports.*') ? 'active' : '' }}">
+        <span class="menu-icon"><i class="ti ti-clipboard-list"></i></span>
+        <span class="menu-text">Reportes solicitados</span>
+    </a>
+</li>
 @endmoduleAccess
 
 @if ($hasBudgetMovementAccess && ! $moduleAccess->userCanAccessModule($user, 'budget_control'))
