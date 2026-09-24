@@ -233,7 +233,10 @@ class BudgetMovementWorkflowController extends Controller
             $movement = BudgetMovement::query()->lockForUpdate()->with(['details.costCenter', 'details.expenseCategory'])->findOrFail($budgetMovement->id);
             abort_unless($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 422, 'La solicitud ya no está pendiente de aprobación ejecutiva.');
             $this->applyMovement($movement, $request->user()->id);
-            $movement->update(['status' => BudgetMovement::STATUS_APPROVED, 'approved_by' => $request->user()->id, 'approved_at' => now()]);
+            $level = (int) $this->approvalSettings()?->director_user_id === (int) $request->user()->id
+                ? BudgetMovement::LEVEL_DIRECTION
+                : BudgetMovement::LEVEL_SUBSTITUTE;
+            $movement->update(['status' => BudgetMovement::STATUS_APPROVED, 'approved_by' => $request->user()->id, 'approved_at' => now(), 'approval_level' => $level]);
             $this->record($movement, BudgetMovementDecision::STAGE_EXECUTIVE, BudgetMovementDecision::ACTION_APPROVED, $request->user());
         });
         $this->notify($budgetMovement->creator, $budgetMovement->fresh(), 'Tu movimiento presupuestal fue aprobado y aplicado al presupuesto.');
