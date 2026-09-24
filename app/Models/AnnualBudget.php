@@ -70,6 +70,14 @@ class AnnualBudget extends Model
     }
 
     /**
+     * Fotos del presupuesto original por renglón (mes + cuenta + subcuenta)
+     */
+    public function baselines()
+    {
+        return $this->hasMany(BudgetBaseline::class);
+    }
+
+    /**
      * Usuario que aprobó
      */
     public function approvedBy()
