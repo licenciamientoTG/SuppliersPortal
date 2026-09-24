@@ -20,6 +20,8 @@ class SaveBudgetMovementRequest extends FormRequest
             'movement_date' => ['required', 'date'],
             'justification' => ['required', 'string', 'min:10', 'max:1000'],
             'total_amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'attachments' => ['nullable', 'array', 'max:5'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,xls,xlsx,doc,docx', 'max:10240'],
         ];
 
         $movementType = $this->input('movement_type');
@@ -128,6 +130,9 @@ class SaveBudgetMovementRequest extends FormRequest
             'total_amount.numeric' => 'El monto total debe ser un número.',
             'total_amount.min' => 'El monto total debe ser mayor a 0.',
             'total_amount.max' => 'El monto total es demasiado grande.',
+            'attachments.max' => 'Puedes adjuntar como máximo 5 archivos.',
+            'attachments.*.mimes' => 'Los soportes deben ser PDF, imagen (JPG/PNG), Excel o Word.',
+            'attachments.*.max' => 'Cada soporte debe pesar como máximo 10 MB.',
 
             // Mensajes para ORIGEN (Transferencias y Reducciones)
             'origin_cost_center_id.required' => 'Debe seleccionar el centro de costo origen.',

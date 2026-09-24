@@ -8,6 +8,7 @@ use App\Models\BudgetCedula;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\BudgetMovement;
 use App\Models\BudgetMovementApprovalSetting;
+use App\Models\BudgetMovementAttachment;
 use App\Models\BudgetMovementDecision;
 use App\Models\BudgetMovementDetail;
 use App\Models\CostCenter;
@@ -19,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -138,6 +140,8 @@ class BudgetMovementWorkflowController extends Controller
             return $movement->fresh(['details.costCenter']);
         });
 
+        $this->storeAttachments($movement, $request->file('attachments', []), $actor);
+
         if ($movement->isTransfer()) {
             $originOwner = $movement->originDetails()->with('costCenter.responsible')->first()?->costCenter?->responsible;
             $this->notify($originOwner, $movement, 'Tienes una transferencia presupuestal pendiente de validar como centro de costo origen.');
@@ -151,7 +155,7 @@ class BudgetMovementWorkflowController extends Controller
     public function show(Request $request, BudgetMovement $budgetMovement): View
     {
         $this->ensureVisible($request->user(), $budgetMovement);
-        $budgetMovement->load(['details.costCenter.responsible', 'details.expenseCategory', 'details.budgetCedula', 'creator', 'approver', 'decisions.actor']);
+        $budgetMovement->load(['details.costCenter.responsible', 'details.expenseCategory', 'details.budgetCedula', 'creator', 'approver', 'decisions.actor', 'attachments.uploader']);
 
         return view('budget_movements.workflow.show', [
             'budgetMovement' => $budgetMovement,
@@ -186,6 +190,8 @@ class BudgetMovementWorkflowController extends Controller
 
             return $budgetMovement->fresh(['details.costCenter']);
         });
+
+        $this->storeAttachments($movement, $request->file('attachments', []), $actor);
 
         if ($movement->isTransfer()) {
             $this->notify($movement->originDetails()->with('costCenter.responsible')->first()?->costCenter?->responsible, $movement, 'La transferencia fue corregida y requiere tu validación como origen.');
@@ -259,6 +265,15 @@ class BudgetMovementWorkflowController extends Controller
         return back()->with('success', 'Movimiento rechazado.');
     }
 
+    public function downloadAttachment(Request $request, BudgetMovement $budgetMovement, BudgetMovementAttachment $attachment)
+    {
+        $this->ensureVisible($request->user(), $budgetMovement);
+        abort_unless((int) $attachment->budget_movement_id === (int) $budgetMovement->id, 404);
+        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
+
+        return Storage::disk('local')->download($attachment->file_path, $attachment->original_name);
+    }
+
     public function settings(Request $request): View
     {
         abort_unless($request->user()->hasRole('superadmin'), 403);
@@ -300,6 +315,20 @@ class BudgetMovementWorkflowController extends Controller
         foreach ($rows as [$type, $prefix]) {
             $key = $prefix ? $prefix.'_' : '';
             BudgetMovementDetail::create(['budget_movement_id' => $movement->id, 'detail_type' => $type, 'cost_center_id' => $data[$key.'cost_center_id'], 'month' => $data[$key.'month'], 'expense_category_id' => $data[$key.'expense_category_id'], 'budget_cedula_id' => $data[$key.'budget_cedula_id'], 'amount' => $type === BudgetMovementDetail::TYPE_ORIGIN || $data['movement_type'] === BudgetMovement::TYPE_DECREASE ? -abs($data['total_amount']) : abs($data['total_amount'])]);
+        }
+    }
+
+    /** @param  \Illuminate\Http\UploadedFile[]  $files */
+    private function storeAttachments(BudgetMovement $movement, array $files, User $actor): void
+    {
+        foreach ($files as $file) {
+            $movement->attachments()->create([
+                'original_name' => $file->getClientOriginalName(),
+                'file_path' => $file->store("budget-movements/{$movement->id}", 'local'),
+                'mime_type' => $file->getClientMimeType(),
+                'size_bytes' => $file->getSize(),
+                'uploaded_by' => $actor->id,
+            ]);
         }
     }
 

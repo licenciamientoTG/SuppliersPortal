@@ -91,6 +91,11 @@ class BudgetMovement extends Model
         return $this->hasMany(BudgetMovementDecision::class)->latest();
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(BudgetMovementAttachment::class);
+    }
+
     /**
      * Detalles de tipo ORIGEN (solo para transferencias)
      */

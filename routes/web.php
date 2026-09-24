@@ -438,6 +438,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::post('budget_movements/{budgetMovement}/return', [BudgetMovementWorkflowController::class, 'returnToRequester'])->name('budget_movements.return');
         Route::post('budget_movements/{budgetMovement}/approve', [BudgetMovementWorkflowController::class, 'approveExecutive'])->name('budget_movements.approve');
         Route::post('budget_movements/{budgetMovement}/reject', [BudgetMovementWorkflowController::class, 'rejectExecutive'])->name('budget_movements.reject');
+        Route::get('budget_movements/{budgetMovement}/attachments/{attachment}', [BudgetMovementWorkflowController::class, 'downloadAttachment'])->name('budget_movements.attachments.download');
         Route::resource('budget_movements', BudgetMovementWorkflowController::class)->except(['destroy'])->parameters(['budget_movements' => 'budgetMovement']);
     });
 
