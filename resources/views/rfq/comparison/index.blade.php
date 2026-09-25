@@ -22,6 +22,12 @@
             <div class="page-title-box">
                 <div class="float-end d-flex align-items-center">
                     <span class="badge bg-primary text-white fs-14 shadow-sm">RFQ: {{ $rfq->folio }}</span>
+                    @if($blockedQuotesCount > 0)
+                        <span class="badge bg-danger ms-2" title="{{ $blockedQuotesCount }} de {{ $submittedQuotesCount }} cotizaciones recibidas no permiten avanzar">
+                            Bloqueada
+                        </span>
+                        <small class="text-danger ms-2">{{ $blockedQuotesCount }} de {{ $submittedQuotesCount }} cotizaciones bloqueadas</small>
+                    @endif
                     @if($itemsNobodyQuoted->isNotEmpty())
                         <button type="button" class="btn btn-outline-primary btn-sm ms-2" id="btnGenerateComplementaryRfq">
                             <i class="ti ti-file-plus me-1"></i>Generar RFQ con partidas faltantes ({{ $itemsNobodyQuoted->count() }})

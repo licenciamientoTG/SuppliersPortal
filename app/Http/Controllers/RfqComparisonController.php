@@ -52,6 +52,14 @@ class RfqComparisonController extends Controller
                 $supplier->id => $this->awardService->supplierDiagnostics($rfq, $supplier->id),
             ])
             ->all();
+        $submittedSupplierIds = $rfq->rfqResponses
+            ->where('status', 'SUBMITTED')
+            ->where('not_available', false)
+            ->pluck('supplier_id')
+            ->unique();
+        $blockedQuotesCount = $submittedSupplierIds
+            ->filter(fn ($supplierId) => ! ($supplierDiagnostics[$supplierId]['allowed'] ?? false))
+            ->count();
 
         return view('rfq.comparison.index', [
             'rfq' => $rfq,
@@ -59,6 +67,8 @@ class RfqComparisonController extends Controller
             'presupuestoDisponible' => null,
             'approvalLevels' => $approvalLevels,
             'supplierDiagnostics' => $supplierDiagnostics,
+            'submittedQuotesCount' => $submittedSupplierIds->count(),
+            'blockedQuotesCount' => $blockedQuotesCount,
             'itemsNobodyQuoted' => $itemsNobodyQuoted,
             'approvedSuppliers' => $approvedSuppliers,
         ]);
