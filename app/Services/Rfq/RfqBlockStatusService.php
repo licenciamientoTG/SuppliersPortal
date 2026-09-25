@@ -13,6 +13,11 @@ class RfqBlockStatusService
      */
     public function summary(Rfq $rfq): array
     {
+        $rfq->loadMissing('quotationSummary');
+        if ($rfq->quotationSummary?->isPending()) {
+            return ['blocked' => 0, 'submitted' => 0];
+        }
+
         $rfq->loadMissing('requisition.requester', 'requisition.items.costCenter', 'suppliers');
         if (! $rfq->relationLoaded('rfqResponses')) {
             $rfq->setRelation('rfqResponses', $rfq->rfqResponses()

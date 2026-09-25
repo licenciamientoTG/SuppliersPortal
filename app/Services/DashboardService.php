@@ -344,6 +344,7 @@ class DashboardService
             RequisitionStatus::PENDING->value,
             RequisitionStatus::IN_QUOTATION->value,
             RequisitionStatus::PENDING_BUDGET_ADJUSTMENT->value,
+            RequisitionStatus::PENDING_APPROVAL->value,
         ];
 
         return [
@@ -355,7 +356,7 @@ class DashboardService
             'kpis' => [
                 $this->kpi('staff-draft', 'Mis borradores', (clone $staffRequisitions)->draft()->count(), 'ti-file-draft', 'secondary', 'Requisiciones aun no enviadas a Compras.'),
                 $this->kpi('staff-active', 'En proceso', (clone $staffRequisitions)->whereIn('status', $activeStatuses)->count(), 'ti-progress', 'warning', 'Requisiciones en validacion, cotizacion o ajuste presupuestal.'),
-                $this->kpi('staff-quoted', 'Cotizadas', (clone $staffRequisitions)->quoted()->count(), 'ti-receipt-2', 'primary', 'Listas para aprobacion o siguiente decision operativa.'),
+                $this->kpi('staff-quoted', 'Cotizadas / aprobación', (clone $staffRequisitions)->whereIn('status', [RequisitionStatus::QUOTED->value, RequisitionStatus::PENDING_APPROVAL->value])->count(), 'ti-receipt-2', 'primary', 'Cotizadas o con adjudicación en autorización.'),
                 $this->kpi('staff-paused', 'Pausadas', (clone $staffRequisitions)->paused()->count(), 'ti-player-pause', 'info', 'Esperan catalogo u otro desbloqueo.'),
                 $this->kpi('staff-rejected', 'Rechazadas', (clone $staffRequisitions)->rejected()->count(), 'ti-circle-x', 'danger', 'Requieren correccion antes de reenviar.'),
             ],
@@ -389,6 +390,7 @@ class DashboardService
                 RequisitionStatus::PENDING->value,
                 RequisitionStatus::IN_QUOTATION->value,
                 RequisitionStatus::QUOTED->value,
+                RequisitionStatus::PENDING_APPROVAL->value,
                 RequisitionStatus::PENDING_BUDGET_ADJUSTMENT->value,
             ]);
 
@@ -708,7 +710,7 @@ class DashboardService
                 $this->kpi('director-approvals', 'Pendientes de aprobacion', QuotationSummary::query()->pending()->count(), 'ti-stamp', 'warning', 'Adjudicaciones pendientes en el sistema.'),
                 $this->kpi('director-critical-budget', 'Presupuesto critico', $this->criticalBudgetCount(), 'ti-alert-triangle', 'danger', 'Distribuciones con riesgo operativo.'),
                 $this->kpi('director-open-orders', 'Ordenes abiertas', PurchaseOrder::query()->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'])->count() + DirectPurchaseOrder::query()->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'])->count(), 'ti-package-export', 'primary', 'Carga total de ordenes activas.'),
-                $this->kpi('director-active-volume', 'Compras activas', Requisition::query()->whereIn('status', [RequisitionStatus::PENDING->value, RequisitionStatus::IN_QUOTATION->value, RequisitionStatus::QUOTED->value])->count(), 'ti-briefcase', 'info', 'Volumen activo de requisiciones y cotizacion.'),
+                $this->kpi('director-active-volume', 'Compras activas', Requisition::query()->whereIn('status', [RequisitionStatus::PENDING->value, RequisitionStatus::IN_QUOTATION->value, RequisitionStatus::QUOTED->value, RequisitionStatus::PENDING_APPROVAL->value])->count(), 'ti-briefcase', 'info', 'Volumen activo de requisiciones y cotizacion.'),
             ],
             'sections' => [
                 [

@@ -112,7 +112,7 @@ class QuotationRejectionWorkflowService
             ]);
 
             $replacementRfq->requisition->update([
-                'status' => RequisitionStatus::QUOTED->value,
+                'status' => RequisitionStatus::PENDING_APPROVAL->value,
                 'updated_by' => $userId,
             ]);
 
@@ -193,7 +193,7 @@ class QuotationRejectionWorkflowService
         $activeRfqs = $rfqs->filter(fn (Rfq $rfq) => $rfq->isActive());
 
         if ($activeRfqs->contains(fn (Rfq $rfq) => $rfq->quotationSummary && $rfq->quotationSummary->approval_status === 'pending')) {
-            $model->update(['status' => RequisitionStatus::QUOTED->value]);
+            $model->update(['status' => RequisitionStatus::PENDING_APPROVAL->value]);
 
             return;
         }

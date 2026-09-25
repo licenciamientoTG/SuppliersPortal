@@ -150,6 +150,7 @@
                                 <option value="REJECTED">Rechazada</option>
                                 <option value="IN_QUOTATION">En Cotización</option>
                                 <option value="QUOTED">Cotizada</option>
+                                <option value="PENDING_APPROVAL">Adjudicación en aprobación</option>
                                 <option value="PENDING_BUDGET_ADJUSTMENT">Pendiente Ajuste Presupuestal</option>
                                 <option value="COMPLETED">Completada</option>
                                 <option value="CANCELLED">Cancelada</option>

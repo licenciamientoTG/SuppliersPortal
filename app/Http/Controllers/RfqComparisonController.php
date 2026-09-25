@@ -57,9 +57,11 @@ class RfqComparisonController extends Controller
             ->where('not_available', false)
             ->pluck('supplier_id')
             ->unique();
-        $blockedQuotesCount = $submittedSupplierIds
-            ->filter(fn ($supplierId) => ! ($supplierDiagnostics[$supplierId]['allowed'] ?? false))
-            ->count();
+        $blockedQuotesCount = $rfq->quotationSummary?->isPending()
+            ? 0
+            : $submittedSupplierIds
+                ->filter(fn ($supplierId) => ! ($supplierDiagnostics[$supplierId]['allowed'] ?? false))
+                ->count();
 
         return view('rfq.comparison.index', [
             'rfq' => $rfq,

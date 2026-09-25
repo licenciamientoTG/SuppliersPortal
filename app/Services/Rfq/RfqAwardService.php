@@ -211,7 +211,7 @@ class RfqAwardService
             $this->budgetAllocationService->reserveQuotationSummary($summary);
 
             $rfq->update(['status' => 'EVALUATED']);
-            $rfq->requisition->update(['status' => RequisitionStatus::QUOTED->value]);
+            $rfq->requisition->update(['status' => RequisitionStatus::PENDING_APPROVAL->value]);
 
             return $summary->fresh(['currentApprover', 'selectedSupplier', 'rfq', 'requisition']);
         });

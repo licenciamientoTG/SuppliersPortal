@@ -114,6 +114,8 @@ class RfqAwardBaselineTest extends TestCase
         $this->app->instance(BudgetAllocationService::class, $budgetService);
 
         $authorizerService = Mockery::mock(AuthorizerResolutionService::class);
+        $authorizerService->shouldReceive('resolveForRequester')
+            ->andReturn(['approver_user' => $this->approver]);
         $authorizerService->shouldReceive('resolveForSummary')
             ->andReturn([
                 'approver_user' => $this->approver,
@@ -142,13 +144,25 @@ class RfqAwardBaselineTest extends TestCase
         $this->assertEquals($supplier->id, $summary->selected_supplier_id);
         $this->assertEquals($this->buyer->id, $summary->selected_by_user_id);
         $this->assertEquals($this->approver->id, $summary->current_approver_user_id);
-        $this->assertEquals($this->authorizerRole->id, $summary->authorizer_role_id);
+        $this->assertEquals($this->approver->id, $summary->approvalSteps()->firstOrFail()->principal_user_id);
         $this->assertEquals(200.0, (float) $summary->subtotal);
         $this->assertEquals(32.0, (float) $summary->iva_amount);
         $this->assertEquals(232.0, (float) $summary->total);
 
         $this->assertEquals('EVALUATED', $rfq->fresh()->status);
-        $this->assertEquals('QUOTED', $rfq->fresh()->requisition->status->value);
+        $this->assertEquals('PENDING_APPROVAL', $rfq->fresh()->requisition->status->value);
+        $this->assertSame(
+            ['blocked' => 0, 'submitted' => 0],
+            app(\App\Services\Rfq\RfqBlockStatusService::class)->summary($rfq->fresh())
+        );
+        $this->get(route('rfq.comparison.index', $rfq))
+            ->assertOk()
+            ->assertSee('Adjudicación en aprobación')
+            ->assertDontSee('cotizaciones bloqueadas');
+        \Livewire\Livewire::test(\App\Livewire\Rfq\RfqIndex::class)
+            ->assertSee('Adjudicación en aprobación')
+            ->assertSee('Ver comparativo')
+            ->assertDontSee('Bloqueada');
     }
 
     public function test_award_is_blocked_when_offer_is_expired(): void

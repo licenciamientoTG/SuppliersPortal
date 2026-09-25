@@ -118,6 +118,8 @@ class QuotationBoardDirectAwardTest extends TestCase
         $this->app->instance(BudgetAllocationService::class, $budgetService);
 
         $authorizerService = Mockery::mock(AuthorizerResolutionService::class);
+        $authorizerService->shouldReceive('resolveForRequester')
+            ->andReturn(['approver_user' => $this->approver]);
         $authorizerService->shouldReceive('resolveForSummary')
             ->andReturn([
                 'approver_user' => $this->approver,
@@ -168,7 +170,7 @@ class QuotationBoardDirectAwardTest extends TestCase
         $this->assertEquals(232.0, (float) $summary->total);
 
         $this->assertEquals('EVALUATED', $rfq->fresh()->status);
-        $this->assertEquals('QUOTED', $requisition->fresh()->status->value);
+        $this->assertEquals('PENDING_APPROVAL', $requisition->fresh()->status->value);
 
         Notification::assertSentTo($this->approver, \App\Notifications\QuotationApprovalRequestNotification::class);
     }

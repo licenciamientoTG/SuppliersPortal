@@ -16,7 +16,8 @@ enum RequisitionStatus: string
     case APPROVED = 'APPROVED'; // Aprobada por el encargado de compras.
     case REJECTED = 'REJECTED'; // Rechazada por el encargado de compras.
     case IN_QUOTATION = 'IN_QUOTATION'; // En proceso de cotización.
-    case QUOTED = 'QUOTED'; // Cotizada, esperando aprobación de cotización.
+    case QUOTED = 'QUOTED'; // Cotizada, pendiente de decisión de adjudicación.
+    case PENDING_APPROVAL = 'PENDING_APPROVAL'; // Adjudicación pendiente de autorización.
     case PENDING_BUDGET_ADJUSTMENT = 'PENDING_BUDGET_ADJUSTMENT'; // Pendiente de ajuste presupuestal.
     case COMPLETED = 'COMPLETED'; // Completada. Se ha creado el cotización.
     case CANCELLED = 'CANCELLED'; // Cancelada. Se ha cancelado la requisición.
@@ -34,6 +35,7 @@ enum RequisitionStatus: string
             self::REJECTED->value => 'Rechazada',
             self::IN_QUOTATION->value => 'En Cotización',
             self::QUOTED->value => 'Cotizada',
+            self::PENDING_APPROVAL->value => 'Adjudicación en aprobación',
             self::PENDING_BUDGET_ADJUSTMENT->value => 'Pendiente Ajuste Presupuestal',
             self::COMPLETED->value => 'Completada',
             self::CANCELLED->value => 'Cancelada',
@@ -50,6 +52,7 @@ enum RequisitionStatus: string
             self::REJECTED => 'danger',
             self::IN_QUOTATION => 'info',
             self::QUOTED => 'primary',
+            self::PENDING_APPROVAL => 'warning',
             self::PENDING_BUDGET_ADJUSTMENT => 'warning',
             self::COMPLETED => 'success',
             self::CANCELLED => 'dark',
@@ -69,6 +72,7 @@ enum RequisitionStatus: string
             self::REJECTED => 'circle-x',
             self::IN_QUOTATION => 'file-invoice',
             self::QUOTED => 'receipt-2',
+            self::PENDING_APPROVAL => 'hourglass-high',
             self::PENDING_BUDGET_ADJUSTMENT => 'file-dollar',
             self::COMPLETED => 'circle-check-filled',
             self::CANCELLED => 'x',
@@ -103,7 +107,7 @@ enum RequisitionStatus: string
     public function isCancellable(): bool
     {
         return match ($this) {
-            self::DRAFT, self::PENDING, self::PAUSED, self::IN_QUOTATION, self::QUOTED, self::PENDING_BUDGET_ADJUSTMENT => true,
+            self::DRAFT, self::PENDING, self::PAUSED, self::IN_QUOTATION, self::QUOTED, self::PENDING_APPROVAL, self::PENDING_BUDGET_ADJUSTMENT => true,
             default => false,
         };
     }
@@ -118,7 +122,8 @@ enum RequisitionStatus: string
             self::PENDING => [self::APPROVED, self::REJECTED, self::PAUSED, self::IN_QUOTATION],
             self::PAUSED => [self::PENDING, self::CANCELLED],
             self::IN_QUOTATION => [self::QUOTED, self::CANCELLED],
-            self::QUOTED => [self::APPROVED, self::REJECTED, self::PENDING_BUDGET_ADJUSTMENT],
+            self::QUOTED => [self::PENDING_APPROVAL, self::APPROVED, self::REJECTED, self::PENDING_BUDGET_ADJUSTMENT],
+            self::PENDING_APPROVAL => [self::APPROVED, self::COMPLETED, self::REJECTED, self::IN_QUOTATION, self::PENDING_BUDGET_ADJUSTMENT, self::CANCELLED],
             self::PENDING_BUDGET_ADJUSTMENT => [self::QUOTED, self::CANCELLED],
             self::APPROVED => [self::COMPLETED, self::CANCELLED],
             self::REJECTED => [self::PENDING],

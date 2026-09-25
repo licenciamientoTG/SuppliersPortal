@@ -39,11 +39,12 @@ class RfqIndex extends Component
             RequisitionStatus::APPROVED,
             RequisitionStatus::IN_QUOTATION,
             RequisitionStatus::QUOTED,
+            RequisitionStatus::PENDING_APPROVAL,
             RequisitionStatus::PENDING_BUDGET_ADJUSTMENT,
         ];
 
         $requisitions = Requisition::query()
-            ->with(['requester', 'company', 'department', 'items.costCenter', 'rfqs'])
+            ->with(['requester', 'company', 'department', 'items.costCenter', 'rfqs.quotationSummary'])
             ->whereIn('status', $allowedStatuses)
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
