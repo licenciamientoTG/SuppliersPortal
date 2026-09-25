@@ -72,9 +72,15 @@
                                         {{ \Illuminate\Support\Str::limit($primaryCostCenter?->name ?? 'Sin centro de costo', 30) }}
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ $requisition->status->badgeClass() }}">
-                                            {{ $requisition->status->label() }}
-                                        </span>
+                                        @php($blockSummary = $blockedSummaries[$requisition->id] ?? ['blocked' => 0, 'submitted' => 0])
+                                        @if($blockSummary['blocked'] > 0)
+                                            <span class="badge bg-danger" title="{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }} cotizaciones bloqueadas">Bloqueada</span>
+                                            <small class="d-block text-danger mt-1">{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }}</small>
+                                        @else
+                                            <span class="badge bg-{{ $requisition->status->badgeClass() }}">
+                                                {{ $requisition->status->label() }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group">

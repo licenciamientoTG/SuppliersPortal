@@ -45,6 +45,20 @@ class ProductServiceForRequisitionApiTest extends TestCase
         ]);
     }
 
+    public function test_purchase_order_user_can_load_products_without_requisition_view_access(): void
+    {
+        $context = $this->createContext();
+        $context['user']->roles()->first()->syncPermissions(['ordenes_compra.ver']);
+
+        $this->actingAs($context['user'])
+            ->getJson(route('products-services.api.active-for-requisitions', [
+                'company_id' => $context['company']->id,
+                'cost_center_id' => $context['costCenter']->id,
+            ]))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $context['product']->id]);
+    }
+
     public function test_staff_cannot_load_products_for_an_unassigned_cost_center(): void
     {
         $context = $this->createContext();

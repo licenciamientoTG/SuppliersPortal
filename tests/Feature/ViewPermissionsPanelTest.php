@@ -49,6 +49,22 @@ class ViewPermissionsPanelTest extends TestCase
         $this->assertTrue($role->hasPermissionTo('view_requisitions'));
     }
 
+    public function test_role_can_assign_a_configured_view_permission_missing_from_the_database(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+        $role = Role::findByName('staff', 'web');
+        Permission::findByName('requisiciones.principal.ver', 'web')->delete();
+
+        $this->actingAs($admin)
+            ->patch(route('roles.catalog.view-permissions.update', $role), [
+                'permissions' => ['requisiciones.principal.ver'],
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($role->fresh()->hasPermissionTo('requisiciones.principal.ver'));
+    }
+
     public function test_direct_view_permission_grants_module_access_without_changing_roles(): void
     {
         $admin = User::factory()->create();

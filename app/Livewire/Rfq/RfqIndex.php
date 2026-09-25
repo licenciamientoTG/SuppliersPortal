@@ -4,6 +4,7 @@ namespace App\Livewire\Rfq;
 
 use App\Enum\RequisitionStatus;
 use App\Models\Requisition;
+use App\Services\Rfq\RfqBlockStatusService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -42,7 +43,7 @@ class RfqIndex extends Component
         ];
 
         $requisitions = Requisition::query()
-            ->with(['requester', 'company', 'department', 'items.costCenter'])
+            ->with(['requester', 'company', 'department', 'items.costCenter', 'rfqs'])
             ->whereIn('status', $allowedStatuses)
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -62,9 +63,15 @@ class RfqIndex extends Component
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
+        $blockedSummaries = $requisitions->getCollection()
+            ->mapWithKeys(fn (Requisition $requisition) => [
+                $requisition->id => app(RfqBlockStatusService::class)->requisitionSummary($requisition->rfqs),
+            ]);
+
         return view('livewire.rfq.rfq-index', [
             'requisitions' => $requisitions,
             'allowedStatuses' => $allowedStatuses,
+            'blockedSummaries' => $blockedSummaries,
         ]); // ← SOLO ESTO, sin ->layout() ni ->section()
     }
 }

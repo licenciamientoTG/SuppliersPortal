@@ -583,7 +583,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     });
 
     // Expense Categories
-    Route::middleware('module.access:requisitions')->get('/products-services/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])
+    Route::get('/products-services/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])
         ->name('products-services.api.active-for-requisitions');
 
     Route::middleware('module.access:requisitions')->prefix('expense-categories')->name('expense-categories.')->group(function () {

@@ -608,6 +608,13 @@ class ProductServiceController extends Controller
     public function apiActiveForRequisitions(Request $request): JsonResponse
     {
         $user = $request->user();
+        $moduleAccess = app(\App\Services\ModuleAccessService::class);
+        abort_unless(
+            $moduleAccess->userCanAccessModule($user, 'requisitions')
+                || $moduleAccess->userCanAccessModule($user, 'purchase_orders'),
+            403
+        );
+
         $companyId = (int) $request->input('company_id');
         $costCenterId = (int) $request->input('cost_center_id');
 

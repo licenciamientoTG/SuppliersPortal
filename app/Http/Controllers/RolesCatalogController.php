@@ -182,6 +182,10 @@ class RolesCatalogController extends Controller
             ->pluck('permissions.name');
 
         DB::transaction(function () use ($role, $existingNonView, $selected) {
+            foreach ($selected as $permissionName) {
+                Permission::findOrCreate($permissionName, 'web');
+            }
+
             $role->syncPermissions($existingNonView->merge($selected)->unique()->values()->all());
         });
 
