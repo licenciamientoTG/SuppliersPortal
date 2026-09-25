@@ -54,8 +54,8 @@
 
         <div class="d-flex align-items-center gap-2">
 
-            <!-- Log Viewer (solo dev) -->
-            @if(!$isSupplierGuard && Auth::id() === 1)
+            <!-- Log Viewer (ids en config('logging.viewer_user_ids')) -->
+            @if(!$isSupplierGuard && in_array((int) Auth::id(), config('logging.viewer_user_ids', []), true))
             <div class="topbar-item">
                 <a href="{{ route('dev.log.index') }}" class="topbar-link" title="Ver Log del sistema">
                     <i class="ti ti-bug fs-22 text-danger"></i>
@@ -380,6 +380,16 @@
                             <i class="ti ti-lifebuoy me-1 fs-17 align-middle"></i>
                             <span class="align-middle">Soporte</span>
                         </a>
+
+                        @unless($isSupplierGuard)
+                            @can('manage-db-backups')
+                                <!-- item-->
+                                <a href="{{ route('db-backups.index') }}" class="dropdown-item">
+                                    <i class="ti ti-database-export me-1 fs-17 align-middle"></i>
+                                    <span class="align-middle">Respaldos de BD</span>
+                                </a>
+                            @endcan
+                        @endunless
 
                         <div class="dropdown-divider"></div>
 

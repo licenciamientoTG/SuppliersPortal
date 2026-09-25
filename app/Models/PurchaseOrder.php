@@ -251,6 +251,11 @@ class PurchaseOrder extends Model
         return $this->status === 'CLOSED_BY_INACTIVITY';
     }
 
+    public function canBeReactivated(): bool
+    {
+        return $this->isClosedByInactivity();
+    }
+
     /**
      * Una OC puede recibirse si fue emitida al proveedor (ISSUED),
      * si ya tiene una recepción parcial previa (PARTIALLY_RECEIVED),
@@ -260,6 +265,14 @@ class PurchaseOrder extends Model
     public function canBeReceived(): bool
     {
         return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION']);
+    }
+
+    /**
+     * El documento formal (PDF) solo existe una vez que la OC fue emitida al proveedor.
+     */
+    public function canGeneratePdf(): bool
+    {
+        return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PAID', 'DELIVERED_PENDING_RECEPTION'], true);
     }
 
     /**

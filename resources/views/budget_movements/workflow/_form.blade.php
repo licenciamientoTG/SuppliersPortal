@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const single = document.querySelector('.js-single');
     const transfer = document.querySelector('.js-transfer');
     const form = document.querySelector('#budgetMovementForm');
+    // Hay un campo total_amount por sección (ajuste y transferencia); solo el de la sección visible debe enviarse.
+    const amountInput = () => form.querySelector('input[name="total_amount"]:not(:disabled)');
     const rawMoney = value => {
         const [whole = '', ...decimals] = String(value || '').replace(/,/g, '').replace(/[^0-9.]/g, '').split('.');
         return decimals.length ? `${whole}.${decimals.join('').slice(0, 2)}` : whole;
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updatePreview = context => {
         const preview = document.querySelector(`[data-budget-preview="${context}"]`); if (!preview) return;
         const prefix = context === 'single' ? '' : `${context}_`;
-        const values = { cost_center_id: form.elements[`${prefix}cost_center_id`]?.value, month: form.elements[`${prefix}month`]?.value, expense_category_id: form.elements[`${prefix}expense_category_id`]?.value, budget_cedula_id: form.elements[`${prefix}budget_cedula_id`]?.value, fiscal_year: form.elements.fiscal_year?.value, amount: rawMoney(form.elements.total_amount?.value), effect: previews[context].effect(), context };
+        const values = { cost_center_id: form.elements[`${prefix}cost_center_id`]?.value, month: form.elements[`${prefix}month`]?.value, expense_category_id: form.elements[`${prefix}expense_category_id`]?.value, budget_cedula_id: form.elements[`${prefix}budget_cedula_id`]?.value, fiscal_year: form.elements.fiscal_year?.value, amount: rawMoney(amountInput()?.value), effect: previews[context].effect(), context };
         if (!values.cost_center_id || !values.month || !values.expense_category_id || !values.budget_cedula_id || !values.fiscal_year) return renderEmptyPreview(preview, 'Completa centro, mes, cuenta y subcuenta.');
         preview.classList.add('is-loading'); preview.querySelector('.bm-preview-state').textContent = 'Consultando saldo actual…';
         const requestKey = `${Date.now()}-${Math.random()}`; preview.dataset.requestKey = requestKey;
@@ -60,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(url, { headers: { Accept: 'application/json' } }).then(response => response.ok ? response.json() : Promise.reject()).then(data => { if (preview.dataset.requestKey !== requestKey) return; preview.classList.remove('is-loading'); preview.classList.add('is-ready'); const insufficient = !data.has_sufficient_available; preview.classList.toggle('is-warning', insufficient); preview.querySelector('[data-budget-value="assigned"]').textContent = currency(data.assigned_amount); preview.querySelector('[data-budget-value="available"]').textContent = currency(data.available_amount); preview.querySelector('[data-budget-value="movement"]').textContent = `${values.effect === 'DECREASE' ? '−' : '+'}${currency(data.movement_amount)}`; preview.querySelector('[data-budget-value="projected"]').textContent = currency(data.projected_available_amount); preview.querySelector('.bm-preview-state').textContent = insufficient ? 'El monto supera el disponible actual.' : (data.message || 'Saldo disponible para esta subcuenta.'); }).catch(() => { if (preview.dataset.requestKey === requestKey) renderEmptyPreview(preview, 'No fue posible consultar el saldo. Intenta de nuevo.'); });
     };
     const refreshVisiblePreviews = () => { if (type.value === 'TRANSFERENCIA') { updatePreview('origin'); updatePreview('destination'); } else updatePreview('single'); };
-    const toggle = () => { const isTransfer = type.value === 'TRANSFERENCIA'; single.classList.toggle('d-none', isTransfer); transfer.classList.toggle('d-none', !isTransfer); refreshVisiblePreviews(); };
+    const toggle = () => { const isTransfer = type.value === 'TRANSFERENCIA'; single.classList.toggle('d-none', isTransfer); transfer.classList.toggle('d-none', !isTransfer); single.querySelector('input[name="total_amount"]').disabled = isTransfer; transfer.querySelector('input[name="total_amount"]').disabled = !isTransfer; refreshVisiblePreviews(); };
     type.addEventListener('change', toggle);
     $('.js-cost-center-select, .js-account-select').each(function () { select2($(this)); });
     $('.js-account-select').each(function () { refreshCedulas($(this)); }).on('change', function () { const $cedula = $('#'+$(this).data('target')); $cedula.data('selected', ''); refreshCedulas($(this)); });

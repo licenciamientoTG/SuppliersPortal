@@ -81,7 +81,7 @@
                                         <th>Requisición</th>
                                         <th>Total (MXN)</th>
                                         <th>Estado</th>
-                                        <th width="100px">Acciones</th>
+                                        <th width="150px">Acciones</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -112,7 +112,7 @@
                                         <th>Centro de Costo</th>
                                         <th>Total (MXN)</th>
                                         <th>Estado</th>
-                                        <th width="100px">Acciones</th>
+                                        <th width="150px">Acciones</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -129,7 +129,14 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    
+
+    // Confirmación antes de reactivar una OC/OCD cerrada por inactividad
+    $(document).on('submit', '.js-reactivate-po-form', function(e) {
+        if (!confirm('¿Reactivar esta orden de compra? Se restablecerá su presupuesto comprometido y el plazo de inactividad.')) {
+            e.preventDefault();
+        }
+    });
+
     // ==========================================
     // DataTable: ÓRDENES REGULARES
     // ==========================================

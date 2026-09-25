@@ -291,6 +291,12 @@ class ContractRequisitionTest extends TestCase
         Notification::fake();
 
         $user = User::factory()->create();
+        $department = Department::create([
+            'name' => 'Compras por contrato',
+            'abbreviated' => 'CPC',
+            'is_active' => true,
+        ]);
+        $user->update(['department_id' => $department->id]);
         $company = Company::factory()->create(['is_active' => true]);
         $location = ReceivingLocation::factory()->create(['company_id' => $company->id]);
         $supplier = Supplier::factory()->create();

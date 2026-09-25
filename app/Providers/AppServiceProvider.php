@@ -47,6 +47,28 @@ class AppServiceProvider extends ServiceProvider
             return Password::min(8)->mixedCase()->numbers()->symbols();
         });
 
+        Gate::before(function (\App\Models\User $user, string $ability) {
+            // Los respaldos de BD se limitan a la lista de correos, incluso para superadmin.
+            if ($ability === 'manage-db-backups') {
+                return null;
+            }
+
+            if ($user->hasRole('superadmin')) {
+                return true;
+            }
+        });
+
+        Gate::define('manage-db-backups', function ($user): bool {
+            return $user instanceof \App\Models\User
+                && in_array(strtolower(trim((string) $user->email)), config('db_backups.allowed_emails', []), true);
+        });
+
+        // Log del sistema: ids en config('logging.viewer_user_ids'); los superadmin pasan por Gate::before.
+        Gate::define('view-system-log', function ($user): bool {
+            return $user instanceof \App\Models\User
+                && in_array((int) $user->id, config('logging.viewer_user_ids', []), true);
+        });
+
         // 👇 REGISTRAR LA POLICY PARA RECEIVINGLOCATION
         Gate::policy(ReceivingLocation::class, ReceivingLocationPolicy::class);
         Gate::policy(SupplierDocument::class, SupplierDocumentPolicy::class);

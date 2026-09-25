@@ -18,6 +18,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CostCenterController;
 use App\Http\Controllers\CostCenterImportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DirectPurchaseOrderController;
 use App\Http\Controllers\DocumentReviewController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\QuotationPlannerController;
 use App\Http\Controllers\ReceivingLocationController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RequestedReportController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\RequisitionWorkflowController;
 use App\Http\Controllers\RfqComparisonController;
@@ -112,6 +114,9 @@ Route::middleware(['auth:web,supplier'])->group(function () {
 //  Panel protegido (auth + lock)
 // ============================================================================
 Route::middleware(['auth', 'lock'])->group(function () {
+
+    // Sección temporal: catálogo de reportes solicitados por Contabilidad y Finanzas.
+    Route::middleware('module.access:reports')->get('requested-reports', [RequestedReportController::class, 'index'])->name('requested-reports.index');
 
     Route::middleware('module.access:reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
@@ -778,21 +783,24 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/documents/{document}', [DirectPurchaseOrderController::class, 'showDocument'])->name('direct-purchase-orders.documents.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}', [PurchaseOrderController::class, 'showDirect'])->name('direct-purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadDirectPdf'])->name('direct-purchase-orders.pdf');
-    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/word', [PurchaseOrderController::class, 'downloadDirectWord'])->name('direct-purchase-orders.word');
+    Route::middleware('module.access:purchase_orders')->get('/direct-purchase-orders/{directPurchaseOrder}/pdf/view', [PurchaseOrderController::class, 'viewDirectPdf'])->name('direct-purchase-orders.pdf.view');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/submit', [DirectPurchaseOrderController::class, 'submit'])->name('direct-purchase-orders.submit');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/approve', [DirectPurchaseOrderController::class, 'approve'])->name('direct-purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reject', [DirectPurchaseOrderController::class, 'reject'])->name('direct-purchase-orders.reject');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/return', [DirectPurchaseOrderController::class, 'return'])->name('direct-purchase-orders.return');
+    Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivateDirect'])->name('direct-purchase-orders.reactivate');
 
     // Purchase Orders
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/regular', [PurchaseOrderController::class, 'datatableRegular'])->name('purchase-orders.datatable.regular');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/datatable/direct', [PurchaseOrderController::class, 'datatableDirect'])->name('purchase-orders.datatable.direct');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+    Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}/pdf/view', [PurchaseOrderController::class, 'viewPdf'])->name('purchase-orders.pdf.view');
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/items/{purchaseOrderItem}/supplier-note', [PurchaseOrderController::class, 'appendSupplierNote'])->name('purchase-orders.items.supplier-note');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+    Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivate'])->name('purchase-orders.reactivate');
 
     // Recepciones — rutas estáticas ANTES de {reception} para evitar conflictos de parámetro
     Route::middleware('module.access:receptions')->get('/receptions/overview', [ReceptionController::class, 'overview'])->name('receptions.overview');
@@ -814,9 +822,21 @@ Route::middleware(['auth', 'lock'])->group(function () {
 });
 
 // ============================================================================
-//  Dev Tools (solo usuario id=1)
+//  Dev Tools (ids en config('logging.viewer_user_ids') y superadmin)
 // ============================================================================
-Route::middleware(['auth', 'lock', 'role:superadmin'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
+Route::middleware(['auth', 'lock', 'can:view-system-log'])->get('/dev/logs', [LogViewerController::class, 'index'])->name('dev.log.index');
+
+// ============================================================================
+//  Respaldos de base de datos (solo correos en config('db_backups.allowed_emails'))
+// ============================================================================
+Route::middleware(['auth', 'lock', 'can:manage-db-backups'])
+    ->prefix('admin/db-backups')
+    ->name('db-backups.')
+    ->group(function () {
+        Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
+        Route::post('/', [DatabaseBackupController::class, 'store'])->name('store');
+        Route::get('/{databaseBackup}/download', [DatabaseBackupController::class, 'download'])->name('download');
+    });
 
 // ============================================================================
 //  Rutas comentadas (sin uso actual, conservadas por decisión)

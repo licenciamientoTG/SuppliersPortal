@@ -369,6 +369,11 @@ class DirectPurchaseOrder extends Model
         return $this->status === 'CLOSED_BY_INACTIVITY';
     }
 
+    public function canBeReactivated(): bool
+    {
+        return $this->isClosedByInactivity();
+    }
+
     /**
      * Fecha límite de aprobación (submitted_at + 7 días naturales).
      * Retorna null si aún no ha sido enviada a aprobación.
@@ -428,6 +433,12 @@ class DirectPurchaseOrder extends Model
     public function canBeReceived(): bool
     {
         return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION']);
+    }
+
+    /** El documento formal (PDF/Word) solo existe una vez que la OCD fue emitida. */
+    public function canGeneratePdf(): bool
+    {
+        return in_array($this->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true);
     }
 
     /**

@@ -148,6 +148,29 @@ class BudgetMovementWorkflowTest extends TestCase
         ]))->assertForbidden();
     }
 
+    public function test_superadmin_without_owned_centers_can_request_movements_for_any_cost_center(): void
+    {
+        Role::findOrCreate('superadmin');
+        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadmin->assignRole('superadmin');
+
+        $this->actingAs($superadmin)->get(route('budget_movements.create'))->assertOk();
+
+        $this->actingAs($superadmin)->getJson(route('budget_movements.budget-snapshot', [
+            'cost_center_id' => $this->origin->id,
+            'fiscal_year' => now()->year,
+            'month' => 1,
+            'expense_category_id' => $this->category->id,
+            'budget_cedula_id' => $this->cedula->id,
+            'amount' => 1000,
+            'effect' => 'DECREASE',
+            'context' => 'single',
+        ]))->assertOk();
+
+        $this->actingAs($superadmin)->post(route('budget_movements.store'), $this->transferPayload())->assertRedirect();
+        $this->assertDatabaseHas('budget_movements', ['created_by' => $superadmin->id, 'status' => BudgetMovement::STATUS_PENDING_ORIGIN]);
+    }
+
     private function transferPayload(): array
     {
         return ['movement_type' => 'TRANSFERENCIA', 'fiscal_year' => now()->year, 'movement_date' => now()->toDateString(), 'total_amount' => 1000, 'justification' => 'Se requiere redistribuir presupuesto para una necesidad operativa.', 'origin_cost_center_id' => $this->origin->id, 'origin_month' => 1, 'origin_expense_category_id' => $this->category->id, 'origin_budget_cedula_id' => $this->cedula->id, 'destination_cost_center_id' => $this->destination->id, 'destination_month' => 2, 'destination_expense_category_id' => $this->category->id, 'destination_budget_cedula_id' => $this->cedula->id];

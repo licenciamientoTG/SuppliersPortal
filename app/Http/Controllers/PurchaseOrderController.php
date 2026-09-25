@@ -14,6 +14,7 @@ use App\Services\ApprovalDelegationService;
 use App\Services\BudgetAllocationService;
 use App\Services\BudgetImpactSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,9 @@ use Yajra\DataTables\Facades\DataTables;
 
 class PurchaseOrderController extends Controller
 {
+    // Solicitado por el negocio: solo estos usuarios pueden reactivar OC/OCD cerradas por inactividad.
+    private const REACTIVATION_ALLOWED_USER_IDS = [2, 3];
+
     /**
      * Vista principal con tabs para OC Regulares y OCD
      */
@@ -168,6 +172,59 @@ class PurchaseOrderController extends Controller
             ->with('success', "OC {$purchaseOrder->folio} rechazada.");
     }
 
+    /**
+     * Reactiva una OC estándar cerrada por inactividad, regresándola a Emitida
+     * y re-comprometiendo su presupuesto. Restringido a usuarios autorizados.
+     */
+    public function reactivate(PurchaseOrder $purchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
+        abort_unless($purchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OC cerradas por inactividad.');
+
+        DB::transaction(function () use (&$purchaseOrder, $budgetAllocationService) {
+            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+            abort_unless($purchaseOrder->canBeReactivated(), 422, 'Esta OC ya no está cerrada por inactividad.');
+
+            $purchaseOrder->forceFill([
+                'status' => 'ISSUED',
+                'closed_at' => null,
+                'inactivity_warning_sent_at' => null,
+                'issued_at' => now(),
+            ])->save();
+
+            $budgetAllocationService->commitOrder($purchaseOrder);
+        });
+
+        return back()->with('success', "OC {$purchaseOrder->folio} reactivada. Se restableció el plazo de inactividad.");
+    }
+
+    /**
+     * Reactiva una OCD cerrada por inactividad, regresándola a Pendiente de
+     * Autorización y re-comprometiendo fondos. El aprobador debe reasignarse
+     * manualmente. Restringido a usuarios autorizados.
+     */
+    public function reactivateDirect(DirectPurchaseOrder $directPurchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
+        abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OCD cerradas por inactividad.');
+
+        DB::transaction(function () use (&$directPurchaseOrder, $budgetAllocationService) {
+            $directPurchaseOrder = DirectPurchaseOrder::query()->lockForUpdate()->findOrFail($directPurchaseOrder->id);
+            abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Esta OCD ya no está cerrada por inactividad.');
+
+            $directPurchaseOrder->forceFill([
+                'status' => 'PENDING_APPROVAL',
+                'closed_at' => null,
+                'inactivity_warning_sent_at' => null,
+                'submitted_at' => now(),
+            ])->save();
+
+            $budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
+        });
+
+        return back()->with('success', "OCD {$directPurchaseOrder->folio} reactivada. Asigna un aprobador para continuar el flujo.");
+    }
+
     /** Anexa una instrucción de Compras a la nota existente de una partida. */
     public function appendSupplierNote(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $purchaseOrderItem)
     {
@@ -263,12 +320,33 @@ class PurchaseOrderController extends Controller
                         </a>
                     ';
 
+                    if ($po->canGeneratePdf()) {
+                        $pdfUrl = route('purchase-orders.pdf.view', $po->id);
+                        $buttons .= '
+                            <a href="'.$pdfUrl.'" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger ms-1" title="Ver PDF">
+                                <i class="ti ti-file-type-pdf"></i>
+                            </a>
+                        ';
+                    }
+
                     if ($po->canBeReceived()) {
                         $receiveUrl = route('receptions.create', $po->id);
                         $buttons .= '
                             <a href="'.$receiveUrl.'" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
                                 <i class="ti ti-package-import"></i>
                             </a>
+                        ';
+                    }
+
+                    if ($po->canBeReactivated() && in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true)) {
+                        $reactivateUrl = route('purchase-orders.reactivate', $po->id);
+                        $buttons .= '
+                            <form action="'.$reactivateUrl.'" method="POST" class="d-inline js-reactivate-po-form">
+                                '.csrf_field().'
+                                <button type="submit" class="btn btn-sm btn-outline-dark ms-1" title="Reactivar OC">
+                                    <i class="ti ti-refresh"></i>
+                                </button>
+                            </form>
                         ';
                     }
 
@@ -341,12 +419,33 @@ class PurchaseOrderController extends Controller
                         ';
                     }
 
+                    if ($ocd->canGeneratePdf()) {
+                        $pdfUrl = route('direct-purchase-orders.pdf.view', $ocd->id);
+                        $buttons .= '
+                            <a href="'.$pdfUrl.'" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger ms-1" title="Ver PDF">
+                                <i class="ti ti-file-type-pdf"></i>
+                            </a>
+                        ';
+                    }
+
                     if ($ocd->canBeReceived()) {
                         $receiveUrl = route('receptions.create-direct', $ocd->id);
                         $buttons .= '
                             <a href="'.$receiveUrl.'" class="btn btn-sm btn-outline-success ms-1" title="Registrar Recepción">
                                 <i class="ti ti-package-import"></i>
                             </a>
+                        ';
+                    }
+
+                    if ($ocd->canBeReactivated() && in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true)) {
+                        $reactivateUrl = route('direct-purchase-orders.reactivate', $ocd->id);
+                        $buttons .= '
+                            <form action="'.$reactivateUrl.'" method="POST" class="d-inline js-reactivate-po-form">
+                                '.csrf_field().'
+                                <button type="submit" class="btn btn-sm btn-outline-dark ms-1" title="Reactivar OCD">
+                                    <i class="ti ti-refresh"></i>
+                                </button>
+                            </form>
                         ';
                     }
 
@@ -390,15 +489,32 @@ class PurchaseOrderController extends Controller
     /** Download the formal purchase order document once it has been issued. */
     public function downloadPdf(PurchaseOrder $purchaseOrder): Response
     {
+        return $this->purchaseOrderPdf($purchaseOrder)->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+    }
+
+    /** Show the formal purchase order document inline so the browser opens it in a new tab. */
+    public function viewPdf(PurchaseOrder $purchaseOrder): Response
+    {
+        return $this->purchaseOrderPdf($purchaseOrder)->stream('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+    }
+
+    /** Download the formal direct purchase order document once it has been issued. */
+    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        return $this->directPurchaseOrderPdf($directPurchaseOrder)->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
+    /** Show the formal direct purchase order document inline so the browser opens it in a new tab. */
+    public function viewDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    {
+        return $this->directPurchaseOrderPdf($directPurchaseOrder)->stream('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+    }
+
+    private function purchaseOrderPdf(PurchaseOrder $purchaseOrder): DomPdf
+    {
         $this->authorize('view', $purchaseOrder);
 
-        abort_unless(in_array($purchaseOrder->status, [
-            'ISSUED',
-            'PARTIALLY_RECEIVED',
-            'RECEIVED',
-            'PAID',
-            'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra debe estar emitida antes de generar su PDF.');
+        abort_unless($purchaseOrder->canGeneratePdf(), 422, 'La orden de compra debe estar emitida antes de generar su PDF.');
 
         $purchaseOrder->load([
             'items.requisitionItem.costCenter',
@@ -414,53 +530,39 @@ class PurchaseOrderController extends Controller
             'requisition.requester',
         ]);
 
-        return Pdf::loadView('purchase-orders.pdf', [
+        return $this->renderPurchaseOrderPdf('purchase-orders.pdf', [
             'purchaseOrder' => $purchaseOrder,
-            'logoPath' => public_path('images/logos/Logo.png'),
-        ])->setPaper('letter')->download('orden-de-compra-'.$purchaseOrder->folio.'.pdf');
+        ]);
     }
 
-    /** Download the formal direct purchase order document once it has been issued. */
-    public function downloadDirectPdf(DirectPurchaseOrder $directPurchaseOrder): Response
+    private function directPurchaseOrderPdf(DirectPurchaseOrder $directPurchaseOrder): DomPdf
     {
         $this->authorize('view', $directPurchaseOrder);
 
-        abort_unless(in_array($directPurchaseOrder->status, [
-            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
+        abort_unless($directPurchaseOrder->canGeneratePdf(), 422, 'La orden de compra directa debe estar emitida antes de generar su PDF.');
 
         $directPurchaseOrder->load([
             'items.costCenter.company', 'items.expenseCategory', 'items.budgetCedula',
             'supplier', 'creator', 'approver', 'receiver', 'authorizerRole', 'receivingLocation',
         ]);
 
-        return Pdf::loadView('purchase-orders.direct-pdf', [
+        return $this->renderPurchaseOrderPdf('purchase-orders.direct-pdf', [
             'directPurchaseOrder' => $directPurchaseOrder,
             'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
-            'logoPath' => public_path('images/logos/Logo.png'),
-        ])->setPaper('letter')->download('orden-de-compra-directa-'.$directPurchaseOrder->folio.'.pdf');
+        ]);
     }
 
-    /** Download an editable Word-compatible version of an issued direct purchase order. */
-    public function downloadDirectWord(DirectPurchaseOrder $directPurchaseOrder): Response
+    /** Render an OC/OCD view as a letter PDF with the brand logo and "Página X de Y" in the footer. */
+    private function renderPurchaseOrderPdf(string $view, array $data): DomPdf
     {
-        $this->authorize('view', $directPurchaseOrder);
+        $pdf = Pdf::loadView($view, $data + [
+            'logoPath' => public_path('images/logos/logo_TotalGas_hor.png'),
+        ])->setPaper('letter');
 
-        abort_unless(in_array($directPurchaseOrder->status, [
-            'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'DELIVERED_PENDING_RECEPTION',
-        ], true), 422, 'La orden de compra directa debe estar emitida antes de generar su documento Word.');
+        $pdf->render();
+        $pdf->getDomPDF()->getCanvas()->page_text(540, 772, 'Página {PAGE_NUM} de {PAGE_COUNT}', 'Helvetica', 6.5, [0.6, 0.63, 0.68]);
 
-        $directPurchaseOrder->load([
-            'items.costCenter.company', 'supplier', 'creator', 'receivingLocation',
-        ]);
-
-        return response()->view('purchase-orders.direct-word', [
-            'directPurchaseOrder' => $directPurchaseOrder,
-            'company' => $directPurchaseOrder->items->pluck('costCenter.company')->filter()->first(),
-        ], 200, [
-            'Content-Type' => 'application/msword; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="orden-de-compra-directa-'.$directPurchaseOrder->folio.'.doc"',
-        ]);
+        return $pdf;
     }
 
     /**

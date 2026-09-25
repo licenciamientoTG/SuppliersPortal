@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AnnualBudget;
+use App\Models\BudgetCedula;
 use App\Models\BudgetCommitment;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
@@ -357,7 +358,7 @@ class BudgetAllocationService
 
             if (! $distribution->commitAmount((float) $line['amount'])) {
                 throw new RuntimeException(
-                    "No se pudo comprometer presupuesto para la cédula {$line['budget_cedula_id']}."
+                    "No se pudo comprometer presupuesto para la cédula {$this->cedulaLabel((int) $line['budget_cedula_id'])}."
                 );
             }
 
@@ -392,7 +393,7 @@ class BudgetAllocationService
 
             if (! $distribution->commitAmount($amount)) {
                 throw new RuntimeException(
-                    "No se pudo comprometer presupuesto para la cédula {$distribution->budget_cedula_id}."
+                    "No se pudo comprometer presupuesto para la cédula {$this->cedulaLabel((int) $distribution->budget_cedula_id)}."
                 );
             }
 
@@ -427,7 +428,7 @@ class BudgetAllocationService
 
                 if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
                     throw new RuntimeException(
-                        "No se pudo liberar presupuesto para la cédula {$commitment->budget_cedula_id}."
+                        "No se pudo liberar presupuesto para la cédula {$this->cedulaLabel((int) $commitment->budget_cedula_id)}."
                     );
                 }
             }
@@ -504,7 +505,7 @@ class BudgetAllocationService
 
                 if (! $distribution->commitToConsume($delta)) {
                     throw new RuntimeException(
-                        "No se pudo consumir presupuesto para la cédula {$commitment->budget_cedula_id}."
+                        "No se pudo consumir presupuesto para la cédula {$this->cedulaLabel((int) $commitment->budget_cedula_id)}."
                     );
                 }
             }
@@ -667,7 +668,7 @@ class BudgetAllocationService
             ->first();
 
         if (! $budget) {
-            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$costCenterId} en {$year}.");
+            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$this->costCenterLabel($costCenterId)} en {$year}.");
         }
 
         $distributions = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)
@@ -697,7 +698,7 @@ class BudgetAllocationService
             ->first();
 
         if (! $budget) {
-            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$costCenterId} en {$year}.");
+            throw new RuntimeException("No existe presupuesto aprobado para el centro de costo {$this->costCenterLabel($costCenterId)} en {$year}.");
         }
 
         $distribution = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)
@@ -707,10 +708,26 @@ class BudgetAllocationService
             ->first();
 
         if (! $distribution) {
-            throw new RuntimeException("No existe distribución mensual para la cédula {$cedulaId} en {$month}/{$year}.");
+            throw new RuntimeException("No existe distribución mensual para la cédula {$this->cedulaLabel($cedulaId)} en {$month}/{$year}.");
         }
 
         return $distribution;
+    }
+
+    /** Nombre de la cédula entre comillas para mensajes de error; el id solo si ya no existe. */
+    private function cedulaLabel(int $cedulaId): string
+    {
+        $name = BudgetCedula::withTrashed()->whereKey($cedulaId)->value('name');
+
+        return $name !== null ? "\"{$name}\"" : "#{$cedulaId}";
+    }
+
+    /** Nombre del centro de costo entre comillas para mensajes de error; el id solo si ya no existe. */
+    private function costCenterLabel(int $costCenterId): string
+    {
+        $name = CostCenter::withTrashed()->whereKey($costCenterId)->value('name');
+
+        return $name !== null ? "\"{$name}\"" : "#{$costCenterId}";
     }
 
     private function allocateAmountAcrossDistributions(Collection $distributions, float $amount): array
