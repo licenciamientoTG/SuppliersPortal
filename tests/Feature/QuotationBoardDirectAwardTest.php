@@ -170,7 +170,7 @@ class QuotationBoardDirectAwardTest extends TestCase
         $this->assertEquals(232.0, (float) $summary->total);
 
         $this->assertEquals('EVALUATED', $rfq->fresh()->status);
-        $this->assertEquals('PENDING_APPROVAL', $requisition->fresh()->status->value);
+        $this->assertEquals('IN_APPROVAL', $requisition->fresh()->status->value);
 
         Notification::assertSentTo($this->approver, \App\Notifications\QuotationApprovalRequestNotification::class);
     }

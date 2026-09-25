@@ -39,7 +39,7 @@ class RfqIndex extends Component
             RequisitionStatus::APPROVED,
             RequisitionStatus::IN_QUOTATION,
             RequisitionStatus::QUOTED,
-            RequisitionStatus::PENDING_APPROVAL,
+            RequisitionStatus::IN_APPROVAL,
             RequisitionStatus::PENDING_BUDGET_ADJUSTMENT,
         ];
 
@@ -59,7 +59,18 @@ class RfqIndex extends Component
                 });
             })
             ->when($this->statusFilter, function ($query) {
-                $query->where('status', $this->statusFilter);
+                $pendingApproval = fn ($summaryQuery) => $summaryQuery->where('approval_status', 'pending');
+
+                if ($this->statusFilter === RequisitionStatus::IN_APPROVAL->value) {
+                    $query->where(fn ($statusQuery) => $statusQuery
+                        ->where('status', RequisitionStatus::IN_APPROVAL->value)
+                        ->orWhereHas('quotationSummaries', $pendingApproval));
+
+                    return;
+                }
+
+                $query->where('status', $this->statusFilter)
+                    ->whereDoesntHave('quotationSummaries', $pendingApproval);
             })
             ->orderBy('created_at', 'desc')
             ->paginate(15);

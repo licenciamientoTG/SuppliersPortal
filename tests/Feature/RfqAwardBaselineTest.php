@@ -150,7 +150,7 @@ class RfqAwardBaselineTest extends TestCase
         $this->assertEquals(232.0, (float) $summary->total);
 
         $this->assertEquals('EVALUATED', $rfq->fresh()->status);
-        $this->assertEquals('PENDING_APPROVAL', $rfq->fresh()->requisition->status->value);
+        $this->assertEquals('IN_APPROVAL', $rfq->fresh()->requisition->status->value);
         $this->assertSame(
             ['blocked' => 0, 'submitted' => 0],
             app(\App\Services\Rfq\RfqBlockStatusService::class)->summary($rfq->fresh())
@@ -160,9 +160,19 @@ class RfqAwardBaselineTest extends TestCase
             ->assertSee('Adjudicación en aprobación')
             ->assertDontSee('cotizaciones bloqueadas');
         \Livewire\Livewire::test(\App\Livewire\Rfq\RfqIndex::class)
-            ->assertSee('Adjudicación en aprobación')
+            ->assertSee('En aprobación')
             ->assertSee('Ver comparativo')
             ->assertDontSee('Bloqueada');
+
+        // Las adjudicaciones anteriores pueden conservar QUOTED hasta aplicar la migración.
+        $rfq->requisition->update(['status' => 'QUOTED']);
+        \Livewire\Livewire::test(\App\Livewire\Rfq\RfqIndex::class)
+            ->set('statusFilter', 'IN_APPROVAL')
+            ->assertSee($rfq->requisition->folio)
+            ->assertSee('Ver comparativo')
+            ->assertDontSee('Bloqueada')
+            ->set('statusFilter', 'QUOTED')
+            ->assertDontSee($rfq->requisition->folio);
     }
 
     public function test_award_is_blocked_when_offer_is_expired(): void

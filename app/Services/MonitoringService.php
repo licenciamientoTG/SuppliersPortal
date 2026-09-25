@@ -88,7 +88,7 @@ class MonitoringService
         ], [[
             'title' => 'Embudo operativo', 'icon' => 'ti-git-merge', 'columns' => ['Etapa', 'Cantidad', 'Detalle', 'Acción'], 'items' => [
                 $this->row('Requisiciones pendientes', (clone $requisitions)->whereIn('status', ['PENDING', 'PAUSED'])->count(), 'Esperan una definición de Compras o catálogo.', route('requisitions.index')),
-                $this->row('Cotización y aprobación', (clone $requisitions)->whereIn('status', ['IN_QUOTATION', 'QUOTED', 'PENDING_APPROVAL'])->count(), 'Requisiciones en RFQ o esperando autorización de adjudicación.', route('rfq.index')),
+                $this->row('Cotización y aprobación', (clone $requisitions)->whereIn('status', ['IN_QUOTATION', 'QUOTED', 'IN_APPROVAL'])->count(), 'Requisiciones en RFQ o esperando autorización de adjudicación.', route('rfq.index')),
                 $this->row('RFQ vencidas', (clone $rfqs)->where('status', 'SENT')->where('response_deadline', '<', now())->count(), 'Solicitudes sin cierre dentro de su fecha límite.', route('rfq.inbox.pending'), 'danger'),
                 $this->row('Órdenes por recibir', (clone $orders)->whereIn('status', ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'])->count(), 'Órdenes emitidas que siguen abiertas.', route('purchase-orders.index')),
             ],

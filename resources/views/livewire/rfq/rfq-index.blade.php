@@ -52,6 +52,9 @@
                         </thead>
                         <tbody>
                             @forelse($requisitions as $requisition)
+                                @php
+                                    $pendingApprovalRfq = $requisition->rfqs->first(fn ($rfq) => $rfq->quotationSummary?->isPending());
+                                @endphp
                                 <tr>
                                     <td>
                                         <strong>{{ $requisition->folio }}</strong>
@@ -73,7 +76,11 @@
                                     </td>
                                     <td>
                                         @php($blockSummary = $blockedSummaries[$requisition->id] ?? ['blocked' => 0, 'submitted' => 0])
-                                        @if($requisition->status !== \App\Enum\RequisitionStatus::PENDING_APPROVAL && $blockSummary['blocked'] > 0)
+                                        @if($pendingApprovalRfq)
+                                            <span class="badge bg-{{ \App\Enum\RequisitionStatus::IN_APPROVAL->badgeClass() }}">
+                                                {{ \App\Enum\RequisitionStatus::IN_APPROVAL->label() }}
+                                            </span>
+                                        @elseif($requisition->status !== \App\Enum\RequisitionStatus::IN_APPROVAL && $blockSummary['blocked'] > 0)
                                             <span class="badge bg-danger" title="{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }} cotizaciones bloqueadas">Bloqueada</span>
                                             <small class="d-block text-danger mt-1">{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }}</small>
                                         @else
@@ -84,7 +91,6 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group">
-                                            @php($pendingApprovalRfq = $requisition->rfqs->first(fn ($rfq) => $rfq->quotationSummary?->isPending()))
                                             @if($pendingApprovalRfq)
                                                 <a href="{{ route('rfq.comparison.index', $pendingApprovalRfq) }}" class="btn btn-outline-info btn-sm">
                                                     <i class="ti ti-eye me-1"></i> Ver comparativo
