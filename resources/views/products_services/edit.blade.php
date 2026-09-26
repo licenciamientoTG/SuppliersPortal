@@ -68,6 +68,7 @@
                                 'selectedIds' => collect(old('budget_cedula_ids', $selectedBudgetCedulaIds)),
                                 'collapseGroups' => true,
                                 'departments' => $departments,
+                                'departmentsByCedula' => $departmentsByCedula,
                                 'departmentAssignments' => old('department_subaccount_assignments', $departmentAssignments),
                             ])
                             @error('budget_cedula_ids')

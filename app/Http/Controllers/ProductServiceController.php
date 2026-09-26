@@ -189,6 +189,8 @@ class ProductServiceController extends Controller
             ->sortBy([['expenseCategory.code', 'asc'], ['name', 'asc']])
             ->values();
         $departments = Department::active()->orderBy('name')->get(['id', 'name', 'abbreviated']);
+        $departmentsByCedula = app(ProductBudgetClassificationService::class)
+            ->eligibleDepartmentsByCedula($budgetCedulas->pluck('id'));
         $departmentAssignments = [];
 
         return view('products_services.create', compact(
@@ -198,6 +200,7 @@ class ProductServiceController extends Controller
             'unitsOfMeasure',
             'budgetCedulas',
             'departments',
+            'departmentsByCedula',
             'departmentAssignments'
         ));
     }
@@ -304,6 +307,8 @@ class ProductServiceController extends Controller
 
         $selectedBudgetCedulaIds = $productService->budgetCedulas->pluck('id')->all();
         $departments = Department::active()->orderBy('name')->get(['id', 'name', 'abbreviated']);
+        $departmentsByCedula = app(ProductBudgetClassificationService::class)
+            ->eligibleDepartmentsByCedula($budgetCedulas->pluck('id'));
         $departmentAssignments = $productService->departmentSubaccountMappings()
             ->with('subaccount:id,legacy_budget_cedula_id')
             ->get()
@@ -319,6 +324,7 @@ class ProductServiceController extends Controller
             'budgetCedulas',
             'selectedBudgetCedulaIds',
             'departments',
+            'departmentsByCedula',
             'departmentAssignments'
         ));
     }
@@ -795,5 +801,4 @@ class ProductServiceController extends Controller
             'is_fixed_asset' => (bool) ($subaccount->is_fixed_asset || $account->is_fixed_asset),
         ];
     }
-
 }

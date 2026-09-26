@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\BudgetCedula;
+use App\Models\BudgetProfile;
 use App\Models\ExpenseCategory;
 use App\Models\ProductService;
 use App\Models\Subaccount;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -186,5 +188,70 @@ class ProductBudgetClassificationService
             'product_service_id' => $product->id,
             'expense_category_id' => (int) $account->legacy_expense_category_id,
         ]);
+    }
+
+    /**
+     * Devuelve los departamentos activos elegibles para cada cédula presupuestal,
+     * considerando solo aquellos departamentos que tienen al menos un perfil presupuestal
+     * activo que incluye la subcuenta asociada a la cédula.
+     *
+     * @param  iterable<int>|null  $cedulaIds
+     * @return \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, \App\Models\Department>>
+     */
+    public function eligibleDepartmentsByCedula(?iterable $cedulaIds = null): Collection
+    {
+        $profilesQuery = BudgetProfile::query()
+            ->active()
+            ->with([
+                'subaccounts' => function ($query) use ($cedulaIds) {
+                    $query->active()
+                        ->whereNotNull('legacy_budget_cedula_id')
+                        ->when($cedulaIds !== null, function ($q) use ($cedulaIds) {
+                            $q->whereIn('legacy_budget_cedula_id', collect($cedulaIds)->all());
+                        });
+                },
+                'department' => fn ($query) => $query->active(),
+                'departments' => fn ($query) => $query->active(),
+            ]);
+
+        $profiles = $profilesQuery->get();
+
+        $departmentsByCedula = collect();
+
+        foreach ($profiles as $profile) {
+            $departments = collect();
+
+            if ($profile->department && $profile->department->is_active) {
+                $departments->push($profile->department);
+            }
+
+            if ($profile->relationLoaded('departments')) {
+                foreach ($profile->departments as $dept) {
+                    if ($dept->is_active) {
+                        $departments->push($dept);
+                    }
+                }
+            }
+
+            if ($departments->isEmpty()) {
+                continue;
+            }
+
+            foreach ($profile->subaccounts as $subaccount) {
+                $cedulaId = (int) $subaccount->legacy_budget_cedula_id;
+
+                if (! $departmentsByCedula->has($cedulaId)) {
+                    $departmentsByCedula->put($cedulaId, collect());
+                }
+
+                foreach ($departments as $dept) {
+                    $departmentsByCedula->get($cedulaId)->push($dept);
+                }
+            }
+        }
+
+        return $departmentsByCedula->map(function ($depts) {
+            return $depts->unique('id')->sortBy('name')->values();
+        });
     }
 }

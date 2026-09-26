@@ -2,6 +2,11 @@
     $selectorId = $selectorId ?? 'budget-cedula-selector';
     $collapseGroups = $collapseGroups ?? false;
     $departments = $departments ?? collect();
+    $departmentsByCedula = $departmentsByCedula ?? null;
+    if ($departmentsByCedula === null) {
+        $departmentsByCedula = app(\App\Services\ProductBudgetClassificationService::class)
+            ->eligibleDepartmentsByCedula($budgetCedulas->pluck('id'));
+    }
     $departmentAssignments = $departmentAssignments ?? [];
     $selectedIds = collect($selectedIds ?? [])->map(fn ($id) => (int) $id);
     $groupedCedulas = $budgetCedulas
@@ -114,24 +119,33 @@
                     $assignedDepartmentIds = collect($departmentAssignments[$cedula->id] ?? [])
                         ->map(fn ($id) => (int) $id)
                         ->all();
+                    $cedulaDepartments = $departmentsByCedula instanceof \Illuminate\Support\Collection
+                        ? ($departmentsByCedula->get($cedula->id) ?? collect())
+                        : collect($departmentsByCedula[$cedula->id] ?? []);
                 @endphp
                 <section class="border rounded bg-white p-3 mb-2 d-none js-department-assignment-card"
                          data-cedula-id="{{ $cedula->id }}">
                     <div class="fw-semibold mb-2">{{ $group['category']?->name ?? 'Sin cuenta' }} · {{ $cedula->name }}</div>
-                    <div class="row g-2">
-                        @foreach ($departments as $department)
-                            <div class="col-md-6">
-                                <label class="form-check small mb-0">
-                                    <input class="form-check-input js-department-assignment-check"
-                                           type="checkbox"
-                                           name="department_subaccount_assignments[{{ $cedula->id }}][]"
-                                           value="{{ $department->id }}"
-                                           @checked(in_array((int) $department->id, $assignedDepartmentIds, true))>
-                                    <span class="form-check-label">{{ $department->name }}</span>
-                                </label>
-                            </div>
-                        @endforeach
-                    </div>
+                    @if ($cedulaDepartments->isNotEmpty())
+                        <div class="row g-2">
+                            @foreach ($cedulaDepartments as $department)
+                                <div class="col-md-6">
+                                    <label class="form-check small mb-0">
+                                        <input class="form-check-input js-department-assignment-check"
+                                               type="checkbox"
+                                               name="department_subaccount_assignments[{{ $cedula->id }}][]"
+                                               value="{{ $department->id }}"
+                                               @checked(in_array((int) $department->id, $assignedDepartmentIds, true))>
+                                        <span class="form-check-label">{{ $department->name }}</span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="text-muted small fst-italic py-1">
+                            No hay departamentos con perfiles presupuestales activos para esta subcuenta.
+                        </div>
+                    @endif
                 </section>
             @endforeach
         @endforeach
