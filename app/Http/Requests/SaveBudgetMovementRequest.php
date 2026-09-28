@@ -20,6 +20,7 @@ class SaveBudgetMovementRequest extends FormRequest
             'movement_date' => ['required', 'date'],
             'justification' => ['required', 'string', 'min:10', 'max:1000'],
             'total_amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'supporting_document' => [$this->isMethod('POST') ? 'required' : 'nullable', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,xlsx,docx'],
         ];
 
         $movementType = $this->input('movement_type');

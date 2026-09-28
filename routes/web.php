@@ -10,6 +10,7 @@ use App\Http\Controllers\AuthorizationInboxController;
 use App\Http\Controllers\AuthorizerRoleController;
 use App\Http\Controllers\BudgetMonthlyDistributionController;
 use App\Http\Controllers\BudgetMovementController;
+use App\Http\Controllers\BudgetMovementReportController;
 use App\Http\Controllers\BudgetMovementWorkflowController;
 use App\Http\Controllers\BudgetProfileController;
 use App\Http\Controllers\CategoryController;
@@ -428,6 +429,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
     // ========================================================================
     //  Budget Movements
     // ========================================================================
+    Route::prefix('reportes/presupuesto/movimientos')->name('budget-movement-reports.')->group(function () {
+        Route::get('/', [BudgetMovementReportController::class, 'index'])->middleware('can:reportes.budget_movements.ver')->name('index');
+        Route::get('/data', [BudgetMovementReportController::class, 'data'])->middleware('can:reportes.budget_movements.ver')->name('data');
+        Route::get('/export/{format}', [BudgetMovementReportController::class, 'export'])->middleware('can:reportes.budget_movements.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
@@ -438,6 +444,8 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::post('budget_movements/{budgetMovement}/return', [BudgetMovementWorkflowController::class, 'returnToRequester'])->name('budget_movements.return');
         Route::post('budget_movements/{budgetMovement}/approve', [BudgetMovementWorkflowController::class, 'approveExecutive'])->name('budget_movements.approve');
         Route::post('budget_movements/{budgetMovement}/reject', [BudgetMovementWorkflowController::class, 'rejectExecutive'])->name('budget_movements.reject');
+        Route::post('budget_movements/{budgetMovement}/reverse', [BudgetMovementWorkflowController::class, 'reverse'])->name('budget_movements.reverse');
+        Route::get('budget-movement-attachments/{attachment}/download', [BudgetMovementWorkflowController::class, 'downloadAttachment'])->name('budget_movements.attachments.download');
         Route::resource('budget_movements', BudgetMovementWorkflowController::class)->except(['destroy'])->parameters(['budget_movements' => 'budgetMovement']);
     });
 

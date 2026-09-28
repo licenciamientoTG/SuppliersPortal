@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 class BudgetMovementDetail extends Model
 {
@@ -33,6 +34,17 @@ class BudgetMovementDetail extends Model
     const TYPE_DESTINATION = 'DESTINO';
 
     const TYPE_ADJUSTMENT = 'AJUSTE';
+
+    protected static function booted(): void
+    {
+        $guardApprovedMovement = function (self $detail) {
+            if ($detail->budgetMovement()->where('status', BudgetMovement::STATUS_APPROVED)->exists()) {
+                throw new LogicException('Los detalles de un movimiento aprobado son inmutables.');
+            }
+        };
+        static::updating($guardApprovedMovement);
+        static::deleting($guardApprovedMovement);
+    }
 
     /**
      * Movimiento presupuestal al que pertenece

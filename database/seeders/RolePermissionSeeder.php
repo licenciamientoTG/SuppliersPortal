@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -107,6 +107,8 @@ class RolePermissionSeeder extends Seeder
             'perfiles_presupuestales.ver',
             'perfiles_presupuestales.administrar_propios',
             'reportes.ver',
+            'reportes.budget_movements.ver',
+            'reportes.budget_movements.exportar',
             'puestos.administrar',
         ];
 
@@ -362,6 +364,13 @@ class RolePermissionSeeder extends Seeder
             $accountingRole->givePermissionTo([
                 'catalogo_cuentas.ver',
                 'catalogo_cuentas.editar',
+                'reportes.budget_movements.ver',
+                'reportes.budget_movements.exportar',
+            ]);
+
+            $generalDirectorRole->givePermissionTo([
+                'reportes.budget_movements.ver',
+                'reportes.budget_movements.exportar',
             ]);
 
             // Permisos de vista: se agregan sobre la matriz actual sin retirar

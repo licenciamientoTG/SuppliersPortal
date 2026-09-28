@@ -247,12 +247,16 @@ class AnnualBudgetController extends Controller
             return back()->with('danger', 'No se puede aprobar un presupuesto sin distribuciones mensuales. Por favor, crea primero las distribuciones.');
         }
 
-        $annual_budget->update([
-            'status' => 'APROBADO',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'updated_by' => Auth::id(),
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($annual_budget) {
+            $annual_budget->update([
+                'status' => 'APROBADO',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'updated_by' => Auth::id(),
+            ]);
+
+            app(\App\Services\BudgetBaselineService::class)->capture($annual_budget, Auth::id());
+        });
 
         return redirect()->route('annual_budgets.index')
             ->with('success', 'Presupuesto anual aprobado correctamente. Está listo para usar en requisiciones.');
