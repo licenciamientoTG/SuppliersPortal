@@ -63,8 +63,8 @@
                 <div class="filter-field"><label class="form-label" for="movementStatus">Estatus</label><select class="form-select" id="movementStatus" name="status"><option value="APROBADO" selected>Aprobados</option><option value="TODOS">Todos los estatus</option><option value="PENDIENTE_ORIGEN">Pendiente de origen</option><option value="PENDIENTE_DIRECCION">Pendiente de Dirección</option><option value="DEVUELTO">Devuelto</option><option value="RECHAZADO">Rechazado</option></select></div>
                 <div class="filter-field"><label class="form-label" for="company">Empresa(s)</label><select class="form-select js-company-filter" id="company" name="company_ids[]" multiple data-placeholder="Todas las empresas">@foreach($companies as $company)<option value="{{ $company->id }}">{{ $company->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="type">Tipo de movimiento</label><select class="form-select" id="type" name="movement_type[]"><option value="">Todos</option><option value="AMPLIACION">Ampliación</option><option value="REDUCCION">Reducción</option><option value="TRANSFERENCIA">Transferencia</option></select></div>
-                <div class="filter-field"><label class="form-label" for="originCenter">Centro origen</label><select class="form-select" id="originCenter" name="origin_cost_center_id"><option value="">Todos</option>@foreach($centers as $center)<option value="{{ $center->id }}">{{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
-                <div class="filter-field"><label class="form-label" for="destinationCenter">Centro destino</label><select class="form-select" id="destinationCenter" name="destination_cost_center_id"><option value="">Todos</option>@foreach($centers as $center)<option value="{{ $center->id }}">{{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
+                <div class="filter-field"><label class="form-label" for="originCenter">Centro origen</label><select class="form-select" id="originCenter" name="origin_cost_center_id"><option value="">Todos los centros</option>@foreach($centers as $center)<option value="{{ $center->id }}" data-company-id="{{ $center->company_id }}">{{ $center->company?->name }} · {{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
+                <div class="filter-field"><label class="form-label" for="destinationCenter">Centro destino</label><select class="form-select" id="destinationCenter" name="destination_cost_center_id"><option value="">Todos los centros</option>@foreach($centers as $center)<option value="{{ $center->id }}" data-company-id="{{ $center->company_id }}">{{ $center->company?->name }} · {{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="month">Mes del renglón</label><select class="form-select" id="month" name="month"><option value="">Todos</option>@foreach(range(1,12) as $month)<option value="{{ $month }}">{{ \Carbon\Carbon::create()->month($month)->locale('es')->monthName }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="amount">Importe mínimo</label><input class="form-control" id="amount" name="amount_min" type="number" min="0" step="0.01" placeholder="$ 0.00"></div>
                 <div class="filter-date-range"><label class="form-label d-block">Fecha del movimiento</label><div class="date-range-inputs"><div><label for="from">Desde</label><input class="form-control" id="from" name="date_from" type="date"></div><div><label for="to">Hasta</label><input class="form-control" id="to" name="date_to" type="date"></div></div></div>
@@ -100,6 +100,27 @@
             dropdownParent: jQuery(document.body),
         });
     }
+    const companyFilter = document.getElementById('company');
+    const costCenterFilters = ['originCenter', 'destinationCenter'].map(id => document.getElementById(id));
+    const availableCenters = new Map(costCenterFilters.map(select => [
+        select,
+        Array.from(select.options).slice(1).map(option => option.cloneNode(true)),
+    ]));
+    function refreshCostCenterFilters() {
+        const selectedCompanies = Array.from(companyFilter.selectedOptions, option => option.value);
+
+        for (const select of costCenterFilters) {
+            const previousValue = select.value;
+            const centers = availableCenters.get(select).filter(option =>
+                selectedCompanies.length === 0 || selectedCompanies.includes(option.dataset.companyId)
+            );
+
+            select.replaceChildren(new Option('Todos los centros', ''), ...centers.map(option => option.cloneNode(true)));
+            select.value = centers.some(option => option.value === previousValue) ? previousValue : '';
+        }
+    }
+    companyFilter.addEventListener('change', refreshCostCenterFilters);
+    refreshCostCenterFilters();
     const money = value => value === null || value === undefined ? '—' : new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(value);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function params(includePage=true) {
