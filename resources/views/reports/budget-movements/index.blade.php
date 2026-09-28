@@ -107,7 +107,9 @@
         Array.from(select.options).slice(1).map(option => option.cloneNode(true)),
     ]));
     function refreshCostCenterFilters() {
-        const selectedCompanies = Array.from(companyFilter.selectedOptions, option => option.value);
+        const selectedCompanies = window.jQuery
+            ? (jQuery(companyFilter).val() || []).map(String)
+            : Array.from(companyFilter.selectedOptions, option => option.value);
 
         for (const select of costCenterFilters) {
             const previousValue = select.value;
@@ -119,7 +121,11 @@
             select.value = centers.some(option => option.value === previousValue) ? previousValue : '';
         }
     }
-    companyFilter.addEventListener('change', refreshCostCenterFilters);
+    if (window.jQuery) {
+        jQuery(companyFilter).on('change.bmCostCenterFilter', refreshCostCenterFilters);
+    } else {
+        companyFilter.addEventListener('change', refreshCostCenterFilters);
+    }
     refreshCostCenterFilters();
     const money = value => value === null || value === undefined ? '—' : new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(value);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
