@@ -109,6 +109,10 @@ class RolePermissionSeeder extends Seeder
             'reportes.ver',
             'reportes.budget_movements.ver',
             'reportes.budget_movements.exportar',
+            'reportes.budget_alerts.ver',
+            'reportes.budget_alerts.exportar',
+            'reportes.budget_alerts.excepcion.solicitar',
+            'reportes.budget_alerts.excepcion.aprobar',
             'puestos.administrar',
         ];
 
@@ -366,11 +370,22 @@ class RolePermissionSeeder extends Seeder
                 'catalogo_cuentas.editar',
                 'reportes.budget_movements.ver',
                 'reportes.budget_movements.exportar',
+                'reportes.budget_alerts.ver',
+                'reportes.budget_alerts.exportar',
             ]);
+
+            foreach ([$staffRole, $buyerRole, $departmentHeadRole, $generalDirectorRole] as $exceptionRequesterRole) {
+                $exceptionRequesterRole->givePermissionTo('reportes.budget_alerts.excepcion.solicitar');
+            }
+            $departmentHeadRole->givePermissionTo('reportes.budget_alerts.ver');
+            $reportViewerRole->givePermissionTo('reportes.budget_alerts.ver');
 
             $generalDirectorRole->givePermissionTo([
                 'reportes.budget_movements.ver',
                 'reportes.budget_movements.exportar',
+                'reportes.budget_alerts.ver',
+                'reportes.budget_alerts.exportar',
+                'reportes.budget_alerts.excepcion.aprobar',
             ]);
 
             // Permisos de vista: se agregan sobre la matriz actual sin retirar

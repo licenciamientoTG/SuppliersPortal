@@ -219,13 +219,25 @@ class BudgetMonthlyDistribution extends Model
      */
     public function commitAmount(float $amount): bool
     {
-        if (! $this->canCommit($amount)) {
+        return $this->applyCommitment($amount, false);
+    }
+
+    public function commitAmountWithException(float $amount): bool
+    {
+        return $this->applyCommitment($amount, true);
+    }
+
+    private function applyCommitment(float $amount, bool $approvedException): bool
+    {
+        if (! $approvedException && ! $this->canCommit($amount)) {
             return false;
         }
 
         $this->committed_amount = (float) $this->committed_amount + $amount;
         $this->updated_by = Auth::guard('web')->id();
+        $this->allowApprovedOverdraft = $approvedException;
         $this->save();
+        $this->allowApprovedOverdraft = false;
 
         return true;
     }
@@ -401,7 +413,10 @@ class BudgetMonthlyDistribution extends Model
         static::updating(function ($model) {
             // No permitir que asignado sea menor a consumido + comprometido
             $total = (float) $model->consumed_amount + (float) $model->committed_amount;
-            if ((float) $model->assigned_amount < $total) {
+            $preservesAuthorizedOverdraft = ! $model->isDirty('assigned_amount')
+                && \App\Models\BudgetException::query()->where('budget_monthly_distribution_id', $model->id)
+                    ->where('status', 'APPROVED')->whereNotNull('used_at')->exists();
+            if ((float) $model->assigned_amount < $total && ! ($model->allowApprovedOverdraft ?? false) && ! $preservesAuthorizedOverdraft) {
                 throw new \InvalidArgumentException(
                     'No se puede reducir el asignado por debajo de consumido + comprometido.'
                 );

@@ -25,13 +25,14 @@ class SafeNotificationService
         string $operation,
         ?string $reference = null,
         ?string $url = null,
+        bool $allowSupplier = false,
     ): void {
         $failures = [];
 
         foreach ($recipients as $recipient) {
-            // Notificaciones a proveedores suspendidas temporalmente por operación.
-            // Se conserva el resto del flujo y las notificaciones internas.
-            if ($recipient instanceof Supplier) {
+            // El correo a proveedores sigue deshabilitado por defecto. Solo los
+            // flujos que lo habilitan explícitamente pueden encolar su aviso.
+            if ($recipient instanceof Supplier && ! $allowSupplier) {
                 Log::info('Supplier notification skipped because outbound supplier mail is disabled.', [
                     'supplier_id' => $recipient->getKey(),
                     'operation' => $operation,
@@ -51,6 +52,7 @@ class SafeNotificationService
                     $operation,
                     $reference,
                     $url,
+                    $allowSupplier,
                 );
 
                 continue;

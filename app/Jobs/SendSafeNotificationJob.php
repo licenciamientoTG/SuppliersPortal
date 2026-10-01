@@ -29,14 +29,15 @@ class SendSafeNotificationJob implements ShouldQueue
         public string $operation,
         public ?string $reference = null,
         public ?string $url = null,
+        public bool $allowSupplier = false,
     ) {
         $this->onQueue('mail');
     }
 
     public function handle(): void
     {
-        // Cancela también trabajos de correo a proveedores que ya estuvieran en cola.
-        if ($this->recipient instanceof Supplier) {
+        // Solo los dos avisos de OC aprobada pueden llegar al proveedor.
+        if ($this->recipient instanceof Supplier && ! $this->allowSupplier) {
             return;
         }
 

@@ -43,3 +43,8 @@ Schedule::command('rfqs:notify-expired')
 Schedule::command('approval-delegations:expire')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('budget:send-daily-alerts')
+    ->dailyAt('06:00')
+    ->timezone('America/Ciudad_Juarez')
+    ->withoutOverlapping();

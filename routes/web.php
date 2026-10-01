@@ -434,6 +434,13 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/data', [BudgetMovementReportController::class, 'data'])->middleware('can:reportes.budget_movements.ver')->name('data');
         Route::get('/export/{format}', [BudgetMovementReportController::class, 'export'])->middleware('can:reportes.budget_movements.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
     });
+    Route::prefix('reportes/presupuesto/alertas')->name('budget-alert-reports.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BudgetAlertsReportController::class, 'index'])->middleware('can:reportes.budget_alerts.ver')->name('index');
+        Route::get('/data', [\App\Http\Controllers\BudgetAlertsReportController::class, 'data'])->middleware('can:reportes.budget_alerts.ver')->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\BudgetAlertsReportController::class, 'export'])->middleware('can:reportes.budget_alerts.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+        Route::post('/excepciones', [\App\Http\Controllers\BudgetAlertsReportController::class, 'requestException'])->middleware('can:reportes.budget_alerts.excepcion.solicitar')->name('exceptions.request');
+        Route::post('/excepciones/{exception}/decision', [\App\Http\Controllers\BudgetAlertsReportController::class, 'decideException'])->middleware('can:reportes.budget_alerts.excepcion.aprobar')->name('exceptions.decide');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');

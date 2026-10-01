@@ -83,6 +83,8 @@ class PurchaseOrderController extends Controller
                         array_filter([$purchaseOrder->supplier]),
                         'de OC de contrato emitida',
                         $purchaseOrder->folio,
+                        null,
+                        true,
                     );
                 } catch (\Throwable $exception) {
                     Log::error('Failed to notify supplier about approved contract purchase order.', [
@@ -593,12 +595,14 @@ class PurchaseOrderController extends Controller
         ]);
 
         $budgetSnapshot = $budgetImpactSnapshotService->forDirectPurchaseOrder($directPurchaseOrder);
+        $budgetExceptions = \App\Models\BudgetException::query()->where('document_type', 'direct_purchase_order')
+            ->where('document_id', $directPurchaseOrder->id)->get()->keyBy('document_line_id');
 
         $issuingCompany = $directPurchaseOrder->items
             ->pluck('costCenter.company')
             ->filter()
             ->first();
 
-        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot', 'issuingCompany'));
+        return view('purchase-orders.show-direct', compact('directPurchaseOrder', 'budgetSnapshot', 'issuingCompany', 'budgetExceptions'));
     }
 }

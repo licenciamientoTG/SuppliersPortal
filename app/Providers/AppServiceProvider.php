@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\BudgetMonthlyDistribution;
 use App\Models\DirectPurchaseOrder;
 use App\Models\ExchangeRate;
 use App\Models\PurchaseOrder;
 use App\Models\ReceivingLocation;
 use App\Models\Requisition;
 use App\Models\SupplierDocument;
+use App\Observers\BudgetMonthlyDistributionObserver;
 use App\Observers\RequisitionObserver;
 use App\Policies\DirectPurchaseOrderPolicy;
 use App\Policies\PurchaseOrderPolicy;
@@ -43,6 +45,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Requisition::observe(RequisitionObserver::class);
+        BudgetMonthlyDistribution::observe(BudgetMonthlyDistributionObserver::class);
         Password::defaults(function () {
             return Password::min(8)->mixedCase()->numbers()->symbols();
         });
