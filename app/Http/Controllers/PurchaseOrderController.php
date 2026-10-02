@@ -80,7 +80,7 @@ class PurchaseOrderController extends Controller
                     $purchaseOrder->loadMissing('supplier', 'creator');
                     app(\App\Services\SafeNotificationService::class)->notify(
                         new PurchaseOrderIssuedNotification($purchaseOrder),
-                        array_filter([$purchaseOrder->supplier]),
+                        User::role('buyer')->get()->concat(array_filter([$purchaseOrder->supplier])),
                         'de OC de contrato emitida',
                         $purchaseOrder->folio,
                         null,

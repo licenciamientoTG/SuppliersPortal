@@ -686,7 +686,9 @@ class DirectPurchaseOrderController extends Controller
         $directPurchaseOrder->loadMissing('supplier', 'creator');
         $this->safeNotifications->notify(
             new DirectPurchaseOrderApprovedNotification($directPurchaseOrder),
-            $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : [],
+            User::role('buyer')->get()->concat(
+                $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : []
+            ),
             'de aprobación al proveedor',
             $directPurchaseOrder->folio,
             route('direct-purchase-orders.show', $directPurchaseOrder),
