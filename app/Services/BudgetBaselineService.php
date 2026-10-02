@@ -3,102 +3,61 @@
 namespace App\Services;
 
 use App\Models\AnnualBudget;
-use App\Models\BudgetBaseline;
+use App\Models\BudgetDistributionBaseline;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\BudgetMovement;
-use App\Models\BudgetMovementDetail;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class BudgetBaselineService
 {
-    public static function lineKey(int|string $month, int|string $categoryId, int|string|null $cedulaId): string
+    /** Capture approved monthly assignments once, before movement adjustments are applied. */
+    public function capture(AnnualBudget $budget, ?int $actorId = null, string $source = 'ANNUAL_BUDGET_APPROVAL'): void
     {
-        return (int) $month.'|'.(int) $categoryId.'|'.($cedulaId === null ? '-' : (int) $cedulaId);
-    }
-
-    /** Guarda la foto del presupuesto actual. Sin $overwrite no toca una foto existente. */
-    public function capture(AnnualBudget $budget, string $source, ?int $userId = null, bool $overwrite = false): int
-    {
-        return DB::transaction(function () use ($budget, $source, $userId, $overwrite) {
-            $query = BudgetBaseline::where('annual_budget_id', $budget->id);
-            if ($overwrite) {
-                $query->delete();
-            } elseif ($query->exists()) {
-                return 0;
+        DB::transaction(function () use ($budget, $actorId, $source) {
+            $budget = AnnualBudget::query()->lockForUpdate()->findOrFail($budget->id);
+            if (BudgetDistributionBaseline::where('annual_budget_id', $budget->id)->exists()) {
+                return;
             }
 
-            $lines = $this->currentLines($budget->id);
-            foreach ($lines as $line) {
-                $this->storeLine($budget->id, $line, (float) $line->amount, $source, $userId);
+            if (BudgetMovement::query()->where('fiscal_year', $budget->fiscal_year)
+                ->where('status', BudgetMovement::STATUS_APPROVED)
+                ->whereHas('details', fn ($q) => $q->where('cost_center_id', $budget->cost_center_id))
+                ->exists()) {
+                throw new RuntimeException('No se puede capturar el saldo actual como base original: existen movimientos aprobados previos. Recupera la fuente aprobada antes de conciliar.');
             }
 
-            return $lines->count();
+            $capturedAt = now();
+            $rows = BudgetMonthlyDistribution::query()
+                ->where('annual_budget_id', $budget->id)
+                ->whereNull('deleted_at')
+                ->get();
+
+            foreach ($rows as $row) {
+                BudgetDistributionBaseline::create([
+                    'annual_budget_id' => $budget->id,
+                    'budget_monthly_distribution_id' => $row->id,
+                    'month' => $row->month,
+                    'expense_category_id' => $row->expense_category_id,
+                    'budget_cedula_id' => $row->budget_cedula_id,
+                    'original_amount' => $row->assigned_amount,
+                    'source' => $source,
+                    'captured_by' => $actorId,
+                    'captured_at' => $capturedAt,
+                ]);
+            }
         });
     }
 
-    /** Aumentos (positivos) y disminuciones (negativas) de movimientos APROBADOS por renglón. */
-    public function approvedMovementEffects(int $costCenterId, int $fiscalYear): array
+    /** Block replacing an already approved baseline through an import. */
+    public function assertCanReplace(AnnualBudget $budget): void
     {
-        return BudgetMovementDetail::query()
-            ->join('budget_movements as bm', 'bm.id', '=', 'budget_movement_details.budget_movement_id')
-            ->where('bm.status', BudgetMovement::STATUS_APPROVED)
-            ->where('bm.fiscal_year', $fiscalYear)
-            ->where('budget_movement_details.cost_center_id', $costCenterId)
-            ->groupBy('budget_movement_details.month', 'budget_movement_details.expense_category_id', 'budget_movement_details.budget_cedula_id')
-            ->selectRaw('budget_movement_details.month, budget_movement_details.expense_category_id, budget_movement_details.budget_cedula_id')
-            ->selectRaw('SUM(CASE WHEN budget_movement_details.amount > 0 THEN budget_movement_details.amount ELSE 0 END) as increases')
-            ->selectRaw('SUM(CASE WHEN budget_movement_details.amount < 0 THEN budget_movement_details.amount ELSE 0 END) as decreases')
-            ->get()
-            ->mapWithKeys(fn ($row) => [self::lineKey($row->month, $row->expense_category_id, $row->budget_cedula_id) => [
-                'increases' => (float) $row->increases,
-                'decreases' => (float) $row->decreases,
-            ]])
-            ->all();
-    }
-
-    /** Presupuestos APROBADOS sin foto: original = asignado actual − efecto de movimientos aprobados. */
-    public function reconstructMissing(?int $userId = null): int
-    {
-        $count = 0;
-
-        AnnualBudget::where('status', 'APROBADO')->whereDoesntHave('baselines')->get()
-            ->each(function (AnnualBudget $budget) use ($userId, &$count) {
-                $effects = $this->approvedMovementEffects($budget->cost_center_id, (int) $budget->fiscal_year);
-
-                DB::transaction(function () use ($budget, $effects, $userId) {
-                    foreach ($this->currentLines($budget->id) as $line) {
-                        $effect = $effects[self::lineKey($line->month, $line->expense_category_id, $line->budget_cedula_id)] ?? ['increases' => 0, 'decreases' => 0];
-                        $original = (float) $line->amount - $effect['increases'] - $effect['decreases'];
-                        $this->storeLine($budget->id, $line, $original, BudgetBaseline::SOURCE_RECONSTRUCTED, $userId);
-                    }
-                });
-
-                $count++;
-            });
-
-        return $count;
-    }
-
-    private function currentLines(int $annualBudgetId): Collection
-    {
-        return BudgetMonthlyDistribution::where('annual_budget_id', $annualBudgetId)
-            ->groupBy('month', 'expense_category_id', 'budget_cedula_id')
-            ->selectRaw('month, expense_category_id, budget_cedula_id, SUM(assigned_amount) as amount')
-            ->get();
-    }
-
-    private function storeLine(int $annualBudgetId, object $line, float $amount, string $source, ?int $userId): void
-    {
-        BudgetBaseline::create([
-            'annual_budget_id' => $annualBudgetId,
-            'month' => (int) $line->month,
-            'expense_category_id' => $line->expense_category_id,
-            'budget_cedula_id' => $line->budget_cedula_id,
-            'original_amount' => round($amount, 2),
-            'source' => $source,
-            'captured_at' => now(),
-            'captured_by' => $userId,
-        ]);
+        if ($budget->status === 'APROBADO' && (BudgetDistributionBaseline::where('annual_budget_id', $budget->id)->exists() || BudgetMovement::query()
+            ->where('fiscal_year', $budget->fiscal_year)
+            ->where('status', BudgetMovement::STATUS_APPROVED)
+            ->whereHas('details', fn ($q) => $q->where('cost_center_id', $budget->cost_center_id))
+            ->exists())) {
+            throw new RuntimeException("El presupuesto {$budget->id} tiene movimientos aprobados y no puede reemplazarse mediante importación.");
+        }
     }
 }

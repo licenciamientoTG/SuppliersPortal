@@ -52,6 +52,9 @@
                         </thead>
                         <tbody>
                             @forelse($requisitions as $requisition)
+                                @php
+                                    $pendingApprovalRfq = $requisition->rfqs->first(fn ($rfq) => $rfq->quotationSummary?->isPending());
+                                @endphp
                                 <tr>
                                     <td>
                                         <strong>{{ $requisition->folio }}</strong>
@@ -72,16 +75,31 @@
                                         {{ \Illuminate\Support\Str::limit($primaryCostCenter?->name ?? 'Sin centro de costo', 30) }}
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ $requisition->status->badgeClass() }}">
-                                            {{ $requisition->status->label() }}
-                                        </span>
+                                        @php($blockSummary = $blockedSummaries[$requisition->id] ?? ['blocked' => 0, 'submitted' => 0])
+                                        @if($pendingApprovalRfq)
+                                            <span class="badge bg-{{ \App\Enum\RequisitionStatus::IN_APPROVAL->badgeClass() }}">
+                                                {{ \App\Enum\RequisitionStatus::IN_APPROVAL->label() }}
+                                            </span>
+                                        @elseif($requisition->status !== \App\Enum\RequisitionStatus::IN_APPROVAL && $blockSummary['blocked'] > 0)
+                                            <span class="badge bg-danger" title="{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }} cotizaciones bloqueadas">Bloqueada</span>
+                                            <small class="d-block text-danger mt-1">{{ $blockSummary['blocked'] }} de {{ $blockSummary['submitted'] }}</small>
+                                        @else
+                                            <span class="badge bg-{{ $requisition->status->badgeClass() }}">
+                                                {{ $requisition->status->label() }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group">
-                                            <a href="{{ route('rfq.wizard.steps', $requisition->id) }}"
-                                               class="btn btn-primary btn-sm">
-                                                <i class="ti ti-file-invoice me-1"></i> Cotizar
-                                            </a>
+                                            @if($pendingApprovalRfq)
+                                                <a href="{{ route('rfq.comparison.index', $pendingApprovalRfq) }}" class="btn btn-outline-info btn-sm">
+                                                    <i class="ti ti-eye me-1"></i> Ver comparativo
+                                                </a>
+                                            @else
+                                                <a href="{{ route('rfq.wizard.steps', $requisition->id) }}" class="btn btn-primary btn-sm">
+                                                    <i class="ti ti-file-invoice me-1"></i> Cotizar
+                                                </a>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

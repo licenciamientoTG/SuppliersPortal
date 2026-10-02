@@ -517,6 +517,14 @@
                                     <td class="text-center small">{{ $item->getIvaRateLabel() }}</td>
                                     <td class="text-end fw-bold text-dark">
                                         {{ $ocd->currency === 'USD' ? 'US$' : '$' }}{{ number_format($item->total, 2) }}
+                                        @if(auth()->user()->can('reportes.budget_alerts.excepcion.solicitar'))
+                                            @php($budgetException = $budgetExceptions[$item->id] ?? null)
+                                            @if($budgetException)
+                                                <small class="d-block text-muted">Excepción: {{ $budgetException->status }}</small>
+                                            @else
+                                                <button type="button" class="btn btn-link btn-sm p-0" onclick="requestBudgetException({{ $item->id }})">Solicitar excepción</button>
+                                            @endif
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -994,3 +1002,18 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+async function requestBudgetException(lineId) {
+    const reason = prompt('Motivo de negocio para solicitar la excepción:');
+    if (!reason || reason.trim().length < 10) return;
+    const response = await fetch(@json(route('budget-alert-reports.exceptions.request')), {
+        method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':@json(csrf_token()),'Accept':'application/json'},
+        body: JSON.stringify({document_type:'direct_purchase_order', document_id:{{ $directPurchaseOrder->id }}, document_line_id:lineId, reason})
+    });
+    if (!response.ok) { const result = await response.json().catch(()=>({})); alert(result.message || 'No se pudo enviar la solicitud.'); return; }
+    location.reload();
+}
+</script>
+@endpush

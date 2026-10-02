@@ -9,6 +9,8 @@ use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -31,6 +33,7 @@ class BudgetMovementApprovalLevelTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         Role::findOrCreate('general_director');
         $this->requester = User::factory()->create(['is_active' => true]);
         $this->director = User::factory()->create(['is_active' => true]);
@@ -48,7 +51,7 @@ class BudgetMovementApprovalLevelTest extends TestCase
     {
         $this->actingAs($this->requester)->post(route('budget_movements.store'), [
             'movement_type' => 'AMPLIACION', 'fiscal_year' => now()->year, 'movement_date' => now()->toDateString(), 'total_amount' => 500,
-            'justification' => 'Ampliación para prueba de nivel de autorización.', 'cost_center_id' => $this->center->id, 'month' => 3,
+            'justification' => 'Ampliación para prueba de nivel de autorización.', 'supporting_document' => UploadedFile::fake()->create('soporte.pdf', 20, 'application/pdf'), 'cost_center_id' => $this->center->id, 'month' => 3,
             'expense_category_id' => $this->category->id, 'budget_cedula_id' => $this->cedula->id,
         ])->assertRedirect();
 

@@ -8,6 +8,7 @@ use App\Models\Rfq;
 use App\Models\RfqResponse;
 use App\Models\Supplier;
 use App\Services\QuotationRejectionWorkflowService;
+use App\Services\Rfq\RfqBlockStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,7 @@ class RfqController extends Controller
     /**
      * DataTable para listado de RFQs.
      */
-    public function datatable(Request $request): JsonResponse
+    public function datatable(Request $request, RfqBlockStatusService $rfqBlockStatus): JsonResponse
     {
 
         $query = Rfq::with([
@@ -110,7 +111,7 @@ class RfqController extends Controller
 
                 return '<div class="d-flex flex-wrap gap-1">'.$badges.'</div>';
             })
-            ->addColumn('status_badge', function ($row) {
+            ->addColumn('status_badge', function ($row) use ($rfqBlockStatus) {
                 $badges = [
                     'DRAFT' => ['class' => 'secondary', 'icon' => 'ti ti-pencil', 'label' => 'Borrador'],
                     'SENT' => ['class' => 'info', 'icon' => 'ti ti-send', 'label' => 'Enviada'],
@@ -122,6 +123,12 @@ class RfqController extends Controller
                 ];
 
                 $badge = $badges[$row->status] ?? ['class' => 'secondary', 'icon' => 'ti ti-help', 'label' => $row->status];
+
+                $blockSummary = $rfqBlockStatus->summary($row);
+                if ($blockSummary['blocked'] > 0) {
+                    return '<span class="badge bg-danger status-badge"><i class="ti ti-lock"></i> Bloqueada</span>'
+                        .'<small class="rfq-status-time">'.$blockSummary['blocked'].' de '.$blockSummary['submitted'].' cotizaciones</small>';
+                }
 
                 return '<span class="badge bg-'.$badge['class'].' status-badge">
                         <i class="'.$badge['icon'].'"></i> '.$badge['label'].'
@@ -210,7 +217,7 @@ class RfqController extends Controller
     /**
      * DataTable para RFQs en el wizard (filtrado por requisición)
      */
-    public function wizardDatatable(Request $request, Requisition $requisition): JsonResponse
+    public function wizardDatatable(Request $request, Requisition $requisition, RfqBlockStatusService $rfqBlockStatus): JsonResponse
     {
         $query = Rfq::with([
             'quotationGroup',
@@ -260,7 +267,7 @@ class RfqController extends Controller
 
                 return '<div class="d-flex flex-wrap gap-1">'.$badges.'</div>';
             })
-            ->addColumn('status_badge', function ($row) {
+            ->addColumn('status_badge', function ($row) use ($rfqBlockStatus) {
                 $badges = [
                     'DRAFT' => ['class' => 'warning', 'icon' => 'ti ti-pencil', 'label' => 'Borrador'],
                     'SENT' => ['class' => 'success', 'icon' => 'ti ti-circle-check', 'label' => 'Correo enviado'],
@@ -272,6 +279,12 @@ class RfqController extends Controller
                 ];
 
                 $badge = $badges[$row->status] ?? ['class' => 'secondary', 'icon' => 'ti ti-help', 'label' => $row->status];
+
+                $blockSummary = $rfqBlockStatus->summary($row);
+                if ($blockSummary['blocked'] > 0) {
+                    return '<span class="badge bg-danger status-badge rfq-status-badge"><i class="ti ti-lock"></i> Bloqueada</span>'
+                        .'<small class="rfq-status-time">'.$blockSummary['blocked'].' de '.$blockSummary['submitted'].' cotizaciones</small>';
+                }
 
                 $sentAt = $row->status === 'SENT' && $row->sent_at
                     ? '<small class="rfq-status-time">'.e($row->sent_at->format('d/m H:i')).'</small>'

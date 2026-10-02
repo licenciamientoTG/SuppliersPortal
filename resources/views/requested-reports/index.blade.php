@@ -92,11 +92,14 @@
                     </ul>
 
                     <div class="rr-footer">
-                        <span class="text-muted"><i class="ti ti-hourglass me-1"></i>Pendiente de construir</span>
-                        @if($report['existing_title'])
+                        @if(!empty($report['report_route']))
+                            <a class="text-primary fw-semibold text-decoration-none" href="{{ route($report['report_route']) }}">Abrir reporte <i class="ti ti-arrow-right"></i></a>
+                        @elseif($report['existing_title'])
                             <a class="text-primary fw-semibold text-decoration-none" href="{{ route('reports.show', $report['existing_report']) }}" title="Reporte actual que ya cubre una parte">
                                 Base: {{ $report['existing_title'] }} <i class="ti ti-arrow-right"></i>
                             </a>
+                        @else
+                            <span class="text-muted"><i class="ti ti-hourglass me-1"></i>Pendiente de construir</span>
                         @endif
                     </div>
                 </article>

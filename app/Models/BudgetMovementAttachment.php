@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BudgetMovementAttachment extends Model
 {
-    protected $fillable = ['budget_movement_id', 'original_name', 'file_path', 'mime_type', 'size_bytes', 'uploaded_by'];
+    protected $guarded = [];
+
+    protected $casts = ['file_size' => 'integer'];
 
     public function movement(): BelongsTo
     {

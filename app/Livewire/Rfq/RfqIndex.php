@@ -4,6 +4,7 @@ namespace App\Livewire\Rfq;
 
 use App\Enum\RequisitionStatus;
 use App\Models\Requisition;
+use App\Services\Rfq\RfqBlockStatusService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -38,11 +39,12 @@ class RfqIndex extends Component
             RequisitionStatus::APPROVED,
             RequisitionStatus::IN_QUOTATION,
             RequisitionStatus::QUOTED,
+            RequisitionStatus::IN_APPROVAL,
             RequisitionStatus::PENDING_BUDGET_ADJUSTMENT,
         ];
 
         $requisitions = Requisition::query()
-            ->with(['requester', 'company', 'department', 'items.costCenter'])
+            ->with(['requester', 'company', 'department', 'items.costCenter', 'rfqs.quotationSummary'])
             ->whereIn('status', $allowedStatuses)
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -57,14 +59,31 @@ class RfqIndex extends Component
                 });
             })
             ->when($this->statusFilter, function ($query) {
-                $query->where('status', $this->statusFilter);
+                $pendingApproval = fn ($summaryQuery) => $summaryQuery->where('approval_status', 'pending');
+
+                if ($this->statusFilter === RequisitionStatus::IN_APPROVAL->value) {
+                    $query->where(fn ($statusQuery) => $statusQuery
+                        ->where('status', RequisitionStatus::IN_APPROVAL->value)
+                        ->orWhereHas('quotationSummaries', $pendingApproval));
+
+                    return;
+                }
+
+                $query->where('status', $this->statusFilter)
+                    ->whereDoesntHave('quotationSummaries', $pendingApproval);
             })
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
+        $blockedSummaries = $requisitions->getCollection()
+            ->mapWithKeys(fn (Requisition $requisition) => [
+                $requisition->id => app(RfqBlockStatusService::class)->requisitionSummary($requisition->rfqs),
+            ]);
+
         return view('livewire.rfq.rfq-index', [
             'requisitions' => $requisitions,
             'allowedStatuses' => $allowedStatuses,
+            'blockedSummaries' => $blockedSummaries,
         ]); // ← SOLO ESTO, sin ->layout() ni ->section()
     }
 }

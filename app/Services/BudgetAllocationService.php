@@ -356,7 +356,9 @@ class BudgetAllocationService
                 (int) $line['expense_category_id']
             );
 
-            if (! $distribution->commitAmount((float) $line['amount'])) {
+            $approvedException = $this->approvedExceptionForLine($order, $line, $distribution);
+            $committed = $approvedException ? $distribution->commitAmountWithException((float) $line['amount']) : $distribution->commitAmount((float) $line['amount']);
+            if (! $committed) {
                 throw new RuntimeException(
                     "No se pudo comprometer presupuesto para la cédula {$this->cedulaLabel((int) $line['budget_cedula_id'])}."
                 );
@@ -373,6 +375,9 @@ class BudgetAllocationService
             );
             $commitment->committed_at = now();
             $commitment->save();
+            if ($approvedException) {
+                $approvedException->update(['used_at' => now()]);
+            }
 
             return;
         }
@@ -384,14 +389,28 @@ class BudgetAllocationService
             $line['expense_category_id']
         );
 
-        $allocations = $this->allocateAmountAcrossDistributions($distributions, (float) $line['amount']);
+        try {
+            $allocations = $this->allocateAmountAcrossDistributions($distributions, (float) $line['amount']);
+        } catch (RuntimeException $exception) {
+            $approved = $this->approvedExceptionForLine($order, $line, $distributions->first());
+            if (! $approved || (float) $line['amount'] - $distributions->sum(fn ($distribution) => $distribution->getAvailableAmount()) > (float) $approved->approved_excess + 0.01) {
+                throw $exception;
+            }
+            $target = $approved->budget_monthly_distribution_id ? $distributions->firstWhere('id', $approved->budget_monthly_distribution_id) : $distributions->first();
+            if (! $target) {
+                throw $exception;
+            }
+            $allocations = [['distribution' => $target, 'amount' => (float) $line['amount']]];
+        }
 
         foreach ($allocations as $allocation) {
             /** @var BudgetMonthlyDistribution $distribution */
             $distribution = $allocation['distribution'];
             $amount = $allocation['amount'];
 
-            if (! $distribution->commitAmount($amount)) {
+            $approvedException = $this->approvedExceptionForLine($order, $line, $distribution);
+            $committed = $approvedException ? $distribution->commitAmountWithException($amount) : $distribution->commitAmount($amount);
+            if (! $committed) {
                 throw new RuntimeException(
                     "No se pudo comprometer presupuesto para la cédula {$this->cedulaLabel((int) $distribution->budget_cedula_id)}."
                 );
@@ -408,7 +427,31 @@ class BudgetAllocationService
             );
             $commitment->committed_at = now();
             $commitment->save();
+            if ($approvedException) {
+                $approvedException->update(['used_at' => now()]);
+            }
         }
+    }
+
+    private function approvedExceptionForLine(Model $order, array $line, BudgetMonthlyDistribution $distribution): ?\App\Models\BudgetException
+    {
+        if (! $order instanceof DirectPurchaseOrder) {
+            return null;
+        }
+        $exception = \App\Models\BudgetException::query()->where('document_type', 'direct_purchase_order')->where('document_id', $order->id)
+            ->where('cost_center_id', $line['cost_center_id'])->where('expense_category_id', $line['expense_category_id'])
+            ->where('application_month', $line['application_month'])->where('status', 'APPROVED')->whereNull('used_at')
+            ->when($line['budget_cedula_id'] ?? null, fn ($q, $id) => $q->where('budget_cedula_id', $id))->first();
+        if (! $exception) {
+            return null;
+        }
+        if ($exception->budget_monthly_distribution_id && (int) $exception->budget_monthly_distribution_id !== (int) $distribution->id) {
+            return null;
+        }
+        $available = (float) $distribution->assigned_amount - (float) $distribution->consumed_amount - (float) $distribution->committed_amount;
+        $shortfall = max(0, round((float) $line['amount'] - $available, 2));
+
+        return $shortfall <= (float) $exception->approved_excess + 0.01 ? $exception : null;
     }
 
     private function releaseLine(Model $order, array $line): void

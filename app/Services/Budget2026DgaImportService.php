@@ -142,6 +142,8 @@ class Budget2026DgaImportService
                         'fiscal_year' => $year,
                     ]);
 
+                app(BudgetBaselineService::class)->assertCanReplace($budget);
+
                 if ($budget->trashed()) {
                     $budget->restore();
                 }
@@ -199,9 +201,8 @@ class Budget2026DgaImportService
                     }
                 }
 
-                // La importación reemplaza las distribuciones: si el presupuesto está aprobado, esa es su nueva foto original.
                 if ($budget->status === 'APROBADO') {
-                    app(\App\Services\BudgetBaselineService::class)->capture($budget, \App\Models\BudgetBaseline::SOURCE_IMPORT, $actorId, true);
+                    app(BudgetBaselineService::class)->capture($budget, $actorId, 'APPROVED_BUDGET_IMPORT');
                 }
             }
         });

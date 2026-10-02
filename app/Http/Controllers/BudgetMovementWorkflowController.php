@@ -125,7 +125,7 @@ class BudgetMovementWorkflowController extends Controller
         $this->ensureCanSubmit($actor, $data);
         $settings = $this->settingsOrFail();
 
-        $movement = DB::transaction(function () use ($data, $actor) {
+        $movement = DB::transaction(function () use ($data, $actor, $request) {
             $status = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER
                 ? BudgetMovement::STATUS_PENDING_ORIGIN
                 : BudgetMovement::STATUS_PENDING_EXECUTIVE;
@@ -135,12 +135,11 @@ class BudgetMovementWorkflowController extends Controller
                 'justification' => $data['justification'], 'status' => $status, 'created_by' => $actor->id,
             ]);
             $this->syncDetails($movement, $data);
+            $this->storeSupportFile($movement, $request);
             $this->record($movement, BudgetMovementDecision::STAGE_EXECUTIVE, BudgetMovementDecision::ACTION_SUBMITTED, $actor);
 
             return $movement->fresh(['details.costCenter']);
         });
-
-        $this->storeAttachments($movement, $request->file('attachments', []), $actor);
 
         if ($movement->isTransfer()) {
             $originOwner = $movement->originDetails()->with('costCenter.responsible')->first()?->costCenter?->responsible;
@@ -155,12 +154,13 @@ class BudgetMovementWorkflowController extends Controller
     public function show(Request $request, BudgetMovement $budgetMovement): View
     {
         $this->ensureVisible($request->user(), $budgetMovement);
-        $budgetMovement->load(['details.costCenter.responsible', 'details.expenseCategory', 'details.budgetCedula', 'creator', 'approver', 'decisions.actor', 'attachments.uploader']);
+        $budgetMovement->load(['details.costCenter.company', 'details.costCenter.responsible', 'details.expenseCategory', 'details.budgetCedula', 'creator', 'approver', 'decisions.actor', 'attachments.uploader', 'reversalOf', 'reversals']);
 
         return view('budget_movements.workflow.show', [
             'budgetMovement' => $budgetMovement,
             'canOriginApprove' => $this->canOriginApprove($request->user(), $budgetMovement),
             'canExecutiveApprove' => $this->approvalSettings()?->canApprove($request->user()) && $budgetMovement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE,
+            'canReverse' => $budgetMovement->isApproved() && $budgetMovement->reversals->isEmpty() && $this->visibleTo($request->user())->whereKey($budgetMovement->id)->exists(),
         ]);
     }
 
@@ -181,17 +181,18 @@ class BudgetMovementWorkflowController extends Controller
         $this->ensureCanSubmit($actor, $data);
         $settings = $this->settingsOrFail();
 
-        $movement = DB::transaction(function () use ($budgetMovement, $data, $actor) {
+        $movement = DB::transaction(function () use ($budgetMovement, $data, $actor, $request) {
             $status = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER ? BudgetMovement::STATUS_PENDING_ORIGIN : BudgetMovement::STATUS_PENDING_EXECUTIVE;
             $budgetMovement->update(array_merge(collect($data)->only(['movement_type', 'fiscal_year', 'movement_date', 'total_amount', 'justification'])->all(), ['status' => $status]));
             $budgetMovement->details()->delete();
             $this->syncDetails($budgetMovement, $data);
+            if ($request->hasFile('supporting_document')) {
+                $this->storeSupportFile($budgetMovement, $request);
+            }
             $this->record($budgetMovement, BudgetMovementDecision::STAGE_EXECUTIVE, BudgetMovementDecision::ACTION_SUBMITTED, $actor, 'Solicitud corregida y reenviada.');
 
             return $budgetMovement->fresh(['details.costCenter']);
         });
-
-        $this->storeAttachments($movement, $request->file('attachments', []), $actor);
 
         if ($movement->isTransfer()) {
             $this->notify($movement->originDetails()->with('costCenter.responsible')->first()?->costCenter?->responsible, $movement, 'La transferencia fue corregida y requiere tu validación como origen.');
@@ -200,6 +201,72 @@ class BudgetMovementWorkflowController extends Controller
         }
 
         return redirect()->route('budget_movements.show', $movement)->with('success', 'Solicitud corregida y reenviada.');
+    }
+
+    public function reverse(Request $request, BudgetMovement $budgetMovement): RedirectResponse
+    {
+        $this->ensureVisible($request->user(), $budgetMovement);
+        abort_unless($budgetMovement->isApproved(), 422, 'Solo se pueden revertir movimientos aprobados.');
+        abort_if($budgetMovement->reversals()->exists(), 422, 'Este movimiento ya tiene una reversa registrada.');
+        $data = $request->validate(['justification' => ['required', 'string', 'min:10', 'max:1000']]);
+        $budgetMovement->load('details');
+        $settings = $this->settingsOrFail();
+
+        $reversal = DB::transaction(function () use ($budgetMovement, $request, $data) {
+            $type = match ($budgetMovement->movement_type) {
+                BudgetMovement::TYPE_INCREASE => BudgetMovement::TYPE_DECREASE,
+                BudgetMovement::TYPE_DECREASE => BudgetMovement::TYPE_INCREASE,
+                default => BudgetMovement::TYPE_TRANSFER,
+            };
+            $status = $type === BudgetMovement::TYPE_TRANSFER
+                ? BudgetMovement::STATUS_PENDING_ORIGIN
+                : BudgetMovement::STATUS_PENDING_EXECUTIVE;
+            $movement = BudgetMovement::create([
+                'movement_type' => $type,
+                'fiscal_year' => $budgetMovement->fiscal_year,
+                'movement_date' => now()->toDateString(),
+                'total_amount' => $budgetMovement->total_amount,
+                'justification' => 'Reversa del movimiento #'.$budgetMovement->id.'. '.$data['justification'],
+                'status' => $status,
+                'created_by' => $request->user()->id,
+                'reversal_of_id' => $budgetMovement->id,
+            ]);
+
+            foreach ($budgetMovement->details as $detail) {
+                $isTransfer = $type === BudgetMovement::TYPE_TRANSFER;
+                $detailType = $isTransfer
+                    ? ($detail->detail_type === BudgetMovementDetail::TYPE_ORIGIN ? BudgetMovementDetail::TYPE_DESTINATION : BudgetMovementDetail::TYPE_ORIGIN)
+                    : BudgetMovementDetail::TYPE_ADJUSTMENT;
+                BudgetMovementDetail::create([
+                    'budget_movement_id' => $movement->id,
+                    'detail_type' => $detailType,
+                    'cost_center_id' => $detail->cost_center_id,
+                    'month' => $detail->month,
+                    'expense_category_id' => $detail->expense_category_id,
+                    'budget_cedula_id' => $detail->budget_cedula_id,
+                    'amount' => -1 * (float) $detail->amount,
+                ]);
+            }
+            $this->record($movement, BudgetMovementDecision::STAGE_EXECUTIVE, BudgetMovementDecision::ACTION_SUBMITTED, $request->user(), 'Reversa del movimiento #'.$budgetMovement->id);
+
+            return $movement;
+        });
+
+        if ($reversal->isTransfer()) {
+            $this->notify($reversal->originDetails()->with('costCenter.responsible')->first()?->costCenter?->responsible, $reversal, 'Hay una reversa de transferencia pendiente de validar.');
+        } else {
+            $this->notifyExecutives($settings, $reversal, 'Hay una reversa presupuestal pendiente de aprobación.');
+        }
+
+        return redirect()->route('budget_movements.show', $reversal)->with('success', 'La reversa se registró y seguirá el flujo normal de aprobación.');
+    }
+
+    public function downloadAttachment(Request $request, BudgetMovementAttachment $attachment)
+    {
+        abort_unless($this->visibleTo($request->user())->whereKey($attachment->budget_movement_id)->exists(), 403);
+        abort_unless(Storage::disk($attachment->disk)->exists($attachment->file_path), 404);
+
+        return Storage::disk($attachment->disk)->download($attachment->file_path, $attachment->original_name);
     }
 
     public function approveOrigin(Request $request, BudgetMovement $budgetMovement): RedirectResponse
@@ -238,6 +305,10 @@ class BudgetMovementWorkflowController extends Controller
         DB::transaction(function () use ($budgetMovement, $request) {
             $movement = BudgetMovement::query()->lockForUpdate()->with(['details.costCenter', 'details.expenseCategory'])->findOrFail($budgetMovement->id);
             abort_unless($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 422, 'La solicitud ya no está pendiente de aprobación ejecutiva.');
+            if ($this->isCrossCompanyTransfer($movement)) {
+                abort_unless($movement->decisions()->where('stage', BudgetMovementDecision::STAGE_ORIGIN)->where('action', BudgetMovementDecision::ACTION_APPROVED)->exists(), 422, 'Una transferencia entre empresas requiere primero la validación del centro de costo origen.');
+                abort_unless($this->approvalSettings()?->canApprove($request->user()), 403, 'La transferencia entre empresas requiere aprobación de Dirección.');
+            }
             $this->applyMovement($movement, $request->user()->id);
             $level = (int) $this->approvalSettings()?->director_user_id === (int) $request->user()->id
                 ? BudgetMovement::LEVEL_DIRECTION
@@ -263,15 +334,6 @@ class BudgetMovementWorkflowController extends Controller
         $this->notify($budgetMovement->creator, $budgetMovement->fresh(), 'Tu movimiento presupuestal fue rechazado: '.$data['comments']);
 
         return back()->with('success', 'Movimiento rechazado.');
-    }
-
-    public function downloadAttachment(Request $request, BudgetMovement $budgetMovement, BudgetMovementAttachment $attachment)
-    {
-        $this->ensureVisible($request->user(), $budgetMovement);
-        abort_unless((int) $attachment->budget_movement_id === (int) $budgetMovement->id, 404);
-        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
-
-        return Storage::disk('local')->download($attachment->file_path, $attachment->original_name);
     }
 
     public function settings(Request $request): View
@@ -318,20 +380,6 @@ class BudgetMovementWorkflowController extends Controller
         }
     }
 
-    /** @param  \Illuminate\Http\UploadedFile[]  $files */
-    private function storeAttachments(BudgetMovement $movement, array $files, User $actor): void
-    {
-        foreach ($files as $file) {
-            $movement->attachments()->create([
-                'original_name' => $file->getClientOriginalName(),
-                'file_path' => $file->store("budget-movements/{$movement->id}", 'local'),
-                'mime_type' => $file->getClientMimeType(),
-                'size_bytes' => $file->getSize(),
-                'uploaded_by' => $actor->id,
-            ]);
-        }
-    }
-
     private function ensureCanSubmit(User $actor, array $data): void
     {
         $centerId = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER ? $data['destination_cost_center_id'] : $data['cost_center_id'];
@@ -370,6 +418,26 @@ class BudgetMovementWorkflowController extends Controller
     private function record(BudgetMovement $m, string $stage, string $action, User $actor, ?string $comments = null): void
     {
         $m->decisions()->create(['stage' => $stage, 'action' => $action, 'actor_user_id' => $actor->id, 'comments' => $comments]);
+    }
+
+    private function storeSupportFile(BudgetMovement $movement, Request $request): void
+    {
+        $file = $request->file('supporting_document');
+        if (! $file) {
+            return;
+        }
+
+        $path = $file->store('budget-movements/'.$movement->id, 'local');
+        BudgetMovementAttachment::create([
+            'budget_movement_id' => $movement->id,
+            'disk' => 'local',
+            'file_path' => $path,
+            'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+            'mime_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
+            'sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
+            'uploaded_by' => $request->user()->id,
+        ]);
     }
 
     private function canOriginApprove(User $actor, BudgetMovement $m): bool
@@ -436,5 +504,19 @@ class BudgetMovementWorkflowController extends Controller
                 }
             }
         }
+    }
+
+    private function isCrossCompanyTransfer(BudgetMovement $movement): bool
+    {
+        if (! $movement->isTransfer()) {
+            return false;
+        }
+        $details = $movement->details->loadMissing('costCenter:id,company_id');
+        $origin = $details->firstWhere('detail_type', BudgetMovementDetail::TYPE_ORIGIN);
+        $destination = $details->firstWhere('detail_type', BudgetMovementDetail::TYPE_DESTINATION);
+
+        return $origin?->costCenter?->company_id !== null
+            && $destination?->costCenter?->company_id !== null
+            && (int) $origin->costCenter->company_id !== (int) $destination->costCenter->company_id;
     }
 }

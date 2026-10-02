@@ -42,7 +42,7 @@ return [
             'fields' => ['Folio, fecha, tipo e importe', 'Centro de costo y renglón origen y destino', 'Motivo, solicitante y autorizador', 'Nivel de autorización aplicado y documento soporte'],
         ],
         [
-            'code' => 'RP-03', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 16, 'existing_report' => null,
+            'code' => 'RP-03', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 16, 'existing_report' => null, 'report_route' => 'budget-alert-reports.index',
             'name' => 'Alertas de agotamiento, sobregiro y excepciones autorizadas',
             'purpose' => 'Aviso antes del sobregiro, no en el cierre, y el listado auditable de cada compra autorizada sin presupuesto con el nombre de quien la autorizó.',
             'frequency' => 'Batch diario + disparo por evento',

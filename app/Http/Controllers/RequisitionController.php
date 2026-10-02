@@ -70,12 +70,12 @@ class RequisitionController extends Controller
     /**
      * Get requisitions for DataTables.
      */
-    public function datatable(Request $request): JsonResponse
+    public function datatable(Request $request, \App\Services\Rfq\RfqBlockStatusService $rfqBlockStatus): JsonResponse
     {
         // Usamos withCount para que el conteo venga en la consulta principal
         $query = Requisition::query()
             ->visibleTo($request->user())
-            ->with(['items.costCenter', 'requester', 'department'])
+            ->with(['items.costCenter', 'requester', 'department', 'rfqs'])
             ->withCount('items');
 
         return DataTables::of($query)
@@ -91,12 +91,19 @@ class RequisitionController extends Controller
             })
 
             // ✅ Status con data-status para filtrado
-            ->editColumn('status', function ($requisition) {
-                return '<span data-status="'.$requisition->status->value.'" class="badge bg-'.
-                    $requisition->status->badgeClass().
-                    '">'.
-                    $requisition->status->label().
-                    '</span>';
+            ->editColumn('status', function ($requisition) use ($rfqBlockStatus) {
+                $summary = in_array($requisition->status, [RequisitionStatus::IN_QUOTATION, RequisitionStatus::QUOTED], true)
+                    ? $rfqBlockStatus->requisitionSummary($requisition->rfqs)
+                    : ['blocked' => 0, 'submitted' => 0];
+                $isBlocked = $summary['blocked'] > 0;
+                $label = $isBlocked ? 'Bloqueada' : $requisition->status->label();
+                $status = $isBlocked ? 'BLOCKED' : $requisition->status->value;
+                $class = $isBlocked ? 'danger' : $requisition->status->badgeClass();
+                $detail = $isBlocked
+                    ? ' title="'.e($summary['blocked'].' de '.$summary['submitted'].' cotizaciones bloqueadas').'"'
+                    : '';
+
+                return '<span data-status="'.$status.'" class="badge bg-'.$class.'"'.$detail.'>'.$label.'</span>';
             })
             ->editColumn('required_date', function ($r) {
                 if (! $r->required_date) {

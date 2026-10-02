@@ -11,6 +11,8 @@ use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -35,6 +37,7 @@ class BudgetMovementWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         Role::findOrCreate('general_director');
         $this->requester = User::factory()->create(['is_active' => true]);
         $this->originOwner = User::factory()->create(['is_active' => true]);
@@ -56,6 +59,7 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement))->assertRedirect();
         $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_PENDING_EXECUTIVE]);
         $this->assertDatabaseHas('budget_movement_decisions', ['budget_movement_id' => $movement->id, 'stage' => 'ORIGEN', 'action' => 'APROBADO', 'actor_user_id' => $this->originOwner->id]);
+        $this->assertDatabaseHas('budget_movement_attachments', ['budget_movement_id' => $movement->id, 'uploaded_by' => $this->requester->id]);
     }
 
     public function test_origin_owner_can_return_transfer_for_correction_and_requester_can_edit_it(): void
@@ -110,11 +114,51 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
         $movement = BudgetMovement::firstOrFail();
         $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+        $this->actingAs($this->requester)->post(route('budget_movements.approve', $movement))->assertForbidden();
         $this->actingAs($this->director)->post(route('budget_movements.approve', $movement))->assertRedirect();
 
         $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_APPROVED]);
         $this->assertDatabaseHas('budget_monthly_distributions', ['annual_budget_id' => $originBudget->id, 'month' => 1, 'assigned_amount' => 4000]);
         $this->assertDatabaseHas('budget_monthly_distributions', ['annual_budget_id' => $destinationBudget->id, 'month' => 2, 'assigned_amount' => 2000]);
+        $this->assertDatabaseHas('budget_movement_decisions', ['budget_movement_id' => $movement->id, 'stage' => 'DIRECCION', 'action' => 'APROBADO', 'actor_user_id' => $this->director->id]);
+        $this->assertNotSame($this->origin->company_id, $this->destination->company_id, 'The test transfer should represent an inter-company movement.');
+    }
+
+    public function test_approved_movement_is_immutable_and_reversal_is_a_new_authorized_transfer(): void
+    {
+        $originBudget = AnnualBudget::create(['cost_center_id' => $this->origin->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 5000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        $destinationBudget = AnnualBudget::create(['cost_center_id' => $this->destination->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 1000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $originBudget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 1, 'assigned_amount' => 5000, 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $destinationBudget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 2, 'assigned_amount' => 1000, 'created_by' => $this->director->id]);
+
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+        $this->actingAs($this->director)->post(route('budget_movements.approve', $movement))->assertRedirect();
+        $this->expectException(\LogicException::class);
+        $movement->refresh()->update(['justification' => 'Intento de modificar un movimiento aprobado']);
+    }
+
+    public function test_reversal_links_to_approved_movement_and_uses_direction_approval_flow(): void
+    {
+        $originBudget = AnnualBudget::create(['cost_center_id' => $this->origin->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 5000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        $destinationBudget = AnnualBudget::create(['cost_center_id' => $this->destination->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 1000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $originBudget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 1, 'assigned_amount' => 5000, 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $destinationBudget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 2, 'assigned_amount' => 1000, 'created_by' => $this->director->id]);
+
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+        $this->actingAs($this->director)->post(route('budget_movements.approve', $movement));
+        $this->actingAs($this->requester)->post(route('budget_movements.reverse', $movement), ['justification' => 'Se revierte por cambio aprobado de prioridad.'])->assertRedirect();
+
+        $reversal = BudgetMovement::query()->where('reversal_of_id', $movement->id)->firstOrFail();
+        $this->assertSame(BudgetMovement::STATUS_PENDING_ORIGIN, $reversal->status);
+        $this->assertSame(BudgetMovement::TYPE_TRANSFER, $reversal->movement_type);
+        $this->assertDatabaseHas('budget_movement_details', ['budget_movement_id' => $reversal->id, 'detail_type' => 'ORIGEN', 'cost_center_id' => $this->destination->id, 'amount' => -1000]);
+        $this->actingAs($this->requester)->post(route('budget_movements.origin-approve', $reversal))->assertRedirect();
+        $this->actingAs($this->director)->post(route('budget_movements.approve', $reversal))->assertRedirect();
+        $this->assertDatabaseHas('budget_movements', ['id' => $reversal->id, 'status' => BudgetMovement::STATUS_APPROVED, 'reversal_of_id' => $movement->id]);
     }
 
     public function test_owner_can_view_current_and_projected_budget_for_a_selected_subaccount(): void
@@ -173,6 +217,6 @@ class BudgetMovementWorkflowTest extends TestCase
 
     private function transferPayload(): array
     {
-        return ['movement_type' => 'TRANSFERENCIA', 'fiscal_year' => now()->year, 'movement_date' => now()->toDateString(), 'total_amount' => 1000, 'justification' => 'Se requiere redistribuir presupuesto para una necesidad operativa.', 'origin_cost_center_id' => $this->origin->id, 'origin_month' => 1, 'origin_expense_category_id' => $this->category->id, 'origin_budget_cedula_id' => $this->cedula->id, 'destination_cost_center_id' => $this->destination->id, 'destination_month' => 2, 'destination_expense_category_id' => $this->category->id, 'destination_budget_cedula_id' => $this->cedula->id];
+        return ['movement_type' => 'TRANSFERENCIA', 'fiscal_year' => now()->year, 'movement_date' => now()->toDateString(), 'total_amount' => 1000, 'justification' => 'Se requiere redistribuir presupuesto para una necesidad operativa.', 'supporting_document' => UploadedFile::fake()->create('soporte.pdf', 20, 'application/pdf'), 'origin_cost_center_id' => $this->origin->id, 'origin_month' => 1, 'origin_expense_category_id' => $this->category->id, 'origin_budget_cedula_id' => $this->cedula->id, 'destination_cost_center_id' => $this->destination->id, 'destination_month' => 2, 'destination_expense_category_id' => $this->category->id, 'destination_budget_cedula_id' => $this->cedula->id];
     }
 }

@@ -628,6 +628,10 @@ class UserController extends Controller
             ->pluck('name');
 
         DB::transaction(function () use ($user, $existingNonView, $selected) {
+            foreach ($selected as $permissionName) {
+                Permission::findOrCreate($permissionName, 'web');
+            }
+
             $user->syncPermissions($existingNonView->merge($selected)->unique()->values()->all());
         });
 

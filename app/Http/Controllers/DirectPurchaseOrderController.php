@@ -635,6 +635,14 @@ class DirectPurchaseOrderController extends Controller
                 );
 
                 if (! ($budgetCheck['available'] ?? false)) {
+                    $exception = \App\Models\BudgetException::query()->where('document_type', 'direct_purchase_order')
+                        ->where('document_id', $directPurchaseOrder->id)->where('document_line_id', $item->id)
+                        ->where('cost_center_id', $allocation['cost_center_id'])->where('status', 'APPROVED')->whereNull('used_at')->first();
+                    $available = (float) ($budgetCheck['assigned_amount'] ?? 0) - (float) ($budgetCheck['consumed_amount'] ?? 0) - (float) ($budgetCheck['committed_amount'] ?? 0);
+                    $shortfall = max(0, round((float) $allocation['amount'] - $available, 2));
+                    if ($exception && $shortfall <= (float) $exception->approved_excess + 0.01) {
+                        continue;
+                    }
                     throw new \RuntimeException('Presupuesto insuficiente: '.$budgetCheck['message']);
                 }
             }
@@ -678,10 +686,13 @@ class DirectPurchaseOrderController extends Controller
         $directPurchaseOrder->loadMissing('supplier', 'creator');
         $this->safeNotifications->notify(
             new DirectPurchaseOrderApprovedNotification($directPurchaseOrder),
-            $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : [],
+            User::role('buyer')->get()->concat(
+                $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : []
+            ),
             'de aprobación al proveedor',
             $directPurchaseOrder->folio,
             route('direct-purchase-orders.show', $directPurchaseOrder),
+            true,
         );
     }
 

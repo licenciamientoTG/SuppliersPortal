@@ -10,6 +10,7 @@ use App\Http\Controllers\AuthorizationInboxController;
 use App\Http\Controllers\AuthorizerRoleController;
 use App\Http\Controllers\BudgetMonthlyDistributionController;
 use App\Http\Controllers\BudgetMovementController;
+use App\Http\Controllers\BudgetMovementReportController;
 use App\Http\Controllers\BudgetMovementWorkflowController;
 use App\Http\Controllers\BudgetProfileController;
 use App\Http\Controllers\CategoryController;
@@ -347,7 +348,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::middleware('can:catalogo_cuentas.ver')
             ->prefix('accounts')
             ->group(function () {
-                Route::get('/', [AccountCatalogController::class, 'index'])->name('accounts.index');
+                Route::get('/', [AccountCatalogController::class, 'index'])->middleware('module.access:budget_accounts')->name('accounts.index');
                 Route::get('/export', [AccountCatalogController::class, 'export'])->name('accounts.export');
                 Route::post('/sync', [AccountCatalogController::class, 'sync'])
                     ->middleware('can:catalogo_cuentas.editar')
@@ -368,7 +369,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         ->name('budget-profiles.')
         ->controller(BudgetProfileController::class)
         ->group(function () {
-            Route::get('/', 'index')->name('index');
+            Route::get('/', 'index')->middleware('module.access:budget_profiles')->name('index');
             Route::post('/departments', 'storeDepartment')->name('departments.store');
             Route::put('/departments/{department}', 'updateDepartment')->name('departments.update');
             Route::patch('/departments/{department}/toggle', 'toggleDepartment')->name('departments.toggle');
@@ -381,7 +382,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
 
     Route::middleware('module.access:employees')->group(function () {
         Route::get('employees/datatable', [EmployeeController::class, 'datatable'])->name('employees.datatable');
-        Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('employees', [EmployeeController::class, 'index'])->middleware('module.access:employees')->name('employees.index');
         Route::get('employees/{employee}/promote-form', [EmployeeController::class, 'promoteForm'])->name('employees.promote-form');
         Route::post('employees/{employee}/promote', [EmployeeController::class, 'promote'])->name('employees.promote');
         Route::get('employees/{employee}/photo-form', [EmployeeController::class, 'photoForm'])->name('employees.photo-form');
@@ -392,7 +393,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     //  Annual Budgets
     // ========================================================================
     Route::middleware('module.access:budget_control')->prefix('annual_budgets')->name('annual_budgets.')->group(function () {
-        Route::get('/', [AnnualBudgetController::class, 'index'])->name('index');
+        Route::get('/', [AnnualBudgetController::class, 'index'])->middleware('module.access:budget_annual')->name('index');
         Route::get('/datatable', [AnnualBudgetController::class, 'datatable'])->name('datatable');
         Route::get('/create', [AnnualBudgetController::class, 'create'])->name('create');
         Route::post('/', [AnnualBudgetController::class, 'store'])->name('store');
@@ -415,7 +416,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     //  Monthly Budget Distributions
     // ========================================================================
     Route::middleware('module.access:budget_control')->prefix('budget_monthly_distributions')->name('budget_monthly_distributions.')->group(function () {
-        Route::get('/', [BudgetMonthlyDistributionController::class, 'index'])->name('index');
+        Route::get('/', [BudgetMonthlyDistributionController::class, 'index'])->middleware('module.access:budget_monthly')->name('index');
         Route::get('/datatable', [BudgetMonthlyDistributionController::class, 'datatable'])->name('datatable');
         Route::get('/{annual_budget}/create', [BudgetMonthlyDistributionController::class, 'create'])->name('create');
         Route::post('/', [BudgetMonthlyDistributionController::class, 'store'])->name('store');
@@ -428,6 +429,18 @@ Route::middleware(['auth', 'lock'])->group(function () {
     // ========================================================================
     //  Budget Movements
     // ========================================================================
+    Route::prefix('reportes/presupuesto/movimientos')->name('budget-movement-reports.')->group(function () {
+        Route::get('/', [BudgetMovementReportController::class, 'index'])->middleware('can:reportes.budget_movements.ver')->name('index');
+        Route::get('/data', [BudgetMovementReportController::class, 'data'])->middleware('can:reportes.budget_movements.ver')->name('data');
+        Route::get('/export/{format}', [BudgetMovementReportController::class, 'export'])->middleware('can:reportes.budget_movements.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+    });
+    Route::prefix('reportes/presupuesto/alertas')->name('budget-alert-reports.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BudgetAlertsReportController::class, 'index'])->middleware('can:reportes.budget_alerts.ver')->name('index');
+        Route::get('/data', [\App\Http\Controllers\BudgetAlertsReportController::class, 'data'])->middleware('can:reportes.budget_alerts.ver')->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\BudgetAlertsReportController::class, 'export'])->middleware('can:reportes.budget_alerts.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+        Route::post('/excepciones', [\App\Http\Controllers\BudgetAlertsReportController::class, 'requestException'])->middleware('can:reportes.budget_alerts.excepcion.solicitar')->name('exceptions.request');
+        Route::post('/excepciones/{exception}/decision', [\App\Http\Controllers\BudgetAlertsReportController::class, 'decideException'])->middleware('can:reportes.budget_alerts.excepcion.aprobar')->name('exceptions.decide');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
@@ -438,7 +451,8 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::post('budget_movements/{budgetMovement}/return', [BudgetMovementWorkflowController::class, 'returnToRequester'])->name('budget_movements.return');
         Route::post('budget_movements/{budgetMovement}/approve', [BudgetMovementWorkflowController::class, 'approveExecutive'])->name('budget_movements.approve');
         Route::post('budget_movements/{budgetMovement}/reject', [BudgetMovementWorkflowController::class, 'rejectExecutive'])->name('budget_movements.reject');
-        Route::get('budget_movements/{budgetMovement}/attachments/{attachment}', [BudgetMovementWorkflowController::class, 'downloadAttachment'])->name('budget_movements.attachments.download');
+        Route::post('budget_movements/{budgetMovement}/reverse', [BudgetMovementWorkflowController::class, 'reverse'])->name('budget_movements.reverse');
+        Route::get('budget-movement-attachments/{attachment}/download', [BudgetMovementWorkflowController::class, 'downloadAttachment'])->name('budget_movements.attachments.download');
         Route::resource('budget_movements', BudgetMovementWorkflowController::class)->except(['destroy'])->parameters(['budget_movements' => 'budgetMovement']);
     });
 
@@ -457,7 +471,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/{requisition}/items/{item}/attachment', 'showItemAttachment')->name('items.attachment.show');
 
         // CRUD
-        Route::get('/', 'index')->name('index');
+        Route::get('/', 'index')->middleware('module.access:requisitions_main')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::get('/create-livewire', 'createLivewire')->name('create-livewire');
         Route::get('/{requisition}/edit-livewire', 'editLivewire')->name('edit-livewire');
@@ -495,7 +509,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:quotations')->prefix('requisitions/{requisition}/quotation-planner')
         ->name('requisitions.quotation-planner.')
         ->group(function () {
-            Route::get('/', [QuotationPlannerController::class, 'show'])->name('show');
+            Route::get('/', [QuotationPlannerController::class, 'show'])->middleware('module.access:quotations_planner')->name('show');
             Route::post('/save', [QuotationPlannerController::class, 'saveStrategy'])->name('save');
             Route::post('/groups', [QuotationPlannerController::class, 'createGroup'])->name('groups.create');
             Route::delete('/groups/{group}', [QuotationPlannerController::class, 'deleteGroup'])->name('groups.delete');
@@ -508,7 +522,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     //  RFQ (Request for Quotation)
     // ========================================================================
     Route::middleware('module.access:quotations')->prefix('rfq')->name('rfq.')->controller(RfqController::class)->group(function () {
-        Route::get('/', 'index')->name('index');
+        Route::get('/', 'index')->middleware('module.access:quotations_list')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
         Route::get('/wizard/{requisition}/summary', 'wizardSummary')->name('wizard.summary');
         Route::get('/wizard/{requisition}/datatable', 'wizardDatatable')->name('wizard.datatable');
@@ -532,7 +546,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/wizard/{requisition}/analysis-data', [RfqInboxController::class, 'analysisData'])->name('wizard.analysis.data');
 
         Route::prefix('inbox')->name('inbox.')->group(function () {
-            Route::get('/pending', [RfqInboxController::class, 'pending'])->name('pending');
+            Route::get('/pending', [RfqInboxController::class, 'pending'])->middleware('module.access:quotations_inbox')->name('pending');
             Route::get('/pending/data', [RfqInboxController::class, 'pendingData'])->name('pending.data');
             Route::get('/modal-rfq/{rfq}', [RfqInboxController::class, 'rfqModalContent'])->name('modal.rfq');
             Route::get('/modal-req/{requisition}', [RfqInboxController::class, 'reqModalContent'])->name('modal.req');
@@ -552,7 +566,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     //  Products & Services Catalog
     // ========================================================================
     Route::middleware('module.access:products_services')->prefix('products-services')->name('products-services.')->group(function () {
-        Route::get('/', [ProductServiceController::class, 'index'])->name('index');
+        Route::get('/', [ProductServiceController::class, 'index'])->middleware('module.access:products_services')->name('index');
         Route::get('/datatable', [ProductServiceController::class, 'datatable'])->name('datatable');
         Route::get('/create', [ProductServiceController::class, 'create'])->name('create');
         Route::post('/', [ProductServiceController::class, 'store'])->name('store');
@@ -584,7 +598,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     });
 
     // Expense Categories
-    Route::middleware('module.access:requisitions')->get('/products-services/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])
+    Route::get('/products-services/api/active-for-requisitions', [ProductServiceController::class, 'apiActiveForRequisitions'])
         ->name('products-services.api.active-for-requisitions');
 
     Route::middleware('module.access:requisitions')->prefix('expense-categories')->name('expense-categories.')->group(function () {
@@ -750,13 +764,13 @@ Route::middleware(['auth', 'lock'])->prefix('monitoring')->name('monitoring.')->
 });
 
 Route::middleware(['auth', 'lock', 'module.access:payments_billing'])->group(function () {
-    Route::get('/invoices', [FinanceInvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/invoices', [FinanceInvoiceController::class, 'index'])->middleware('module.access:billing_invoices')->name('invoices.index');
     Route::get('/invoices/create', [FinanceInvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices', [FinanceInvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/invoices/{invoice}', [FinanceInvoiceController::class, 'show'])->name('invoices.show');
     Route::post('/invoices/{invoice}/reject', [FinanceInvoiceController::class, 'reject'])->name('invoices.reject');
 
-    Route::get('/financial-provisions', [FinancialProvisionController::class, 'index'])->name('financial-provisions.index');
+    Route::get('/financial-provisions', [FinancialProvisionController::class, 'index'])->middleware('module.access:billing_provisions')->name('financial-provisions.index');
     Route::get('/financial-provisions/{financialProvision}', [FinancialProvisionController::class, 'show'])->name('financial-provisions.show');
     Route::post('/financial-provisions/{financialProvision}/link-invoice', [FinancialProvisionController::class, 'linkInvoice'])
         ->name('financial-provisions.link-invoice');

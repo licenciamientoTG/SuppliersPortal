@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 class BudgetMovement extends Model
 {
@@ -22,6 +23,7 @@ class BudgetMovement extends Model
         'approved_by',
         'approved_at',
         'approval_level',
+        'reversal_of_id',
     ];
 
     protected $casts = [
@@ -62,6 +64,21 @@ class BudgetMovement extends Model
 
     const LEVEL_LABELS = [self::LEVEL_DIRECTION => 'Dirección', self::LEVEL_SUBSTITUTE => 'Suplente de Dirección'];
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $movement) {
+            if ($movement->getOriginal('status') === self::STATUS_APPROVED) {
+                throw new LogicException('Un movimiento aprobado es inmutable; registra un movimiento inverso.');
+            }
+        });
+
+        static::deleting(function (self $movement) {
+            if ($movement->isApproved()) {
+                throw new LogicException('Un movimiento aprobado no puede eliminarse.');
+            }
+        });
+    }
+
     /**
      * Usuario que creó el movimiento
      */
@@ -93,7 +110,17 @@ class BudgetMovement extends Model
 
     public function attachments(): HasMany
     {
-        return $this->hasMany(BudgetMovementAttachment::class);
+        return $this->hasMany(BudgetMovementAttachment::class)->latest();
+    }
+
+    public function reversalOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reversal_of_id');
+    }
+
+    public function reversals(): HasMany
+    {
+        return $this->hasMany(self::class, 'reversal_of_id');
     }
 
     /**

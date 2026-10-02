@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -107,6 +107,12 @@ class RolePermissionSeeder extends Seeder
             'perfiles_presupuestales.ver',
             'perfiles_presupuestales.administrar_propios',
             'reportes.ver',
+            'reportes.budget_movements.ver',
+            'reportes.budget_movements.exportar',
+            'reportes.budget_alerts.ver',
+            'reportes.budget_alerts.exportar',
+            'reportes.budget_alerts.excepcion.solicitar',
+            'reportes.budget_alerts.excepcion.aprobar',
             'puestos.administrar',
         ];
 
@@ -362,6 +368,24 @@ class RolePermissionSeeder extends Seeder
             $accountingRole->givePermissionTo([
                 'catalogo_cuentas.ver',
                 'catalogo_cuentas.editar',
+                'reportes.budget_movements.ver',
+                'reportes.budget_movements.exportar',
+                'reportes.budget_alerts.ver',
+                'reportes.budget_alerts.exportar',
+            ]);
+
+            foreach ([$staffRole, $buyerRole, $departmentHeadRole, $generalDirectorRole] as $exceptionRequesterRole) {
+                $exceptionRequesterRole->givePermissionTo('reportes.budget_alerts.excepcion.solicitar');
+            }
+            $departmentHeadRole->givePermissionTo('reportes.budget_alerts.ver');
+            $reportViewerRole->givePermissionTo('reportes.budget_alerts.ver');
+
+            $generalDirectorRole->givePermissionTo([
+                'reportes.budget_movements.ver',
+                'reportes.budget_movements.exportar',
+                'reportes.budget_alerts.ver',
+                'reportes.budget_alerts.exportar',
+                'reportes.budget_alerts.excepcion.aprobar',
             ]);
 
             // Permisos de vista: se agregan sobre la matriz actual sin retirar
@@ -372,7 +396,13 @@ class RolePermissionSeeder extends Seeder
                     continue;
                 }
 
-                foreach (config("module_access.modules.{$module}.roles", []) as $roleName) {
+                $roles = config("module_access.modules.{$module}.roles");
+                $parent = $definition['parent'] ?? (str_starts_with($module, 'catalog_') ? 'catalogs_config' : null);
+                if ($roles === null && $parent) {
+                    $roles = config("module_access.modules.{$parent}.roles", []);
+                }
+
+                foreach ($roles ?? [] as $roleName) {
                     Role::findOrCreate($roleName, 'web')->givePermissionTo($permission);
                 }
             }
