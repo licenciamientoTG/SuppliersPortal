@@ -22,6 +22,12 @@ class BudgetMonthlyDistribution extends Model
 {
     use SoftDeletes;
 
+    /**
+     * Allows a single approved exception to pass the overdraft validation.
+     * This is runtime state and must never be persisted as a database column.
+     */
+    protected bool $allowApprovedOverdraft = false;
+
     protected $table = 'budget_monthly_distributions';
 
     protected $fillable = [
@@ -236,8 +242,12 @@ class BudgetMonthlyDistribution extends Model
         $this->committed_amount = (float) $this->committed_amount + $amount;
         $this->updated_by = Auth::guard('web')->id();
         $this->allowApprovedOverdraft = $approvedException;
-        $this->save();
-        $this->allowApprovedOverdraft = false;
+
+        try {
+            $this->save();
+        } finally {
+            $this->allowApprovedOverdraft = false;
+        }
 
         return true;
     }
@@ -416,7 +426,7 @@ class BudgetMonthlyDistribution extends Model
             $preservesAuthorizedOverdraft = ! $model->isDirty('assigned_amount')
                 && \App\Models\BudgetException::query()->where('budget_monthly_distribution_id', $model->id)
                     ->where('status', 'APPROVED')->whereNotNull('used_at')->exists();
-            if ((float) $model->assigned_amount < $total && ! ($model->allowApprovedOverdraft ?? false) && ! $preservesAuthorizedOverdraft) {
+            if ((float) $model->assigned_amount < $total && ! $model->allowApprovedOverdraft && ! $preservesAuthorizedOverdraft) {
                 throw new \InvalidArgumentException(
                     'No se puede reducir el asignado por debajo de consumido + comprometido.'
                 );
