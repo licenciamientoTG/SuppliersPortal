@@ -200,10 +200,12 @@ class RequisitionForm extends Component
         }
 
         foreach ($this->items as $item) {
-            if (! $this->validateItemPayload($item)) {
+            $validationError = $this->validateItemPayload($item);
+
+            if ($validationError !== null) {
                 $this->dispatch(
                     'validation-error',
-                    message: 'Revisa las partidas: cada una debe tener un centro de costo y datos presupuestales válidos para la compañía seleccionada.'
+                    message: $validationError
                 );
 
                 return;
@@ -428,8 +430,10 @@ class RequisitionForm extends Component
         $itemData = $this->enrichItemWithBudgetClassification($itemData);
         $itemData = $this->withResolvedItemDescription($itemData);
 
-        if (! $this->validateItemPayload($itemData)) {
-            $this->dispatch('item-error', message: 'Faltan campos obligatorios');
+        $validationError = $this->validateItemPayload($itemData);
+
+        if ($validationError !== null) {
+            $this->dispatch('item-error', message: $validationError);
 
             return false;
         }
@@ -473,8 +477,10 @@ class RequisitionForm extends Component
         $itemData = $this->enrichItemWithBudgetClassification($itemData);
         $itemData = $this->withResolvedItemDescription($itemData);
 
-        if (! $this->validateItemPayload($itemData)) {
-            $this->dispatch('item-error', message: 'Faltan campos obligatorios');
+        $validationError = $this->validateItemPayload($itemData);
+
+        if ($validationError !== null) {
+            $this->dispatch('item-error', message: $validationError);
 
             return false;
         }
@@ -597,7 +603,7 @@ class RequisitionForm extends Component
         return $product?->getRequisitionDescription() ?? 'Sin descripción';
     }
 
-    private function validateItemPayload(array $itemData): bool
+    private function validateItemPayload(array $itemData): ?string
     {
         $itemData = $this->enrichItemWithBudgetClassification($itemData);
 
@@ -605,7 +611,7 @@ class RequisitionForm extends Component
             || empty($itemData['expense_category_id'])
             || empty($itemData['budget_cedula_id'])
             || empty($itemData['cost_center_id'])) {
-            return false;
+            return 'Faltan campos obligatorios';
         }
 
         $product = ProductService::query()
@@ -614,7 +620,7 @@ class RequisitionForm extends Component
             ->first();
 
         if (! $product) {
-            return false;
+            return 'El producto seleccionado no está disponible.';
         }
 
         $allowedSubaccounts = app(BudgetAccessService::class)->subaccountIdsFor(Auth::user());
@@ -623,12 +629,12 @@ class RequisitionForm extends Component
             $classification = app(ProductBudgetClassificationService::class)
                 ->resolveForProduct($product, Auth::user()?->department_id);
         } catch (\RuntimeException) {
-            return false;
+            return 'El producto no tiene una clasificación presupuestal válida para tu usuario.';
         }
 
         if ($allowedSubaccounts->isEmpty()
             || ! $allowedSubaccounts->contains($classification['subaccount_id'])) {
-            return false;
+            return 'No tienes acceso a la subcuenta presupuestal de este producto.';
         }
 
         $validCostCenter = Auth::user()->costCenters()
@@ -640,7 +646,7 @@ class RequisitionForm extends Component
             ->exists();
 
         if (! $validCostCenter) {
-            return false;
+            return 'El centro de costo no pertenece a la compañía o no está disponible para tu usuario.';
         }
 
         $cedula = BudgetCedula::query()
@@ -660,12 +666,10 @@ class RequisitionForm extends Component
         );
 
         if ($missingTargets->isNotEmpty()) {
-            $this->dispatch('item-error', message: 'Sin presupuesto asignado en: '.$missingTargets->map(fn ($center) => $center->code.' '.$center->name)->implode(', '));
-
-            return false;
+            return 'Sin presupuesto asignado en: '.$missingTargets->map(fn ($center) => $center->code.' '.$center->name)->implode(', ');
         }
 
-        return true;
+        return null;
     }
 
     private function enrichItemWithBudgetClassification(array $itemData): array
