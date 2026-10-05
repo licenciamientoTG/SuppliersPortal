@@ -171,8 +171,8 @@ class ReportingService
             $stageStartedAt = $statusEvent?->occurred_at ?? $fallbackDate ?? $row->created_at;
             $row->centros_costo = $centers->get($row->id, 'Sin centro capturado');
             $row->etapa_detenida = $stageLabels[$status] ?? str($status)->replace('_', ' ')->lower()->ucfirst()->toString();
-            $row->horas_en_etapa = max(0, Carbon::parse($stageStartedAt)->diffInHours($asOf, false));
-            $row->horas_ciclo = max(0, Carbon::parse($row->created_at)->diffInHours($row->received_at ?: $asOf, false));
+            $row->horas_en_etapa = max(0, (int) round(Carbon::parse($stageStartedAt)->diffInHours($asOf, false)));
+            $row->horas_ciclo = max(0, (int) round(Carbon::parse($row->created_at)->diffInHours($row->received_at ?: $asOf, false)));
             $row->aprobador_pendiente = $row->aprobador_pendiente ?: match ($status) {
                 'PENDING' => 'Cola de Compras', 'PAUSED' => 'En espera de resolver la pausa',
                 'QUOTED' => 'Compras · pendiente de adjudicación', 'IN_QUOTATION', 'APPROVED' => 'Compras · cotización',

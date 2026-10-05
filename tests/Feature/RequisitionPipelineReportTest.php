@@ -39,6 +39,8 @@ class RequisitionPipelineReportTest extends TestCase
         $this->assertSame('Historial con eventos registrados', $row->cobertura_historial);
         $this->assertGreaterThanOrEqual(3, $row->horas_en_etapa);
         $this->assertGreaterThanOrEqual(7, $row->horas_ciclo);
+        $this->assertIsInt($row->horas_en_etapa);
+        $this->assertIsInt($row->horas_ciclo);
         $this->assertContains('Etapa detenida', $result['columns']);
         $this->assertSame(1, $result['kpis']['Requisiciones']);
     }
