@@ -92,8 +92,9 @@ class BudgetMovementReportTest extends TestCase
         $movement = BudgetMovement::create([
             'movement_type' => BudgetMovement::TYPE_TRANSFER, 'fiscal_year' => 2026,
             'movement_date' => '2026-06-02', 'total_amount' => 50,
-            'justification' => 'Transferencia entre dos empresas en espera de Dirección.',
-            'status' => BudgetMovement::STATUS_PENDING_EXECUTIVE, 'created_by' => $actor->id,
+            'justification' => 'Transferencia entre dos empresas aprobada por el suplente.',
+            'status' => BudgetMovement::STATUS_APPROVED, 'created_by' => $actor->id,
+            'approved_by' => $actor->id, 'approved_at' => now(), 'approval_level' => BudgetMovement::LEVEL_SUBSTITUTE,
         ]);
         foreach ([['ORIGEN', $origin, -50], ['DESTINO', $destination, 50]] as [$type, $center, $amount]) {
             BudgetMovementDetail::create([
