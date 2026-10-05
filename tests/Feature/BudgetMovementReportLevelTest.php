@@ -128,6 +128,41 @@ class BudgetMovementReportLevelTest extends TestCase
             ->assertJsonPath('movements.rows.0.attachments.0.url', route('budget_movements.attachments.download', $attachment));
     }
 
+    public function test_xlsx_export_has_report_header_typed_dates_and_is_logged(): void
+    {
+        Permission::findOrCreate('reportes.budget_movements.exportar', 'web');
+        $this->actor->givePermissionTo('reportes.budget_movements.exportar');
+        $center = CostCenter::factory()->create(['company_id' => Company::factory()->create()->id]);
+        $this->approvedTransfer($center, $center, BudgetMovement::LEVEL_DIRECTION, '2026-03-15');
+
+        $response = $this->actingAs($this->actor)->get(route('budget-movement-reports.export', ['format' => 'xlsx', 'fiscal_year' => 2026]));
+        $response->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'rp02');
+        file_put_contents($path, $response->streamedContent());
+        $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        @unlink($path);
+        $sheet = $book->getSheetByName('Movimientos');
+
+        $this->assertStringContainsString('RP-02', (string) $sheet->getCell('A1')->getValue());
+        $this->assertStringContainsString($this->actor->name, (string) $sheet->getCell('A3')->getValue());
+        $headerRow = $this->rowContaining($sheet, 'Folio');
+        $dateCell = $sheet->getCell('B'.($headerRow + 1));
+        $this->assertIsNumeric($dateCell->getValue());
+        $this->assertSame('dd/mm/yyyy', $dateCell->getStyle()->getNumberFormat()->getFormatCode());
+        $this->assertSame('2026-03-15', \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateCell->getValue())->format('Y-m-d'));
+        $this->assertDatabaseHas('activity_log', ['log_name' => 'reportes', 'description' => 'Exportación RP-02 xlsx', 'causer_id' => $this->actor->id]);
+    }
+
+    private function rowContaining($sheet, string $value): int
+    {
+        foreach ($sheet->getRowIterator() as $row) {
+            if ($sheet->getCell('A'.$row->getRowIndex())->getValue() === $value) {
+                return $row->getRowIndex();
+            }
+        }
+        $this->fail("No se encontró la fila con {$value}");
+    }
+
     private function data(array $params = [])
     {
         return $this->actingAs($this->actor)
