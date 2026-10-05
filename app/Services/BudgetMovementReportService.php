@@ -16,7 +16,7 @@ class BudgetMovementReportService
         $query = $this->filteredQuery($request)->with([
             'creator:id,name', 'approver:id,name', 'decisions.actor:id,name',
             'details.costCenter.company', 'details.expenseCategory:id,name', 'details.budgetCedula:id,name',
-            'reversalOf:id', 'reversals:id,reversal_of_id',
+            'reversalOf:id', 'reversals:id,reversal_of_id', 'attachments',
         ])->orderBy('movement_date')->orderBy('id');
 
         $summary = $this->filteredQuery($request)
@@ -223,7 +223,10 @@ class BudgetMovementReportService
             'origin' => $origin ? $this->detailRow($origin) : null,
             'destination' => $destination ? $this->detailRow($destination) : null,
             'adjustment' => $movement->details->firstWhere('detail_type', 'AJUSTE') ? $this->detailRow($movement->details->firstWhere('detail_type', 'AJUSTE')) : null,
-            'attachments' => $movement->attachments->map(fn ($a) => ['id' => $a->id, 'name' => $a->original_name, 'sha256' => $a->sha256])->values(),
+            'attachments' => $movement->attachments->map(fn ($a) => [
+                'id' => $a->id, 'name' => $a->original_name, 'sha256' => $a->sha256,
+                'url' => route('budget_movements.attachments.download', $a),
+            ])->values(),
             'decisions' => $movement->decisions->map(fn ($d) => ['stage' => $d->stage, 'action' => $d->action, 'actor' => $d->actor?->name, 'at' => $d->created_at?->format('Y-m-d H:i'), 'comments' => $d->comments])->values(),
         ];
     }

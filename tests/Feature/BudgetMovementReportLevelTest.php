@@ -114,6 +114,20 @@ class BudgetMovementReportLevelTest extends TestCase
             ->assertJsonPath('movements.rows.1.id', $late->id);
     }
 
+    public function test_support_documents_expose_their_download_link(): void
+    {
+        $center = CostCenter::factory()->create(['company_id' => Company::factory()->create()->id]);
+        $movement = $this->approvedTransfer($center, $center, BudgetMovement::LEVEL_DIRECTION);
+        $attachment = \App\Models\BudgetMovementAttachment::create([
+            'budget_movement_id' => $movement->id, 'disk' => 'local', 'file_path' => 'budget-movements/soporte.pdf',
+            'original_name' => 'soporte.pdf', 'mime_type' => 'application/pdf', 'file_size' => 10,
+            'sha256' => str_repeat('a', 64), 'uploaded_by' => $this->actor->id,
+        ]);
+
+        $this->data()->assertJsonPath('movements.rows.0.attachments.0.name', 'soporte.pdf')
+            ->assertJsonPath('movements.rows.0.attachments.0.url', route('budget_movements.attachments.download', $attachment));
+    }
+
     private function data(array $params = [])
     {
         return $this->actingAs($this->actor)
