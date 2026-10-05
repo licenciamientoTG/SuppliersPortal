@@ -518,7 +518,9 @@
                                     <td class="text-end fw-bold text-dark">
                                         {{ $ocd->currency === 'USD' ? 'US$' : '$' }}{{ number_format($item->total, 2) }}
                                         @if(auth()->user()->can('reportes.budget_alerts.excepcion.solicitar'))
-                                            @php($budgetException = $budgetExceptions[$item->id] ?? null)
+                                            @php
+                                                $budgetException = $budgetExceptions[$item->id] ?? null;
+                                            @endphp
                                             @if($budgetException)
                                                 <small class="d-block text-muted">Excepción: {{ $budgetException->status }}</small>
                                             @else
