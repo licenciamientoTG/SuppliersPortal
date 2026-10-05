@@ -122,8 +122,87 @@ class ReportingService
     private function statusColor(string $status): string { return match(strtoupper($status)) {'COMPLETED','RECEIVED'=>'#4bd396','REJECTED','CANCELLED'=>'#ef5f5f','PENDING','PENDING_VALIDATION','PENDING_RFQ','PENDING_APPROVAL','RETURNED'=>'#f0ad4e','IN_QUOTATION'=>'#7c6ee6',default=>'#188ae2'}; }
     private function traceability(Carbon $from, Carbon $to, array $f): array
     {
-        $asOf=$to->isFuture()?now():$to;$rows=$this->req($from,$to,$f)->leftJoin('users as u','u.id','=','r.requested_by')->leftJoin('departments as d','d.id','=','requester.department_id')->leftJoin('quotation_summaries as qs','qs.requisition_id','=','r.id')->leftJoin('purchase_orders as po','po.requisition_id','=','r.id')->selectRaw("r.folio,u.name as requisitor,COALESCE(d.name,'Sin departamento') as departamento,r.status,r.created_at,r.validated_at,MIN(qs.approved_at) as cotizacion_aprobada,MIN(po.issued_at) as issued_at,MIN(po.received_at) as received_at,MAX(qs.total) as monto")->groupBy('r.id','r.folio','u.name','d.name','r.status','r.created_at','r.validated_at')->orderByDesc('r.created_at')->get()->map(function($row)use($asOf){$row->dias_ciclo=Carbon::parse($row->created_at)->startOfDay()->diffInDays(Carbon::parse($row->received_at ?? $asOf)->startOfDay());return $row;});
-        return $this->pack(['Folio','Requisitor','Departamento','Estatus','Creada','Validada','Cotización aprobada','OC emitida','Recibida','Monto','Días ciclo'],$rows,['Requisiciones'=>$rows->count(),'Completadas'=>$rows->whereNotNull('received_at')->count(),'Monto adjudicado'=>$rows->sum('monto')]);
+        $asOf = $to->isFuture() ? now() : $to;
+        $approvedSummaries = DB::table('quotation_summaries')->select('requisition_id')->selectRaw('MAX(id) as latest_id')->where('approval_status', 'approved')->whereNull('deleted_at')->groupBy('requisition_id');
+        $pendingSummaries = DB::table('quotation_summaries')->select('requisition_id')->selectRaw('MAX(id) as latest_id')->where('approval_status', 'pending')->whereNull('deleted_at')->groupBy('requisition_id');
+        $orderMilestones = DB::table('purchase_orders')->select('requisition_id')->selectRaw('MIN(issued_at) as issued_at, MIN(received_at) as received_at')->whereNull('deleted_at')->groupBy('requisition_id');
+
+        $rows = $this->req($from, $to, $f)
+            ->leftJoin('companies as company', 'company.id', '=', 'r.company_id')
+            ->leftJoin('departments as department', 'department.id', '=', 'r.department_id')
+            ->leftJoinSub($approvedSummaries, 'approved_summary_ids', fn ($join) => $join->on('approved_summary_ids.requisition_id', '=', 'r.id'))
+            ->leftJoin('quotation_summaries as approved_summary', 'approved_summary.id', '=', 'approved_summary_ids.latest_id')
+            ->leftJoin('suppliers as awarded_supplier', 'awarded_supplier.id', '=', 'approved_summary.selected_supplier_id')
+            ->leftJoinSub($pendingSummaries, 'pending_summary_ids', fn ($join) => $join->on('pending_summary_ids.requisition_id', '=', 'r.id'))
+            ->leftJoin('quotation_summaries as pending_summary', 'pending_summary.id', '=', 'pending_summary_ids.latest_id')
+            ->leftJoin('users as pending_approver', 'pending_approver.id', '=', 'pending_summary.current_approver_user_id')
+            ->leftJoinSub($orderMilestones, 'order_milestones', fn ($join) => $join->on('order_milestones.requisition_id', '=', 'r.id'))
+            ->select([
+                'r.id', 'r.folio', 'r.status', 'r.created_at', 'r.updated_at', 'r.validated_at', 'r.rejection_reason', 'r.cancellation_reason', 'r.pause_reason',
+                'requester.name as requisitor', 'department.name as departamento', 'company.name as empresa',
+                'approved_summary.approved_at as cotizacion_aprobada', 'approved_summary.total as monto',
+                'pending_approver.name as aprobador_pendiente', 'awarded_supplier.provides_specialized_services as supplier_repse',
+                'order_milestones.issued_at', 'order_milestones.received_at',
+            ])->orderByDesc('r.created_at')->get();
+
+        $ids = $rows->pluck('id')->all();
+        $centers = DB::table('requisition_items as ri')->join('cost_centers as cc', 'cc.id', '=', 'ri.cost_center_id')
+            ->whereIn('ri.requisition_id', $ids)->select('ri.requisition_id', 'cc.code', 'cc.name')->distinct()->orderBy('cc.name')->get()
+            ->groupBy('requisition_id')->map(fn ($items) => $items->map(fn ($item) => trim(($item->code ? $item->code.' · ' : '').$item->name))->implode(', '));
+        $histories = Schema::hasTable('requisition_status_histories')
+            ? DB::table('requisition_status_histories')->whereIn('requisition_id', $ids)->orderBy('occurred_at')->orderBy('id')->get()->groupBy('requisition_id')
+            : collect();
+        $stageLabels = [
+            'DRAFT' => 'Borrador', 'PENDING' => 'Validación de Compras', 'PAUSED' => 'Pausada',
+            'APPROVED' => 'Aprobada, pendiente de cotización', 'IN_QUOTATION' => 'Cotización', 'QUOTED' => 'Adjudicación',
+            'IN_APPROVAL' => 'Autorización de cotización', 'PENDING_BUDGET_ADJUSTMENT' => 'Ajuste presupuestal',
+            'COMPLETED' => 'Recepción / cierre', 'REJECTED' => 'Rechazada', 'CANCELLED' => 'Cancelada',
+        ];
+        $rows = $rows->map(function ($row) use ($asOf, $centers, $histories, $stageLabels) {
+            $status = strtoupper((string) $row->status);
+            $events = $histories->get($row->id, collect());
+            $statusEvent = $events->filter(fn ($event) => $event->event_type === 'STATUS_CHANGED')->last();
+            $fallbackDate = match ($status) {
+                'PENDING' => $row->created_at,
+                'PAUSED' => $row->updated_at,
+                'IN_QUOTATION', 'APPROVED' => $row->validated_at,
+                default => $row->updated_at,
+            };
+            $stageStartedAt = $statusEvent?->occurred_at ?? $fallbackDate ?? $row->created_at;
+            $row->centros_costo = $centers->get($row->id, 'Sin centro capturado');
+            $row->etapa_detenida = $stageLabels[$status] ?? str($status)->replace('_', ' ')->lower()->ucfirst()->toString();
+            $row->horas_en_etapa = max(0, Carbon::parse($stageStartedAt)->diffInHours($asOf, false));
+            $row->horas_ciclo = max(0, Carbon::parse($row->created_at)->diffInHours($row->received_at ?: $asOf, false));
+            $row->aprobador_pendiente = $row->aprobador_pendiente ?: match ($status) {
+                'PENDING' => 'Cola de Compras', 'PAUSED' => 'En espera de resolver la pausa',
+                'QUOTED' => 'Compras · pendiente de adjudicación', 'IN_QUOTATION', 'APPROVED' => 'Compras · cotización',
+                'PENDING_BUDGET_ADJUSTMENT' => 'Pendiente de ajuste presupuestal', default => '—',
+            };
+            $row->requiere_repse = $row->supplier_repse === null ? 'Por determinar' : ((bool) $row->supplier_repse ? 'Sí' : 'No');
+            $row->motivo_excepcion = $row->rejection_reason ?: $row->cancellation_reason ?: $row->pause_reason ?: '—';
+            $row->historial_etapas = $events->map(fn ($event) => ($event->to_status ?: $event->event_type).' · '.Carbon::parse($event->occurred_at)->format('Y-m-d H:i'))->implode(' → ');
+            $row->cobertura_historial = $events->isEmpty() ? 'Estimado por fechas disponibles' : ($events->count() > 1 || $statusEvent ? 'Historial con eventos registrados' : 'Historial parcial');
+
+            return (object) [
+                'folio' => $row->folio, 'empresa' => $row->empresa, 'requisitor' => $row->requisitor,
+                'departamento' => $row->departamento, 'centros_costo' => $row->centros_costo,
+                'requiere_repse' => $row->requiere_repse, 'status' => $row->status,
+                'etapa_detenida' => $row->etapa_detenida, 'aprobador_pendiente' => $row->aprobador_pendiente,
+                'created_at' => $row->created_at, 'validated_at' => $row->validated_at,
+                'cotizacion_aprobada' => $row->cotizacion_aprobada, 'issued_at' => $row->issued_at,
+                'received_at' => $row->received_at, 'monto' => $row->monto,
+                'horas_en_etapa' => $row->horas_en_etapa, 'horas_ciclo' => $row->horas_ciclo,
+                'motivo_excepcion' => $row->motivo_excepcion, 'historial_etapas' => $row->historial_etapas,
+                'cobertura_historial' => $row->cobertura_historial,
+            ];
+        });
+        $completed = $rows->filter(fn ($row) => $row->received_at !== null);
+
+        return $this->pack(
+            ['Folio', 'Empresa', 'Requisitor', 'Departamento', 'Centro(s) de costo', 'REPSE', 'Estatus', 'Etapa detenida', 'Aprobador pendiente', 'Creada', 'Validada', 'Cotización aprobada', 'OC emitida', 'Recibida', 'Monto adjudicado', 'Horas en etapa', 'Horas de ciclo', 'Motivo rechazo / cancelación / pausa', 'Historial de etapas', 'Cobertura del historial'],
+            $rows,
+            ['Requisiciones' => $rows->count(), 'En proceso' => $rows->whereNotIn('status', ['COMPLETED', 'CANCELLED', 'REJECTED'])->count(), 'Pendientes de Compras' => $rows->where('status', 'PENDING')->count(), 'Ciclo promedio completado (horas)' => round((float) $completed->avg('horas_ciclo'), 1), 'Monto adjudicado' => $rows->sum('monto')],
+        );
     }
     private function ranking(Carbon $from, Carbon $to, array $f): array { $rows=$this->req($from,$to,$f)->join('users as u','u.id','=','r.requested_by')->leftJoin('quotation_summaries as qs','qs.requisition_id','=','r.id')->selectRaw("u.name as requisitor,COUNT(DISTINCT r.id) as requisiciones,SUM(CASE WHEN r.status='COMPLETED' THEN 1 ELSE 0 END) as completadas,SUM(CASE WHEN r.status IN ('CANCELLED','REJECTED') THEN 1 ELSE 0 END) as no_procedentes,SUM(qs.total) as monto_adjudicado")->groupBy('u.id','u.name')->orderByDesc('requisiciones')->get(); return $this->pack(['Requisitor','Requisiciones','Completadas','Canceladas/Rechazadas','Monto adjudicado'],$rows,['Requisitores'=>$rows->count(),'Requisiciones'=>$rows->sum('requisiciones'),'Monto'=>$rows->sum('monto_adjudicado')]); }
     private function funnel(Carbon $from, Carbon $to, array $f): array { $asOf=($to->isFuture()?now():$to)->toDateTimeString(); $age=DB::getDriverName()==='sqlsrv'?"DATEDIFF(day,r.created_at,'$asOf')":"CAST(julianday('$asOf')-julianday(r.created_at) AS INTEGER)"; $rows=$this->req($from,$to,$f)->selectRaw("r.status,COUNT(*) as requisiciones,AVG($age) as edad_promedio_dias")->groupBy('r.status')->orderBy('r.status')->get(); return $this->pack(['Estatus','Requisiciones','Edad promedio (días)'],$rows,['Total'=>$rows->sum('requisiciones'),'En proceso'=>$rows->whereNotIn('status',['COMPLETED','CANCELLED','REJECTED'])->sum('requisiciones')]); }
