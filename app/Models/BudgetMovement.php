@@ -22,6 +22,7 @@ class BudgetMovement extends Model
         'created_by',
         'approved_by',
         'approved_at',
+        'approval_level',
         'reversal_of_id',
     ];
 
@@ -55,6 +56,13 @@ class BudgetMovement extends Model
     const STATUS_APPROVED = 'APROBADO';
 
     const STATUS_REJECTED = 'RECHAZADO';
+
+    /** Nivel con el que se autorizó: titular de Dirección o su suplente. NULL = flujo anterior. */
+    const LEVEL_DIRECTION = 'DIRECCION';
+
+    const LEVEL_SUBSTITUTE = 'SUPLENTE';
+
+    const LEVEL_LABELS = [self::LEVEL_DIRECTION => 'Dirección', self::LEVEL_SUBSTITUTE => 'Suplente de Dirección'];
 
     protected static function booted(): void
     {

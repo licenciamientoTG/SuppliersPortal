@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BudgetMovement;
+use App\Models\BudgetMovementDetail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -15,8 +16,8 @@ class BudgetMovementReportService
         $query = $this->filteredQuery($request)->with([
             'creator:id,name', 'approver:id,name', 'decisions.actor:id,name',
             'details.costCenter.company', 'details.expenseCategory:id,name', 'details.budgetCedula:id,name',
-            'reversalOf:id', 'reversals:id,reversal_of_id',
-        ])->orderByDesc('movement_date')->orderByDesc('id');
+            'reversalOf:id', 'reversals:id,reversal_of_id', 'attachments',
+        ])->orderBy('movement_date')->orderBy('id');
 
         $summary = $this->filteredQuery($request)
             ->select('movement_type')->selectRaw('COUNT(*) as movement_count, SUM(total_amount) as total_amount')
@@ -178,15 +179,17 @@ class BudgetMovementReportService
             $query->whereHas('details', fn ($q) => $q->where('detail_type', 'DESTINO')->where('cost_center_id', $filters['destination_cost_center_id']));
         }
         if ($filters['only_level_violations']) {
-            $query->whereHas('details', function ($q) {
-                $q->where('detail_type', 'ORIGEN')->whereExists(function ($dest) {
-                    $dest->selectRaw('1')->from('budget_movement_details as dst')
-                        ->join('cost_centers as src_cc', 'src_cc.id', '=', 'budget_movement_details.cost_center_id')
-                        ->join('cost_centers as dst_cc', 'dst_cc.id', '=', 'dst.cost_center_id')
-                        ->whereColumn('dst.budget_movement_id', 'budget_movement_details.budget_movement_id')
-                        ->where('dst.detail_type', 'DESTINO')->whereColumn('src_cc.company_id', '<>', 'dst_cc.company_id');
+            // Traspaso entre centros de costo distintos (incluye empresas distintas) aprobado sin el titular de Dirección.
+            $query->approved()
+                ->where(fn ($q) => $q->whereNull('approval_level')->orWhere('approval_level', '<>', BudgetMovement::LEVEL_DIRECTION))
+                ->whereHas('details', function ($q) {
+                    $q->where('detail_type', BudgetMovementDetail::TYPE_ORIGIN)->whereExists(function ($dest) {
+                        $dest->selectRaw('1')->from('budget_movement_details as dst')
+                            ->whereColumn('dst.budget_movement_id', 'budget_movement_details.budget_movement_id')
+                            ->where('dst.detail_type', BudgetMovementDetail::TYPE_DESTINATION)
+                            ->whereColumn('dst.cost_center_id', '<>', 'budget_movement_details.cost_center_id');
+                    });
                 });
-            })->whereDoesntHave('decisions', fn ($q) => $q->where('stage', 'DIRECCION')->where('action', 'APROBADO'));
         }
 
         return $query;
@@ -197,7 +200,9 @@ class BudgetMovementReportService
         $origin = $movement->details->firstWhere('detail_type', 'ORIGEN');
         $destination = $movement->details->firstWhere('detail_type', 'DESTINO');
         $decisionApproved = $movement->decisions->first(fn ($decision) => $decision->stage === 'DIRECCION' && $decision->action === 'APROBADO');
-        $crossCompany = $origin && $destination && $origin->costCenter?->company_id !== $destination->costCenter?->company_id;
+        $crossCostCenter = $origin && $destination && (int) $origin->cost_center_id !== (int) $destination->cost_center_id;
+        $crossCompany = $crossCostCenter && $origin->costCenter?->company_id !== $destination->costCenter?->company_id;
+        $levelRequired = $crossCostCenter ? BudgetMovement::LEVEL_DIRECTION : null;
 
         return [
             'id' => $movement->id, 'folio' => 'MP-'.$movement->id,
@@ -206,17 +211,22 @@ class BudgetMovementReportService
             'total_amount' => (float) $movement->total_amount, 'status' => $movement->status,
             'justification' => $movement->justification, 'requester' => $movement->creator?->name,
             'final_authorizer' => $movement->approver?->name ?? $decisionApproved?->actor?->name,
-            'authorization_level_applied' => $decisionApproved ? 'DIRECCION' : null,
-            'cross_cost_center' => $origin && $destination && $origin->cost_center_id !== $destination->cost_center_id,
+            'authorization_level_applied' => $movement->approval_level,
+            'cross_cost_center' => (bool) $crossCostCenter,
             'cross_company' => (bool) $crossCompany,
-            'authorization_level_required' => $crossCompany ? 'DIRECCION' : null,
-            'authorization_violation' => (bool) ($crossCompany && ! $decisionApproved),
+            'authorization_level_required' => $levelRequired,
+            // El suplente no cuenta como Dirección; solo se evalúa una vez aprobado el movimiento.
+            'authorization_violation' => $levelRequired !== null && $movement->isApproved()
+                && $movement->approval_level !== BudgetMovement::LEVEL_DIRECTION,
             'reversal_of' => $movement->reversal_of_id,
             'reversed_by' => $movement->reversals->first()?->id,
             'origin' => $origin ? $this->detailRow($origin) : null,
             'destination' => $destination ? $this->detailRow($destination) : null,
             'adjustment' => $movement->details->firstWhere('detail_type', 'AJUSTE') ? $this->detailRow($movement->details->firstWhere('detail_type', 'AJUSTE')) : null,
-            'attachments' => $movement->attachments->map(fn ($a) => ['id' => $a->id, 'name' => $a->original_name, 'sha256' => $a->sha256])->values(),
+            'attachments' => $movement->attachments->map(fn ($a) => [
+                'id' => $a->id, 'name' => $a->original_name, 'sha256' => $a->sha256,
+                'url' => route('budget_movements.attachments.download', $a),
+            ])->values(),
             'decisions' => $movement->decisions->map(fn ($d) => ['stage' => $d->stage, 'action' => $d->action, 'actor' => $d->actor?->name, 'at' => $d->created_at?->format('Y-m-d H:i'), 'comments' => $d->comments])->values(),
         ];
     }
