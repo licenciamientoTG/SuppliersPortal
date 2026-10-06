@@ -6,21 +6,16 @@ use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
+use App\Reports\Support\ReportSheet;
 use Illuminate\Support\Collection;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Exportación de RP-01: Excel (resumen + detalle por documento) y CSV (renglones). */
 class BudgetVsActualExport
 {
-    private const MONEY = '$#,##0.00';
-
-    private const PERCENT = '0.0%';
-
     private const BUCKET_LABELS = ['reserved' => 'Reservado', 'committed' => 'Comprometido', 'accrued' => 'Devengado', 'released' => 'OC cancelada'];
 
     private const LIGHT_LABELS = ['VERDE' => 'Verde', 'AMARILLO' => 'Amarillo', 'ROJO' => 'Rojo'];
@@ -34,14 +29,16 @@ class BudgetVsActualExport
         $filename = sprintf('presupuesto-vs-ejercido-%d-%02d-%s', $params['fiscal_year'], $params['period_month'], strtolower($params['scope']));
 
         if ($format === 'csv') {
-            return ['response' => $this->csv($result['rows'], $params, $filename.'.csv'), 'rows' => $result['rows']->count(), 'detail_rows' => 0];
+            return ['response' => ReportSheet::csv($this->columns($params), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count(), 'detail_rows' => 0];
         }
 
         $documents = $this->report->documentLines($params, $result['rows']);
-        $book = new Spreadsheet;
         $header = $this->headerLines($user, $params);
-        $this->summarySheet($book->getActiveSheet(), $header, $result, $params);
-        $this->detailSheet($book->createSheet(), $header, $documents);
+        $book = new Spreadsheet;
+        // Se congelan las columnas de identificación (hasta el renglón) en el resumen.
+        ReportSheet::write($book->getActiveSheet(), 'Resumen', $header, $this->columns($params), $this->summaryRows($result), 9,
+            fn (array $row) => ($row['_kind'] ?? 'Renglón') !== 'Renglón');
+        ReportSheet::write($book->createSheet(), 'Detalle por documento', $header, $this->detailColumns(), $documents);
         $book->setActiveSheetIndex(0);
 
         $response = response()->streamDownload(fn () => (new Xlsx($book))->save('php://output'), $filename.'.xlsx', [
@@ -51,7 +48,7 @@ class BudgetVsActualExport
         return ['response' => $response, 'rows' => $result['rows']->count(), 'detail_rows' => $documents->count()];
     }
 
-    /** Columnas de la hoja resumen y del CSV: [encabezado, valor, formato]. */
+    /** Columnas de la hoja resumen y del CSV. */
     private function columns(array $params): array
     {
         $amount = fn (string $key) => fn (array $row) => $row[$key] ?? null;
@@ -70,52 +67,53 @@ class BudgetVsActualExport
             ['Ejercicio', fn () => $params['fiscal_year'], null],
             ['Mes', fn () => $params['period_month'], null],
             ['Vista', fn () => $params['scope'] === 'ACU' ? 'Acumulado' : 'Mes', null],
-            ['Autorizado', fn (array $row) => $row['authorized_amount'] ?? 'Sin base', self::MONEY],
-            ['Ampliaciones', $amount('increases'), self::MONEY],
-            ['Reducciones', $amount('decreases'), self::MONEY],
-            ['Vigente', $amount('current_budget'), self::MONEY],
-            ['Reservado', $amount('reserved'), self::MONEY],
-            ['Comprometido', $amount('committed'), self::MONEY],
-            ['Devengado', $amount('accrued'), self::MONEY],
+            ['Autorizado', fn (array $row) => $row['authorized_amount'] ?? 'Sin base', ReportSheet::MONEY],
+            ['Ampliaciones', $amount('increases'), ReportSheet::MONEY],
+            ['Reducciones', $amount('decreases'), ReportSheet::MONEY],
+            ['Vigente', $amount('current_budget'), ReportSheet::MONEY],
+            ['Reservado', $amount('reserved'), ReportSheet::MONEY],
+            ['Comprometido', $amount('committed'), ReportSheet::MONEY],
+            ['Devengado', $amount('accrued'), ReportSheet::MONEY],
             // El portal no registra pagos: se informa como no disponible, nunca como cero.
             ['Pagado', fn () => 'N/D', null],
-            ['Ejercido', $amount('exercised_total'), self::MONEY],
-            ['Consumido', $amount('consumed_total'), self::MONEY],
-            ['Disponible', $amount('available'), self::MONEY],
-            ['Sin conciliar', $amount('unreconciled'), self::MONEY],
+            ['Ejercido', $amount('exercised_total'), ReportSheet::MONEY],
+            ['Consumido', $amount('consumed_total'), ReportSheet::MONEY],
+            ['Disponible', $amount('available'), ReportSheet::MONEY],
+            ['Sin conciliar', $amount('unreconciled'), ReportSheet::MONEY],
         ];
         if ($params['include_cancelled_po']) {
-            $columns[] = ['OC canceladas (informativo)', $amount('released'), self::MONEY];
+            $columns[] = ['OC canceladas (informativo)', $amount('released'), ReportSheet::MONEY];
         }
 
         return array_merge($columns, [
-            ['% de avance', $amount('progress_pct'), self::PERCENT],
+            ['% de avance', $amount('progress_pct'), ReportSheet::PERCENT],
             ['Semáforo', fn (array $row) => self::LIGHT_LABELS[$row['traffic_light'] ?? ''] ?? null, null],
-            ['Proyección de cierre', $amount('projected_close'), self::MONEY],
+            ['Proyección de cierre', $amount('projected_close'), ReportSheet::MONEY],
             ['Conciliación de base', fn (array $row) => match ($row['baseline_status'] ?? null) {
                 'CONCILIA' => 'Concilia', 'DIFERENCIA' => 'Diferencia', 'SIN_BASE' => 'Sin base', default => null,
             }, null],
         ]);
     }
 
-    private function summarySheet(Worksheet $sheet, array $header, array $result, array $params): void
+    private function detailColumns(): array
     {
-        $sheet->setTitle('Resumen');
-        $columns = $this->columns($params);
-        $first = $this->writeHeader($sheet, $header, array_column($columns, 0));
-        $line = $first;
-
-        foreach ($this->summaryRows($result) as $row) {
-            $sheet->fromArray(array_map(fn ($column) => $column[1]($row), $columns), null, 'A'.$line, true);
-            if (($row['_kind'] ?? 'Renglón') !== 'Renglón') {
-                $sheet->getStyle('A'.$line.':'.Coordinate::stringFromColumnIndex(count($columns)).$line)->getFont()->setBold(true);
-            }
-            $line++;
-        }
-
-        $this->formatColumns($sheet, $columns, $first, max($first, $line - 1));
-        $sheet->freezePane('H'.$first);
-        $sheet->setAutoFilter('A'.($first - 1).':'.Coordinate::stringFromColumnIndex(count($columns)).max($first, $line - 1));
+        return [
+            ['Empresa', fn ($d) => $d['company_name'], null],
+            ['Centro de costo', fn ($d) => $d['cost_center_code'], null],
+            ['Nombre del centro', fn ($d) => $d['cost_center_name'], null],
+            ['Clave del renglón', fn ($d) => $d['budget_line_code'], null],
+            ['Renglón', fn ($d) => $d['budget_line_name'], null],
+            ['Subcuenta', fn ($d) => $d['budget_cedula_name'], null],
+            ['Monto', fn ($d) => self::BUCKET_LABELS[$d['bucket']], null],
+            ['Documento', fn ($d) => $d['type'], null],
+            ['Folio', fn ($d) => $d['folio'], null],
+            ['Mes de aplicación', fn ($d) => $d['application_month'], null],
+            ['Estatus del compromiso', fn ($d) => $d['status'], null],
+            ['Fecha del compromiso', fn ($d) => $d['committed_at'] ? ExcelDate::PHPToExcel($d['committed_at']) : null, ReportSheet::DATE],
+            ['Comprometido', fn ($d) => $d['committed_amount'], ReportSheet::MONEY],
+            ['Recibido', fn ($d) => $d['consumed_amount'], ReportSheet::MONEY],
+            ['Importe en este monto', fn ($d) => $d['amount'], ReportSheet::MONEY],
+        ];
     }
 
     /** Renglones con su subtotal de centro y de empresa intercalados, y el total general al final. */
@@ -139,77 +137,6 @@ class BudgetVsActualExport
         }
 
         return $rows;
-    }
-
-    private function detailSheet(Worksheet $sheet, array $header, Collection $documents): void
-    {
-        $sheet->setTitle('Detalle por documento');
-        $columns = [
-            ['Empresa', fn ($d) => $d['company_name'], null],
-            ['Centro de costo', fn ($d) => $d['cost_center_code'], null],
-            ['Nombre del centro', fn ($d) => $d['cost_center_name'], null],
-            ['Clave del renglón', fn ($d) => $d['budget_line_code'], null],
-            ['Renglón', fn ($d) => $d['budget_line_name'], null],
-            ['Subcuenta', fn ($d) => $d['budget_cedula_name'], null],
-            ['Monto', fn ($d) => self::BUCKET_LABELS[$d['bucket']], null],
-            ['Documento', fn ($d) => $d['type'], null],
-            ['Folio', fn ($d) => $d['folio'], null],
-            ['Mes de aplicación', fn ($d) => $d['application_month'], null],
-            ['Estatus del compromiso', fn ($d) => $d['status'], null],
-            ['Fecha del compromiso', fn ($d) => $d['committed_at'] ? ExcelDate::PHPToExcel($d['committed_at']) : null, 'dd/mm/yyyy'],
-            ['Comprometido', fn ($d) => $d['committed_amount'], self::MONEY],
-            ['Recibido', fn ($d) => $d['consumed_amount'], self::MONEY],
-            ['Importe en este monto', fn ($d) => $d['amount'], self::MONEY],
-        ];
-        $first = $this->writeHeader($sheet, $header, array_column($columns, 0));
-        $line = $first;
-        foreach ($documents as $document) {
-            $sheet->fromArray(array_map(fn ($column) => $column[1]($document), $columns), null, 'A'.$line++, true);
-        }
-
-        $this->formatColumns($sheet, $columns, $first, max($first, $line - 1));
-        $sheet->freezePane('A'.$first);
-        $sheet->setAutoFilter('A'.($first - 1).':'.Coordinate::stringFromColumnIndex(count($columns)).max($first, $line - 1));
-    }
-
-    private function csv(Collection $rows, array $params, string $filename): StreamedResponse
-    {
-        $columns = $this->columns($params);
-
-        return response()->streamDownload(function () use ($rows, $columns) {
-            $out = fopen('php://output', 'wb');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, array_column($columns, 0));
-            foreach ($rows as $row) {
-                fputcsv($out, array_map(fn ($column) => $column[1]($row), $columns));
-            }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    /** Escribe el bloque de título y los encabezados de columna; regresa la primera fila de datos. */
-    private function writeHeader(Worksheet $sheet, array $header, array $columns): int
-    {
-        foreach ($header as $index => $text) {
-            $sheet->setCellValue('A'.($index + 1), $text);
-        }
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-        $headingRow = count($header) + 2;
-        $sheet->fromArray($columns, null, 'A'.$headingRow);
-        $sheet->getStyle('A'.$headingRow.':'.Coordinate::stringFromColumnIndex(count($columns)).$headingRow)->getFont()->setBold(true);
-
-        return $headingRow + 1;
-    }
-
-    private function formatColumns(Worksheet $sheet, array $columns, int $first, int $last): void
-    {
-        foreach ($columns as $index => [$label, $value, $format]) {
-            $letter = Coordinate::stringFromColumnIndex($index + 1);
-            if ($format) {
-                $sheet->getStyle("{$letter}{$first}:{$letter}{$last}")->getNumberFormat()->setFormatCode($format);
-            }
-            $sheet->getColumnDimension($letter)->setAutoSize(true);
-        }
     }
 
     private function headerLines(User $user, array $params): array
