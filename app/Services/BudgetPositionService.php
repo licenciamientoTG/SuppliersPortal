@@ -104,7 +104,10 @@ class BudgetPositionService
             ? round((float) $positions->sum('authorized_amount'), 2) : null;
         $total['budget_difference'] = $total['authorized_amount'] === null ? null
             : round($total['authorized_amount'] + $total['increases'] - $total['decreases'] - $total['current_budget'], 2);
-        $total['lines_without_baseline'] = $positions->filter(fn ($p) => ($p['baseline_status'] ?? null) === 'SIN_BASE')->count();
+        $total['baseline_status'] = $total['budget_difference'] === null ? 'SIN_BASE'
+            : (abs($total['budget_difference']) < 0.005 ? 'CONCILIA' : 'DIFERENCIA');
+        // Acepta renglones sueltos o grupos ya resumidos (que traen su propio conteo).
+        $total['lines_without_baseline'] = (int) $positions->sum(fn ($p) => $p['lines_without_baseline'] ?? (($p['baseline_status'] ?? null) === 'SIN_BASE' ? 1 : 0));
 
         return $this->withIndicators($total);
     }

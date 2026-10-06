@@ -113,6 +113,8 @@ class RolePermissionSeeder extends Seeder
             'reportes.budget_alerts.exportar',
             'reportes.budget_alerts.excepcion.solicitar',
             'reportes.budget_alerts.excepcion.aprobar',
+            'reportes.budget_vs_actual.ver',
+            'reportes.budget_vs_actual.exportar',
             'puestos.administrar',
         ];
 
@@ -372,13 +374,15 @@ class RolePermissionSeeder extends Seeder
                 'reportes.budget_movements.exportar',
                 'reportes.budget_alerts.ver',
                 'reportes.budget_alerts.exportar',
+                'reportes.budget_vs_actual.ver',
+                'reportes.budget_vs_actual.exportar',
             ]);
 
             foreach ([$staffRole, $buyerRole, $departmentHeadRole, $generalDirectorRole] as $exceptionRequesterRole) {
                 $exceptionRequesterRole->givePermissionTo('reportes.budget_alerts.excepcion.solicitar');
             }
-            $departmentHeadRole->givePermissionTo('reportes.budget_alerts.ver');
-            $reportViewerRole->givePermissionTo('reportes.budget_alerts.ver');
+            $departmentHeadRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver']);
+            $reportViewerRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver']);
 
             $generalDirectorRole->givePermissionTo([
                 'reportes.budget_movements.ver',
@@ -386,6 +390,8 @@ class RolePermissionSeeder extends Seeder
                 'reportes.budget_alerts.ver',
                 'reportes.budget_alerts.exportar',
                 'reportes.budget_alerts.excepcion.aprobar',
+                'reportes.budget_vs_actual.ver',
+                'reportes.budget_vs_actual.exportar',
             ]);
 
             // Permisos de vista: se agregan sobre la matriz actual sin retirar
