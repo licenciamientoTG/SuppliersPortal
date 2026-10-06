@@ -56,10 +56,18 @@
 
 @section('content')
 <div class="container-fluid bva-report py-3" id="budgetVsActualReport">
-    <div class="report-head p-4 mb-3">
-        <div class="text-primary small fw-semibold text-uppercase">Presupuesto · RP-01</div>
-        <h1 class="h3 mb-1">Presupuesto vs. ejercido por departamento y renglón</h1>
-        <p class="text-muted mb-0">Saldo realmente disponible por renglón. Usa el mismo cálculo que el bloqueo de presupuesto: lo que aquí aparece como disponible es lo que el sistema deja comprometer.</p>
+    <div class="report-head p-4 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <div class="text-primary small fw-semibold text-uppercase">Presupuesto · RP-01</div>
+            <h1 class="h3 mb-1">Presupuesto vs. ejercido por departamento y renglón</h1>
+            <p class="text-muted mb-0">Saldo realmente disponible por renglón. Usa el mismo cálculo que el bloqueo de presupuesto: lo que aquí aparece como disponible es lo que el sistema deja comprometer.</p>
+        </div>
+        @can('reportes.budget_vs_actual.exportar')
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-primary js-export" data-format="csv" href="{{ route('budget-vs-actual-reports.export', ['format' => 'csv']) }}" title="Renglones con los filtros aplicados"><i class="ti ti-file-text me-1" aria-hidden="true"></i>CSV</a>
+                <a class="btn btn-primary js-export" data-format="xlsx" href="{{ route('budget-vs-actual-reports.export', ['format' => 'xlsx']) }}" title="Resumen con subtotales y detalle por documento"><i class="ti ti-file-spreadsheet me-1" aria-hidden="true"></i>Descargar Excel</a>
+            </div>
+        @endcan
     </div>
 
     <section class="report-card filter-card mb-3">
@@ -266,6 +274,10 @@
             document.getElementById('bvaPrev').disabled = payload.pagination.current_page <= 1;
             document.getElementById('bvaNext').disabled = payload.pagination.current_page >= payload.pagination.last_page;
             document.getElementById('bvaError').textContent = '';
+            // La descarga reproduce exactamente los filtros de la consulta que se ve en pantalla.
+            document.querySelectorAll('.js-export').forEach(link => {
+                link.href = `{{ url('reportes/presupuesto/ejercido/export') }}/${link.dataset.format}?${params(false)}`;
+            });
         } catch (error) {
             document.getElementById('bvaError').textContent = error.message;
             body.innerHTML = '<tr><td colspan="15" class="text-center text-danger py-4">No fue posible cargar el reporte.</td></tr>';

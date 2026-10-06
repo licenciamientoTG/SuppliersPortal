@@ -169,6 +169,84 @@ class BudgetVsActualReportTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['scope', 'period_month']);
     }
 
+    public function test_export_requires_the_export_permission(): void
+    {
+        $user = $this->viewer('department_head');
+
+        $this->actingAs($user)->get(route('budget-vs-actual-reports.export', ['format' => 'xlsx']))->assertForbidden();
+        $this->actingAs($user)->get(route('budget-vs-actual-reports.export', ['format' => 'csv']))->assertForbidden();
+    }
+
+    public function test_excel_has_typed_summary_with_subtotals_and_document_detail_that_adds_up(): void
+    {
+        $user = $this->exporter();
+        $company = Company::factory()->create();
+        $line = $this->line(10000, $this->center($company));
+        $this->commit($line, 'purchase_order', 3000, 1000);
+        $this->commit($line, 'quotation', 600);
+        $this->line(2000, $this->center($company));
+
+        $response = $this->actingAs($user)->get(route('budget-vs-actual-reports.export', ['format' => 'xlsx', 'fiscal_year' => $this->year, 'period_month' => 3]))->assertOk();
+        $book = $this->spreadsheet($response->streamedContent());
+
+        $this->assertSame(['Resumen', 'Detalle por documento'], $book->getSheetNames());
+        $summary = $book->getSheet(0)->toArray(null, false, false);
+        $this->assertStringContainsString('RP-01', $summary[0][0]);
+        $headings = $summary[7];
+        $total = collect($summary)->first(fn ($row) => $row[0] === 'Total general');
+        $this->assertNotNull($total);
+        $this->assertSame(12000.0, (float) $total[array_search('Vigente', $headings)]);
+        $this->assertSame(2000.0, (float) $total[array_search('Comprometido', $headings)]);
+        $this->assertSame('N/D', $total[array_search('Pagado', $headings)]);
+        $this->assertIsNumeric($total[array_search('Disponible', $headings)]);
+        $this->assertSame(2, collect($summary)->where(0, 'Subtotal centro')->count());
+        $this->assertSame(1, collect($summary)->where(0, 'Subtotal empresa')->count());
+
+        $detail = collect($book->getSheet(1)->toArray(null, false, false))->slice(8);
+        $sum = fn (string $bucket) => round($detail->where(6, $bucket)->sum(14), 2);
+        $this->assertSame(2000.0, $sum('Comprometido'));
+        $this->assertSame(1000.0, $sum('Devengado'));
+        $this->assertSame(600.0, $sum('Reservado'));
+
+        $this->assertDatabaseHas('activity_log', ['log_name' => 'reportes', 'description' => 'Exportación RP-01 xlsx', 'causer_id' => $user->id]);
+    }
+
+    public function test_csv_reproduces_the_filtered_view_with_bom(): void
+    {
+        $user = $this->exporter();
+        $kept = $this->line(1000, $this->center());
+        $this->line(9000, $this->center());
+
+        $content = $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'csv', 'fiscal_year' => $this->year, 'period_month' => 3, 'cost_center_ids' => [$kept->annualBudget->cost_center_id],
+        ]))->assertOk()->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
+        $lines = array_map('str_getcsv', array_filter(explode("\n", substr($content, 3))));
+        $this->assertSame('Tipo de fila', $lines[0][0]);
+        $this->assertCount(2, $lines);
+        $this->assertSame((string) $kept->annualBudget->costCenter->code, $lines[1][3]);
+    }
+
+    private function exporter(): User
+    {
+        Permission::findOrCreate('reportes.budget_vs_actual.exportar', 'web');
+        $user = $this->viewer('accounting');
+        $user->givePermissionTo('reportes.budget_vs_actual.exportar');
+
+        return $user;
+    }
+
+    private function spreadsheet(string $content): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rp01').'.xlsx';
+        file_put_contents($path, $content);
+        $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        @unlink($path);
+
+        return $book;
+    }
+
     private function viewer(string $role): User
     {
         $user = User::factory()->create(['is_active' => true]);

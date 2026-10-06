@@ -33,7 +33,7 @@ return [
             'fields' => ['Empresa, centro de costo, renglón y cuenta contable', 'Autorizado, ampliaciones, reducciones y vigente', 'Reservado, comprometido, devengado y pagado', 'Ejercido, disponible, % de avance, semáforo y proyección de cierre'],
         ],
         [
-            'code' => 'RP-02', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 1, 'existing_report' => 'budget-movements-risk',
+            'code' => 'RP-02', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 1, 'existing_report' => 'budget-movements-risk', 'report_route' => 'budget-movement-reports.index',
             'name' => 'Movimientos y traspasos presupuestales',
             'purpose' => 'La historia de por qué el presupuesto de hoy no es el que se aprobó en enero: cada ampliación, reducción o traspaso con su motivo y autorizador.',
             'frequency' => 'Bajo demanda',

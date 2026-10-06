@@ -163,9 +163,22 @@ Reservado + Comprometido + Devengado + Disponible + Sin conciliar = Vigente
   identidad en cero y detalle = fila. La base de desarrollo tiene muy pocos renglones de 2026, así
   que el tiempo de respuesta con un año de operación real sigue pendiente de medir.
 
+## 10. Exportación (2026-10-06)
+
+- `GET /reportes/presupuesto/ejercido/export/{xlsx|csv}` con permiso `reportes.budget_vs_actual.exportar`;
+  los botones solo aparecen con ese permiso y reproducen los filtros de la consulta en pantalla.
+- Excel (`App\Reports\Budget\BudgetVsActualExport`): encabezado con reporte, empresas, periodo,
+  filtros, usuario y fecha/hora; hoja "Resumen" con renglones, subtotales por centro y empresa y
+  total general (moneda `$#,##0.00`, porcentaje `0.0%`); hoja "Detalle por documento" con cada
+  compromiso en el monto donde suma (uno puede estar en Comprometido y Devengado a la vez).
+- CSV UTF-8 con BOM: solo renglones (sin subtotales), mismas columnas que el resumen.
+- Pagado se exporta como "N/D" y el autorizado sin base como "Sin base", nunca como 0.
+- Cada exportación queda en `activity_log` (log `reportes`): formato, filtros y número de filas.
+- Se genera en memoria con PhpSpreadsheet, igual que RP-02; con el volumen esperado (miles de
+  renglones) no hace falta encolar. El job para más de 50 000 filas queda fuera de alcance.
+
 ### Pendiente
 
-- Exportación Excel (hoja resumen + detalle por documento) y CSV, con bitácora de exportaciones.
 - Fecha de corte histórica (`as_of_date`) y foto diaria `budget_position_snapshots` (job 23:55).
 - Rango de fechas `date_from`/`date_to` (hoy el periodo se elige por ejercicio y mes).
 - Cuenta contable: sigue sin existir la liga renglón → catálogo contable.

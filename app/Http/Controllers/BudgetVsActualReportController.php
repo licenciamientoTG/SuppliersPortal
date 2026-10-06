@@ -6,6 +6,7 @@ use App\Http\Requests\BudgetVsActualReportRequest;
 use App\Models\Company;
 use App\Models\ExpenseCategory;
 use App\Models\User;
+use App\Reports\Budget\BudgetVsActualExport;
 use App\Reports\Budget\BudgetVsActualReport;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,18 @@ class BudgetVsActualReportController extends Controller
             'kpis' => $result['kpis'],
             'pagination' => ['current_page' => $page, 'last_page' => $lastPage, 'per_page' => $perPage, 'total' => $rows->count()],
         ]);
+    }
+
+    public function export(BudgetVsActualReportRequest $request, BudgetVsActualExport $export, string $format)
+    {
+        $params = $request->params();
+        $result = $export->download($request->user(), $params, $format);
+
+        activity('reportes')->causedBy($request->user())
+            ->withProperties(['format' => $format, 'filters' => $params, 'rows' => $result['rows'], 'detail_rows' => $result['detail_rows']])
+            ->log('Exportación RP-01 '.$format);
+
+        return $result['response'];
     }
 
     public function detail(BudgetVsActualReportRequest $request)
