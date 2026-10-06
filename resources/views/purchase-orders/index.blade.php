@@ -132,9 +132,67 @@ $(document).ready(function() {
 
     // Confirmación antes de reactivar una OC/OCD cerrada por inactividad
     $(document).on('submit', '.js-reactivate-po-form', function(e) {
-        if (!confirm('¿Reactivar esta orden de compra? Se restablecerá su presupuesto comprometido y el plazo de inactividad.')) {
-            e.preventDefault();
-        }
+        e.preventDefault();
+
+        const form = this;
+        const $row = $(form).closest('tr');
+        const isDirect = $(form).closest('table').is('#direct-orders-table');
+        const folio = $.trim($row.find('td').first().text()) || 'sin folio';
+        const tipo = isDirect ? 'Orden de Compra Directa' : 'Orden de Compra';
+        const nuevoEstado = isDirect
+            ? 'Regresará al estado <strong>Pendiente de Autorización</strong>.'
+            : 'Regresará al estado <strong>Emitida</strong>, con nueva fecha de emisión.';
+        const aviso = isDirect
+            ? 'Después de reactivarla deberás <strong>asignar un aprobador</strong> para continuar el flujo.'
+            : 'La orden volverá a estar vigente para continuar con la entrega y recepción.';
+
+        Swal.fire({
+            icon: 'question',
+            title: '¿Reactivar esta orden?',
+            html: `
+                <div class="text-start">
+                    <p class="mb-2">
+                        Estás por reactivar la <strong>${tipo}</strong>
+                        <span class="badge bg-dark fs-6 ms-1">${$('<div>').text(folio).html()}</span>,
+                        que fue <strong>cerrada por inactividad</strong>.
+                    </p>
+                    <p class="mb-1 fw-semibold">Al confirmar ocurrirá lo siguiente:</p>
+                    <ul class="mb-3 ps-3">
+                        <li>${nuevoEstado}</li>
+                        <li>Se <strong>volverá a comprometer su presupuesto</strong> en el centro de costo.</li>
+                        <li>Se <strong>reiniciará el plazo de inactividad</strong>.</li>
+                    </ul>
+                    <div class="alert alert-warning mb-0 py-2">
+                        <i class="ti ti-alert-triangle me-1"></i>${aviso}
+                    </div>
+                </div>`,
+            showCancelButton: true,
+            confirmButtonText: '<i class="ti ti-refresh me-1"></i>Sí, reactivar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true,
+            focusCancel: true,
+            width: 600,
+            customClass: {
+                confirmButton: 'btn btn-dark ms-2',
+                cancelButton: 'btn btn-light'
+            },
+            buttonsStyling: false
+        }).then(function(result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            Swal.fire({
+                title: 'Reactivando orden...',
+                text: 'Por favor espera un momento.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: function() { Swal.showLoading(); }
+            });
+
+            // submit() nativo no vuelve a disparar este handler
+            form.submit();
+        });
     });
 
     // ==========================================
