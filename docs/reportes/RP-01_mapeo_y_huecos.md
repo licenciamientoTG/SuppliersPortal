@@ -117,3 +117,27 @@ Reservado + Comprometido + Devengado + Disponible + Sin conciliar = Vigente
   (mismo resultado que antes: cada subcuenta aporta `max(0, disponible)`).
 - Pruebas: `tests/Feature/BudgetPositionServiceTest.php` (cuadre con 20 combinaciones de filtros,
   ningún compromiso en dos montos, bloqueo = reporte, sobregiro y descuadres visibles).
+
+## 8. Columnas calculadas (2026-10-06)
+
+`positions()` agrega por renglón (el bloqueo, que usa `fromDistributions()`, no paga estas consultas):
+
+| Columna | Cálculo |
+|---|---|
+| `authorized_amount` | Σ `budget_distribution_baselines.original_amount` de la línea; `null` si no hay base (`SIN_BASE`), nunca 0 |
+| `increases` / `decreases` | Σ montos positivos / negativos de `budget_movement_details` de movimientos `APROBADO` |
+| `budget_difference` | autorizado + ampliaciones − reducciones − vigente (misma conciliación de RP-02) |
+| `baseline_status` | `CONCILIA`, `DIFERENCIA` o `SIN_BASE` |
+| `exercised_total` | comprometido + devengado (no incluye reservado; pagado no existe) |
+| `consumed_total` | vigente − disponible (= reservado + comprometido + devengado + sin conciliar), mismo criterio que el bloqueo |
+| `progress_pct` | consumido / vigente, 4 decimales; `null` si el vigente es 0 |
+| `traffic_light` | `VERDE` < 80 %, `AMARILLO` 80–99.99 %, `ROJO` ≥ 100 %; umbrales en `config/budget_position.php` (`BUDGET_POSITION_YELLOW`, `BUDGET_POSITION_RED`). Vigente 0 con consumo = `ROJO` |
+
+- La llave de línea es centro + ejercicio + mes + cuenta + subcuenta. Si una línea tiene varias
+  distribuciones, autorizado y movimientos se asignan a la primera (menor id) para no duplicarlos.
+- `summarize($positions)`: subtotales y totales sumando montos y recalculando % y semáforo (no promedia).
+  El autorizado del grupo es `null` si algún renglón no tiene base; `lines_without_baseline` dice cuántos.
+- `accumulated($filters, $periodMonth, $today)`: vista `ACU` por centro + cuenta + subcuenta (meses 1 al
+  mes elegido) con `projected_close` = consumido acumulado + promedio de ejercido de los últimos 3 meses
+  cerrados × meses restantes. Con menos historia usa los meses cerrados que haya
+  (`projection_basis_months`); sin meses cerrados la proyección es `null`.
