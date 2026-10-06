@@ -25,7 +25,7 @@ use Yajra\DataTables\Facades\DataTables;
 class PurchaseOrderController extends Controller
 {
     // Solicitado por el negocio: solo estos usuarios pueden reactivar OC/OCD cerradas por inactividad.
-    private const REACTIVATION_ALLOWED_USER_IDS = [2, 3];
+    private const REACTIVATION_ALLOWED_USER_IDS = [2, 3, 20];
 
     /**
      * Vista principal con tabs para OC Regulares y OCD

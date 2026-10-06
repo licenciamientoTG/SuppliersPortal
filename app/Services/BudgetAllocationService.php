@@ -49,7 +49,8 @@ class BudgetAllocationService
                 $categoryId
             );
 
-            $available = (float) $distribution->getAvailableAmount();
+            $position = app(BudgetPositionService::class)->fromDistributions(collect([$distribution]))->sole();
+            $available = max(0, $position['available']);
 
             return [
                 'available' => $available + 0.000001 >= $requiredAmount,
@@ -68,7 +69,9 @@ class BudgetAllocationService
         }
 
         $distributions = $this->resolveDistributionsForCategory($costCenterId, $year, $month, $categoryId);
-        $available = (float) $distributions->sum(fn (BudgetMonthlyDistribution $distribution) => $distribution->getAvailableAmount());
+        // Un sobregiro en una subcuenta no resta disponible a las demás de la misma cuenta.
+        $available = round((float) app(BudgetPositionService::class)->fromDistributions($distributions)
+            ->sum(fn (array $position) => max(0, $position['available'])), 2);
 
         return [
             'available' => $available + 0.000001 >= $requiredAmount,

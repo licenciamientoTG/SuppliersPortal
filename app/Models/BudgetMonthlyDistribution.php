@@ -162,9 +162,18 @@ class BudgetMonthlyDistribution extends Model
      */
     public function getAvailableAmount(): float
     {
-        return max(0, (float) $this->assigned_amount
+        return max(0, $this->getBalanceAmount());
+    }
+
+    /**
+     * Saldo del renglón (asignado − consumido − comprometido); negativo si hay sobregiro.
+     * Es la única fórmula de disponible: la usan el bloqueo y el reporte RP-01.
+     */
+    public function getBalanceAmount(): float
+    {
+        return round((float) $this->assigned_amount
             - (float) $this->consumed_amount
-            - (float) $this->committed_amount);
+            - (float) $this->committed_amount, 2);
     }
 
     /**
