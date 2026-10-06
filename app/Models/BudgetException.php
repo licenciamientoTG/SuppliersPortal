@@ -24,4 +24,14 @@ class BudgetException extends Model
     {
         return $this->belongsTo(CostCenter::class);
     }
+
+    public function expenseCategory()
+    {
+        return $this->belongsTo(ExpenseCategory::class);
+    }
+
+    public function budgetCedula()
+    {
+        return $this->belongsTo(BudgetCedula::class);
+    }
 }

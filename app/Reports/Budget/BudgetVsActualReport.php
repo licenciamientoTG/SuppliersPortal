@@ -235,29 +235,7 @@ class BudgetVsActualReport
             return $rows;
         }
 
-        $centers = CostCenter::query()->with(['company:id,name,rfc', 'responsible:id,name'])
-            ->whereIn('id', $rows->pluck('cost_center_id')->unique())->get()->keyBy('id');
-        $categories = ExpenseCategory::query()->whereIn('id', $rows->pluck('expense_category_id')->unique())->get(['id', 'code', 'name'])->keyBy('id');
-        $cedulas = BudgetCedula::query()->whereIn('id', $rows->pluck('budget_cedula_id')->filter()->unique())->get(['id', 'name'])->keyBy('id');
-
-        $rows = $rows->map(function (array $row) use ($centers, $categories, $cedulas) {
-            $center = $centers[$row['cost_center_id']] ?? null;
-            $category = $categories[$row['expense_category_id']] ?? null;
-
-            return $row + [
-                'company_id' => $center?->company_id,
-                'company_name' => $center?->company?->name,
-                'company_rfc' => $center?->company?->rfc,
-                'cost_center_code' => $center?->code,
-                'cost_center_name' => $center?->name,
-                'responsible_name' => $center?->responsible?->name,
-                'budget_line_code' => $category?->code,
-                'budget_line_name' => $category?->name,
-                'budget_cedula_name' => $row['budget_cedula_id'] ? ($cedulas[$row['budget_cedula_id']]->name ?? null) : null,
-                // El portal aún no liga renglones con el catálogo contable (ver RP-01_mapeo_y_huecos.md).
-                'accounting_account' => null,
-            ];
-        })->sortBy([
+        $rows = $this->describe($rows)->sortBy([
             ['company_name', 'asc'], ['cost_center_code', 'asc'], ['budget_line_code', 'asc'], ['budget_cedula_name', 'asc'],
         ])->values();
 
@@ -268,6 +246,39 @@ class BudgetVsActualReport
 
             return $row;
         });
+    }
+
+    /** Agrega empresa, centro, responsable, renglón y subcuenta a filas con sus ids (también lo usa RP-03). */
+    public function describe(Collection $rows): Collection
+    {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        $centers = CostCenter::query()->with(['company:id,name,rfc', 'responsible:id,name'])
+            ->whereIn('id', $rows->pluck('cost_center_id')->unique())->get()->keyBy('id');
+        $categories = ExpenseCategory::query()->whereIn('id', $rows->pluck('expense_category_id')->unique())->get(['id', 'code', 'name'])->keyBy('id');
+        $cedulas = BudgetCedula::query()->whereIn('id', $rows->pluck('budget_cedula_id')->filter()->unique())->get(['id', 'name'])->keyBy('id');
+
+        return $rows->map(function (array $row) use ($centers, $categories, $cedulas) {
+            $center = $centers[$row['cost_center_id']] ?? null;
+            $category = $categories[$row['expense_category_id']] ?? null;
+
+            return $row + [
+                'company_id' => $center?->company_id,
+                'company_name' => $center?->company?->name,
+                'company_rfc' => $center?->company?->rfc,
+                'cost_center_code' => $center?->code,
+                'cost_center_name' => $center?->name,
+                'responsible_user_id' => $center?->responsible_user_id,
+                'responsible_name' => $center?->responsible?->name,
+                'budget_line_code' => $category?->code,
+                'budget_line_name' => $category?->name,
+                'budget_cedula_name' => $row['budget_cedula_id'] ? ($cedulas[$row['budget_cedula_id']]->name ?? null) : null,
+                // El portal aún no liga renglones con el catálogo contable (ver RP-01_mapeo_y_huecos.md).
+                'accounting_account' => null,
+            ];
+        })->values();
     }
 
     private function subtotal(Collection $rows): array
@@ -284,7 +295,7 @@ class BudgetVsActualReport
         return implode('|', [$row['cost_center_id'], $row['expense_category_id'], $row['budget_cedula_id'] ?? 'null']);
     }
 
-    private function documentUrl(BudgetCommitment $commitment): ?string
+    public function documentUrl(BudgetCommitment $commitment): ?string
     {
         return match (true) {
             (bool) $commitment->purchase_order_id => route('purchase-orders.show', $commitment->purchase_order_id),

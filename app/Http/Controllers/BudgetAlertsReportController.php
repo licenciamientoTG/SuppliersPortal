@@ -2,73 +2,54 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BudgetAlertsReportRequest;
 use App\Models\BudgetException;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\Company;
-use App\Models\CostCenter;
-use App\Services\BudgetAlertsReportService;
+use App\Models\User;
+use App\Reports\Budget\BudgetAlertsExport;
+use App\Reports\Budget\BudgetAlertsReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class BudgetAlertsReportController extends Controller
 {
-    public function __construct(private readonly BudgetAlertsReportService $report) {}
+    public function __construct(private readonly BudgetAlertsReport $report) {}
 
     public function index(Request $request)
     {
-        $companies = Company::query()->orderBy('name')->get(['id', 'name']);
-        $centers = CostCenter::query()->with('company')->when(! $request->user()->hasRole(['superadmin', 'general_director', 'accounting', 'controller']), fn ($q) => $q->where(fn ($scope) => $scope->where('responsible_user_id', $request->user()->id)->orWhereHas('activeUsers', fn ($users) => $users->where('users.id', $request->user()->id))))->orderBy('name')->get();
+        $centers = $this->report->visibleCostCenters($request->user())->with('company:id,name')->orderBy('code')->get(['id', 'code', 'name', 'company_id', 'responsible_user_id']);
+        $companies = Company::query()->whereIn('id', $centers->pluck('company_id')->unique())->orderBy('name')->get(['id', 'name']);
+        $responsibles = User::query()->whereIn('id', $centers->pluck('responsible_user_id')->filter()->unique())->orderBy('name')->get(['id', 'name']);
 
-        return view('reports.budget-alerts.index', compact('companies', 'centers'));
+        return view('reports.budget-alerts.index', compact('companies', 'centers', 'responsibles'));
     }
 
-    public function data(Request $request)
+    public function data(BudgetAlertsReportRequest $request)
     {
-        $this->validateFilters($request);
-        $lines = $this->report->lines($request);
+        $result = $this->report->build($request->user(), $request->params());
+        $perPage = $request->integer('per_page', 25);
+        $lastPage = max(1, (int) ceil($result['lines']->count() / $perPage));
+        $page = min($request->integer('page', 1), $lastPage);
 
-        return response()->json(['lines' => $lines->forPage($request->integer('page', 1), $request->integer('per_page', 25))->values(), 'total' => $lines->count(), 'exceptions' => $this->report->exceptions($request)->paginate($request->integer('per_page', 25))]);
+        return response()->json([
+            'lines' => $result['lines']->forPage($page, $perPage)->values(),
+            'pagination' => ['current_page' => $page, 'last_page' => $lastPage, 'per_page' => $perPage, 'total' => $result['lines']->count()],
+            'exceptions' => $result['exceptions']->values(),
+            'kpis' => $result['kpis'],
+        ]);
     }
 
-    public function export(Request $request, string $format)
+    public function export(BudgetAlertsReportRequest $request, BudgetAlertsExport $export, string $format)
     {
-        abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
-        $this->validateFilters($request);
-        $lines = $this->report->lines($request);
-        $exceptions = $this->report->exceptions($request)->get();
-        if ($format === 'csv') {
-            return response()->streamDownload(function () use ($lines, $exceptions) {
-                $out = fopen('php://output', 'wb');
-                fwrite($out, "\xEF\xBB\xBF");
-                fputcsv($out, ['Empresa', 'Centro', 'Responsable', 'Año', 'Mes', 'Cuenta', 'Subcuenta', 'Asignado', 'Consumido', 'Comprometido', 'Ejercido', 'Disponible', '% consumido', 'Ritmo 3m', 'Agotamiento proyectado', 'Historial', 'Documentos comprometidos']);
-                foreach ($lines as $r) {
-                    fputcsv($out, [$r['company'], $r['cost_center'], $r['responsible'], $r['year'], $r['month'], $r['account'], $r['subaccount'], $r['assigned'], $r['consumed'], $r['committed'], $r['consumed_total'], $r['available'], $r['consumed_pct'], $r['burn_rate_3m'], $r['projected_exhaustion'], $r['history_status'], implode(', ', $r['pending_documents'])]);
-                }
-                fputcsv($out, []);
-                fputcsv($out, ['Excepciones']);
-                fputcsv($out, ['Documento', 'Partida', 'Importe partida', 'Excedente solicitado', 'Excedente aprobado', 'Motivo', 'Solicitante', 'Autorizador', 'Estatus', 'Fecha']);
-                foreach ($exceptions as $e) {
-                    fputcsv($out, [$e->document_type.' #'.$e->document_id, $e->document_line_id, $e->line_amount, $e->requested_excess, $e->approved_excess, $e->reason, $e->requester?->name, $e->decider?->name, $e->status, $e->requested_at]);
-                } fclose($out);
-            }, 'alertas-presupuestales.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
-        }
-        $book = new Spreadsheet;
-        $sheet = $book->getActiveSheet();
-        $sheet->setTitle('Renglones en riesgo');
-        $sheet->fromArray(['Empresa', 'Centro', 'Responsable', 'Año', 'Mes', 'Cuenta', 'Subcuenta', 'Asignado', 'Consumido', 'Comprometido', 'Ejercido', 'Disponible', '% consumido', 'Ritmo 3m', 'Agotamiento proyectado', 'Historial', 'Documentos comprometidos'], null, 'A1');
-        foreach ($lines as $i => $r) {
-            $sheet->fromArray([$r['company'], $r['cost_center'], $r['responsible'], $r['year'], $r['month'], $r['account'], $r['subaccount'], $r['assigned'], $r['consumed'], $r['committed'], $r['consumed_total'], $r['available'], $r['consumed_pct'], $r['burn_rate_3m'], $r['projected_exhaustion'], $r['history_status'], implode(', ', $r['pending_documents'])], null, 'A'.($i + 2));
-        }
-        $excSheet = $book->createSheet();
-        $excSheet->setTitle('Excepciones');
-        $excSheet->fromArray(['Documento', 'Partida', 'Importe partida', 'Excedente solicitado', 'Excedente aprobado', 'Motivo', 'Solicitante', 'Autorizador', 'Estatus', 'Fecha'], null, 'A1');
-        foreach ($exceptions as $i => $e) {
-            $excSheet->fromArray([$e->document_type.' #'.$e->document_id, $e->document_line_id, $e->line_amount, $e->requested_excess, $e->approved_excess, $e->reason, $e->requester?->name, $e->decider?->name, $e->status, (string) $e->requested_at], null, 'A'.($i + 2));
-        }
+        $params = $request->params();
+        $result = $export->download($request->user(), $params, $format);
 
-        return response()->streamDownload(fn () => (new Xlsx($book))->save('php://output'), 'alertas-presupuestales.xlsx');
+        activity('reportes')->causedBy($request->user())
+            ->withProperties(['format' => $format, 'filters' => $params, 'rows' => $result['rows'], 'exception_rows' => $result['exception_rows']])
+            ->log('Exportación RP-03 '.$format);
+
+        return $result['response'];
     }
 
     public function requestException(Request $request)
@@ -111,7 +92,7 @@ class BudgetAlertsReportController extends Controller
                     }
                 }
                 if ($line) {
-                    $available = (float) $line->assigned_amount - (float) $line->consumed_amount - (float) $line->committed_amount;
+                    $available = $line->getBalanceAmount();
                     $excess = max(0, round((float) $exception->line_amount - $available, 2));
                 }
             }
@@ -119,10 +100,5 @@ class BudgetAlertsReportController extends Controller
 
             return $exception->fresh();
         });
-    }
-
-    private function validateFilters(Request $request): void
-    {
-        $request->validate(['year' => ['nullable', 'integer', 'between:2020,2100'], 'company_id' => ['nullable', 'integer', 'exists:companies,id'], 'cost_center_id' => ['nullable', 'integer', 'exists:cost_centers,id'], 'status' => ['nullable', 'in:PENDING,APPROVED,REJECTED'], 'date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date', 'after_or_equal:date_from'], 'page' => ['nullable', 'integer', 'min:1'], 'per_page' => ['nullable', 'integer', 'between:10,100']]);
     }
 }

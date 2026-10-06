@@ -28,6 +28,7 @@ class BudgetThresholdAlertNotification extends Notification
             ->line("{$center?->company?->name} · {$center?->name} · {$this->distribution->expenseCategory?->name} · {$this->distribution->budgetCedula?->name}")
             ->line('Periodo: '.$this->distribution->annualBudget?->fiscal_year.'-'.$this->distribution->month)
             ->line('Consumo y compromiso: '.number_format($this->usage, 2).'%')
-            ->line('Disponible: $'.number_format((float) $this->distribution->assigned_amount - (float) $this->distribution->consumed_amount - (float) $this->distribution->committed_amount, 2));
+            ->line('Disponible: $'.number_format($this->distribution->getBalanceAmount(), 2))
+            ->action('Ver alertas presupuestales', route('budget-alert-reports.index'));
     }
 }
