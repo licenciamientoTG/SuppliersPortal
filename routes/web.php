@@ -13,6 +13,7 @@ use App\Http\Controllers\BudgetMovementController;
 use App\Http\Controllers\BudgetMovementReportController;
 use App\Http\Controllers\BudgetMovementWorkflowController;
 use App\Http\Controllers\BudgetProfileController;
+use App\Http\Controllers\BudgetVsActualReportController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CatSupplierController;
 use App\Http\Controllers\CompanyController;
@@ -429,6 +430,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
     // ========================================================================
     //  Budget Movements
     // ========================================================================
+    Route::prefix('reportes/presupuesto/ejercido')->name('budget-vs-actual-reports.')->middleware('can:reportes.budget_vs_actual.ver')->group(function () {
+        Route::get('/', [BudgetVsActualReportController::class, 'index'])->name('index');
+        Route::get('/data', [BudgetVsActualReportController::class, 'data'])->name('data');
+        Route::get('/detalle', [BudgetVsActualReportController::class, 'detail'])->name('detail');
+    });
     Route::prefix('reportes/presupuesto/movimientos')->name('budget-movement-reports.')->group(function () {
         Route::get('/', [BudgetMovementReportController::class, 'index'])->middleware('can:reportes.budget_movements.ver')->name('index');
         Route::get('/data', [BudgetMovementReportController::class, 'data'])->middleware('can:reportes.budget_movements.ver')->name('data');

@@ -141,3 +141,32 @@ Reservado + Comprometido + Devengado + Disponible + Sin conciliar = Vigente
   mes elegido) con `projected_close` = consumido acumulado + promedio de ejercido de los últimos 3 meses
   cerrados × meses restantes. Con menos historia usa los meses cerrados que haya
   (`projection_basis_months`); sin meses cerrados la proyección es `null`.
+
+## 9. Pantalla (2026-10-06)
+
+- Ruta: `GET /reportes/presupuesto/ejercido` (`budget-vs-actual-reports.index`), con endpoints de
+  datos (`.data`) y de detalle por monto (`.detail`). Enlazada desde el catálogo de reportes solicitados.
+- Clase `App\Reports\Budget\BudgetVsActualReport` sobre `BudgetPositionService`; parámetros en
+  `BudgetVsActualReportRequest` (ejercicio, mes, vista MES/ACU, empresas, centros, cuentas,
+  responsable, OC canceladas). Por omisión: ejercicio y mes en curso, vista del mes.
+- Pantalla: tarjetas KPI (vigente, consumido, disponible, % avance, renglones en rojo), tabla con
+  subtotales por centro y por empresa más total general, semáforo, proyección de cierre y barra
+  apilada al 100 % del vigente. Clic en Reservado, Comprometido, Devengado u OC canceladas abre
+  los documentos (OC, OCD o requisición de la cotización) con liga al documento.
+- Pagado se muestra como "N/D"; "Sin base" cuando el renglón no tiene autorizado capturado.
+- Permisos `reportes.budget_vs_actual.ver` y `.exportar` en `RolePermissionSeeder`
+  (accounting y general_director: ver y exportar; department_head y report_viewer: ver).
+  **En cada ambiente hay que correr `php artisan db:seed --class=RolePermissionSeeder`.**
+- Alcance (en servidor): superadmin ve todo; accounting y general_director ven todo, o solo sus
+  empresas asignadas (`company_user`) si tienen; los demás, solo centros donde son responsables.
+- Verificado en solo lectura contra SQL Server (`dev_suppliersPortalDB`): consultas correctas,
+  identidad en cero y detalle = fila. La base de desarrollo tiene muy pocos renglones de 2026, así
+  que el tiempo de respuesta con un año de operación real sigue pendiente de medir.
+
+### Pendiente
+
+- Exportación Excel (hoja resumen + detalle por documento) y CSV, con bitácora de exportaciones.
+- Fecha de corte histórica (`as_of_date`) y foto diaria `budget_position_snapshots` (job 23:55).
+- Rango de fechas `date_from`/`date_to` (hoy el periodo se elige por ejercicio y mes).
+- Cuenta contable: sigue sin existir la liga renglón → catálogo contable.
+- PDF ejecutivo por centro de costo (opcional en la especificación).

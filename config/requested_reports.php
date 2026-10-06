@@ -24,7 +24,7 @@ return [
 
     'reports' => [
         [
-            'code' => 'RP-01', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 2, 'existing_report' => 'budget-execution',
+            'code' => 'RP-01', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 2, 'existing_report' => 'budget-execution', 'report_route' => 'budget-vs-actual-reports.index',
             'name' => 'Presupuesto vs. ejercido por departamento y renglón',
             'purpose' => 'El saldo realmente disponible antes de comprometer un peso más. Contesta "¿puedo autorizar esta compra?" con un número y usa la misma lógica que el bloqueo de la requisición.',
             'frequency' => 'Tiempo real, con corte diario histórico',
