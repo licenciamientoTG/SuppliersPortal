@@ -434,6 +434,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/', [BudgetVsActualReportController::class, 'index'])->name('index');
         Route::get('/data', [BudgetVsActualReportController::class, 'data'])->name('data');
         Route::get('/detalle', [BudgetVsActualReportController::class, 'detail'])->name('detail');
+        Route::get('/export/{format}', [BudgetVsActualReportController::class, 'export'])->middleware('can:reportes.budget_vs_actual.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
     });
     Route::prefix('reportes/presupuesto/movimientos')->name('budget-movement-reports.')->group(function () {
         Route::get('/', [BudgetMovementReportController::class, 'index'])->middleware('can:reportes.budget_movements.ver')->name('index');

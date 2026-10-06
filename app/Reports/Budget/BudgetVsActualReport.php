@@ -122,6 +122,70 @@ class BudgetVsActualReport
         });
     }
 
+    /**
+     * Detalle por documento de todas las filas (hoja de detalle del Excel). Un compromiso puede
+     * aparecer en dos montos: lo pendiente en Reservado/Comprometido y lo recibido en Devengado.
+     */
+    public function documentLines(array $params, Collection $rows): Collection
+    {
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $rowsByLine = $rows->keyBy(fn ($row) => $this->lineKey($row));
+        $months = collect($params['scope'] === 'ACU' ? range(1, $params['period_month']) : [$params['period_month']])
+            ->map(fn ($month) => sprintf('%04d-%02d', $params['fiscal_year'], $month));
+        $statuses = $params['include_cancelled_po'] ? ['COMMITTED', 'RECEIVED', 'RELEASED'] : ['COMMITTED', 'RECEIVED'];
+
+        return BudgetCommitment::query()
+            ->with(['purchaseOrder:id,folio', 'directPurchaseOrder:id,folio', 'quotationSummary.rfq:id,folio', 'quotationSummary.requisition:id,folio'])
+            ->whereIn('cost_center_id', $rows->pluck('cost_center_id')->unique())
+            ->whereIn('expense_category_id', $rows->pluck('expense_category_id')->unique())
+            ->whereIn('application_month', $months)
+            ->whereIn('status', $statuses)
+            ->orderBy('cost_center_id')->orderBy('application_month')->orderBy('id')
+            ->get()
+            ->flatMap(function (BudgetCommitment $c) use ($rowsByLine) {
+                $row = $rowsByLine->get($this->lineKey([
+                    'cost_center_id' => $c->cost_center_id, 'expense_category_id' => $c->expense_category_id, 'budget_cedula_id' => $c->budget_cedula_id,
+                ]));
+                if (! $row) {
+                    return [];
+                }
+
+                $pending = round((float) $c->committed_amount - (float) $c->consumed_amount, 2);
+                $entries = [];
+                if ($c->status === 'COMMITTED' && abs($pending) >= 0.005) {
+                    $entries[] = [$c->quotation_summary_id ? 'reserved' : 'committed', $pending];
+                }
+                if ($c->status !== 'RELEASED' && (float) $c->consumed_amount > 0) {
+                    $entries[] = ['accrued', round((float) $c->consumed_amount, 2)];
+                }
+                if ($c->status === 'RELEASED') {
+                    $entries[] = ['released', round((float) $c->committed_amount, 2)];
+                }
+
+                return array_map(fn ($entry) => [
+                    'company_name' => $row['company_name'],
+                    'cost_center_code' => $row['cost_center_code'],
+                    'cost_center_name' => $row['cost_center_name'],
+                    'budget_line_code' => $row['budget_line_code'],
+                    'budget_line_name' => $row['budget_line_name'],
+                    'budget_cedula_name' => $row['budget_cedula_name'],
+                    'bucket' => $entry[0],
+                    'type' => $c->getOrderType(),
+                    'folio' => $c->getOrderFolio() ?? $c->quotationSummary?->requisition?->folio,
+                    'application_month' => $c->application_month,
+                    'status' => $c->status,
+                    'committed_at' => $c->committed_at,
+                    'committed_amount' => round((float) $c->committed_amount, 2),
+                    'consumed_amount' => round((float) $c->consumed_amount, 2),
+                    'amount' => $entry[1],
+                ], $entries);
+            })
+            ->values();
+    }
+
     private function allowedCenterIds(User $user, array $params): Collection
     {
         return $this->visibleCostCenters($user)
