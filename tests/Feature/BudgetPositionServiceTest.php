@@ -1,0 +1,317 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\AnnualBudget;
+use App\Models\BudgetCedula;
+use App\Models\BudgetCommitment;
+use App\Models\BudgetMonthlyDistribution;
+use App\Models\Category;
+use App\Models\Company;
+use App\Models\CostCenter;
+use App\Models\DirectPurchaseOrder;
+use App\Models\ExpenseCategory;
+use App\Models\PurchaseOrder;
+use App\Models\QuotationSummary;
+use App\Models\User;
+use App\Services\BudgetAllocationService;
+use App\Services\BudgetPositionService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+/**
+ * RP-01 (puntos 3 a 5): posición presupuestal por renglón. Reporte y bloqueo
+ * deben salir del mismo cálculo y los montos deben sumar el vigente.
+ */
+class BudgetPositionServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $user;
+
+    private BudgetPositionService $positions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+        $this->actingAs($this->user);
+        $this->positions = app(BudgetPositionService::class);
+    }
+
+    public function test_splits_a_line_into_reserved_committed_accrued_and_available(): void
+    {
+        $line = $this->line();
+        $this->addCommitment($line, 'quotation', 500);
+        $this->addCommitment($line, 'purchase_order', 1000, 400);
+
+        $position = $this->positions->fromDistributions(collect([$line->fresh()]))->sole();
+
+        $this->assertSame(10000.0, $position['current_budget']);
+        $this->assertSame(500.0, $position['reserved']);
+        $this->assertSame(600.0, $position['committed']);
+        $this->assertSame(400.0, $position['accrued']);
+        $this->assertNull($position['paid']);
+        $this->assertSame(8500.0, $position['available']);
+        $this->assertSame(0.0, $position['unreconciled']);
+    }
+
+    public function test_direct_purchase_orders_count_as_committed(): void
+    {
+        $line = $this->line();
+        $this->addCommitment($line, 'direct_purchase_order', 750);
+
+        $position = $this->positions->fromDistributions(collect([$line->fresh()]))->sole();
+
+        $this->assertSame(0.0, $position['reserved']);
+        $this->assertSame(750.0, $position['committed']);
+    }
+
+    public function test_released_commitments_do_not_count_in_any_amount(): void
+    {
+        $line = $this->line();
+        $this->addCommitment($line, 'purchase_order', 1000, 0, 'RELEASED');
+
+        $position = $this->positions->fromDistributions(collect([$line->fresh()]))->sole();
+
+        $this->assertSame(0.0, $position['committed']);
+        $this->assertSame(10000.0, $position['available']);
+        $this->assertSame(1000.0, $position['released']);
+    }
+
+    public function test_counter_without_a_backing_document_is_shown_as_unreconciled(): void
+    {
+        $line = $this->line();
+        $line->update(['committed_amount' => 300]);
+
+        $position = $this->positions->fromDistributions(collect([$line->fresh()]))->sole();
+
+        $this->assertSame(0.0, $position['committed']);
+        $this->assertSame(300.0, $position['unreconciled']);
+        $this->assertSame(9700.0, $position['available']);
+    }
+
+    public function test_available_is_reported_negative_when_the_line_is_overdrawn(): void
+    {
+        $line = $this->line(1000);
+        $this->overdraw($line, 1200);
+
+        $position = $this->positions->fromDistributions(collect([$line->fresh()]))->sole();
+
+        $this->assertSame(-200.0, $position['available']);
+    }
+
+    public function test_amounts_add_up_to_current_budget_for_random_filter_combinations(): void
+    {
+        mt_srand(20261005);
+        $lines = $this->randomScenario();
+
+        for ($i = 0; $i < 20; $i++) {
+            $filters = $this->randomFilters($lines);
+            $positions = $this->positions->positions($filters);
+
+            $this->assertNotEmpty($positions, 'Filtros: '.json_encode($filters));
+            foreach ($positions as $p) {
+                $this->assertIdentity($p);
+            }
+            $this->assertEqualsWithDelta(
+                round($positions->sum('current_budget'), 2),
+                round($positions->sum(fn ($p) => $p['reserved'] + $p['committed'] + $p['accrued'] + $p['available'] + $p['unreconciled']), 2),
+                0.001,
+                'Filtros: '.json_encode($filters)
+            );
+        }
+    }
+
+    public function test_every_open_commitment_lands_in_exactly_one_amount(): void
+    {
+        mt_srand(7);
+        $this->randomScenario();
+
+        $positions = $this->positions->positions([]);
+        $open = BudgetCommitment::query()->where('status', 'COMMITTED')->get()
+            ->sum(fn ($c) => round((float) $c->committed_amount - (float) $c->consumed_amount, 2));
+
+        $this->assertEqualsWithDelta($open, $positions->sum('reserved') + $positions->sum('committed'), 0.001);
+        $this->assertSame(0.0, round($positions->sum('unreconciled'), 2));
+    }
+
+    public function test_filters_by_company_fiscal_year_month_cost_center_and_line(): void
+    {
+        $a = $this->line(1000, month: 3);
+        $b = $this->line(2000, month: 4);
+
+        $this->assertSame([$a->id], $this->positions->positions(['months' => [3]])->pluck('distribution_id')->all());
+        $this->assertSame([$b->id], $this->positions->positions(['cost_center_ids' => [$b->annualBudget->cost_center_id]])->pluck('distribution_id')->all());
+        $this->assertSame([$b->id], $this->positions->positions(['company_ids' => [$b->annualBudget->costCenter->company_id]])->pluck('distribution_id')->all());
+        $this->assertSame([$a->id], $this->positions->positions(['budget_cedula_ids' => [$a->budget_cedula_id]])->pluck('distribution_id')->all());
+        $this->assertSame([$a->id], $this->positions->positions(['expense_category_ids' => [$a->expense_category_id]])->pluck('distribution_id')->all());
+        $this->assertCount(0, $this->positions->positions(['fiscal_year' => (int) now()->year + 1]));
+    }
+
+    public function test_lines_of_unapproved_budgets_are_excluded(): void
+    {
+        $line = $this->line();
+        $line->annualBudget->update(['status' => 'PLANIFICACION']);
+
+        $this->assertCount(0, $this->positions->positions([]));
+    }
+
+    public function test_guard_uses_the_same_available_amount_as_the_report_for_a_subaccount(): void
+    {
+        $line = $this->line();
+        $this->addCommitment($line, 'quotation', 500);
+        $this->addCommitment($line, 'purchase_order', 1000, 400);
+        $center = $line->annualBudget->cost_center_id;
+
+        $check = app(BudgetAllocationService::class)->checkAvailability($center, (int) now()->year, $line->month, $line->expense_category_id, 1, $line->budget_cedula_id);
+        $position = $this->positions->positions(['budget_cedula_ids' => [$line->budget_cedula_id]])->sole();
+
+        $this->assertSame($position['available'], $check['available_amount']);
+        $this->assertSame(8500.0, $check['available_amount']);
+    }
+
+    public function test_guard_uses_the_same_available_amount_as_the_report_for_a_category(): void
+    {
+        $first = $this->line(1000);
+        $second = $this->line(2000, center: $first->annualBudget->costCenter, category: $first->expenseCategory);
+        $this->overdraw($second, 2500);
+        $this->addCommitment($first, 'purchase_order', 300);
+
+        $check = app(BudgetAllocationService::class)->checkAvailability($first->annualBudget->cost_center_id, (int) now()->year, $first->month, $first->expense_category_id, 1);
+        $positions = $this->positions->positions(['expense_category_ids' => [$first->expense_category_id]]);
+
+        // El bloqueo no deja que el sobregiro de una subcuenta reste disponible a las demás.
+        $this->assertSame(round($positions->sum(fn ($p) => max(0, $p['available'])), 2), $check['available_amount']);
+        $this->assertSame(700.0, $check['available_amount']);
+    }
+
+    private function assertIdentity(array $p): void
+    {
+        $this->assertEqualsWithDelta(
+            $p['current_budget'],
+            round($p['reserved'] + $p['committed'] + $p['accrued'] + $p['available'] + $p['unreconciled'], 2),
+            0.001,
+            'Renglón '.$p['distribution_id']
+        );
+    }
+
+    private function line(float $assigned = 10000, int $month = 3, ?CostCenter $center = null, ?ExpenseCategory $category = null, ?Company $company = null): BudgetMonthlyDistribution
+    {
+        $center ??= CostCenter::factory()->create([
+            'company_id' => $company?->id ?? Company::factory(),
+            'category_id' => Category::factory(),
+            'responsible_user_id' => $this->user->id,
+            'budget_type' => 'ANNUAL',
+            'global_amount' => 0,
+            'status' => 'ACTIVO',
+            'purchase_type' => 'Gasto Operativo',
+        ]);
+        $category ??= ExpenseCategory::factory()->create();
+        $budget = AnnualBudget::firstOrCreate(
+            ['cost_center_id' => $center->id, 'fiscal_year' => (int) now()->year],
+            ['total_annual_amount' => 0, 'status' => 'APROBADO', 'created_by' => $this->user->id]
+        );
+
+        return BudgetMonthlyDistribution::create([
+            'annual_budget_id' => $budget->id,
+            'budget_cedula_id' => BudgetCedula::factory()->create(['expense_category_id' => $category->id])->id,
+            'expense_category_id' => $category->id,
+            'month' => $month,
+            'assigned_amount' => $assigned,
+            'consumed_amount' => 0,
+            'committed_amount' => 0,
+            'created_by' => $this->user->id,
+        ])->load('annualBudget.costCenter', 'expenseCategory');
+    }
+
+    /** Simula un sobregiro ya autorizado (el modelo lo impide sin excepción aprobada). */
+    private function overdraw(BudgetMonthlyDistribution $line, float $consumed): void
+    {
+        DB::table('budget_monthly_distributions')->where('id', $line->id)->update(['consumed_amount' => $consumed]);
+    }
+
+    /** Reproduce lo que hace BudgetAllocationService al comprometer, consumir y liberar. */
+    private function addCommitment(BudgetMonthlyDistribution $line, string $document, float $amount, float $consumed = 0, string $status = 'COMMITTED'): void
+    {
+        $line->refresh();
+        $this->assertTrue($line->commitAmount($amount));
+        if ($consumed > 0) {
+            $this->assertTrue($line->commitToConsume($consumed));
+        }
+        if ($status === 'RELEASED') {
+            $this->assertTrue($line->releaseCommitment($amount - $consumed));
+        }
+
+        BudgetCommitment::create([
+            'quotation_summary_id' => $document === 'quotation' ? QuotationSummary::factory()->create()->id : null,
+            'purchase_order_id' => $document === 'purchase_order' ? PurchaseOrder::factory()->create()->id : null,
+            'direct_purchase_order_id' => $document === 'direct_purchase_order' ? DirectPurchaseOrder::factory()->create()->id : null,
+            'cost_center_id' => $line->annualBudget->cost_center_id,
+            'application_month' => sprintf('%04d-%02d', $line->annualBudget->fiscal_year, $line->month),
+            'expense_category_id' => $line->expense_category_id,
+            'budget_cedula_id' => $line->budget_cedula_id,
+            'committed_amount' => $amount,
+            'consumed_amount' => $consumed,
+            'status' => $status,
+            'committed_at' => now(),
+            'released_at' => $status === 'RELEASED' ? now() : null,
+        ]);
+    }
+
+    /** Dos empresas, tres centros, dos cuentas y tres meses con compromisos al azar. */
+    private function randomScenario(): Collection
+    {
+        $companies = Company::factory()->count(2)->create();
+        $categories = ExpenseCategory::factory()->count(2)->create();
+        $lines = collect();
+        foreach ([$companies[0], $companies[0], $companies[1]] as $company) {
+            $center = null;
+            foreach ($categories as $category) {
+                foreach ([1, 2, 3] as $month) {
+                    $line = $this->line(mt_rand(50, 200) * 100, $month, $center, $category, $company);
+                    $center = $line->annualBudget->costCenter;
+                    $lines->push($line);
+                }
+            }
+        }
+        foreach ($lines->random(8) as $line) {
+            $document = ['quotation', 'purchase_order', 'purchase_order'][mt_rand(0, 2)];
+            $amount = mt_rand(100, 150000) / 100;
+            $consumed = $document === 'purchase_order' ? round($amount * mt_rand(0, 100) / 100, 2) : 0;
+            $this->addCommitment($line, $document, $amount, $consumed, mt_rand(0, 4) === 0 && $consumed == 0 ? 'RELEASED' : 'COMMITTED');
+        }
+
+        return $lines;
+    }
+
+    private function randomFilters(Collection $lines): array
+    {
+        $pick = fn (Collection $values) => $values->unique()->values()->random(mt_rand(1, $values->unique()->count()))->values()->all();
+        $filters = [];
+        if (mt_rand(0, 1)) {
+            $filters['company_ids'] = $pick($lines->map(fn ($l) => $l->annualBudget->costCenter->company_id));
+        }
+        if (mt_rand(0, 1)) {
+            $filters['cost_center_ids'] = $pick($lines->map(fn ($l) => $l->annualBudget->cost_center_id));
+        }
+        if (mt_rand(0, 1)) {
+            $filters['months'] = $pick($lines->pluck('month'));
+        }
+        if (mt_rand(0, 1)) {
+            $filters['expense_category_ids'] = $pick($lines->pluck('expense_category_id'));
+        }
+        $filters['fiscal_year'] = (int) now()->year;
+
+        // Garantiza que la combinación tenga al menos un renglón.
+        $match = $lines->first(fn ($l) => (! isset($filters['company_ids']) || in_array($l->annualBudget->costCenter->company_id, $filters['company_ids']))
+            && (! isset($filters['cost_center_ids']) || in_array($l->annualBudget->cost_center_id, $filters['cost_center_ids']))
+            && (! isset($filters['months']) || in_array($l->month, $filters['months']))
+            && (! isset($filters['expense_category_ids']) || in_array($l->expense_category_id, $filters['expense_category_ids'])));
+
+        return $match ? $filters : ['fiscal_year' => (int) now()->year, 'budget_cedula_ids' => [$lines->first()->budget_cedula_id]];
+    }
+}
