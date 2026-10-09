@@ -463,7 +463,10 @@ class BudgetAllocationService
             ->where('status', 'COMMITTED');
 
         foreach ($commitments as $commitment) {
-            if ($line['budget_type'] === 'ANNUAL' && $commitment->budget_cedula_id) {
+            // Lo ya recibido quedó como consumido; solo regresa al disponible lo pendiente.
+            $pending = max(0.0, round((float) $commitment->committed_amount - (float) $commitment->consumed_amount, 2));
+
+            if ($line['budget_type'] === 'ANNUAL' && $commitment->budget_cedula_id && $pending > self::EPSILON) {
                 $distribution = $this->resolveDistributionByCedula(
                     $line['cost_center_id'],
                     $line['year'],
@@ -472,7 +475,7 @@ class BudgetAllocationService
                     (int) $line['expense_category_id']
                 );
 
-                if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
+                if (! $distribution->releaseCommitment($pending)) {
                     throw new RuntimeException(
                         "No se pudo liberar presupuesto para la cédula {$this->cedulaLabel((int) $commitment->budget_cedula_id)}."
                     );

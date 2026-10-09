@@ -17,6 +17,7 @@ use App\Models\RequisitionItem;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\BudgetAllocationService;
+use App\Services\BudgetPositionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -183,5 +184,58 @@ class PartialReceptionBudgetConsumptionTest extends TestCase
 
         $this->assertEquals(1000.00, (float) $this->distribution->consumed_amount);
         $this->assertEquals(0.00, (float) $this->distribution->committed_amount);
+    }
+
+    public function test_releasing_a_partially_received_order_frees_only_the_pending_share(): void
+    {
+        $this->receive(4);
+
+        $this->service->releaseOrder($this->purchaseOrder->fresh());
+        $this->distribution->refresh();
+
+        $this->assertEquals(400.00, (float) $this->distribution->consumed_amount);
+        $this->assertEquals(0.00, (float) $this->distribution->committed_amount);
+
+        $commitment = BudgetCommitment::where('purchase_order_id', $this->purchaseOrder->id)->sole();
+
+        $this->assertSame('RELEASED', $commitment->status);
+        $this->assertEquals(400.00, (float) $commitment->consumed_amount);
+    }
+
+    public function test_releasing_a_partially_received_order_keeps_other_orders_commitments(): void
+    {
+        $this->receive(4);
+
+        // Compromiso de otra OC sobre el mismo renglón.
+        $this->distribution->update(['committed_amount' => (float) $this->distribution->committed_amount + 2000]);
+
+        $this->service->releaseOrder($this->purchaseOrder->fresh());
+        $this->distribution->refresh();
+
+        $this->assertEquals(2000.00, (float) $this->distribution->committed_amount);
+        $this->assertEquals(400.00, (float) $this->distribution->consumed_amount);
+    }
+
+    public function test_releasing_an_order_without_receptions_frees_the_whole_commitment(): void
+    {
+        $this->service->releaseOrder($this->purchaseOrder->fresh());
+        $this->distribution->refresh();
+
+        $this->assertEquals(0.00, (float) $this->distribution->committed_amount);
+        $this->assertEquals(0.00, (float) $this->distribution->consumed_amount);
+        $this->assertSame('RELEASED', BudgetCommitment::where('purchase_order_id', $this->purchaseOrder->id)->sole()->status);
+    }
+
+    public function test_budget_position_reports_only_the_freed_share_as_released(): void
+    {
+        $this->receive(4);
+        $this->service->releaseOrder($this->purchaseOrder->fresh());
+
+        $row = app(BudgetPositionService::class)->positions([])
+            ->firstWhere('distribution_id', $this->distribution->id);
+
+        $this->assertEquals(600.00, $row['released']);
+        $this->assertEquals(400.00, $row['accrued']);
+        $this->assertEquals(0.00, $row['committed']);
     }
 }
