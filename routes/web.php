@@ -448,6 +448,12 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::post('/excepciones', [\App\Http\Controllers\BudgetAlertsReportController::class, 'requestException'])->middleware('can:reportes.budget_alerts.excepcion.solicitar')->name('exceptions.request');
         Route::post('/excepciones/{exception}/decision', [\App\Http\Controllers\BudgetAlertsReportController::class, 'decideException'])->middleware('can:reportes.budget_alerts.excepcion.aprobar')->name('exceptions.decide');
     });
+    Route::prefix('reportes/compras/pipeline-requisiciones')->name('requisition-pipeline-reports.')->middleware('can:reportes.requisition_pipeline.ver')->group(function () {
+        Route::get('/', [\App\Http\Controllers\RequisitionPipelineReportController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\RequisitionPipelineReportController::class, 'data'])->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\RequisitionPipelineReportController::class, 'export'])->middleware('can:reportes.requisition_pipeline.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+        Route::get('/{requisition}/pasos', [\App\Http\Controllers\RequisitionPipelineReportController::class, 'steps'])->whereNumber('requisition')->name('steps');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');

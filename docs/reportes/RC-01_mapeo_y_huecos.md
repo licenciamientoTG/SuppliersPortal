@@ -150,7 +150,7 @@ ORDER BY hours_in_current_step DESC;
 Centros de costo, aprobador pendiente, monto y OC se agregan con subconsultas por `requisition_id`.
 Todo con bindings (Query Builder), sin concatenar filtros.
 
-## 5. Posibles bugs detectados (no corregidos, regla 8)
+## 5. Bugs detectados (corregidos a petición del usuario, rama `fix/requisition-cancel-and-approval-history`)
 
 1. **Restricción de cancelación que nunca se aplica.** `RequisitionWorkflowController::cancel`
    compara `$requisition->status === RequisitionStatus::APPROVED->value` (y `DRAFT->value`). El
@@ -160,7 +160,7 @@ Todo con bindings (Query Builder), sin concatenar filtros.
    los `cost_center_approval_steps` al reiniciar. El prompt pide que una devolución genere entradas
    nuevas sin sobrescribir; `approval_decisions` sí lo cumple y es la que se usará.
 
-## 6. Preguntas abiertas (con el supuesto que se aplica si no hay respuesta)
+## 6. Preguntas abiertas (el usuario aprobó todos los supuestos el 2026-10-09)
 
 1. **Importe estimado:** la requisición no tiene precio. SUPUESTO: mostrar el monto adjudicado
    (`quotation_summaries.total` aprobado o pendiente) y "Sin cotizar" antes de la cotización; el filtro
@@ -186,3 +186,34 @@ Todo con bindings (Query Builder), sin concatenar filtros.
 - **Requiere decisión o control nuevo:** importe estimado real (habría que capturar precio estimado en
   la requisición), marca REPSE propia de la requisición y tiempos de requisiciones anteriores al 2026-08-31.
 - **Pendiente común:** medir el tiempo de respuesta con volumen real en SQL Server (meta < 3 s).
+
+## 8. Implementado (2026-10-09)
+
+- `App\Reports\Purchasing\RequisitionTimeline`: etapas por requisición (fuente única). Horas redondeadas
+  a 1 decimal por etapa; el ciclo es la suma de esas horas, así que Σ etapas = ciclo siempre.
+  Usa solo eventos `CREATED` y `STATUS_CHANGED` (no los del backfill). Las requisiciones creadas antes
+  del 2026-08-31 quedan "Sin historial".
+- `App\Reports\Purchasing\RequisitionPipelineReport`: alcance, filtros, filas, tarjetas y resumen por etapa
+  y por persona que resolvió la etapa.
+  - "Antigüedad mayor a N días" se mide desde la creación de la requisición.
+  - Orden por horas en la etapa actual (lo más atorado arriba).
+- `App\Reports\Purchasing\RequisitionPipelineExport`: Excel con hojas Requisiciones, Etapas, Resumen por etapa
+  y Resumen por persona; CSV con las requisiciones. Cada exportación queda en `activity_log` (log `reportes`).
+- `RequisitionPipelineReportController` + `RequisitionPipelineReportRequest`; rutas
+  `/reportes/compras/pipeline-requisiciones` (+ `/data`, `/export/{format}`, `/{id}/pasos`).
+- Vista `resources/views/reports/requisition-pipeline/index.blade.php`: misma tabla con paginación en servidor
+  que RP-01/RP-03 (no DataTables), fila expandible con las etapas y barras de horas promedio por etapa.
+- Permisos `reportes.requisition_pipeline.ver` / `.exportar` en `RolePermissionSeeder`: ver y exportar para
+  `buyer`, `accounting` y `general_director`; solo ver para `department_head` y `report_viewer`.
+- Catálogo: RC-01 liga al reporte nuevo.
+- Pruebas: `tests/Feature/RequisitionPipelineRc01Test.php` (cuadre, borradores, aprobador = bandeja, sin
+  historial, REPSE, filtros combinados = exportación, 403 y alcance).
+- Verificación: `docs/reportes/sql/rc01_verificacion.sql` (6 consultas que deben dar 0 filas; corren en
+  SQL Server de desarrollo).
+
+### Pendiente
+
+- Correr `rc01_verificacion.sql` en producción, sobre todo la consulta 3 (cambios de estatus que no quedaron
+  en el historial).
+- Medir el tiempo de respuesta con volumen real (meta < 3 s). En desarrollo: 1 requisición, 213 ms.
+- Exportaciones de más de 50 000 filas encoladas: fuera de alcance, igual que RP-01.
