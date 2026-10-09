@@ -105,7 +105,9 @@ class BudgetAllocationService
                 $commitments = $this->findCommitmentsForLine($order, $line);
 
                 foreach ($commitments as $commitment) {
-                    if ($commitment->status === 'RECEIVED') {
+                    // Un compromiso liberado ya regresó su monto al renglón; revivirlo sin
+                    // volver a comprometer duplicaría el compromiso (caso OCD-2026-0004).
+                    if (in_array($commitment->status, ['RECEIVED', 'RELEASED'], true)) {
                         continue;
                     }
 
