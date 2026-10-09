@@ -211,9 +211,11 @@ Todo con bindings (Query Builder), sin concatenar filtros.
 - Verificación: `docs/reportes/sql/rc01_verificacion.sql` (6 consultas que deben dar 0 filas; corren en
   SQL Server de desarrollo).
 
+### Validación en producción (2026-10-09)
+
+- `rc01_verificacion.sql`: las 6 consultas dieron 0 filas.
+- Tiempo de respuesta: menos de 0.5 s (meta < 3 s).
+
 ### Pendiente
 
-- Correr `rc01_verificacion.sql` en producción, sobre todo la consulta 3 (cambios de estatus que no quedaron
-  en el historial).
-- Medir el tiempo de respuesta con volumen real (meta < 3 s). En desarrollo: 1 requisición, 213 ms.
 - Exportaciones de más de 50 000 filas encoladas: fuera de alcance, igual que RP-01.
