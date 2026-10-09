@@ -278,7 +278,7 @@ class BudgetPositionService
                 return [
                     'reserved' => round($open->whereNotNull('quotation_summary_id')->sum($pending), 2),
                     'committed' => round($open->whereNull('quotation_summary_id')->sum($pending), 2),
-                    'released' => round($commitments->where('status', 'RELEASED')->sum(fn ($c) => (float) $c->committed_amount), 2),
+                    'released' => round($commitments->where('status', 'RELEASED')->sum($pending), 2),
                 ];
             });
     }

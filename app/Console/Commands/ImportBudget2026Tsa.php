@@ -10,7 +10,7 @@ class ImportBudget2026Tsa extends Command
 {
     protected $signature = 'budgets:import-2026-tsa
         {--file=docs/Presupuesto Anual 2026 TSA.xlsx : Ruta del workbook}
-        {--year=2026 : AÃ±o fiscal destino}
+        {--year=2026 : Año fiscal destino}
         {--status=PLANIFICACION : Estatus para presupuestos nuevos}
         {--dry-run : Solo analizar sin persistir}';
 
@@ -41,7 +41,7 @@ class ImportBudget2026Tsa extends Command
                 ? $this->importService->analyze($file, $year)
                 : $this->importService->import($file, $year, $status);
 
-            $this->info($dryRun ? 'AnÃ¡lisis completado.' : 'ImportaciÃ³n completada.');
+            $this->info($dryRun ? 'Análisis completado.' : 'Importación completada.');
             $this->line('Hojas procesadas: ' . count($report['processed_sheets']));
             $this->line('Hojas ignoradas: ' . count($report['ignored_sheets']));
             $this->line('Filas emparejadas: ' . $report['matched_rows']);
