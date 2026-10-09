@@ -51,7 +51,7 @@ return [
             'fields' => ['% consumido, disponible y ritmo de gasto de 3 meses', 'Mes proyectado de agotamiento', 'Documentos en trámite que provocarían el sobregiro', 'Excepciones: folio, importe, autorizador, motivo y fecha'],
         ],
         [
-            'code' => 'RC-01', 'domain' => 'B', 'phase' => 'F1', 'feasibility' => 3, 'existing_report' => 'requisition-traceability',
+            'code' => 'RC-01', 'domain' => 'B', 'phase' => 'F1', 'feasibility' => 3, 'existing_report' => 'requisition-traceability', 'report_route' => 'requisition-pipeline-reports.index',
             'name' => 'Pipeline de requisiciones y tiempos de ciclo',
             'purpose' => 'Dónde se atoran las compras y con quién: el paso, el aprobador pendiente y las horas transcurridas en cada requisición.',
             'frequency' => 'Diaria',
