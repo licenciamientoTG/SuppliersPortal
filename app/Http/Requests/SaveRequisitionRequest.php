@@ -317,7 +317,7 @@ class SaveRequisitionRequest extends FormRequest
                     if ($itemCostCenter && (int) $itemCostCenter->company_id !== $companyId) {
                         $validator->errors()->add(
                             "items.{$index}.cost_center_id",
-                            'El centro de costo de la partida no pertenece a la compaÃ±Ã­a de la requisiciÃ³n.'
+                            'El centro de costo de la partida no pertenece a la compañía de la requisición.'
                         );
 
                         continue;
@@ -326,7 +326,7 @@ class SaveRequisitionRequest extends FormRequest
                     if ($itemCostCenter && ! $itemCostCenter->hasAnnualBudget($fiscalYear)) {
                         $validator->errors()->add(
                             "items.{$index}.cost_center_id",
-                            'El centro de costo de la partida no tiene presupuesto para el aÃ±o fiscal.'
+                            'El centro de costo de la partida no tiene presupuesto para el año fiscal.'
                         );
 
                         continue;

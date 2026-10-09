@@ -245,7 +245,7 @@ class BudgetAllocationService
                     }
 
                     if (! $response?->quotation_date || $response->delivery_days === null) {
-                        throw new RuntimeException("La partida {$item->requisition_item_id} del proveedor seleccionado no tiene dÃ­as de entrega capturados.");
+                        throw new RuntimeException("La partida {$item->requisition_item_id} del proveedor seleccionado no tiene días de entrega capturados.");
                     }
 
                     $applicationMonth = Carbon::parse($response->quotation_date)
@@ -511,7 +511,7 @@ class BudgetAllocationService
 
                 if (! $distribution->releaseCommitment((float) $commitment->committed_amount)) {
                     throw new RuntimeException(
-                        "No se pudo liberar presupuesto para la cÃ©dula {$commitment->budget_cedula_id}."
+                        "No se pudo liberar presupuesto para la cédula {$this->cedulaLabel((int) $commitment->budget_cedula_id)}."
                     );
                 }
             }
