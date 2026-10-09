@@ -287,13 +287,14 @@ class RequisitionWorkflowController extends Controller
         ]);
 
         $user = Auth::user();
-        $isRequester = $requisition->requested_by === $user->id;
+        // Mismo criterio de dueño que la política (requested_by o created_by).
+        $isRequester = $user->can('update', $requisition);
 
-        if ($requisition->status === RequisitionStatus::APPROVED->value) {
+        if ($requisition->status === RequisitionStatus::APPROVED) {
             if (! $user->hasRole(['superadmin', 'admin'])) {
                 return $this->respond($request, false, 'Solo administradores pueden cancelar una requisición aprobada.');
             }
-        } elseif ($requisition->status === RequisitionStatus::DRAFT->value) {
+        } elseif ($requisition->status === RequisitionStatus::DRAFT) {
             if (! $isRequester && ! $user->hasRole(['superadmin', 'admin'])) {
                 return $this->respond($request, false, 'Solo el requisitor puede cancelar un borrador.');
             }

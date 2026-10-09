@@ -169,7 +169,17 @@ class DirectPurchaseOrder extends Model
         return $this->hasMany(DirectPurchaseOrderItem::class);
     }
 
-    public function approvalSteps(): MorphMany { return $this->morphMany(CostCenterApprovalStep::class, 'approvable'); }
+    /** Pasos de la ronda vigente de autorización. */
+    public function approvalSteps(): MorphMany
+    {
+        return $this->morphMany(CostCenterApprovalStep::class, 'approvable')->where('status', '!=', CostCenterApprovalStep::SUPERSEDED);
+    }
+
+    /** Todas las rondas, incluidas las reemplazadas al reiniciar la autorización. */
+    public function approvalStepHistory(): MorphMany
+    {
+        return $this->morphMany(CostCenterApprovalStep::class, 'approvable');
+    }
 
     public function primaryCostCenter(): ?CostCenter
     {
