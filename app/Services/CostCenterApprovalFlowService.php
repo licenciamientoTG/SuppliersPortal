@@ -29,11 +29,14 @@ class CostCenterApprovalFlowService
         }
 
         DB::transaction(function () use ($approvable, $steps): void {
-            $approvable->approvalSteps()->delete();
+            // La ronda anterior se conserva como historial en lugar de borrarse.
+            $approvable->approvalSteps()->update(['status' => CostCenterApprovalStep::SUPERSEDED]);
+            $round = (int) $approvable->approvalStepHistory()->max('round') + 1;
 
             foreach ($steps as $index => $step) {
                 $approvable->approvalSteps()->create([
                     'step_order' => $index + 1,
+                    'round' => $round,
                     'cost_center_id' => $step['center']->id,
                     'responsible_user_id' => $step['manager']->id,
                     'principal_user_id' => $step['resolution']['user']->id,
