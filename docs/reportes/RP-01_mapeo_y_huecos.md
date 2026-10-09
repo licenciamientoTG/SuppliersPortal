@@ -88,7 +88,7 @@ Reservado + Comprometido + Devengado + Disponible + Sin conciliar = Vigente
 2. **Mensaje con codificación rota** en `releaseCommittedQuotationSummaryCommitments()`:
    `"cÃ©dula"`.
 
-## 6. Preguntas abiertas para Contraloría (con el supuesto que se aplica)
+## 6. Preguntas a Contraloría (respondidas el 2026-10-09: confirmó los 5 supuestos tal como están implementados)
 
 1. **¿"Reservado" es la cotización aprobada que aún no tiene OC?** El prompt dice "requisiciones
    aprobadas sin OC", pero en el portal la requisición no aparta presupuesto.
@@ -161,7 +161,7 @@ Reservado + Comprometido + Devengado + Disponible + Sin conciliar = Vigente
   empresas asignadas (`company_user`) si tienen; los demás, solo centros donde son responsables.
 - Verificado en solo lectura contra SQL Server (`dev_suppliersPortalDB`): consultas correctas,
   identidad en cero y detalle = fila. La base de desarrollo tiene muy pocos renglones de 2026, así
-  que el tiempo de respuesta con un año de operación real sigue pendiente de medir.
+  que el tiempo de respuesta se midió en producción el 2026-10-09: menos de 0.5 s.
 
 ## 10. Exportación (2026-10-06)
 

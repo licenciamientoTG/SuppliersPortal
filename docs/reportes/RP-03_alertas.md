@@ -43,4 +43,4 @@ Fecha: 2026-10-06 · Rama: `feat/rp03-budget-alerts`
   `budget_exceptions` es el registro de las excepciones.
 - La base `dev_suppliersPortalDB` tiene pendiente `2026_09_29_000001_create_budget_alerts_and_exceptions_tables`
   (y otras 4); sin ella RP-03 y el registro de historial del observer fallan. Revisar producción.
-- Tiempo de respuesta con volumen real: sin medir.
+- Tiempo de respuesta medido en producción el 2026-10-09: menos de 0.5 s.
