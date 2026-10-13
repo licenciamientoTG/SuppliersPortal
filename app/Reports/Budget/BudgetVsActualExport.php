@@ -26,7 +26,9 @@ class BudgetVsActualExport
     public function download(User $user, array $params, string $format): array
     {
         $result = $this->report->build($user, $params);
-        $filename = sprintf('presupuesto-vs-ejercido-%d-%02d-%s', $params['fiscal_year'], $params['period_month'], strtolower($params['scope']));
+        $filename = $params['scope'] === 'RANGO'
+            ? sprintf('presupuesto-vs-ejercido-%s-a-%s', $params['date_from'], $params['date_to'])
+            : sprintf('presupuesto-vs-ejercido-%d-%02d-%s', $params['fiscal_year'], $params['period_month'], strtolower($params['scope']));
 
         if ($format === 'csv') {
             return ['response' => ReportSheet::csv($this->columns($params), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count(), 'detail_rows' => 0];
@@ -66,7 +68,7 @@ class BudgetVsActualExport
             ['Cuenta contable', fn () => 'N/D', null],
             ['Ejercicio', fn () => $params['fiscal_year'], null],
             ['Mes', fn () => $params['period_month'], null],
-            ['Vista', fn () => $params['scope'] === 'ACU' ? 'Acumulado' : 'Mes', null],
+            ['Vista', fn () => match ($params['scope']) { 'ACU' => 'Acumulado', 'RANGO' => 'Rango de fechas', default => 'Mes' }, null],
             ['Autorizado', fn (array $row) => $row['authorized_amount'] ?? 'Sin base', ReportSheet::MONEY],
             ['Ampliaciones', $amount('increases'), ReportSheet::MONEY],
             ['Reducciones', $amount('decreases'), ReportSheet::MONEY],
@@ -143,6 +145,11 @@ class BudgetVsActualExport
     {
         $names = fn ($model, array $ids, string $column) => $ids ? $model::query()->whereIn('id', $ids)->orderBy($column)->pluck($column)->implode(', ') : null;
         $month = ucfirst(now()->setDate($params['fiscal_year'], $params['period_month'], 1)->locale('es')->monthName);
+        $period = match ($params['scope']) {
+            'ACU' => $month.' '.$params['fiscal_year'].' · acumulado del ejercicio al mes',
+            'RANGO' => 'del '.\Carbon\Carbon::parse($params['date_from'])->format('d/m/Y').' al '.\Carbon\Carbon::parse($params['date_to'])->format('d/m/Y'),
+            default => $month.' '.$params['fiscal_year'].' · solo el mes',
+        };
         $filters = array_filter([
             'Centros' => $names(CostCenter::class, $params['cost_center_ids'], 'code'),
             'Cuentas' => $names(ExpenseCategory::class, $params['expense_category_ids'], 'code'),
@@ -153,7 +160,7 @@ class BudgetVsActualExport
         return [
             'RP-01 · Presupuesto vs. ejercido por departamento y renglón',
             'Empresa(s): '.($names(Company::class, $params['company_ids'], 'name') ?? 'todas las de tu alcance'),
-            'Periodo: '.$month.' '.$params['fiscal_year'].' · '.($params['scope'] === 'ACU' ? 'acumulado del ejercicio al mes' : 'solo el mes'),
+            'Periodo: '.$period,
             'Filtros: '.($filters ? collect($filters)->map(fn ($value, $key) => "{$key}: {$value}")->implode('; ') : 'ninguno'),
             'Generado por '.$user->name.' el '.now(config('app.timezone'))->format('d/m/Y H:i'),
             'Pagado no disponible: el portal no registra pagos a proveedores; lo recibido permanece en Devengado.',

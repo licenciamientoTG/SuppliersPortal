@@ -74,9 +74,11 @@
         <div class="filter-heading"><div><h2>Filtros del reporte</h2><p>Elige el periodo y el alcance que quieres revisar.</p></div></div>
         <form id="bvaFilters">
             <div class="filter-grid">
-                <div class="filter-field"><label class="form-label" for="bvaYear">Ejercicio</label><input class="form-control" id="bvaYear" name="fiscal_year" type="number" min="2020" max="2100" value="{{ now()->year }}" required></div>
-                <div class="filter-field"><label class="form-label" for="bvaMonth">Mes</label><select class="form-select" id="bvaMonth" name="period_month">@foreach(range(1, 12) as $month)<option value="{{ $month }}" @selected($month === now()->month)>{{ ucfirst(\Carbon\Carbon::create(null, $month, 1)->locale('es')->monthName) }}</option>@endforeach</select></div>
-                <div class="filter-field"><span class="form-label d-block">Vista</span><div class="btn-group w-100 scope-toggle" role="group" aria-label="Vista del periodo"><input type="radio" class="btn-check" name="scope" id="scopeMonth" value="MES" checked><label class="btn btn-outline-primary" for="scopeMonth">Del mes</label><input type="radio" class="btn-check" name="scope" id="scopeYtd" value="ACU"><label class="btn btn-outline-primary" for="scopeYtd">Acumulado al mes</label></div></div>
+                <div class="filter-field bva-period-month"><label class="form-label" for="bvaYear">Ejercicio</label><input class="form-control" id="bvaYear" name="fiscal_year" type="number" min="2020" max="2100" value="{{ now()->year }}"></div>
+                <div class="filter-field bva-period-month"><label class="form-label" for="bvaMonth">Mes</label><select class="form-select" id="bvaMonth" name="period_month">@foreach(range(1, 12) as $month)<option value="{{ $month }}" @selected($month === now()->month)>{{ ucfirst(\Carbon\Carbon::create(null, $month, 1)->locale('es')->monthName) }}</option>@endforeach</select></div>
+                <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateFrom">Del</label><input class="form-control" id="bvaDateFrom" name="date_from" type="date"></div>
+                <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateTo">Al</label><input class="form-control" id="bvaDateTo" name="date_to" type="date"></div>
+                <div class="filter-field"><span class="form-label d-block">Vista</span><div class="btn-group w-100 scope-toggle" role="group" aria-label="Vista del periodo"><input type="radio" class="btn-check" name="scope" id="scopeMonth" value="MES" checked><label class="btn btn-outline-primary" for="scopeMonth">Del mes</label><input type="radio" class="btn-check" name="scope" id="scopeYtd" value="ACU"><label class="btn btn-outline-primary" for="scopeYtd">Acumulado al mes</label><input type="radio" class="btn-check" name="scope" id="scopeRange" value="RANGO"><label class="btn btn-outline-primary" for="scopeRange">Rango de fechas</label></div></div>
                 <div class="filter-field"><label class="form-label" for="bvaResponsible">Responsable</label><select class="form-select" id="bvaResponsible" name="responsible_user_id"><option value="">Todos</option>@foreach($responsibles as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="bvaCompanies">Empresa(s)</label><select class="form-select js-multi" id="bvaCompanies" name="company_ids[]" multiple data-placeholder="Todas las empresas">@foreach($companies as $company)<option value="{{ $company->id }}">{{ $company->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="bvaCenters">Centro(s) de costo</label><select class="form-select js-multi" id="bvaCenters" name="cost_center_ids[]" multiple data-placeholder="Todos los centros">@foreach($centers as $center)<option value="{{ $center->id }}" data-company-id="{{ $center->company_id }}">{{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
@@ -156,6 +158,14 @@
         if (window.jQuery) jQuery(centerSelect).trigger('change.select2');
     }
     window.jQuery ? jQuery(companySelect).on('change', refreshCenters) : companySelect.addEventListener('change', refreshCenters);
+
+    // Alterna entre ejercicio+mes y rango de fechas según la vista elegida.
+    function refreshPeriodFields() {
+        const isRange = form.querySelector('input[name="scope"]:checked').value === 'RANGO';
+        form.querySelectorAll('.bva-period-month').forEach(field => field.classList.toggle('d-none', isRange));
+        form.querySelectorAll('.bva-period-range').forEach(field => field.classList.toggle('d-none', !isRange));
+    }
+    form.querySelectorAll('input[name="scope"]').forEach(radio => radio.addEventListener('change', refreshPeriodFields));
 
     const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
     const money = value => value === null || value === undefined ? '—' : fmt.format(value);
@@ -317,11 +327,13 @@
     form.addEventListener('submit', event => { event.preventDefault(); page = 1; load(); });
     form.addEventListener('reset', () => setTimeout(() => {
         if (window.jQuery) jQuery('.js-multi').val(null).trigger('change');
+        refreshPeriodFields();
         page = 1; load();
     }, 0));
     perPage.addEventListener('change', () => { page = 1; load(); });
     document.getElementById('bvaPrev').addEventListener('click', () => { page = Math.max(1, page - 1); load(); });
     document.getElementById('bvaNext').addEventListener('click', () => { page++; load(); });
+    refreshPeriodFields();
     load();
 })();
 </script>

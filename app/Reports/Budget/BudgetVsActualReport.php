@@ -81,7 +81,7 @@ class BudgetVsActualReport
     {
         abort_unless($this->visibleCostCenters($user)->whereKey($params['cost_center_id'])->exists(), 403);
 
-        $months = collect($params['scope'] === 'ACU' ? range(1, $params['period_month']) : [$params['period_month']])
+        $months = collect($this->monthsOf($params))
             ->map(fn ($month) => sprintf('%04d-%02d', $params['fiscal_year'], $month));
 
         $query = BudgetCommitment::query()
@@ -133,7 +133,7 @@ class BudgetVsActualReport
         }
 
         $rowsByLine = $rows->keyBy(fn ($row) => $this->lineKey($row));
-        $months = collect($params['scope'] === 'ACU' ? range(1, $params['period_month']) : [$params['period_month']])
+        $months = collect($this->monthsOf($params))
             ->map(fn ($month) => sprintf('%04d-%02d', $params['fiscal_year'], $month));
         $statuses = $params['include_cancelled_po'] ? ['COMMITTED', 'RECEIVED', 'RELEASED'] : ['COMMITTED', 'RECEIVED'];
 
@@ -208,7 +208,7 @@ class BudgetVsActualReport
 
         $rows = $params['scope'] === 'ACU'
             ? $accumulated->values()
-            : $this->positions->positions($filters + ['months' => [$params['period_month']]])
+            : $this->positions->positions($filters + ['months' => $this->monthsOf($params)])
                 ->groupBy(fn ($p) => $this->lineKey($p))
                 ->map(function (Collection $lines, string $key) use ($params, $accumulated) {
                     $first = $lines->first();
@@ -217,7 +217,7 @@ class BudgetVsActualReport
                         'cost_center_id' => $first['cost_center_id'],
                         'fiscal_year' => $first['fiscal_year'],
                         'period_month' => $params['period_month'],
-                        'period_scope' => 'MES',
+                        'period_scope' => $params['scope'],
                         'expense_category_id' => $first['expense_category_id'],
                         'budget_cedula_id' => $first['budget_cedula_id'],
                         'projected_close' => $accumulated[$key]['projected_close'] ?? null,
@@ -226,6 +226,16 @@ class BudgetVsActualReport
                 })->values();
 
         return $this->decorate($rows);
+    }
+
+    /** Meses que cubre el periodo elegido: un mes (MES), enero al mes (ACU) o el rango de fechas (RANGO). */
+    private function monthsOf(array $params): array
+    {
+        return match ($params['scope']) {
+            'ACU' => range(1, $params['period_month']),
+            'RANGO' => range($params['period_month_from'], $params['period_month']),
+            default => [$params['period_month']],
+        };
     }
 
     /** Agrega nombres, ordena y marca dónde termina cada centro y empresa (para pintar subtotales). */

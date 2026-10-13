@@ -108,6 +108,54 @@ class BudgetVsActualReportTest extends TestCase
             ->assertJsonPath('rows.0.current_budget', 2000);
     }
 
+    public function test_date_range_scope_sums_the_months_between_the_two_dates(): void
+    {
+        $user = $this->viewer('accounting');
+        $march = $this->line(1000, $this->center(), month: 3);
+        $this->line(2000, $march->annualBudget->costCenter, month: 4, category: $march->expenseCategory, cedula: BudgetCedula::find($march->budget_cedula_id));
+        $this->line(9000, $march->annualBudget->costCenter, month: 5, category: $march->expenseCategory, cedula: BudgetCedula::find($march->budget_cedula_id));
+
+        $this->data($user, ['scope' => 'RANGO', 'date_from' => "{$this->year}-03-01", 'date_to' => "{$this->year}-04-30"])
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('rows.0.period_scope', 'RANGO')
+            ->assertJsonPath('rows.0.current_budget', 3000);
+    }
+
+    public function test_date_range_scope_rejects_dates_crossing_fiscal_years(): void
+    {
+        $user = $this->viewer('accounting');
+
+        $this->data($user, ['scope' => 'RANGO', 'date_from' => ($this->year - 1).'-11-01', 'date_to' => "{$this->year}-02-28"])
+            ->assertUnprocessable()->assertJsonValidationErrors(['date_to']);
+    }
+
+    public function test_date_range_scope_rejects_end_date_before_start_date(): void
+    {
+        $user = $this->viewer('accounting');
+
+        $this->data($user, ['scope' => 'RANGO', 'date_from' => "{$this->year}-04-01", 'date_to' => "{$this->year}-03-01"])
+            ->assertUnprocessable()->assertJsonValidationErrors(['date_to']);
+    }
+
+    public function test_date_range_scope_drill_down_includes_documents_from_every_month_in_the_range(): void
+    {
+        $user = $this->viewer('accounting');
+        $march = $this->line(1000, $this->center(), month: 3);
+        $april = $this->line(2000, $march->annualBudget->costCenter, month: 4, category: $march->expenseCategory, cedula: BudgetCedula::find($march->budget_cedula_id));
+        $this->commit($march, 'purchase_order', 300);
+        $this->commit($april, 'purchase_order', 400);
+
+        $row = $this->data($user, ['scope' => 'RANGO', 'date_from' => "{$this->year}-03-01", 'date_to' => "{$this->year}-04-30"])->json('rows.0');
+        $detail = $this->actingAs($user)->getJson(route('budget-vs-actual-reports.detail', [
+            'scope' => 'RANGO', 'date_from' => "{$this->year}-03-01", 'date_to' => "{$this->year}-04-30",
+            'cost_center_id' => $row['cost_center_id'], 'expense_category_id' => $row['expense_category_id'],
+            'budget_cedula_id' => $row['budget_cedula_id'], 'bucket' => 'committed',
+        ]))->assertOk();
+
+        $this->assertEquals(700, $detail->json('total'));
+        $this->assertCount(2, $detail->json('documents'));
+    }
+
     public function test_department_head_only_sees_cost_centers_they_are_responsible_for(): void
     {
         $head = $this->viewer('department_head');
