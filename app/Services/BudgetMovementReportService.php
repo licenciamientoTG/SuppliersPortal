@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\BudgetCedula;
 use App\Models\BudgetMovement;
 use App\Models\BudgetMovementDetail;
+use App\Models\CostCenter;
+use App\Models\ExpenseCategory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -11,6 +14,8 @@ use Illuminate\Support\Facades\DB;
 
 class BudgetMovementReportService
 {
+    public function __construct(private readonly BudgetPositionService $positions) {}
+
     public function movements(Request $request, bool $paginate = true): array
     {
         $query = $this->filteredQuery($request)->with([
@@ -44,6 +49,11 @@ class BudgetMovementReportService
         ];
     }
 
+    /**
+     * Conciliación por renglón: misma fórmula que RP-01 (`BudgetPositionService`), sin duplicarla.
+     * Agrega el caso de línea con base capturada pero sin distribución vigente (dato inconsistente),
+     * que `BudgetPositionService` no puede ver porque parte de las distribuciones.
+     */
     public function reconciliation(Request $request): Collection
     {
         $filters = $this->filters($request);
@@ -51,95 +61,98 @@ class BudgetMovementReportService
         if ($allowedCenterIds->isEmpty()) {
             return collect();
         }
-        $lines = collect();
 
-        $baselineQuery = DB::table('budget_distribution_baselines as b')
+        $positions = $this->positions->positions([
+            'cost_center_ids' => $allowedCenterIds->all(),
+            'fiscal_year' => $filters['fiscal_year'],
+            'company_ids' => $filters['company_ids'],
+            'months' => $filters['month'] ? [$filters['month']] : [],
+        ]);
+
+        $lines = $positions
+            ->groupBy(fn ($p) => $this->lineKey($p['cost_center_id'], $p['month'], $p['expense_category_id'], $p['budget_cedula_id']))
+            ->map(function (Collection $rows) {
+                $first = $rows->first();
+
+                return $this->positions->summarize($rows) + [
+                    'cost_center_id' => $first['cost_center_id'], 'fiscal_year' => $first['fiscal_year'],
+                    'month' => $first['month'], 'expense_category_id' => $first['expense_category_id'],
+                    'budget_cedula_id' => $first['budget_cedula_id'],
+                ];
+            });
+
+        $merged = collect($lines->all() + $this->orphanBaselineLines($filters, $allowedCenterIds)->all());
+
+        return $this->withLineNames($merged)
+            ->sortBy(['company_name', 'cost_center_code', 'month', 'expense_category_name', 'budget_cedula_name'])
+            ->values();
+    }
+
+    /** Líneas con base capturada que no tienen ninguna distribución vigente para esa llave. */
+    private function orphanBaselineLines(array $filters, Collection $allowedCenterIds): Collection
+    {
+        $query = DB::table('budget_distribution_baselines as b')
             ->join('annual_budgets as ab', 'ab.id', '=', 'b.annual_budget_id')
             ->join('cost_centers as cc', 'cc.id', '=', 'ab.cost_center_id')
-            ->join('companies as co', 'co.id', '=', 'cc.company_id')
-            ->join('expense_categories as ec', 'ec.id', '=', 'b.expense_category_id')
-            ->leftJoin('budget_cedulas as bc', 'bc.id', '=', 'b.budget_cedula_id')
-            ->where('ab.fiscal_year', $filters['fiscal_year']);
-        $this->applyLineFilters($baselineQuery, $filters);
-        $baselineQuery->whereIn('cc.id', $allowedCenterIds);
-        foreach ($baselineQuery->select([
-            'cc.id as cost_center_id', 'cc.code as cost_center_code', 'cc.name as cost_center_name',
-            'co.name as company_name', 'ab.fiscal_year', 'b.month', 'b.expense_category_id',
-            'ec.name as expense_category_name', 'b.budget_cedula_id', 'bc.name as budget_cedula_name',
-            'b.original_amount',
-        ])->get() as $row) {
-            $key = $this->lineKey($row->cost_center_id, $row->month, $row->expense_category_id, $row->budget_cedula_id);
-            $lines[$key] = $this->emptyLine($row) + ['original_amount' => 0.0, 'movement_total' => 0.0, 'current_amount' => 0.0, 'has_baseline' => true];
-            $line = $lines[$key];
-            $line['original_amount'] += (float) $row->original_amount;
-            $lines[$key] = $line;
-        }
+            ->where('ab.fiscal_year', $filters['fiscal_year'])
+            ->whereIn('cc.id', $allowedCenterIds)
+            ->whereNotExists(function ($q) {
+                $q->selectRaw('1')->from('budget_monthly_distributions as d')
+                    ->whereColumn('d.annual_budget_id', 'ab.id')
+                    ->whereColumn('d.month', 'b.month')
+                    ->whereColumn('d.expense_category_id', 'b.expense_category_id')
+                    ->where(fn ($w) => $w->whereColumn('d.budget_cedula_id', 'b.budget_cedula_id')
+                        ->orWhere(fn ($w2) => $w2->whereNull('d.budget_cedula_id')->whereNull('b.budget_cedula_id')))
+                    ->whereNull('d.deleted_at');
+            });
+        $this->applyLineFilters($query, $filters);
 
-        $currentQuery = DB::table('budget_monthly_distributions as d')
-            ->join('annual_budgets as ab', 'ab.id', '=', 'd.annual_budget_id')
-            ->join('cost_centers as cc', 'cc.id', '=', 'ab.cost_center_id')
-            ->join('companies as co', 'co.id', '=', 'cc.company_id')
-            ->join('expense_categories as ec', 'ec.id', '=', 'd.expense_category_id')
-            ->leftJoin('budget_cedulas as bc', 'bc.id', '=', 'd.budget_cedula_id')
-            ->whereNull('d.deleted_at')->whereNull('ab.deleted_at')
-            ->where('ab.status', 'APROBADO')->where('ab.fiscal_year', $filters['fiscal_year']);
-        $this->applyLineFilters($currentQuery, $filters, 'd.month');
-        $currentQuery->whereIn('cc.id', $allowedCenterIds);
-        foreach ($currentQuery->select([
-            'cc.id as cost_center_id', 'cc.code as cost_center_code', 'cc.name as cost_center_name',
-            'co.name as company_name', 'ab.fiscal_year', 'd.month', 'd.expense_category_id',
-            'ec.name as expense_category_name', 'd.budget_cedula_id', 'bc.name as budget_cedula_name',
-            'd.assigned_amount as current_amount',
-        ])->get() as $row) {
-            $key = $this->lineKey($row->cost_center_id, $row->month, $row->expense_category_id, $row->budget_cedula_id);
-            if (! isset($lines[$key])) {
-                $lines[$key] = $this->emptyLine($row) + ['original_amount' => null, 'movement_total' => 0.0, 'current_amount' => 0.0, 'has_baseline' => false];
-            }
-            $line = $lines[$key];
-            $line['current_amount'] += (float) $row->current_amount;
-            $lines[$key] = $line;
-        }
+        return collect($query->select(['ab.cost_center_id', 'b.month', 'b.expense_category_id', 'b.budget_cedula_id', 'b.original_amount'])->get())
+            ->groupBy(fn ($row) => $this->lineKey($row->cost_center_id, $row->month, $row->expense_category_id, $row->budget_cedula_id))
+            ->map(function (Collection $rows) use ($filters) {
+                $first = $rows->first();
+                $authorized = round((float) $rows->sum('original_amount'), 2);
 
-        $movementQuery = BudgetMovement::query()->where('fiscal_year', $filters['fiscal_year'])->approved()->with(['details.costCenter.company', 'details.expenseCategory', 'details.budgetCedula']);
-        $this->applyMovementVisibility($movementQuery, $request->user());
-        foreach ($movementQuery->get() as $movement) {
-            foreach ($movement->details as $detail) {
-                if (! $this->detailMatchesFilters($detail, $filters)) {
-                    continue;
-                }
-                $center = $detail->costCenter;
-                if (! $center) {
-                    continue;
-                }
-                $key = $this->lineKey($center->id, $detail->month, $detail->expense_category_id, $detail->budget_cedula_id);
-                if (! isset($lines[$key])) {
-                    $lines[$key] = [
-                        'company_name' => $center->company?->name, 'cost_center_id' => $center->id,
-                        'cost_center_code' => $center->code, 'cost_center_name' => $center->name,
-                        'fiscal_year' => $filters['fiscal_year'], 'month' => $detail->month,
-                        'expense_category_id' => $detail->expense_category_id,
-                        'expense_category_name' => $detail->expenseCategory?->name,
-                        'budget_cedula_id' => $detail->budget_cedula_id,
-                        'budget_cedula_name' => $detail->budgetCedula?->name,
-                        'original_amount' => null, 'movement_total' => 0.0, 'current_amount' => 0.0, 'has_baseline' => false,
-                    ];
-                }
-                $line = $lines[$key];
-                $line['movement_total'] += (float) $detail->amount;
-                $lines[$key] = $line;
-            }
-        }
+                return [
+                    'cost_center_id' => $first->cost_center_id, 'fiscal_year' => $filters['fiscal_year'],
+                    'month' => (int) $first->month, 'expense_category_id' => $first->expense_category_id,
+                    'budget_cedula_id' => $first->budget_cedula_id, 'current_budget' => 0.0,
+                    'increases' => 0.0, 'decreases' => 0.0, 'authorized_amount' => $authorized,
+                    'budget_difference' => $authorized,
+                    'baseline_status' => abs($authorized) < 0.005 ? 'CONCILIA' : 'DIFERENCIA',
+                ];
+            });
+    }
 
-        return $lines->map(function (array $line) {
-            $line['reconstructed_amount'] = $line['original_amount'] === null
-                ? null : round($line['original_amount'] + $line['movement_total'], 2);
-            $line['difference'] = $line['reconstructed_amount'] === null
-                ? null : round($line['reconstructed_amount'] - $line['current_amount'], 2);
-            $line['reconciliation_status'] = $line['original_amount'] === null
-                ? 'SIN_BASE' : (abs($line['difference']) < 0.005 ? 'CONCILIA' : 'DIFERENCIA');
+    /** Agrega nombres para mostrar y traduce al contrato de salida de RP-02. */
+    private function withLineNames(Collection $lines): Collection
+    {
+        $centers = CostCenter::with('company')->whereIn('id', $lines->pluck('cost_center_id')->unique())->get()->keyBy('id');
+        $categories = ExpenseCategory::whereIn('id', $lines->pluck('expense_category_id')->unique())->pluck('name', 'id');
+        $cedulaIds = $lines->pluck('budget_cedula_id')->filter()->unique();
+        $cedulas = $cedulaIds->isEmpty() ? collect() : BudgetCedula::whereIn('id', $cedulaIds)->pluck('name', 'id');
 
-            return $line;
-        })->sortBy(['company_name', 'cost_center_code', 'month', 'expense_category_name', 'budget_cedula_name'])->values();
+        return $lines->map(function (array $line) use ($centers, $categories, $cedulas) {
+            $center = $centers->get($line['cost_center_id']);
+            $hasBaseline = $line['authorized_amount'] !== null;
+
+            return [
+                'company_name' => $center?->company?->name, 'cost_center_id' => $line['cost_center_id'],
+                'cost_center_code' => $center?->code, 'cost_center_name' => $center?->name,
+                'fiscal_year' => $line['fiscal_year'], 'month' => $line['month'],
+                'expense_category_id' => $line['expense_category_id'],
+                'expense_category_name' => $categories->get($line['expense_category_id']),
+                'budget_cedula_id' => $line['budget_cedula_id'],
+                'budget_cedula_name' => $line['budget_cedula_id'] ? $cedulas->get($line['budget_cedula_id']) : null,
+                'original_amount' => $line['authorized_amount'],
+                'movement_total' => round($line['increases'] - $line['decreases'], 2),
+                'current_amount' => $line['current_budget'],
+                'has_baseline' => $hasBaseline,
+                'reconstructed_amount' => $hasBaseline ? round($line['current_budget'] + $line['budget_difference'], 2) : null,
+                'difference' => $line['budget_difference'],
+                'reconciliation_status' => $line['baseline_status'],
+            ];
+        });
     }
 
     public function filteredQuery(Request $request): Builder
@@ -266,10 +279,21 @@ class BudgetMovementReportService
         ];
     }
 
+    /** Roles que ven todo acotado a sus empresas asignadas, igual que RP-01 (superadmin aparte). */
+    private const FULL_SCOPE_ROLES = ['accounting', 'general_director'];
+
     private function applyMovementVisibility(Builder $query, $user): void
     {
         $settings = \App\Models\BudgetMovementApprovalSetting::query()->first();
         if ($user->hasRole('superadmin') || $settings?->canApprove($user)) {
+            return;
+        }
+        if ($user->hasRole(self::FULL_SCOPE_ROLES)) {
+            $companyIds = $user->companies()->pluck('companies.id');
+            if ($companyIds->isNotEmpty()) {
+                $query->whereHas('details.costCenter', fn ($q) => $q->whereIn('company_id', $companyIds));
+            }
+
             return;
         }
         $query->where(fn ($q) => $q->where('created_by', $user->id)
@@ -282,6 +306,12 @@ class BudgetMovementReportService
         $settings = \App\Models\BudgetMovementApprovalSetting::query()->first();
         if ($user->hasRole('superadmin') || $settings?->canApprove($user)) {
             return DB::table('cost_centers')->pluck('id');
+        }
+        if ($user->hasRole(self::FULL_SCOPE_ROLES)) {
+            $companyIds = $user->companies()->pluck('companies.id');
+
+            return $companyIds->isEmpty() ? DB::table('cost_centers')->pluck('id')
+                : DB::table('cost_centers')->whereIn('company_id', $companyIds)->pluck('id');
         }
         $movementIds = BudgetMovement::query()
             ->where(fn ($q) => $q->where('created_by', $user->id)->orWhereHas('details.costCenter', fn ($cc) => $cc->where('responsible_user_id', $user->id)))
@@ -302,31 +332,8 @@ class BudgetMovementReportService
         }
     }
 
-    private function detailMatchesFilters($detail, array $filters): bool
-    {
-        if ($filters['month'] && (int) $detail->month !== (int) $filters['month']) {
-            return false;
-        }
-        if ($filters['company_ids'] && ! in_array((int) $detail->costCenter?->company_id, $filters['company_ids'], true)) {
-            return false;
-        }
-
-        return true;
-    }
-
     private function lineKey($center, $month, $category, $cedula): string
     {
         return implode(':', [$center, $month, $category, $cedula ?: 0]);
-    }
-
-    private function emptyLine($row): array
-    {
-        return [
-            'company_name' => $row->company_name, 'cost_center_id' => $row->cost_center_id,
-            'cost_center_code' => $row->cost_center_code, 'cost_center_name' => $row->cost_center_name,
-            'fiscal_year' => $row->fiscal_year, 'month' => (int) $row->month,
-            'expense_category_id' => $row->expense_category_id, 'expense_category_name' => $row->expense_category_name,
-            'budget_cedula_id' => $row->budget_cedula_id, 'budget_cedula_name' => $row->budget_cedula_name,
-        ];
     }
 }

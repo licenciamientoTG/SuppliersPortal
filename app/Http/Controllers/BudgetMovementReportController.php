@@ -114,15 +114,27 @@ class BudgetMovementReportController extends Controller
         return $headingRow + 1;
     }
 
+    /** Roles que ven todo acotado a sus empresas asignadas, igual que RP-01 (superadmin aparte). */
+    private const FULL_SCOPE_ROLES = ['accounting', 'general_director'];
+
     private function visibleCostCenters(Request $request)
     {
         $user = $request->user();
         $settings = BudgetMovementApprovalSetting::query()->first();
         $query = CostCenter::query()->with('company')->orderBy('name');
-        if (! $user->hasRole('superadmin') && ! $settings?->canApprove($user)) {
-            $movementIds = $this->visibleMovements($request)->select('budget_movements.id');
-            $query->where(fn ($q) => $q->where('responsible_user_id', $user->id)->orWhereIn('id', DB::table('budget_movement_details')->whereIn('budget_movement_id', $movementIds)->select('cost_center_id')));
+        if ($user->hasRole('superadmin') || $settings?->canApprove($user)) {
+            return $query->get();
         }
+        if ($user->hasRole(self::FULL_SCOPE_ROLES)) {
+            $companyIds = $user->companies()->pluck('companies.id');
+            if ($companyIds->isNotEmpty()) {
+                $query->whereIn('company_id', $companyIds);
+            }
+
+            return $query->get();
+        }
+        $movementIds = $this->visibleMovements($request)->select('budget_movements.id');
+        $query->where(fn ($q) => $q->where('responsible_user_id', $user->id)->orWhereIn('id', DB::table('budget_movement_details')->whereIn('budget_movement_id', $movementIds)->select('cost_center_id')));
 
         return $query->get();
     }
@@ -148,9 +160,18 @@ class BudgetMovementReportController extends Controller
         $user = $request->user();
         $settings = BudgetMovementApprovalSetting::query()->first();
         $query = \App\Models\BudgetMovement::query();
-        if (! $user->hasRole('superadmin') && ! $settings?->canApprove($user)) {
-            $query->where(fn ($q) => $q->where('created_by', $user->id)->orWhereHas('details.costCenter', fn ($cc) => $cc->where('responsible_user_id', $user->id)));
+        if ($user->hasRole('superadmin') || $settings?->canApprove($user)) {
+            return $query;
         }
+        if ($user->hasRole(self::FULL_SCOPE_ROLES)) {
+            $companyIds = $user->companies()->pluck('companies.id');
+            if ($companyIds->isNotEmpty()) {
+                $query->whereHas('details.costCenter', fn ($cc) => $cc->whereIn('company_id', $companyIds));
+            }
+
+            return $query;
+        }
+        $query->where(fn ($q) => $q->where('created_by', $user->id)->orWhereHas('details.costCenter', fn ($cc) => $cc->where('responsible_user_id', $user->id)));
 
         return $query;
     }

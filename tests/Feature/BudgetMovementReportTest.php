@@ -156,4 +156,31 @@ class BudgetMovementReportTest extends TestCase
         }
         $this->assertDatabaseCount('budget_distribution_baselines', 0);
     }
+
+    public function test_baseline_without_current_distribution_is_still_shown_in_reconciliation(): void
+    {
+        $actor = User::factory()->create(['is_active' => true]);
+        Permission::findOrCreate('reportes.budget_movements.ver', 'web');
+        $actor->givePermissionTo('reportes.budget_movements.ver');
+        $company = Company::factory()->create();
+        $center = CostCenter::factory()->create(['company_id' => $company->id, 'responsible_user_id' => $actor->id]);
+        $category = ExpenseCategory::factory()->create();
+        $budget = AnnualBudget::create([
+            'cost_center_id' => $center->id, 'fiscal_year' => 2026, 'total_annual_amount' => 1000,
+            'status' => 'APROBADO', 'created_by' => $actor->id,
+        ]);
+        $distribution = BudgetMonthlyDistribution::create([
+            'annual_budget_id' => $budget->id, 'expense_category_id' => $category->id,
+            'month' => 4, 'assigned_amount' => 1000, 'created_by' => $actor->id,
+        ]);
+        app(BudgetBaselineService::class)->capture($budget, $actor->id);
+        \Illuminate\Support\Facades\DB::table('budget_monthly_distributions')->where('id', $distribution->id)->update(['deleted_at' => now()]);
+
+        $this->actingAs($actor)->getJson(route('budget-movement-reports.data', ['fiscal_year' => 2026]))
+            ->assertOk()
+            ->assertJsonPath('reconciliation.0.original_amount', 1000)
+            ->assertJsonPath('reconciliation.0.current_amount', 0)
+            ->assertJsonPath('reconciliation.0.has_baseline', true)
+            ->assertJsonPath('reconciliation.0.reconciliation_status', 'DIFERENCIA');
+    }
 }
