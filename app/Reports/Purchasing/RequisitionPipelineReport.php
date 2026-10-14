@@ -210,11 +210,10 @@ class RequisitionPipelineReport
             ->groupBy('requisition_id')->select('requisition_id', DB::raw('SUM(total) as amount')))
             ->mapWithKeys(fn ($row) => [(int) $row->requisition_id => (float) $row->amount]);
 
-        // REPSE: alguna partida de la categoría de servicios, igual que la validación en recepciones.
-        $repse = $load(fn (array $chunk) => DB::table('requisition_items as ri')
-            ->join('expense_categories as ec', 'ec.id', '=', 'ri.expense_category_id')
-            ->whereIn('ri.requisition_id', $chunk)->where('ec.code', 'SER')
-            ->distinct()->select('ri.requisition_id'))
+        // REPSE: marca persistida en la requisición (Requisition::refreshRepseFlag()).
+        $repse = $load(fn (array $chunk) => DB::table('requisitions')
+            ->whereIn('id', $chunk)->where('is_repse', true)
+            ->select('id as requisition_id'))
             ->map(fn ($row) => (int) $row->requisition_id)->unique()->values();
 
         // Mismo criterio que la bandeja de autorizaciones: aprobador vigente de cotizaciones pendientes.

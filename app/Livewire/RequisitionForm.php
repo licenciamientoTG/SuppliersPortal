@@ -322,6 +322,8 @@ class RequisitionForm extends Component
                 $this->persistItemAttachment($requisitionItem, $this->items[$index]['attachment_key'] ?? null);
             }
 
+            $requisition->refreshRepseFlag();
+
             // Si se va a enviar a Compras
             if ($status === 'pending') {
                 Log::info('📤 Enviando requisición a Compras desde Livewire', [

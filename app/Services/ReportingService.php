@@ -132,16 +132,15 @@ class ReportingService
             ->leftJoin('departments as department', 'department.id', '=', 'r.department_id')
             ->leftJoinSub($approvedSummaries, 'approved_summary_ids', fn ($join) => $join->on('approved_summary_ids.requisition_id', '=', 'r.id'))
             ->leftJoin('quotation_summaries as approved_summary', 'approved_summary.id', '=', 'approved_summary_ids.latest_id')
-            ->leftJoin('suppliers as awarded_supplier', 'awarded_supplier.id', '=', 'approved_summary.selected_supplier_id')
             ->leftJoinSub($pendingSummaries, 'pending_summary_ids', fn ($join) => $join->on('pending_summary_ids.requisition_id', '=', 'r.id'))
             ->leftJoin('quotation_summaries as pending_summary', 'pending_summary.id', '=', 'pending_summary_ids.latest_id')
             ->leftJoin('users as pending_approver', 'pending_approver.id', '=', 'pending_summary.current_approver_user_id')
             ->leftJoinSub($orderMilestones, 'order_milestones', fn ($join) => $join->on('order_milestones.requisition_id', '=', 'r.id'))
             ->select([
-                'r.id', 'r.folio', 'r.status', 'r.created_at', 'r.updated_at', 'r.validated_at', 'r.rejection_reason', 'r.cancellation_reason', 'r.pause_reason',
+                'r.id', 'r.folio', 'r.status', 'r.created_at', 'r.updated_at', 'r.validated_at', 'r.rejection_reason', 'r.cancellation_reason', 'r.pause_reason', 'r.is_repse',
                 'requester.name as requisitor', 'department.name as departamento', 'company.name as empresa',
                 'approved_summary.approved_at as cotizacion_aprobada', 'approved_summary.total as monto',
-                'pending_approver.name as aprobador_pendiente', 'awarded_supplier.provides_specialized_services as supplier_repse',
+                'pending_approver.name as aprobador_pendiente',
                 'order_milestones.issued_at', 'order_milestones.received_at',
             ])->orderByDesc('r.created_at')->get();
 
@@ -178,7 +177,7 @@ class ReportingService
                 'QUOTED' => 'Compras · pendiente de adjudicación', 'IN_QUOTATION', 'APPROVED' => 'Compras · cotización',
                 'PENDING_BUDGET_ADJUSTMENT' => 'Pendiente de ajuste presupuestal', default => '—',
             };
-            $row->requiere_repse = $row->supplier_repse === null ? 'Por determinar' : ((bool) $row->supplier_repse ? 'Sí' : 'No');
+            $row->requiere_repse = (bool) $row->is_repse ? 'Sí' : 'No';
             $row->motivo_excepcion = $row->rejection_reason ?: $row->cancellation_reason ?: $row->pause_reason ?: '—';
             $row->historial_etapas = $events->map(fn ($event) => ($event->to_status ?: $event->event_type).' · '.Carbon::parse($event->occurred_at)->format('Y-m-d H:i'))->implode(' → ');
             $row->cobertura_historial = $events->isEmpty() ? 'Estimado por fechas disponibles' : ($events->count() > 1 || $statusEvent ? 'Historial con eventos registrados' : 'Historial parcial');

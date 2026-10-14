@@ -220,6 +220,7 @@ class RequisitionPipelineRc01Test extends TestCase
             'cost_center_id' => ($center ?? $this->center)->id,
             'expense_category_id' => $expenseCategoryId,
         ]));
+        $requisition->refreshRepseFlag();
 
         foreach ($changes as [$status, $hours]) {
             $moment = $moment->copy()->addMinutes((int) round($hours * 60));
