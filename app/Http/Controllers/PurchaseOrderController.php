@@ -183,19 +183,23 @@ class PurchaseOrderController extends Controller
         abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
         abort_unless($purchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OC cerradas por inactividad.');
 
-        DB::transaction(function () use (&$purchaseOrder, $budgetAllocationService) {
-            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
-            abort_unless($purchaseOrder->canBeReactivated(), 422, 'Esta OC ya no está cerrada por inactividad.');
+        try {
+            DB::transaction(function () use (&$purchaseOrder, $budgetAllocationService) {
+                $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+                abort_unless($purchaseOrder->canBeReactivated(), 422, 'Esta OC ya no está cerrada por inactividad.');
 
-            $purchaseOrder->forceFill([
-                'status' => 'ISSUED',
-                'closed_at' => null,
-                'inactivity_warning_sent_at' => null,
-                'issued_at' => now(),
-            ])->save();
+                $purchaseOrder->forceFill([
+                    'status' => 'ISSUED',
+                    'closed_at' => null,
+                    'inactivity_warning_sent_at' => null,
+                    'issued_at' => now(),
+                ])->save();
 
-            $budgetAllocationService->commitOrder($purchaseOrder);
-        });
+                $budgetAllocationService->commitOrder($purchaseOrder);
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', "No fue posible reactivar la OC {$purchaseOrder->folio}: {$exception->getMessage()}");
+        }
 
         return back()->with('success', "OC {$purchaseOrder->folio} reactivada. Se restableció el plazo de inactividad.");
     }
@@ -210,19 +214,23 @@ class PurchaseOrderController extends Controller
         abort_unless(in_array((int) Auth::id(), self::REACTIVATION_ALLOWED_USER_IDS, true), 403);
         abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Solo se pueden reactivar OCD cerradas por inactividad.');
 
-        DB::transaction(function () use (&$directPurchaseOrder, $budgetAllocationService) {
-            $directPurchaseOrder = DirectPurchaseOrder::query()->lockForUpdate()->findOrFail($directPurchaseOrder->id);
-            abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Esta OCD ya no está cerrada por inactividad.');
+        try {
+            DB::transaction(function () use (&$directPurchaseOrder, $budgetAllocationService) {
+                $directPurchaseOrder = DirectPurchaseOrder::query()->lockForUpdate()->findOrFail($directPurchaseOrder->id);
+                abort_unless($directPurchaseOrder->canBeReactivated(), 422, 'Esta OCD ya no está cerrada por inactividad.');
 
-            $directPurchaseOrder->forceFill([
-                'status' => 'PENDING_APPROVAL',
-                'closed_at' => null,
-                'inactivity_warning_sent_at' => null,
-                'submitted_at' => now(),
-            ])->save();
+                $directPurchaseOrder->forceFill([
+                    'status' => 'PENDING_APPROVAL',
+                    'closed_at' => null,
+                    'inactivity_warning_sent_at' => null,
+                    'submitted_at' => now(),
+                ])->save();
 
-            $budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
-        });
+                $budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', "No fue posible reactivar la OCD {$directPurchaseOrder->folio}: {$exception->getMessage()}");
+        }
 
         return back()->with('success', "OCD {$directPurchaseOrder->folio} reactivada. Asigna un aprobador para continuar el flujo.");
     }
