@@ -27,6 +27,7 @@ class Requisition extends Model
         'required_date',
         'description',
         'status',
+        'is_repse',
 
         // Pausa (esperando producto del catálogo)
         'pause_reason',
@@ -76,6 +77,7 @@ class Requisition extends Model
         'validation_specs_clear' => 'boolean',
         'validation_time_feasible' => 'boolean',
         'validation_alternatives_evaluated' => 'boolean',
+        'is_repse' => 'boolean',
     ];
 
     // =========================================================================
@@ -102,6 +104,18 @@ class Requisition extends Model
     public function items(): HasMany
     {
         return $this->hasMany(RequisitionItem::class, 'requisition_id');
+    }
+
+    /**
+     * Recalcula si la requisición aplica REPSE (alguna partida de categoría
+     * de servicios, código SER) y persiste la marca.
+     */
+    public function refreshRepseFlag(): void
+    {
+        $this->is_repse = $this->items()
+            ->whereHas('expenseCategory', fn ($query) => $query->where('code', 'SER'))
+            ->exists();
+        $this->save();
     }
 
     /**

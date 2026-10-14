@@ -35,7 +35,7 @@ class RequisitionPipelineReportTest extends TestCase
         $row = $result['rows']->first();
         $this->assertSame('Validación de Compras', $row->etapa_detenida);
         $this->assertSame('Cola de Compras', $row->aprobador_pendiente);
-        $this->assertSame('Por determinar', $row->requiere_repse);
+        $this->assertSame('No', $row->requiere_repse);
         $this->assertSame('Historial con eventos registrados', $row->cobertura_historial);
         $this->assertGreaterThanOrEqual(3, $row->horas_en_etapa);
         $this->assertGreaterThanOrEqual(7, $row->horas_ciclo);
@@ -43,5 +43,21 @@ class RequisitionPipelineReportTest extends TestCase
         $this->assertIsInt($row->horas_ciclo);
         $this->assertContains('Etapa detenida', $result['columns']);
         $this->assertSame(1, $result['kpis']['Requisiciones']);
+    }
+
+    public function test_traceability_report_marks_repse_requisitions_as_si(): void
+    {
+        $requisition = Requisition::factory()->create([
+            'status' => 'PENDING',
+            'is_repse' => true,
+        ]);
+
+        $result = app(ReportingService::class)->result('requisition-traceability', [
+            'date_from' => now()->startOfYear()->toDateString(),
+            'date_to' => now()->toDateString(),
+        ]);
+
+        $row = $result['rows']->firstWhere('folio', $requisition->folio);
+        $this->assertSame('Sí', $row->requiere_repse);
     }
 }
