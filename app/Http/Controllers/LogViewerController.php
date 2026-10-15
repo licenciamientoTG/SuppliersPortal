@@ -40,4 +40,27 @@ class LogViewerController extends Controller
 
         return view('dev.log-viewer', compact('lines', 'fileSize'));
     }
+
+    /**
+     * Vacía laravel.log (truncate, para conservar el archivo y sus permisos)
+     * y deja una primera línea que registra quién lo limpió.
+     */
+    public function clear()
+    {
+        abort_unless(Auth::user()?->can('view-system-log'), 403);
+
+        $user = Auth::user();
+        $entry = sprintf(
+            "[%s] %s.INFO: Log limpiado por %s (id %d)
+",
+            now()->format('Y-m-d H:i:s'),
+            config('app.env'),
+            $user->name,
+            $user->id
+        );
+
+        file_put_contents($this->logPath, $entry, LOCK_EX);
+
+        return redirect()->route('dev.log.index')->with('success', 'El log del sistema fue limpiado.');
+    }
 }

@@ -56,4 +56,32 @@ class SystemLogViewerAccessTest extends TestCase
 
         $this->actingAs($admin)->get(route('dev.log.index'))->assertOk();
     }
+
+    public function test_listed_user_can_clear_the_log_and_the_action_is_recorded(): void
+    {
+        $path = storage_path('logs/laravel.log');
+        $backup = file_exists($path) ? file_get_contents($path) : null;
+
+        try {
+            file_put_contents($path, "[2026-01-01 00:00:00] testing.ERROR: ruido
+");
+
+            $this->actingAs($this->userWithId(1))
+                ->post(route('dev.log.clear'))
+                ->assertRedirect(route('dev.log.index'));
+
+            $content = file_get_contents($path);
+            $this->assertStringNotContainsString('ruido', $content);
+            $this->assertStringContainsString('Log limpiado por', $content);
+        } finally {
+            $backup === null ? @unlink($path) : file_put_contents($path, $backup);
+        }
+    }
+
+    public function test_other_users_cannot_clear_the_log(): void
+    {
+        $this->actingAs($this->userWithId(4))
+            ->post(route('dev.log.clear'))
+            ->assertForbidden();
+    }
 }
