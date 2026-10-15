@@ -164,6 +164,30 @@ class ReceptionFlowTest extends TestCase
         $this->assertSame(0.0, (float) $item->refresh()->quantity_received);
     }
 
+    public function test_reception_can_be_registered_without_remission_file(): void
+    {
+        Notification::fake();
+
+        [$order, $location] = $this->createDirectOrder(['status' => 'ISSUED']);
+        $item = $order->items()->first();
+        $receiver = User::factory()->create();
+        $receiver->assignRole('receiver');
+
+        $response = $this->actingAs($receiver)->post(route('receptions.store-direct', $order), [
+            'receiving_location_id' => $location->id,
+            'received_at' => now()->format('Y-m-d H:i:s'),
+            'items' => [[
+                'receivable_item_id' => $item->id,
+                'quantity_received' => 5,
+                'conformity' => 'CONFORME',
+            ]],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $reception = Reception::firstOrFail();
+        $this->assertNull($reception->remission_path);
+    }
+
     public function test_receiver_role_can_receive_at_any_location(): void
     {
         [$order] = $this->createDirectOrder(['status' => 'ISSUED']);

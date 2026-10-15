@@ -261,7 +261,7 @@ class ReceptionController extends Controller
             'delivery_reference'             => 'nullable|string|max:100',
             'notes'                          => 'nullable|string|max:1000',
             'received_at'                    => 'required|date',
-            'remission_file'                 => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'remission_file'                 => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'items'                          => 'required|array|min:1',
             'items.*.receivable_item_id'     => 'required|integer|exists:purchase_order_items,id',
             'items.*.quantity_received'      => 'required|numeric|min:0',
@@ -283,7 +283,9 @@ class ReceptionController extends Controller
             return back()->withErrors($conformityErrors)->withInput();
         }
 
-        $remissionPath = $request->file('remission_file')->store('remisiones', 'public');
+        $remissionPath = $request->hasFile('remission_file')
+            ? $request->file('remission_file')->store('remisiones', 'public')
+            : null;
         $validated['remission_path'] = $remissionPath;
 
         // Guardar fotos por ítem
@@ -302,7 +304,9 @@ class ReceptionController extends Controller
                 ->with('success', "Recepción {$reception->folio} registrada correctamente.");
 
         } catch (\RuntimeException $e) {
-            Storage::disk('public')->delete($remissionPath);
+            if ($remissionPath) {
+                Storage::disk('public')->delete($remissionPath);
+            }
 
             return back()
                 ->withInput()
@@ -350,7 +354,7 @@ class ReceptionController extends Controller
             'delivery_reference'             => 'nullable|string|max:100',
             'notes'                          => 'nullable|string|max:1000',
             'received_at'                    => 'required|date',
-            'remission_file'                 => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'remission_file'                 => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'items'                          => 'required|array|min:1',
             'items.*.receivable_item_id'     => 'required|integer|exists:odc_direct_purchase_order_items,id',
             'items.*.quantity_received'      => 'required|numeric|min:0',
@@ -371,7 +375,9 @@ class ReceptionController extends Controller
             return back()->withErrors($conformityErrors)->withInput();
         }
 
-        $remissionPath = $request->file('remission_file')->store('remisiones', 'public');
+        $remissionPath = $request->hasFile('remission_file')
+            ? $request->file('remission_file')->store('remisiones', 'public')
+            : null;
         $validated['remission_path'] = $remissionPath;
 
         $validated['items'] = $this->storeItemPhotos($request, $validated['items']);
@@ -389,7 +395,9 @@ class ReceptionController extends Controller
                 ->with('success', "Recepción {$reception->folio} registrada correctamente.");
 
         } catch (\RuntimeException $e) {
-            Storage::disk('public')->delete($remissionPath);
+            if ($remissionPath) {
+                Storage::disk('public')->delete($remissionPath);
+            }
 
             return back()
                 ->withInput()
