@@ -41,7 +41,7 @@ class ReceptionFlowTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['supplier', 'receiver', 'buyer', 'superadmin'] as $role) {
+        foreach (['supplier', 'receiver', 'buyer', 'superadmin', 'staff'] as $role) {
             Role::findOrCreate($role, 'web');
         }
     }
@@ -164,23 +164,41 @@ class ReceptionFlowTest extends TestCase
         $this->assertSame(0.0, (float) $item->refresh()->quantity_received);
     }
 
-    public function test_receiver_can_access_only_assigned_reception_location(): void
+    public function test_receiver_role_can_receive_at_any_location(): void
     {
-        [$order, $location] = $this->createDirectOrder(['status' => 'ISSUED']);
-        $assignedReceiver = User::factory()->create();
-        $otherReceiver = User::factory()->create();
+        [$order] = $this->createDirectOrder(['status' => 'ISSUED']);
+        $receiver = User::factory()->create();
+        $receiver->assignRole('receiver');
 
-        $assignedReceiver->assignRole('receiver');
-        $otherReceiver->assignRole('receiver');
-        $location->users()->attach($assignedReceiver->id);
-
-        $this->actingAs($assignedReceiver)
+        $this->actingAs($receiver)
             ->get(route('receptions.create-direct', $order))
             ->assertOk();
+    }
 
-        $this->actingAs($otherReceiver)
+    public function test_order_requester_can_receive_without_receiver_role(): void
+    {
+        [$order] = $this->createDirectOrder(['status' => 'ISSUED']);
+
+        $order->creator->assignRole('staff');
+
+        $this->actingAs($order->creator)
             ->get(route('receptions.create-direct', $order))
-            ->assertForbidden();
+            ->assertOk();
+    }
+
+    public function test_user_without_receiving_role_is_denied_with_reasons_and_solution(): void
+    {
+        [$order] = $this->createDirectOrder(['status' => 'ISSUED']);
+        $staff = User::factory()->create();
+        $staff->assignRole('staff');
+
+        $response = $this->actingAs($staff)->get(route('receptions.create-direct', $order));
+
+        $response->assertForbidden()->assertSee('Recibidor');
+        $message = app(\App\Policies\ReceivingLocationPolicy::class)->massReceptionDeniedMessage($staff);
+        $this->assertStringContainsString('Recibidor', $message);
+        $this->assertStringContainsString('Personal', $message);
+        $this->assertStringContainsString('requisitor', $message);
     }
 
     private function createDirectOrder(array $attributes = []): array
@@ -251,7 +269,6 @@ class ReceptionFlowTest extends TestCase
         $receiver->assignRole('receiver');
         $buyer->assignRole('buyer');
         $finance->assignRole('superadmin');
-        $location->users()->attach($receiver->id);
 
         return [$order, $location];
     }

@@ -23,7 +23,7 @@ return [
             'roles' => ['staff', 'buyer', 'supplier', 'authorizer', 'superadmin', 'general_director'],
         ],
         'receptions' => [
-            'roles' => ['buyer', 'supplier', 'receiver', 'superadmin'],
+            'roles' => ['buyer', 'supplier', 'receiver', 'superadmin', 'authorizer', 'staff', 'department_head', 'general_director'],
         ],
         'products_services' => [
             'roles' => ['buyer', 'superadmin', 'catalog_admin'],

@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Models\DirectPurchaseOrder;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\ReceivingLocation;
 use Illuminate\Auth\Access\HandlesAuthorization;
@@ -41,7 +43,7 @@ class ReceivingLocationPolicy
      * - buyer: siempre
      * - accounting: siempre
      * - authorizer: siempre
-     * - receiver: NO (solo ve su ubicación a través del filtro automático)
+     * - receiver: NO
      * - supplier: NO
      *
      * @param \App\Models\User $user
@@ -80,7 +82,7 @@ class ReceivingLocationPolicy
         }
 
         // Receiver solo puede ver su propia ubicación
-        if ($user->hasRole('receiver') && $receivingLocation->isUserAuthorized($user)) {
+        if ($user->hasRole('receiver')) {
             return Response::allow();
         }
 
@@ -145,7 +147,6 @@ class ReceivingLocationPolicy
      * RESTRICCIONES DE NEGOCIO:
      * - No se puede eliminar una ubicación que tenga OCs pendientes
      * - No se puede eliminar una ubicación que tenga recepciones registradas
-     * - No se puede eliminar una ubicación que tenga usuarios asignados
      *
      * @param \App\Models\User $user
      * @param \App\Models\ReceivingLocation $receivingLocation
@@ -166,11 +167,6 @@ class ReceivingLocationPolicy
         // Validar que no tenga recepciones registradas
         if ($receivingLocation->receptions()->exists()) {
             return Response::deny('No se puede eliminar la ubicación porque tiene recepciones registradas. Considere desactivarla en lugar de eliminarla.');
-        }
-
-        // Validar que no tenga usuarios asignados
-        if ($receivingLocation->users()->exists()) {
-            return Response::deny('No se puede eliminar la ubicación porque tiene usuarios asignados. Remueva las asignaciones primero.');
         }
 
         return Response::allow();
@@ -223,71 +219,68 @@ class ReceivingLocationPolicy
     }
 
     /**
-     * Determine if the user can assign users to this location.
-     * 
-     * ¿Quién puede asignar usuarios a una ubicación?
-     * - superadmin: siempre
-     * - buyer: siempre
-     * - authorizer: puede asignar receptores a ubicaciones (como gerente de zona)
-     *
-     * @param \App\Models\User $user
-     * @param \App\Models\ReceivingLocation $receivingLocation
-     * @return \Illuminate\Auth\Access\Response
+     * Roles que pueden usar recepción masiva en cualquier ubicación.
      */
-    public function assignUsers(User $user, ReceivingLocation $receivingLocation): Response
-    {
-        // Buyer puede asignar a cualquier ubicación
-        if ($user->hasRole('buyer')) {
-            return Response::allow();
-        }
-
-        // Authorizer puede asignar receptores (tiene nivel jerárquico para ello)
-        if ($user->hasRole('superadmin')) {
-            return Response::allow();
-        }
-
-        if ($user->hasRole('authorizer')) {
-            return Response::allow();
-        }
-
-        return Response::deny('No tienes permiso para asignar usuarios a esta ubicación.');
-    }
+    public const MASS_RECEPTION_ROLES = ['superadmin', 'buyer', 'authorizer', 'receiver'];
 
     /**
      * Determine if the user can use mass reception at this location.
-     * 
-     * ¿Quién puede usar recepción masiva?
-     * - superadmin: siempre
-     * - buyer: siempre
-     * - receiver: SÍ (todos los receptores tienen este privilegio, según me comentas)
-     * - authorizer: siempre (por si necesita hacer recepciones)
      *
-     * @param \App\Models\User $user
-     * @param \App\Models\ReceivingLocation $receivingLocation
-     * @return \Illuminate\Auth\Access\Response
+     * Cualquier usuario con rol superadmin, buyer, authorizer o receiver puede
+     * recibir en cualquier ubicación.
      */
     public function useMassReception(User $user, ReceivingLocation $receivingLocation): Response
     {
-        if ($user->hasRole('superadmin')) {
+        if ($user->hasAnyRole(self::MASS_RECEPTION_ROLES)) {
             return Response::allow();
         }
 
-        // Buyer puede usar recepción masiva en cualquier ubicación
-        if ($user->hasRole('buyer')) {
+        return Response::deny($this->massReceptionDeniedMessage($user));
+    }
+
+    /**
+     * Determina si el usuario puede registrar la recepción de una OC / OCD.
+     *
+     * Puede recibir quien tenga un rol de recepción, o el requisitor:
+     * - OC: el solicitante de la requisición origen (requested_by).
+     * - OCD: el creador de la orden (no tiene requisición).
+     */
+    public function receiveOrder(User $user, PurchaseOrder|DirectPurchaseOrder $order): Response
+    {
+        if ($user->hasAnyRole(self::MASS_RECEPTION_ROLES) || $this->isRequester($user, $order)) {
             return Response::allow();
         }
 
-        // Authorizer puede usar recepción masiva
-        if ($user->hasRole('authorizer')) {
-            return Response::allow();
+        return Response::deny($this->massReceptionDeniedMessage($user));
+    }
+
+    public function isRequester(User $user, PurchaseOrder|DirectPurchaseOrder $order): bool
+    {
+        if ($order instanceof DirectPurchaseOrder) {
+            return (int) $order->created_by === $user->id;
         }
 
-        // Receiver puede usar recepción masiva PERO solo en su ubicación
-        if ($user->hasRole('receiver') && $receivingLocation->isUserAuthorized($user)) {
-            return Response::allow();
-        }
+        return $order->requisition_id !== null
+            && (int) $order->requisition?->requested_by === $user->id;
+    }
 
-        return Response::deny('No tienes permiso para usar recepción masiva en esta ubicación.');
+    /**
+     * Explica por qué el usuario no puede recibir y cómo habilitarlo.
+     */
+    public function massReceptionDeniedMessage(User $user): string
+    {
+        $label = fn (string $role): string => __("roles.{$role}") !== "roles.{$role}" ? __("roles.{$role}") : $role;
+
+        $userRoles = $user->getRoleNames()->map($label)->implode(', ');
+        $required = collect(self::MASS_RECEPTION_ROLES)->map($label)->implode(', ');
+
+        $current = $userRoles !== ''
+            ? "Tus roles actuales son: {$userRoles}."
+            : 'Tu usuario no tiene ningún rol asignado.';
+
+        return 'No puedes registrar esta recepción. Solo pueden recibir material los usuarios con alguno de estos roles: '
+            ."{$required}; o la persona que solicitó la requisición (requisitor) de esta orden. {$current} "
+            .'Para habilitarte, solicita a un administrador que te asigne el rol Recibidor.';
     }
 
     /**
@@ -312,7 +305,7 @@ class ReceivingLocationPolicy
         }
 
         // Receiver solo su ubicación
-        if ($user->hasRole('receiver') && $receivingLocation->isUserAuthorized($user)) {
+        if ($user->hasRole('receiver')) {
             return Response::allow();
         }
 
@@ -341,7 +334,7 @@ class ReceivingLocationPolicy
         }
 
         // Receiver puede exportar solo su ubicación
-        if ($user->hasRole('receiver') && $receivingLocation->isUserAuthorized($user)) {
+        if ($user->hasRole('receiver')) {
             return Response::allow();
         }
 
@@ -364,7 +357,7 @@ class ReceivingLocationPolicy
             return Response::allow();
         }
 
-        if ($user->hasRole('receiver') && $receivingLocation->isUserAuthorized($user)) {
+        if ($user->hasRole('receiver')) {
             return Response::allow();
         }
 

@@ -6,6 +6,7 @@ use App\Models\DirectPurchaseOrder;
 use App\Models\PurchaseOrder;
 use App\Models\Reception;
 use App\Models\ReceivingLocation;
+use App\Policies\ReceivingLocationPolicy;
 use App\Services\ReceptionService;
 use App\Models\ReceptionItem;
 use Illuminate\Http\Request;
@@ -186,34 +187,38 @@ class ReceptionController extends Controller
 
     /**
      * Bandeja de órdenes pendientes de recepción.
-     * Receptores ven sólo sus locaciones; buyer/authorizer ven todas.
+     * Roles de recepción ven todas; el requisitor sólo las órdenes que solicitó.
      */
     public function pending()
     {
         $user = Auth::user();
 
-        if ($user->hasAnyRole(['buyer', 'authorizer', 'superadmin'])) {
-            $locationIds = ReceivingLocation::active()->pluck('id');
-        } else {
-            // receiver: sólo sus locaciones asignadas
-            $locationIds = $user->receivingLocations()->pluck('receiving_locations.id');
-        }
+        // Roles de recepción ven todo; el requisitor sólo ve sus propias órdenes
+        $seesAll = $user->hasAnyRole(ReceivingLocationPolicy::MASS_RECEPTION_ROLES);
 
         $pendingStatuses = ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'];
 
         $purchaseOrders = PurchaseOrder::with(['supplier', 'receivingLocation', 'creator'])
             ->whereIn('status', $pendingStatuses)
-            ->whereIn('receiving_location_id', $locationIds)
+            ->when(! $seesAll, fn ($q) => $q->whereHas('requisition', fn ($r) => $r->where('requested_by', $user->id)))
             ->orderBy('created_at', 'desc')
             ->paginate(50, ['*'], 'oc_page');
 
         $directOrders = DirectPurchaseOrder::with(['supplier', 'receivingLocation', 'creator'])
             ->whereIn('status', $pendingStatuses)
-            ->whereIn('receiving_location_id', $locationIds)
+            ->when(! $seesAll, fn ($q) => $q->where('created_by', $user->id))
             ->orderBy('created_at', 'desc')
             ->paginate(50, ['*'], 'ocd_page');
 
         return view('receptions.pending', compact('purchaseOrders', 'directOrders'));
+    }
+
+    /**
+     * Autoriza la recepción de una orden; si se deniega, el 403 explica la razón y cómo habilitarse.
+     */
+    private function authorizeReceiving(PurchaseOrder|DirectPurchaseOrder $order): void
+    {
+        app(ReceivingLocationPolicy::class)->receiveOrder(Auth::user(), $order)->authorize();
     }
 
     /**
@@ -223,7 +228,7 @@ class ReceptionController extends Controller
     {
         $purchaseOrder->load(['items.requisitionItem', 'supplier', 'receivingLocation', 'deliveryEvidences']);
 
-        $this->authorize('useMassReception', $purchaseOrder->receivingLocation);
+        $this->authorizeReceiving($purchaseOrder);
 
         $repseWarning      = $this->receptionService->validateRepseIfService($purchaseOrder);
         $receivingLocations = ReceivingLocation::active()->orderBy('name')->get();
@@ -247,7 +252,7 @@ class ReceptionController extends Controller
     {
         $purchaseOrder->load(['items', 'supplier', 'receivingLocation']);
 
-        $this->authorize('useMassReception', $purchaseOrder->receivingLocation);
+        $this->authorizeReceiving($purchaseOrder);
 
         $nonconformityTypes = implode(',', array_keys(ReceptionItem::NONCONFORMITY_TYPES));
 
@@ -312,7 +317,7 @@ class ReceptionController extends Controller
     {
         $directPurchaseOrder->load(['items.expenseCategory', 'supplier', 'receivingLocation', 'deliveryEvidences']);
 
-        $this->authorize('useMassReception', $directPurchaseOrder->receivingLocation);
+        $this->authorizeReceiving($directPurchaseOrder);
 
         $repseWarning      = $this->receptionService->validateRepseIfService($directPurchaseOrder);
         $receivingLocations = ReceivingLocation::active()->orderBy('name')->get();
@@ -336,7 +341,7 @@ class ReceptionController extends Controller
     {
         $directPurchaseOrder->load(['items', 'supplier', 'receivingLocation']);
 
-        $this->authorize('useMassReception', $directPurchaseOrder->receivingLocation);
+        $this->authorizeReceiving($directPurchaseOrder);
 
         $nonconformityTypes = implode(',', array_keys(ReceptionItem::NONCONFORMITY_TYPES));
 

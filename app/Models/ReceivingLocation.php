@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -130,19 +129,6 @@ class ReceivingLocation extends Model
 
 
     /**
-     * Obtiene los usuarios autorizados para recibir en esta ubicación
-     * Relación muchos a muchos con la tabla pivote receiving_location_user
-     * 
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function users(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'receiving_location_user')
-                    ->withPivot('is_default')
-                    ->withTimestamps();
-    }
-
-    /**
      * ALIYAS DE RELACIONES (métodos con nombres en español para consistencia)
      */
 
@@ -168,14 +154,6 @@ class ReceivingLocation extends Model
     public function recepciones(): HasMany
     {
         return $this->receptions();
-    }
-
-    /**
-     * Alias de users() - Usuarios autorizados en esta ubicación
-     */
-    public function usuariosAutorizados(): BelongsToMany
-    {
-        return $this->users();
     }
 
     /**
@@ -417,39 +395,6 @@ class ReceivingLocation extends Model
     public function unblockPortal(): bool
     {
         return $this->update(['portal_blocked' => false]);
-    }
-
-    /**
-     * Verifica si un usuario está autorizado para recibir en esta ubicación
-     * 
-     * @param User $user
-     * @return bool
-     */
-    public function isUserAuthorized(User $user): bool
-    {
-        return $this->users()->where('user_id', $user->id)->exists();
-    }
-
-    /**
-     * Obtiene los usuarios autorizados con su rol de receptor estándar
-     * 
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getStandardReceivers()
-    {
-        return $this->users()->wherePivot('is_default', false)->get();
-    }
-
-    /**
-     * Obtiene los aprobadores de esta ubicación (con permiso de recepción masiva)
-     * 
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getApprovers()
-    {
-        // Asumiendo que tienes un rol/spatie permissions o campo en la tabla pivote
-        // Este es un placeholder - ajusta según tu sistema de permisos
-        return $this->users()->wherePivot('is_approver', true)->get();
     }
 
 

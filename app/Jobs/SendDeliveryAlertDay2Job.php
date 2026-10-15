@@ -39,7 +39,7 @@ class SendDeliveryAlertDay2Job implements ShouldQueue
             return;
         }
 
-        $order->loadMissing(['supplier', 'receivingLocation', 'receivingLocation.users']);
+        $order->loadMissing(['supplier', 'receivingLocation']);
 
         $supplierName = $order->supplier->company_name ?? 'Proveedor';
         $deliveryDate = $order->supplier_delivered_at->format('d/m/Y');
@@ -47,8 +47,8 @@ class SendDeliveryAlertDay2Job implements ShouldQueue
 
         $mail = new DeliveryAlertDay2Mail($order, $supplierName, $deliveryDate, $locationName);
 
-        // Destinatarios: receptores de la estación
-        $recipients = $order->receivingLocation->users->pluck('email')->filter()->toArray();
+        // Destinatarios: usuarios con rol receiver
+        $recipients = AlertRecipientService::getReceivers();
 
         // Destinatarios: usuarios con rol superadmin (Finanzas / Dirección) - CACHEADO
         $buyers = AlertRecipientService::getBuyers();

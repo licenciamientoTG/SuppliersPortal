@@ -37,6 +37,14 @@ class AlertRecipientService
     }
 
     /**
+     * Obtiene emails de receptores (rol receiver).
+     */
+    public static function getReceivers(int $ttl = 3600): array
+    {
+        return self::getByRoles('receiver', $ttl);
+    }
+
+    /**
      * Obtiene emails de superadmins (Finanzas / Dirección).
      */
     public static function getSuperadmins(int $ttl = 3600): array
@@ -49,6 +57,7 @@ class AlertRecipientService
      */
     public static function invalidateCache(): void
     {
+        Cache::forget('alert_recipients_receiver');
         Cache::forget('alert_recipients_buyer');
         Cache::forget('alert_recipients_superadmin');
         Cache::forget('alert_recipients_buyer_superadmin');
