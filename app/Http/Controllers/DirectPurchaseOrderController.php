@@ -625,7 +625,7 @@ class DirectPurchaseOrderController extends Controller
         $directPurchaseOrder->loadMissing('items');
 
         foreach ($directPurchaseOrder->items as $item) {
-            foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, (float) $item->total) as $allocation) {
+            foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, (float) $item->subtotal) as $allocation) {
                 $budgetCheck = $this->validateBudgetAvailability(
                     $allocation['cost_center_id'],
                     $directPurchaseOrder->application_month,

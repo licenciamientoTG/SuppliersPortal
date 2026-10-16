@@ -258,7 +258,7 @@ class BudgetAllocationService
                         'cost_center_id' => (int) $requisitionItem->cost_center_id,
                         'expense_category_id' => (int) $requisitionItem->expense_category_id,
                         'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
-                        'amount' => (float) $item->total,
+                        'amount' => (float) $item->subtotal,
                         'year' => (int) substr($applicationMonth, 0, 4),
                         'month' => (int) substr($applicationMonth, 5, 2),
                         'application_month' => $applicationMonth,
@@ -305,7 +305,7 @@ class BudgetAllocationService
                     'cost_center_id' => (int) $requisitionItem->cost_center_id,
                     'expense_category_id' => (int) $requisitionItem->expense_category_id,
                     'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
-                    'amount' => (float) $response->total,
+                    'amount' => (float) $response->subtotal,
                     'year' => (int) substr($applicationMonth, 0, 4),
                     'month' => (int) substr($applicationMonth, 5, 2),
                     'application_month' => $applicationMonth,
@@ -634,7 +634,7 @@ class BudgetAllocationService
                     'budget_cedula_id' => $item->budget_cedula_id,
                     'quantity' => (float) $item->quantity,
                     'quantity_received' => (float) $item->quantity_received,
-                    'total' => (float) $item->total,
+                    'total' => (float) $item->subtotal,
                 ])
                 ->values()
                 ->all();
@@ -651,7 +651,7 @@ class BudgetAllocationService
                     'budget_cedula_id' => $item->requisitionItem->budget_cedula_id,
                     'quantity' => (float) $item->quantity,
                     'quantity_received' => (float) $item->quantity_received,
-                    'total' => (float) $item->total,
+                    'total' => (float) $item->subtotal,
                 ])
                 ->values()
                 ->all();
@@ -832,7 +832,7 @@ class BudgetAllocationService
                             'cost_center_id' => (int) $item->cost_center_id,
                             'expense_category_id' => (int) $item->expense_category_id,
                             'budget_cedula_id' => $item->budget_cedula_id ? (int) $item->budget_cedula_id : null,
-                            'amount' => (float) $item->total,
+                            'amount' => (float) $item->subtotal,
                             'year' => (int) substr((string) $order->application_month, 0, 4),
                             'month' => (int) substr((string) $order->application_month, 5, 2),
                             'application_month' => $order->application_month,
@@ -881,7 +881,7 @@ class BudgetAllocationService
                             'cost_center_id' => (int) $item->requisitionItem?->cost_center_id,
                             'expense_category_id' => (int) $item->requisitionItem?->expense_category_id,
                             'budget_cedula_id' => $item->requisitionItem?->budget_cedula_id ? (int) $item->requisitionItem->budget_cedula_id : null,
-                            'amount' => (float) $item->total,
+                            'amount' => (float) $item->subtotal,
                             'year' => (int) substr($applicationMonth, 0, 4),
                             'month' => (int) substr($applicationMonth, 5, 2),
                             'application_month' => $applicationMonth,

@@ -505,14 +505,12 @@ class ContractRequisitionForm extends Component
             }
 
             $lineSubtotal = round((float) $contractProduct->unit_price * (float) $item['quantity'], 2);
-            $lineTotal = round($lineSubtotal * 1.16, 2);
-
             $budgetCheck = $budgetAllocationService->checkAvailability(
                 (int) $costCenter->id,
                 $this->fiscalYear,
                 $month,
                 (int) $classification['expense_category_id'],
-                $lineTotal,
+                $lineSubtotal,
                 (int) $budgetCedula->id
             );
 

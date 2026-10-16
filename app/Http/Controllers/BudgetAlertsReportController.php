@@ -63,11 +63,11 @@ class BudgetAlertsReportController extends Controller
         abort_if(! $item, 404);
         abort_if(BudgetException::query()->where('document_type', $data['document_type'])->where('document_id', $document->id)->where('document_line_id', $item->id)->whereIn('status', ['PENDING', 'APPROVED'])->exists(), 409, 'Esta partida ya tiene una excepción pendiente o aprobada.');
         $date = \Carbon\Carbon::parse($document->application_month.'-01');
-        $check = app(\App\Services\BudgetAllocationService::class)->checkAvailability((int) $item->cost_center_id, (int) $date->year, (int) $date->month, (int) $item->expense_category_id, (float) $item->total, $item->budget_cedula_id ? (int) $item->budget_cedula_id : null);
+        $check = app(\App\Services\BudgetAllocationService::class)->checkAvailability((int) $item->cost_center_id, (int) $date->year, (int) $date->month, (int) $item->expense_category_id, (float) $item->subtotal, $item->budget_cedula_id ? (int) $item->budget_cedula_id : null);
         abort_if(($check['available'] ?? false), 422, 'Esta partida ya cuenta con presupuesto suficiente.');
 
         return DB::transaction(function () use ($data, $document, $item, $check, $request, $date) {
-            return BudgetException::create(['document_type' => $data['document_type'], 'document_id' => $document->id, 'document_line_id' => $item->id, 'cost_center_id' => $item->cost_center_id, 'expense_category_id' => $item->expense_category_id, 'budget_cedula_id' => $item->budget_cedula_id, 'application_month' => $date->format('Y-m'), 'line_amount' => $item->total, 'available_at_request' => $check['available_amount'] ?? 0, 'requested_excess' => max(0, (float) $item->total - (float) ($check['available_amount'] ?? 0)), 'reason' => $data['reason'], 'status' => 'PENDING', 'requested_by' => $request->user()->id, 'requested_at' => now()]);
+            return BudgetException::create(['document_type' => $data['document_type'], 'document_id' => $document->id, 'document_line_id' => $item->id, 'cost_center_id' => $item->cost_center_id, 'expense_category_id' => $item->expense_category_id, 'budget_cedula_id' => $item->budget_cedula_id, 'application_month' => $date->format('Y-m'), 'line_amount' => $item->subtotal, 'available_at_request' => $check['available_amount'] ?? 0, 'requested_excess' => max(0, (float) $item->subtotal - (float) ($check['available_amount'] ?? 0)), 'reason' => $data['reason'], 'status' => 'PENDING', 'requested_by' => $request->user()->id, 'requested_at' => now()]);
         });
     }
 
