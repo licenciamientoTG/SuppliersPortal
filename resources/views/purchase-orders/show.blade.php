@@ -59,6 +59,10 @@
         && $purchaseOrder->isApproverFor(Auth::user());
     $canAppendSupplierNote = Auth::user()?->hasAnyRole(['buyer', 'superadmin'])
         && in_array($purchaseOrder->status, ['ISSUED', 'PARTIALLY_RECEIVED', 'DELIVERED_PENDING_RECEPTION'], true);
+    $canCancelOrder = Auth::user()?->hasAnyRole(['buyer', 'superadmin'])
+        || (int) $purchaseOrder->approved_by === (int) Auth::id()
+        || $purchaseOrder->isApproverFor(Auth::user());
+    $isCancellable = ! in_array($purchaseOrder->status, ['CANCELLED', 'RECEIVED', 'PAID'], true);
 @endphp
 
 <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
@@ -75,6 +79,11 @@
                 <i class="ti ti-x me-1"></i>Rechazar OC
             </button>
         @endif
+        @if($canCancelOrder && $isCancellable)
+            <button type="button" class="btn btn-outline-danger me-1" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+                <i class="ti ti-ban me-1"></i>Cancelar OC
+            </button>
+        @endif
         @if($purchaseOrder->canGeneratePdf())
             <a href="{{ route('purchase-orders.pdf.view', $purchaseOrder) }}" target="_blank" rel="noopener" class="btn btn-outline-danger me-1" title="Ver PDF">
                 <i class="ti ti-file-type-pdf me-1"></i>PDF
@@ -82,6 +91,32 @@
         @endif
     </div>
 </div>
+
+@if($canCancelOrder && $isCancellable)
+    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ route('purchase-orders.cancel', $purchaseOrder) }}">
+                @csrf
+                <div class="modal-header"><h5 class="modal-title" id="cancelOrderModalLabel">Cancelar {{ $purchaseOrder->folio }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+                <div class="modal-body">
+                    <p class="text-muted">Se liberará el presupuesto pendiente. Los importes ya consumidos por recepciones se conservarán.</p>
+                    <label for="cancellationReason" class="form-label">Motivo de cancelación</label>
+                    <textarea id="cancellationReason" name="reason" class="form-control" rows="4" minlength="10" maxlength="1000" required>{{ old('reason') }}</textarea>
+                    @error('reason')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver</button><button type="submit" class="btn btn-danger">Confirmar cancelación</button></div>
+            </form>
+        </div></div>
+    </div>
+@endif
+
+@if($purchaseOrder->status === 'CANCELLED')
+    <div class="alert alert-danger border d-print-none"><strong>Cancelada</strong>
+        @if($purchaseOrder->cancelled_at) el {{ $purchaseOrder->cancelled_at->format('d/m/Y H:i') }} @endif
+        @if($purchaseOrder->canceller) por {{ $purchaseOrder->canceller->name }} @endif
+        @if($purchaseOrder->cancellation_reason)<div class="mt-1"><strong>Motivo:</strong> {{ $purchaseOrder->cancellation_reason }}</div>@endif
+    </div>
+@endif
 
 @if($purchaseOrder->isPendingApproval())
     <div class="alert alert-warning d-print-none">

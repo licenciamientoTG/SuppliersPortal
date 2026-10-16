@@ -817,6 +817,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reject', [DirectPurchaseOrderController::class, 'reject'])->name('direct-purchase-orders.reject');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/return', [DirectPurchaseOrderController::class, 'return'])->name('direct-purchase-orders.return');
     Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivateDirect'])->name('direct-purchase-orders.reactivate');
+    Route::middleware('module.access:purchase_orders')->post('/direct-purchase-orders/{directPurchaseOrder}/cancel', [PurchaseOrderController::class, 'cancelDirect'])->name('direct-purchase-orders.cancel');
 
     // Purchase Orders
     Route::middleware('module.access:purchase_orders')->get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
@@ -829,6 +830,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
     Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/reactivate', [PurchaseOrderController::class, 'reactivate'])->name('purchase-orders.reactivate');
+    Route::middleware('module.access:purchase_orders')->post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
 
     // Recepciones — rutas estáticas ANTES de {reception} para evitar conflictos de parámetro
     Route::middleware('module.access:receptions')->get('/receptions/overview', [ReceptionController::class, 'overview'])->name('receptions.overview');

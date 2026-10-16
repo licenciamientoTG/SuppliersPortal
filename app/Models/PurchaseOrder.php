@@ -39,6 +39,9 @@ class PurchaseOrder extends Model
         'resolution_notes',
         'approved_by',
         'rejected_by',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
         'rejected_at',
         'approved_at',
         'issued_at',
@@ -55,6 +58,7 @@ class PurchaseOrder extends Model
     protected $casts = [
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'issued_at' => 'datetime',
         'received_at' => 'datetime',
         'closed_at' => 'datetime',
@@ -106,6 +110,11 @@ class PurchaseOrder extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function canceller()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function approvals()

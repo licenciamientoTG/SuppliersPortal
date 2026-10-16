@@ -27,6 +27,57 @@ class PurchaseOrderController extends Controller
     // Solicitado por el negocio: solo estos usuarios pueden reactivar OC/OCD cerradas por inactividad.
     private const REACTIVATION_ALLOWED_USER_IDS = [2, 3, 20];
 
+    public function cancel(Request $request, PurchaseOrder $purchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        return $this->cancelOrder($request, $purchaseOrder, $budgetAllocationService);
+    }
+
+    public function cancelDirect(Request $request, DirectPurchaseOrder $directPurchaseOrder, BudgetAllocationService $budgetAllocationService)
+    {
+        return $this->cancelOrder($request, $directPurchaseOrder, $budgetAllocationService);
+    }
+
+    private function cancelOrder(Request $request, PurchaseOrder|DirectPurchaseOrder $order, BudgetAllocationService $budgetAllocationService)
+    {
+        $user = $request->user();
+        abort_unless(
+            $user && ($user->hasAnyRole(['buyer', 'superadmin'])
+                || (int) $order->approved_by === (int) $user->id
+                || $order->isApproverFor($user)),
+            403
+        );
+        $validated = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:1000']]);
+
+        try {
+            DB::transaction(function () use ($order, $budgetAllocationService, $validated) {
+                $locked = $order instanceof DirectPurchaseOrder
+                    ? DirectPurchaseOrder::query()->lockForUpdate()->findOrFail($order->id)
+                    : PurchaseOrder::query()->lockForUpdate()->findOrFail($order->id);
+
+                abort_unless(! in_array($locked->status, ['CANCELLED', 'RECEIVED', 'PAID'], true), 422,
+                    'La orden ya está cancelada o completada y no puede cancelarse.');
+                if ($locked instanceof DirectPurchaseOrder) {
+                    $budgetAllocationService->releaseDirectPurchaseOrder($locked);
+                } else {
+                    $budgetAllocationService->releaseOrder($locked);
+                }
+
+                $locked->forceFill([
+                    'status' => 'CANCELLED',
+                    'cancelled_by' => Auth::id(),
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => $validated['reason'],
+                    'closed_at' => now(),
+                ])->save();
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->withInput()->with('error', 'No fue posible cancelar la orden ni liberar el presupuesto: '.$exception->getMessage());
+        }
+
+        $route = $order instanceof DirectPurchaseOrder ? 'direct-purchase-orders.show' : 'purchase-orders.show';
+        return redirect()->route($route, $order)->with('success', "{$order->folio} cancelada. El motivo y el responsable quedaron registrados y el presupuesto pendiente fue liberado.");
+    }
+
     /**
      * Vista principal con tabs para OC Regulares y OCD
      */

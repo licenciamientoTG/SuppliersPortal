@@ -179,6 +179,17 @@
                     @endif
                 </div>
                 <div class="d-flex gap-2 align-items-center">
+                    @php
+                        $canCancelOcd = Auth::user()?->hasAnyRole(['buyer', 'superadmin'])
+                            || (int) $ocd->approved_by === (int) Auth::id()
+                            || $ocd->isApproverFor(Auth::user());
+                        $ocdCancellable = ! in_array($ocd->status, ['CANCELLED', 'RECEIVED'], true);
+                    @endphp
+                    @if($canCancelOcd && $ocdCancellable)
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelDirectOrderModal">
+                            <i class="ti ti-ban me-1"></i>Cancelar OCD
+                        </button>
+                    @endif
                     @if($ocd->status === 'DRAFT' || $ocd->status === 'RETURNED')
                         @if($ocd->created_by === Auth::id())
                             <form action="{{ route('direct-purchase-orders.submit', $ocd->id) }}" method="POST" id="form-submit">
@@ -212,6 +223,32 @@
                     @endif
                 </div>
             </div>
+
+            @if($canCancelOcd && $ocdCancellable)
+                <div class="modal fade" id="cancelDirectOrderModal" tabindex="-1" aria-labelledby="cancelDirectOrderModalLabel" aria-hidden="true">
+                    <div class="modal-dialog"><div class="modal-content">
+                        <form method="POST" action="{{ route('direct-purchase-orders.cancel', $ocd) }}">
+                            @csrf
+                            <div class="modal-header"><h5 class="modal-title" id="cancelDirectOrderModalLabel">Cancelar {{ $ocd->folio }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+                            <div class="modal-body">
+                                <p class="text-muted">Se liberará el presupuesto pendiente. Los importes ya consumidos por recepciones se conservarán.</p>
+                                <label for="directCancellationReason" class="form-label">Motivo de cancelación</label>
+                                <textarea id="directCancellationReason" name="reason" class="form-control" rows="4" minlength="10" maxlength="1000" required>{{ old('reason') }}</textarea>
+                                @error('reason')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver</button><button type="submit" class="btn btn-danger">Confirmar cancelación</button></div>
+                        </form>
+                    </div></div>
+                </div>
+            @endif
+
+            @if($ocd->status === 'CANCELLED')
+                <div class="alert alert-danger border mx-3 mt-3"><strong>Cancelada</strong>
+                    @if($ocd->cancelled_at) el {{ $ocd->cancelled_at->format('d/m/Y H:i') }} @endif
+                    @if($ocd->canceller) por {{ $ocd->canceller->name }} @endif
+                    @if($ocd->cancellation_reason)<div class="mt-1"><strong>Motivo:</strong> {{ $ocd->cancellation_reason }}</div>@endif
+                </div>
+            @endif
 
             <div class="card-body p-5" id="printable-area">
 

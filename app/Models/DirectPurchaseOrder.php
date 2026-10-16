@@ -47,6 +47,9 @@ class DirectPurchaseOrder extends Model
         'approved_by',
         'rejected_by',
         'returned_by',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
         'received_by',
         'submitted_at',
         'approved_at',
@@ -84,6 +87,7 @@ class DirectPurchaseOrder extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'returned_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'budget_reserved_at' => 'datetime',
         'budget_released_at' => 'datetime',
         'issued_at' => 'datetime',
@@ -157,6 +161,11 @@ class DirectPurchaseOrder extends Model
     public function rejector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function receiver(): BelongsTo
