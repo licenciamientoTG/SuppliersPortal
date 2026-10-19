@@ -177,19 +177,15 @@ borrador es solo para validar que la identidad de cuadre es alcanzable antes de 
 1. **Vigencia de la OC (`po_valid_to`/`is_expired`):** ¿es lo mismo que el plazo de cierre
    automático (10 días desde `issued_at`), o es un concepto de negocio distinto que hoy no existe?
    SUPUESTO si no hay respuesta: es lo mismo (reuso `getAutoCloseDeadline()`, no invento un campo).
-2. **IVA en el compromiso presupuestal (§2.2):** el código siempre ha comprometido sin IVA,
-   aunque Contraloría confirmó por escrito "con IVA" en RP-01. ¿Confirman que en realidad siempre
-   fue sin IVA (y hay que corregir esa nota), o el sistema tiene un bug que debería ir a
-   Contraloría para decidir si se corrige (fuera del alcance de RC-03)? SUPUESTO si no hay
-   respuesta: RC-03 usa sin IVA (así cuadra con RP-01 hoy); dejo la discrepancia documentada, sin
-   tocar `BudgetAllocationService`.
+2. ~~IVA en el compromiso presupuestal~~ — **Resuelto (2026-10-19):** sin IVA es lo correcto. El
+   usuario confirmó el criterio y, como parte de este mismo cambio, ya se corrigió `RequisitionPipelineReport`
+   (RC-01), que sumaba `quotation_summaries.total` (con IVA) en vez de `subtotal` — commit `80f8df2`.
+   RC-03 usa `subtotal` (sin IVA) en todo el reporte.
 3. **Moneda distinta a MXN (§2.3):** ¿existen en la práctica OC/OCD en moneda distinta a MXN?
    SUPUESTO si no hay respuesta: no, se ignora tipo de cambio por completo (igual que ya hace el
    presupuesto hoy).
-4. **OC abiertas:** ¿Compras realmente emite órdenes de compra de monto máximo consumible en
-   varias entregas (sin cantidad fija), o esa sección del prompt no aplica a cómo compra TotalGas
-   hoy? SUPUESTO si no hay respuesta: no aplica, se quita esa sección del reporte y queda
-   documentada como fuera de alcance (no se simula un control que no existe).
+4. ~~OC abiertas~~ — **Resuelto (2026-10-19):** no aplica al negocio de TotalGas. Se quita del
+   alcance de RC-03 por completo (no se construye ningún control nuevo para esto).
 5. **Días de gracia antes de marcar atraso:** el prompt ya trae el supuesto (0 días) — lo acepto
    salvo que digas lo contrario.
 6. **Umbral de "zombi" (`zombie_days`, default 90 según el prompt):** ¿90 días sin recepción te
