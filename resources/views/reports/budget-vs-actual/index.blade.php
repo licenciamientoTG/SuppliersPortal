@@ -74,8 +74,8 @@
         <div class="filter-heading"><div><h2>Filtros del reporte</h2><p>Elige el periodo y el alcance que quieres revisar.</p></div></div>
         <form id="bvaFilters">
             <div class="filter-grid">
-                <div class="filter-field bva-period-month"><label class="form-label" for="bvaYear">Ejercicio</label><input class="form-control" id="bvaYear" name="fiscal_year" type="number" min="2020" max="2100" value="{{ now()->year }}"></div>
-                <div class="filter-field bva-period-month"><label class="form-label" for="bvaMonth">Mes</label><select class="form-select" id="bvaMonth" name="period_month">@foreach(range(1, 12) as $month)<option value="{{ $month }}" @selected($month === now()->month)>{{ ucfirst(\Carbon\Carbon::create(null, $month, 1)->locale('es')->monthName) }}</option>@endforeach</select></div>
+                <div class="filter-field bva-year"><label class="form-label" for="bvaYear">Ejercicio</label><input class="form-control" id="bvaYear" name="fiscal_year" type="number" min="2020" max="2100" value="{{ now()->year }}"></div>
+                <div class="filter-field bva-month-only"><label class="form-label" for="bvaMonth">Mes</label><select class="form-select" id="bvaMonth" name="period_month">@foreach(range(1, 12) as $month)<option value="{{ $month }}" @selected($month === now()->month)>{{ ucfirst(\Carbon\Carbon::create(null, $month, 1)->locale('es')->monthName) }}</option>@endforeach</select></div>
                 <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateFrom">Del</label><input class="form-control" id="bvaDateFrom" name="date_from" type="date"></div>
                 <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateTo">Al</label><input class="form-control" id="bvaDateTo" name="date_to" type="date"></div>
                 <div class="filter-field bva-period-cutoff d-none"><label class="form-label" for="bvaAsOfDate">Fecha de corte</label><input class="form-control" id="bvaAsOfDate" name="as_of_date" type="date" max="{{ now()->toDateString() }}"></div>
@@ -138,6 +138,7 @@
     const perPage = document.getElementById('bvaPerPage');
     const detailModal = new bootstrap.Modal(document.getElementById('bvaDetailModal'));
     const BUCKET_LABELS = { reserved: 'Reservado', committed: 'Comprometido', accrued: 'Devengado', released: 'OC canceladas' };
+    const MONTH_NAMES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     let page = 1;
 
     if (window.jQuery && jQuery.fn.select2) {
@@ -161,9 +162,12 @@
     window.jQuery ? jQuery(companySelect).on('change', refreshCenters) : companySelect.addEventListener('change', refreshCenters);
 
     // Alterna entre ejercicio+mes, rango de fechas o fecha de corte según la vista elegida.
+    // CORTE no filtra por mes (es la foto completa del ejercicio ese día), así que el selector de
+    // mes se oculta para que no quede un valor obsoleto filtrando sin que se vea en pantalla.
     function refreshPeriodFields() {
         const scope = form.querySelector('input[name="scope"]:checked').value;
-        form.querySelectorAll('.bva-period-month').forEach(field => field.classList.toggle('d-none', scope !== 'MES' && scope !== 'ACU'));
+        form.querySelectorAll('.bva-year').forEach(field => field.classList.toggle('d-none', scope === 'RANGO'));
+        form.querySelectorAll('.bva-month-only').forEach(field => field.classList.toggle('d-none', scope === 'RANGO' || scope === 'CORTE'));
         form.querySelectorAll('.bva-period-range').forEach(field => field.classList.toggle('d-none', scope !== 'RANGO'));
         form.querySelectorAll('.bva-period-cutoff').forEach(field => field.classList.toggle('d-none', scope !== 'CORTE'));
         const xlsx = document.getElementById('bvaExportXlsx');
@@ -231,8 +235,10 @@
 
     function lineRow(row) {
         const line = `${esc(row.budget_line_code)} · ${esc(row.budget_line_name)}${row.budget_cedula_name ? `<small class="d-block text-muted">${esc(row.budget_cedula_name)}</small>` : ''}`;
+        // En CORTE cada renglón trae los 12 meses del ejercicio; sin esta etiqueta se verían como filas duplicadas.
+        const month = row.period_scope === 'CORTE' ? `<small class="d-block text-muted">${MONTH_NAMES[row.period_month]}</small>` : '';
         const diff = row.baseline_status === 'DIFERENCIA' ? `<small class="d-block text-danger" title="Autorizado + ampliaciones − reducciones no coincide con el vigente">Diferencia de conciliación ${money(row.budget_difference)}</small>` : '';
-        return `<tr><td class="col-line"><small class="text-muted d-block">${esc(row.company_name)} · ${esc(row.cost_center_code)} ${esc(row.cost_center_name)}</small>${line}${diff}</td>${cells(row, row.period_scope !== 'CORTE')}</tr>`;
+        return `<tr><td class="col-line"><small class="text-muted d-block">${esc(row.company_name)} · ${esc(row.cost_center_code)} ${esc(row.cost_center_name)}</small>${line}${month}${diff}</td>${cells(row, row.period_scope !== 'CORTE')}</tr>`;
     }
 
     function subtotalRow(label, totals, cls) {

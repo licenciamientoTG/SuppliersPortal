@@ -31,9 +31,11 @@ class BudgetVsActualExport
         abort_if($params['scope'] === 'CORTE' && $format !== 'csv', 422, 'En modo de fecha de corte solo se puede exportar a CSV.');
 
         $result = $this->report->build($user, $params);
-        $filename = $params['scope'] === 'RANGO'
-            ? sprintf('presupuesto-vs-ejercido-%s-a-%s', $params['date_from'], $params['date_to'])
-            : sprintf('presupuesto-vs-ejercido-%d-%02d-%s', $params['fiscal_year'], $params['period_month'], strtolower($params['scope']));
+        $filename = match ($params['scope']) {
+            'RANGO' => sprintf('presupuesto-vs-ejercido-%s-a-%s', $params['date_from'], $params['date_to']),
+            'CORTE' => sprintf('presupuesto-vs-ejercido-corte-%s', $params['as_of_date']),
+            default => sprintf('presupuesto-vs-ejercido-%d-%02d-%s', $params['fiscal_year'], $params['period_month'], strtolower($params['scope'])),
+        };
 
         if ($format === 'csv') {
             return ['response' => ReportSheet::csv($this->columns($params), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count(), 'detail_rows' => 0];
@@ -72,7 +74,8 @@ class BudgetVsActualExport
             ['Subcuenta', $amount('budget_cedula_name'), null],
             ['Cuenta contable', fn () => 'N/D', null],
             ['Ejercicio', fn () => $params['fiscal_year'], null],
-            ['Mes', fn () => $params['period_month'], null],
+            // En CORTE cada renglón trae su propio mes (los 12 del ejercicio); en los demás modos es uno solo.
+            ['Mes', fn (array $row) => $params['scope'] === 'CORTE' ? $row['period_month'] : $params['period_month'], null],
             ['Vista', fn () => match ($params['scope']) {
                 'ACU' => 'Acumulado', 'RANGO' => 'Rango de fechas', 'CORTE' => 'Fecha de corte', default => 'Mes'
             }, null],

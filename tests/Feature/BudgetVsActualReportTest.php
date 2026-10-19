@@ -203,6 +203,21 @@ class BudgetVsActualReportTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['as_of_date']);
     }
 
+    public function test_cutoff_scope_ignores_period_month_and_shows_every_month_of_the_snapshot(): void
+    {
+        $user = $this->viewer('accounting');
+        $center = $this->center();
+        $march = $this->line(1000, $center, month: 3);
+        $this->line(2000, $center, month: 7, category: $march->expenseCategory, cedula: BudgetCedula::find($march->budget_cedula_id));
+        app(BudgetPositionSnapshotService::class)->capture(now());
+
+        // period_month=11 no debe filtrar nada: el corte es una foto de TODO el ejercicio, no de un mes.
+        $response = $this->data($user, ['scope' => 'CORTE', 'as_of_date' => now()->toDateString(), 'period_month' => 11])
+            ->assertJsonPath('pagination.total', 2);
+
+        $this->assertSame([3, 7], collect($response->json('rows'))->pluck('period_month')->sort()->values()->all());
+    }
+
     public function test_cutoff_scope_excel_export_is_blocked_because_the_document_detail_would_be_live_not_frozen(): void
     {
         $user = $this->exporter();
@@ -229,6 +244,23 @@ class BudgetVsActualReportTest extends TestCase
 
         $lines = array_map('str_getcsv', array_filter(explode("\n", substr($content, 3))));
         $this->assertSame('0', $lines[1][18], 'Comprometido debe seguir en 0: el compromiso se creó después del corte.');
+    }
+
+    public function test_cutoff_scope_csv_mes_column_and_filename_reflect_the_rows_own_month_not_the_leftover_form_field(): void
+    {
+        $user = $this->exporter();
+        // month 7, distinto del period_month=3 que se manda (campo oculto y obsoleto en modo corte).
+        $this->line(1000, $this->center(), month: 7);
+        app(BudgetPositionSnapshotService::class)->capture(now());
+
+        $response = $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'csv', 'scope' => 'CORTE', 'as_of_date' => now()->toDateString(),
+            'fiscal_year' => $this->year, 'period_month' => 3,
+        ]))->assertOk();
+
+        $lines = array_map('str_getcsv', array_filter(explode("\n", substr($response->streamedContent(), 3))));
+        $this->assertSame('7', $lines[1][11], 'La columna Mes debe mostrar el mes propio del renglón, no el campo oculto del formulario.');
+        $this->assertStringContainsString('corte-'.now()->toDateString(), $response->headers->get('Content-Disposition'));
     }
 
     public function test_cutoff_scope_has_no_document_drill_down(): void

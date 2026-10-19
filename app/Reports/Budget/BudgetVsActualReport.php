@@ -243,21 +243,23 @@ class BudgetVsActualReport
         return $this->decorate($rows);
     }
 
-    /** Renglones congelados al corte más cercano (sin exceder $params['as_of_date']); sin proyección de cierre. */
+    /**
+     * Renglones congelados al corte más cercano (sin exceder $params['as_of_date']), de TODOS los
+     * meses del ejercicio: es la foto completa de ese día, no la vista de un mes en particular.
+     */
     private function cutoffRows(Collection $centerIds, array $params): Collection
     {
         $filters = [
             'fiscal_year' => $params['fiscal_year'],
             'cost_center_ids' => $centerIds->all(),
             'expense_category_ids' => $params['expense_category_ids'] ?? [],
-            'months' => $this->monthsOf($params),
         ];
 
         [$dateUsed, $rows] = $this->snapshots->positionsAsOf(Carbon::parse($params['as_of_date']), $filters);
         $this->asOfDateUsed = $dateUsed;
 
         return $rows->map(fn (array $position) => $position + [
-            'period_month' => $params['period_month'],
+            'period_month' => $position['month'],
             'period_scope' => 'CORTE',
             'projected_close' => null,
             'projection_basis_months' => 0,
@@ -281,8 +283,10 @@ class BudgetVsActualReport
             return $rows;
         }
 
+        // period_month es constante en MES/ACU/RANGO (no afecta el orden); en CORTE distingue
+        // los 12 meses que puede traer un mismo renglón, mostrándolos en orden cronológico.
         $rows = $this->describe($rows)->sortBy([
-            ['company_name', 'asc'], ['cost_center_code', 'asc'], ['budget_line_code', 'asc'], ['budget_cedula_name', 'asc'],
+            ['company_name', 'asc'], ['cost_center_code', 'asc'], ['budget_line_code', 'asc'], ['budget_cedula_name', 'asc'], ['period_month', 'asc'],
         ])->values();
 
         return $rows->map(function (array $row, int $index) use ($rows) {
