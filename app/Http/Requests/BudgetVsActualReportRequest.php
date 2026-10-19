@@ -21,9 +21,10 @@ class BudgetVsActualReportRequest extends FormRequest
         $rules = [
             'fiscal_year' => ['nullable', 'integer', 'between:2020,2100'],
             'period_month' => ['nullable', 'integer', 'between:1,12'],
-            'scope' => ['nullable', 'in:MES,ACU,RANGO'],
+            'scope' => ['nullable', 'in:MES,ACU,RANGO,CORTE'],
             'date_from' => ['required_if:scope,RANGO', 'date'],
             'date_to' => ['required_if:scope,RANGO', 'date', 'after_or_equal:date_from'],
+            'as_of_date' => ['required_if:scope,CORTE', 'date'],
             'company_ids' => ['nullable', 'array'], 'company_ids.*' => ['integer'],
             'cost_center_ids' => ['nullable', 'array'], 'cost_center_ids.*' => ['integer'],
             'expense_category_ids' => ['nullable', 'array'], 'expense_category_ids.*' => ['integer'],
@@ -56,6 +57,15 @@ class BudgetVsActualReportRequest extends FormRequest
                 $validator->errors()->add('date_to', 'El rango de fechas debe estar dentro de un mismo ejercicio fiscal.');
             }
         });
+
+        $validator->after(function (Validator $validator) {
+            if ($this->input('scope') !== 'CORTE' || ! $this->filled('as_of_date')) {
+                return;
+            }
+            if (Carbon::parse($this->input('as_of_date'))->startOfDay()->gt(now(config('app.timezone'))->startOfDay())) {
+                $validator->errors()->add('as_of_date', 'La fecha de corte no puede ser futura.');
+            }
+        });
     }
 
     /** Parámetros con valores por defecto: ejercicio y mes en curso, vista mensual. */
@@ -84,6 +94,7 @@ class BudgetVsActualReportRequest extends FormRequest
             'scope' => $scope,
             'date_from' => $scope === 'RANGO' ? $from->toDateString() : null,
             'date_to' => $scope === 'RANGO' ? $to->toDateString() : null,
+            'as_of_date' => $scope === 'CORTE' ? Carbon::parse($this->input('as_of_date'))->toDateString() : null,
             'company_ids' => $ids('company_ids'),
             'cost_center_ids' => $ids('cost_center_ids'),
             'expense_category_ids' => $ids('expense_category_ids'),

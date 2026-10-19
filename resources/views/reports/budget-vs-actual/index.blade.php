@@ -65,7 +65,7 @@
         @can('reportes.budget_vs_actual.exportar')
             <div class="d-flex gap-2">
                 <a class="btn btn-outline-primary js-export" data-format="csv" href="{{ route('budget-vs-actual-reports.export', ['format' => 'csv']) }}" title="Renglones con los filtros aplicados"><i class="ti ti-file-text me-1" aria-hidden="true"></i>CSV</a>
-                <a class="btn btn-primary js-export" data-format="xlsx" href="{{ route('budget-vs-actual-reports.export', ['format' => 'xlsx']) }}" title="Resumen con subtotales y detalle por documento"><i class="ti ti-file-spreadsheet me-1" aria-hidden="true"></i>Descargar Excel</a>
+                <a class="btn btn-primary js-export" id="bvaExportXlsx" data-format="xlsx" href="{{ route('budget-vs-actual-reports.export', ['format' => 'xlsx']) }}" title="Resumen con subtotales y detalle por documento"><i class="ti ti-file-spreadsheet me-1" aria-hidden="true"></i>Descargar Excel</a>
             </div>
         @endcan
     </div>
@@ -78,7 +78,8 @@
                 <div class="filter-field bva-period-month"><label class="form-label" for="bvaMonth">Mes</label><select class="form-select" id="bvaMonth" name="period_month">@foreach(range(1, 12) as $month)<option value="{{ $month }}" @selected($month === now()->month)>{{ ucfirst(\Carbon\Carbon::create(null, $month, 1)->locale('es')->monthName) }}</option>@endforeach</select></div>
                 <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateFrom">Del</label><input class="form-control" id="bvaDateFrom" name="date_from" type="date"></div>
                 <div class="filter-field bva-period-range d-none"><label class="form-label" for="bvaDateTo">Al</label><input class="form-control" id="bvaDateTo" name="date_to" type="date"></div>
-                <div class="filter-field"><span class="form-label d-block">Vista</span><div class="btn-group w-100 scope-toggle" role="group" aria-label="Vista del periodo"><input type="radio" class="btn-check" name="scope" id="scopeMonth" value="MES" checked><label class="btn btn-outline-primary" for="scopeMonth">Del mes</label><input type="radio" class="btn-check" name="scope" id="scopeYtd" value="ACU"><label class="btn btn-outline-primary" for="scopeYtd">Acumulado al mes</label><input type="radio" class="btn-check" name="scope" id="scopeRange" value="RANGO"><label class="btn btn-outline-primary" for="scopeRange">Rango de fechas</label></div></div>
+                <div class="filter-field bva-period-cutoff d-none"><label class="form-label" for="bvaAsOfDate">Fecha de corte</label><input class="form-control" id="bvaAsOfDate" name="as_of_date" type="date" max="{{ now()->toDateString() }}"></div>
+                <div class="filter-field wide"><span class="form-label d-block">Vista</span><div class="btn-group w-100 scope-toggle" role="group" aria-label="Vista del periodo"><input type="radio" class="btn-check" name="scope" id="scopeMonth" value="MES" checked><label class="btn btn-outline-primary" for="scopeMonth">Del mes</label><input type="radio" class="btn-check" name="scope" id="scopeYtd" value="ACU"><label class="btn btn-outline-primary" for="scopeYtd">Acumulado al mes</label><input type="radio" class="btn-check" name="scope" id="scopeRange" value="RANGO"><label class="btn btn-outline-primary" for="scopeRange">Rango de fechas</label><input type="radio" class="btn-check" name="scope" id="scopeCutoff" value="CORTE"><label class="btn btn-outline-primary" for="scopeCutoff">Fecha de corte</label></div></div>
                 <div class="filter-field"><label class="form-label" for="bvaResponsible">Responsable</label><select class="form-select" id="bvaResponsible" name="responsible_user_id"><option value="">Todos</option>@foreach($responsibles as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="bvaCompanies">Empresa(s)</label><select class="form-select js-multi" id="bvaCompanies" name="company_ids[]" multiple data-placeholder="Todas las empresas">@foreach($companies as $company)<option value="{{ $company->id }}">{{ $company->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="bvaCenters">Centro(s) de costo</label><select class="form-select js-multi" id="bvaCenters" name="cost_center_ids[]" multiple data-placeholder="Todos los centros">@foreach($centers as $center)<option value="{{ $center->id }}" data-company-id="{{ $center->company_id }}">{{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
@@ -159,11 +160,14 @@
     }
     window.jQuery ? jQuery(companySelect).on('change', refreshCenters) : companySelect.addEventListener('change', refreshCenters);
 
-    // Alterna entre ejercicio+mes y rango de fechas según la vista elegida.
+    // Alterna entre ejercicio+mes, rango de fechas o fecha de corte según la vista elegida.
     function refreshPeriodFields() {
-        const isRange = form.querySelector('input[name="scope"]:checked').value === 'RANGO';
-        form.querySelectorAll('.bva-period-month').forEach(field => field.classList.toggle('d-none', isRange));
-        form.querySelectorAll('.bva-period-range').forEach(field => field.classList.toggle('d-none', !isRange));
+        const scope = form.querySelector('input[name="scope"]:checked').value;
+        form.querySelectorAll('.bva-period-month').forEach(field => field.classList.toggle('d-none', scope !== 'MES' && scope !== 'ACU'));
+        form.querySelectorAll('.bva-period-range').forEach(field => field.classList.toggle('d-none', scope !== 'RANGO'));
+        form.querySelectorAll('.bva-period-cutoff').forEach(field => field.classList.toggle('d-none', scope !== 'CORTE'));
+        const xlsx = document.getElementById('bvaExportXlsx');
+        if (xlsx) xlsx.classList.toggle('d-none', scope === 'CORTE');
     }
     form.querySelectorAll('input[name="scope"]').forEach(radio => radio.addEventListener('change', refreshPeriodFields));
 
@@ -228,7 +232,7 @@
     function lineRow(row) {
         const line = `${esc(row.budget_line_code)} · ${esc(row.budget_line_name)}${row.budget_cedula_name ? `<small class="d-block text-muted">${esc(row.budget_cedula_name)}</small>` : ''}`;
         const diff = row.baseline_status === 'DIFERENCIA' ? `<small class="d-block text-danger" title="Autorizado + ampliaciones − reducciones no coincide con el vigente">Diferencia de conciliación ${money(row.budget_difference)}</small>` : '';
-        return `<tr><td class="col-line"><small class="text-muted d-block">${esc(row.company_name)} · ${esc(row.cost_center_code)} ${esc(row.cost_center_name)}</small>${line}${diff}</td>${cells(row, true)}</tr>`;
+        return `<tr><td class="col-line"><small class="text-muted d-block">${esc(row.company_name)} · ${esc(row.cost_center_code)} ${esc(row.cost_center_name)}</small>${line}${diff}</td>${cells(row, row.period_scope !== 'CORTE')}</tr>`;
     }
 
     function subtotalRow(label, totals, cls) {
@@ -239,7 +243,11 @@
         renderHead();
         const rows = payload.rows;
         if (!rows.length) {
-            body.innerHTML = `<tr><td colspan="15" class="text-center text-muted py-4">No hay renglones de presupuesto aprobado para estos filtros.</td></tr>`;
+            const scope = form.querySelector('input[name="scope"]:checked').value;
+            const message = scope === 'CORTE' && !payload.as_of_date_used
+                ? 'Todavía no hay ningún corte guardado en o antes de esa fecha.'
+                : 'No hay renglones de presupuesto aprobado para estos filtros.';
+            body.innerHTML = `<tr><td colspan="15" class="text-center text-muted py-4">${message}</td></tr>`;
             return;
         }
         let html = '';
@@ -254,7 +262,7 @@
         body.innerHTML = html;
     }
 
-    function renderKpis(kpis) {
+    function renderKpis(kpis, payload) {
         const card = (label, value, hint = '', cls = '') => `<div class="col-6 col-md-4 col-xl"><div class="report-card kpi"><div class="label">${label}</div><div class="value ${cls}">${value}</div><div class="hint">${hint}</div></div></div>`;
         document.getElementById('bvaKpis').innerHTML =
             card('Presupuesto vigente', money(kpis.current_budget), `${kpis.lines} renglones`)
@@ -264,6 +272,12 @@
             + card('Renglones en rojo', kpis.red_lines, 'Consumo ≥ 100 % del vigente', kpis.red_lines > 0 ? 'text-danger' : '');
 
         const notices = [];
+        if (payload.as_of_date_used) {
+            const requested = form.querySelector('#bvaAsOfDate').value;
+            notices.push(requested && requested !== payload.as_of_date_used
+                ? `Mostrando el corte más reciente disponible: <strong>${payload.as_of_date_used}</strong> (no hay uno exacto para el ${requested}). Los documentos y montos son los que había ese día, no los de hoy.`
+                : `Mostrando el corte del <strong>${payload.as_of_date_used}</strong>. Los documentos y montos son los que había ese día, no los de hoy.`);
+        }
         if (kpis.lines_without_baseline > 0) notices.push(`<strong>${kpis.lines_without_baseline}</strong> renglón(es) no tienen base aprobada capturada; su autorizado se muestra como “Sin base”.`);
         if (Math.abs(kpis.unreconciled) >= 0.005) notices.push(`Hay <strong>${money(kpis.unreconciled)}</strong> comprometidos en presupuesto sin documento que los respalde (“Sin conciliar”). Se muestran para revisión, no se ocultan.`);
         notices.push('“Pagado” no está disponible: el portal todavía no registra pagos a proveedores, así que lo recibido permanece en Devengado.');
@@ -278,7 +292,7 @@
             const payload = await response.json();
             page = payload.pagination.current_page;
             render(payload);
-            renderKpis(payload.kpis);
+            renderKpis(payload.kpis, payload);
             document.getElementById('bvaCount').textContent = `${payload.pagination.total} renglones`;
             document.getElementById('bvaPageInfo').textContent = `Página ${payload.pagination.current_page} de ${payload.pagination.last_page}`;
             document.getElementById('bvaPrev').disabled = payload.pagination.current_page <= 1;

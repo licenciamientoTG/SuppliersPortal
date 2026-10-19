@@ -14,6 +14,7 @@ use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
 use App\Models\User;
 use App\Services\BudgetAllocationService;
+use App\Services\BudgetPositionSnapshotService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Permission;
@@ -154,6 +155,93 @@ class BudgetVsActualReportTest extends TestCase
 
         $this->assertEquals(700, $detail->json('total'));
         $this->assertCount(2, $detail->json('documents'));
+    }
+
+    public function test_cutoff_scope_reads_the_frozen_snapshot_instead_of_live_data(): void
+    {
+        $user = $this->viewer('accounting');
+        $line = $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now()->subDay());
+        $this->commit($line, 'purchase_order', 400); // cambia los datos en vivo después del corte
+
+        $this->data($user, ['scope' => 'CORTE', 'as_of_date' => now()->toDateString()])
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('rows.0.period_scope', 'CORTE')
+            ->assertJsonPath('rows.0.committed', 0)
+            ->assertJsonPath('as_of_date_used', now()->subDay()->toDateString());
+    }
+
+    public function test_cutoff_scope_falls_back_to_the_nearest_earlier_snapshot(): void
+    {
+        $user = $this->viewer('accounting');
+        $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now()->subDays(3));
+
+        $this->data($user, ['scope' => 'CORTE', 'as_of_date' => now()->toDateString()])
+            ->assertJsonPath('as_of_date_used', now()->subDays(3)->toDateString());
+    }
+
+    public function test_cutoff_scope_without_any_snapshot_returns_no_rows_and_a_null_date(): void
+    {
+        $user = $this->viewer('accounting');
+        $this->line(1000, $this->center(), month: 3);
+
+        $this->data($user, ['scope' => 'CORTE', 'as_of_date' => now()->toDateString()])
+            ->assertJsonPath('pagination.total', 0)
+            ->assertJsonPath('as_of_date_used', null);
+    }
+
+    public function test_cutoff_scope_requires_as_of_date(): void
+    {
+        $this->data($this->viewer('accounting'), ['scope' => 'CORTE'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['as_of_date']);
+    }
+
+    public function test_cutoff_scope_rejects_a_future_date(): void
+    {
+        $this->data($this->viewer('accounting'), ['scope' => 'CORTE', 'as_of_date' => now()->addDay()->toDateString()])
+            ->assertUnprocessable()->assertJsonValidationErrors(['as_of_date']);
+    }
+
+    public function test_cutoff_scope_excel_export_is_blocked_because_the_document_detail_would_be_live_not_frozen(): void
+    {
+        $user = $this->exporter();
+        $line = $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now());
+
+        $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'xlsx', 'scope' => 'CORTE', 'as_of_date' => now()->toDateString(),
+            'fiscal_year' => $this->year, 'period_month' => $line->month,
+        ]))->assertUnprocessable();
+    }
+
+    public function test_cutoff_scope_csv_export_reproduces_the_frozen_rows(): void
+    {
+        $user = $this->exporter();
+        $line = $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now());
+        $this->commit($line, 'purchase_order', 400); // cambia los datos en vivo después del corte
+
+        $content = $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'csv', 'scope' => 'CORTE', 'as_of_date' => now()->toDateString(),
+            'fiscal_year' => $this->year, 'period_month' => $line->month,
+        ]))->assertOk()->streamedContent();
+
+        $lines = array_map('str_getcsv', array_filter(explode("\n", substr($content, 3))));
+        $this->assertSame('0', $lines[1][18], 'Comprometido debe seguir en 0: el compromiso se creó después del corte.');
+    }
+
+    public function test_cutoff_scope_has_no_document_drill_down(): void
+    {
+        $user = $this->viewer('accounting');
+        $line = $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now());
+
+        $this->actingAs($user)->getJson(route('budget-vs-actual-reports.detail', [
+            'scope' => 'CORTE', 'as_of_date' => now()->toDateString(), 'fiscal_year' => $this->year, 'period_month' => $line->month,
+            'cost_center_id' => $line->annualBudget->cost_center_id, 'expense_category_id' => $line->expense_category_id,
+            'budget_cedula_id' => $line->budget_cedula_id, 'bucket' => 'committed',
+        ]))->assertUnprocessable();
     }
 
     public function test_department_head_only_sees_cost_centers_they_are_responsible_for(): void

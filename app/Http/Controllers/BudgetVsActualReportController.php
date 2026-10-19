@@ -38,6 +38,7 @@ class BudgetVsActualReportController extends Controller
             'cost_centers' => $result['cost_centers'],
             'companies' => $result['companies'],
             'total' => $result['total'],
+            'as_of_date_used' => $result['as_of_date_used'],
             'kpis' => $result['kpis'],
             'pagination' => ['current_page' => $page, 'last_page' => $lastPage, 'per_page' => $perPage, 'total' => $rows->count()],
         ]);

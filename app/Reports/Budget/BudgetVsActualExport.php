@@ -25,6 +25,11 @@ class BudgetVsActualExport
     /** @return array{response: StreamedResponse, rows: int, detail_rows: int} */
     public function download(User $user, array $params, string $format): array
     {
+        // El Excel agrega una hoja de detalle por documento con datos en vivo (documentLines()),
+        // que no coincidiría con el resumen congelado del corte histórico. El CSV solo repite
+        // las filas ya congeladas, así que ese sí es seguro.
+        abort_if($params['scope'] === 'CORTE' && $format !== 'csv', 422, 'En modo de fecha de corte solo se puede exportar a CSV.');
+
         $result = $this->report->build($user, $params);
         $filename = $params['scope'] === 'RANGO'
             ? sprintf('presupuesto-vs-ejercido-%s-a-%s', $params['date_from'], $params['date_to'])
@@ -68,7 +73,9 @@ class BudgetVsActualExport
             ['Cuenta contable', fn () => 'N/D', null],
             ['Ejercicio', fn () => $params['fiscal_year'], null],
             ['Mes', fn () => $params['period_month'], null],
-            ['Vista', fn () => match ($params['scope']) { 'ACU' => 'Acumulado', 'RANGO' => 'Rango de fechas', default => 'Mes' }, null],
+            ['Vista', fn () => match ($params['scope']) {
+                'ACU' => 'Acumulado', 'RANGO' => 'Rango de fechas', 'CORTE' => 'Fecha de corte', default => 'Mes'
+            }, null],
             ['Autorizado', fn (array $row) => $row['authorized_amount'] ?? 'Sin base', ReportSheet::MONEY],
             ['Ampliaciones', $amount('increases'), ReportSheet::MONEY],
             ['Reducciones', $amount('decreases'), ReportSheet::MONEY],

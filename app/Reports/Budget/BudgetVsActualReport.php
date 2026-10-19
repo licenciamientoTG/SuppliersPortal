@@ -8,7 +8,9 @@ use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
 use App\Services\BudgetPositionService;
+use App\Services\BudgetPositionSnapshotService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,7 +24,13 @@ class BudgetVsActualReport
 
     public const BUCKETS = ['reserved', 'committed', 'accrued', 'released'];
 
-    public function __construct(private readonly BudgetPositionService $positions) {}
+    /** Fecha real del snapshot usado en la última llamada a rows() con scope CORTE (null en los demás). */
+    private ?string $asOfDateUsed = null;
+
+    public function __construct(
+        private readonly BudgetPositionService $positions,
+        private readonly BudgetPositionSnapshotService $snapshots
+    ) {}
 
     /** Centros de costo que el usuario puede consultar; el alcance se aplica siempre en servidor. */
     public function visibleCostCenters(User $user): Builder
@@ -47,6 +55,7 @@ class BudgetVsActualReport
      */
     public function build(User $user, array $params): array
     {
+        $this->asOfDateUsed = null;
         $centerIds = $this->allowedCenterIds($user, $params);
         $rows = $centerIds->isEmpty() ? collect() : $this->rows($centerIds, $params);
 
@@ -59,6 +68,7 @@ class BudgetVsActualReport
             'cost_centers' => $costCenters,
             'companies' => $companies,
             'total' => $total,
+            'as_of_date_used' => $this->asOfDateUsed,
             'kpis' => [
                 'current_budget' => $total['current_budget'],
                 'consumed_total' => $total['consumed_total'],
@@ -80,6 +90,7 @@ class BudgetVsActualReport
     public function documents(User $user, array $params): Collection
     {
         abort_unless($this->visibleCostCenters($user)->whereKey($params['cost_center_id'])->exists(), 403);
+        abort_if($params['scope'] === 'CORTE', 422, 'El detalle por documento no está disponible en modo de fecha de corte.');
 
         $months = collect($this->monthsOf($params))
             ->map(fn ($month) => sprintf('%04d-%02d', $params['fiscal_year'], $month));
@@ -197,6 +208,10 @@ class BudgetVsActualReport
 
     private function rows(Collection $centerIds, array $params): Collection
     {
+        if ($params['scope'] === 'CORTE') {
+            return $this->decorate($this->cutoffRows($centerIds, $params));
+        }
+
         $filters = [
             'fiscal_year' => $params['fiscal_year'],
             'cost_center_ids' => $centerIds->all(),
@@ -226,6 +241,27 @@ class BudgetVsActualReport
                 })->values();
 
         return $this->decorate($rows);
+    }
+
+    /** Renglones congelados al corte más cercano (sin exceder $params['as_of_date']); sin proyección de cierre. */
+    private function cutoffRows(Collection $centerIds, array $params): Collection
+    {
+        $filters = [
+            'fiscal_year' => $params['fiscal_year'],
+            'cost_center_ids' => $centerIds->all(),
+            'expense_category_ids' => $params['expense_category_ids'] ?? [],
+            'months' => $this->monthsOf($params),
+        ];
+
+        [$dateUsed, $rows] = $this->snapshots->positionsAsOf(Carbon::parse($params['as_of_date']), $filters);
+        $this->asOfDateUsed = $dateUsed;
+
+        return $rows->map(fn (array $position) => $position + [
+            'period_month' => $params['period_month'],
+            'period_scope' => 'CORTE',
+            'projected_close' => null,
+            'projection_basis_months' => 0,
+        ]);
     }
 
     /** Meses que cubre el periodo elegido: un mes (MES), enero al mes (ACU) o el rango de fechas (RANGO). */

@@ -57,6 +57,13 @@ Schedule::command('approval-delegations:expire')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/approval-delegations-expire.log'));
 
+// Foto diaria de la posición presupuestal para la fecha de corte histórica de RP-01 (punto #6)
+Schedule::command('budget:snapshot-position')
+    ->dailyAt('23:55')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/budget-snapshot-position.log'));
+
 // Suspendido: falta darle formato institucional al correo. Reactivar cuando esté listo.
 // Schedule::command('budget:send-daily-alerts')
 //     ->dailyAt('06:00')
