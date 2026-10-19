@@ -174,20 +174,36 @@ borrador es solo para validar que la identidad de cuadre es alcanzable antes de 
 
 ## 7. Preguntas abiertas (necesito tu respuesta o la de Contraloría/Compras antes de programar)
 
-1. **Vigencia de la OC (`po_valid_to`/`is_expired`):** ¿es lo mismo que el plazo de cierre
-   automático (10 días desde `issued_at`), o es un concepto de negocio distinto que hoy no existe?
-   SUPUESTO si no hay respuesta: es lo mismo (reuso `getAutoCloseDeadline()`, no invento un campo).
+1. ~~Vigencia de la OC~~ — **Resuelto (2026-10-19), SUPUESTO aceptado sin objeción:** es el mismo
+   plazo que ya usa el cierre automático de cada tipo de orden — se reusa `getAutoCloseDeadline()`
+   de `PurchaseOrder` (10 días desde `issued_at`) y de `DirectPurchaseOrder` (7 días desde
+   `submitted_at`; si nunca se envió a aprobación, `is_expired` queda en `false`, no se simula).
 2. ~~IVA en el compromiso presupuestal~~ — **Resuelto (2026-10-19):** sin IVA es lo correcto. El
    usuario confirmó el criterio y, como parte de este mismo cambio, ya se corrigió `RequisitionPipelineReport`
    (RC-01), que sumaba `quotation_summaries.total` (con IVA) en vez de `subtotal` — commit `80f8df2`.
    RC-03 usa `subtotal` (sin IVA) en todo el reporte.
-3. **Moneda distinta a MXN (§2.3):** ¿existen en la práctica OC/OCD en moneda distinta a MXN?
-   SUPUESTO si no hay respuesta: no, se ignora tipo de cambio por completo (igual que ya hace el
-   presupuesto hoy).
+3. ~~Moneda distinta a MXN~~ — **Resuelto (2026-10-19), SUPUESTO aceptado sin objeción:** se ignora
+   el tipo de cambio por completo, igual que ya hace el presupuesto hoy (§2.3).
 4. ~~OC abiertas~~ — **Resuelto (2026-10-19):** no aplica al negocio de TotalGas. Se quita del
    alcance de RC-03 por completo (no se construye ningún control nuevo para esto).
-5. **Días de gracia antes de marcar atraso:** el prompt ya trae el supuesto (0 días) — lo acepto
-   salvo que digas lo contrario.
-6. **Umbral de "zombi" (`zombie_days`, default 90 según el prompt):** ¿90 días sin recepción te
-   parece razonable para este negocio, o lo bajamos/subimos? Dato de contexto: el cierre
-   automático normal ya actúa a los 10 días para OC sin ninguna actividad.
+5. ~~Días de gracia antes de marcar atraso~~ — **Resuelto (2026-10-19), SUPUESTO aceptado sin
+   objeción:** 0 días, como ya traía el prompt.
+6. ~~Umbral de "zombi"~~ — **Resuelto (2026-10-19), SUPUESTO aceptado sin objeción:** 90 días sin
+   recepción (configurable por pantalla en `zombie_days`, con 90 como valor por defecto).
+
+## 8. Entrega 2 (código) — implementado 2026-10-19
+
+Construido tal como se describió en §5, sin desviaciones: `OpenPurchaseOrderBacklogReport`,
+`OpenPurchaseOrderBacklogExport`, `OpenPurchaseOrderBacklogReportRequest`,
+`OpenPurchaseOrderBacklogReportController`, ruta `GET /reportes/compras/oc-abiertas` (+ `/data`,
+`/export/{format}`), vista `resources/views/reports/open-po-backlog/index.blade.php`, permisos
+`reportes.open_po_backlog.ver`/`.exportar` (agregados a `RolePermissionSeeder`; en producción se
+agregan con el bloque tinker aditivo, no con el seeder completo). Sin migraciones: todo sale de
+columnas existentes. 14 pruebas nuevas en
+`tests/Feature/OpenPurchaseOrderBacklogRc03Test.php`, suite completa sin regresiones (mismos 35
+fallos preexistentes de siempre).
+
+KPI de conciliación: `budget_commitments_pending` compara el total del backlog contra
+`SUM(committed_amount - consumed_amount)` de `BudgetCommitment` con `status = 'COMMITTED'` — es un
+número global de sanidad (no filtrado por los filtros de pantalla), no una conciliación renglón a
+renglón.

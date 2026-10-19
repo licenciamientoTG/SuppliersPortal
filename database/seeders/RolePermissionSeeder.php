@@ -117,6 +117,8 @@ class RolePermissionSeeder extends Seeder
             'reportes.budget_vs_actual.exportar',
             'reportes.requisition_pipeline.ver',
             'reportes.requisition_pipeline.exportar',
+            'reportes.open_po_backlog.ver',
+            'reportes.open_po_backlog.exportar',
             'puestos.administrar',
         ];
 
@@ -383,10 +385,10 @@ class RolePermissionSeeder extends Seeder
             foreach ([$staffRole, $buyerRole, $departmentHeadRole, $generalDirectorRole] as $exceptionRequesterRole) {
                 $exceptionRequesterRole->givePermissionTo('reportes.budget_alerts.excepcion.solicitar');
             }
-            $departmentHeadRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver']);
-            $reportViewerRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver']);
+            $departmentHeadRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver']);
+            $reportViewerRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver']);
             foreach ([$buyerRole, $accountingRole, $generalDirectorRole] as $pipelineRole) {
-                $pipelineRole->givePermissionTo(['reportes.requisition_pipeline.ver', 'reportes.requisition_pipeline.exportar']);
+                $pipelineRole->givePermissionTo(['reportes.requisition_pipeline.ver', 'reportes.requisition_pipeline.exportar', 'reportes.open_po_backlog.ver', 'reportes.open_po_backlog.exportar']);
             }
 
             $generalDirectorRole->givePermissionTo([
