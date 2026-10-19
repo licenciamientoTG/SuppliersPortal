@@ -72,8 +72,8 @@
                 <div class="filter-field"><label class="form-label" for="rplCenters">Centro(s) de costo</label><select class="form-select js-multi" id="rplCenters" name="cost_center_ids[]" multiple data-placeholder="Todos los centros">@foreach($centers as $center)<option value="{{ $center->id }}" data-company-id="{{ $center->company_id }}">{{ $center->code }} · {{ $center->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="rplApprover">Pendiente con</label><select class="form-select" id="rplApprover" name="pending_approver_id"><option value="">Cualquiera</option>@foreach($approvers as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div>
                 <div class="filter-field"><label class="form-label" for="rplOlder">Antigüedad mayor a (días)</label><input class="form-control" id="rplOlder" name="older_than_days" type="number" min="0" max="3650" placeholder="0"></div>
-                <div class="filter-field"><label class="form-label" for="rplAmountFrom">Importe cotizado desde</label><input class="form-control" id="rplAmountFrom" name="amount_from" type="number" min="0" step="0.01"></div>
-                <div class="filter-field"><label class="form-label" for="rplAmountTo">Importe cotizado hasta</label><input class="form-control" id="rplAmountTo" name="amount_to" type="number" min="0" step="0.01"></div>
+                <div class="filter-field"><label class="form-label" for="rplAmountFrom" title="Filtra por lo cotizado; si todavía no hay cotización, usa el estimado">Importe desde</label><input class="form-control" id="rplAmountFrom" name="amount_from" type="number" min="0" step="0.01"></div>
+                <div class="filter-field"><label class="form-label" for="rplAmountTo" title="Filtra por lo cotizado; si todavía no hay cotización, usa el estimado">Importe hasta</label><input class="form-control" id="rplAmountTo" name="amount_to" type="number" min="0" step="0.01"></div>
             </div>
             <div class="filter-footer"><button class="btn btn-light" type="reset">Limpiar filtros</button><button class="btn btn-primary" type="submit"><i class="ti ti-filter me-1" aria-hidden="true"></i>Aplicar filtros</button></div>
         </form>
@@ -86,7 +86,7 @@
     <section class="report-card">
         <div class="d-flex border-bottom px-2"><button class="tab-button active" type="button" data-tab="rows">Requisiciones</button><button class="tab-button" type="button" data-tab="summary">Horas por etapa y persona</button><span class="ms-auto align-self-center small text-muted pe-3" id="rplCount"></span></div>
         <div id="rowsPane">
-            <div class="table-wrap"><table class="table table-hover mb-0"><thead><tr><th class="col-folio">Folio</th><th>Creada</th><th>Solicitante</th><th>Centro(s) de costo</th><th class="num" title="Lo cotizado en cotizaciones vigentes; la requisición no lleva precio">Importe</th><th>REPSE</th><th>Estatus</th><th>Etapa actual</th><th>Pendiente con</th><th class="num">Horas en etapa</th><th class="num">Horas de ciclo</th><th>Motivo</th><th>OC</th></tr></thead><tbody id="rplRows"><tr><td colspan="13" class="text-center text-muted py-4">Cargando datos…</td></tr></tbody></table></div>
+            <div class="table-wrap"><table class="table table-hover mb-0"><thead><tr><th class="col-folio">Folio</th><th>Creada</th><th>Solicitante</th><th>Centro(s) de costo</th><th class="num" title="Producto.precio estimado × cantidad, capturado con la requisición">Estimado</th><th class="num" title="Lo cotizado en cotizaciones vigentes">Cotizado</th><th>REPSE</th><th>Estatus</th><th>Etapa actual</th><th>Pendiente con</th><th class="num">Horas en etapa</th><th class="num">Horas de ciclo</th><th>Motivo</th><th>OC</th></tr></thead><tbody id="rplRows"><tr><td colspan="14" class="text-center text-muted py-4">Cargando datos…</td></tr></tbody></table></div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 border-top">
                 <div class="d-flex align-items-center gap-2"><label class="small text-muted" for="rplPerPage">Filas</label><select class="form-select form-select-sm w-auto" id="rplPerPage"><option>25</option><option>50</option><option>100</option></select></div>
                 <div class="d-flex align-items-center gap-2"><button class="btn btn-sm btn-outline-secondary" id="rplPrev" type="button">Anterior</button><span class="small text-muted" id="rplPageInfo"></span><button class="btn btn-sm btn-outline-secondary" id="rplNext" type="button">Siguiente</button></div>
@@ -133,7 +133,7 @@
     window.jQuery ? jQuery(companySelect).on('change', refreshCenters) : companySelect.addEventListener('change', refreshCenters);
 
     const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-    const money = v => v === null || v === undefined ? '<span class="text-muted">Sin cotizar</span>' : fmt.format(v);
+    const money = (v, emptyLabel = 'Sin cotizar') => v === null || v === undefined ? `<span class="text-muted">${emptyLabel}</span>` : fmt.format(v);
     const hours = v => v === null || v === undefined ? '<span class="text-muted" title="Creada antes de que el portal registrara el historial">Sin historial</span>' : `${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
     const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const dateTime = v => v ? new Date(v).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -149,7 +149,7 @@
         const toggle = r.has_history && r.step_count ? `<button type="button" class="steps-toggle" data-index="${index}" aria-expanded="false" title="Ver etapas"><i class="ti ti-chevron-right" aria-hidden="true"></i></button> ` : '';
         return `<tr><td class="col-folio">${toggle}<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.folio)}</a><small class="d-block text-muted">${esc(r.company_name)}</small></td>`
             + `<td class="text-nowrap">${dateTime(r.created_at)}<small class="d-block text-muted">${r.age_days} días</small></td><td>${esc(r.requester_name || '—')}</td><td style="min-width:180px">${esc(r.cost_centers || '—')}</td>`
-            + `<td class="num">${money(r.estimated_amount)}</td><td>${r.is_repse ? '<span class="badge bg-warning text-dark">Sí</span>' : 'No'}</td>`
+            + `<td class="num">${money(r.estimated_amount, 'Sin estimar')}</td><td class="num">${money(r.quoted_amount)}</td><td>${r.is_repse ? '<span class="badge bg-warning text-dark">Sí</span>' : 'No'}</td>`
             + `<td><span class="badge bg-${esc(r.status_badge)}">${esc(r.status_label)}</span></td><td>${esc(r.current_step)}</td><td>${esc(r.pending_approver)}</td>`
             + `<td class="num fw-semibold">${hours(r.hours_in_current_step)}</td><td class="num">${hours(r.total_cycle_hours)}</td>`
             + `<td style="min-width:200px">${esc(r.outcome_reason || '')}</td><td>${esc(r.po_folios || '—')}</td></tr>`;
@@ -161,7 +161,7 @@
             const exit = s.is_open ? '<span class="badge bg-info">En curso</span>' : (s.exit_to ? `→ ${esc(s.exit_to)}${s.resolved_by ? ' · ' + esc(s.resolved_by) : ''}` : 'Fin del ciclo');
             return `<li><span class="order">${s.step_order}</span><span><strong>${esc(s.step_name)}</strong>${s.entered_by ? `<small class="d-block text-muted">Movió: ${esc(s.entered_by)}</small>` : ''}</span><span>${dateTime(s.entered_at)} – ${s.exited_at ? dateTime(s.exited_at) : 'ahora'}<small class="d-block">${exit}</small>${decisions}</span><span class="num">${hours(s.hours)}</span></li>`;
         }).join('');
-        return `<tr class="steps-row"><td colspan="13"><ul class="timeline">${items}</ul><div class="small text-muted text-end pt-1">Ciclo: ${hours(timeline.total_cycle_hours)}</div></td></tr>`;
+        return `<tr class="steps-row"><td colspan="14"><ul class="timeline">${items}</ul><div class="small text-muted text-end pt-1">Ciclo: ${hours(timeline.total_cycle_hours)}</div></td></tr>`;
     }
 
     function renderKpis(k) {
@@ -194,7 +194,7 @@
             const payload = await response.json();
             currentRows = payload.rows;
             page = payload.pagination.current_page;
-            body.innerHTML = currentRows.length ? currentRows.map(row).join('') : '<tr><td colspan="13" class="text-center text-muted py-4">No hay requisiciones con estos filtros.</td></tr>';
+            body.innerHTML = currentRows.length ? currentRows.map(row).join('') : '<tr><td colspan="14" class="text-center text-muted py-4">No hay requisiciones con estos filtros.</td></tr>';
             renderKpis(payload.kpis);
             renderSummary(payload.stages, payload.approvers);
             document.getElementById('rplCount').textContent = `${payload.pagination.total} requisiciones`;
@@ -205,7 +205,7 @@
             document.querySelectorAll('.js-export').forEach(link => { link.href = `${stepsUrl}/export/${link.dataset.format}?${params(false)}`; });
         } catch (error) {
             document.getElementById('rplError').textContent = error.message;
-            body.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">No fue posible cargar el reporte.</td></tr>';
+            body.innerHTML = '<tr><td colspan="14" class="text-center text-danger py-4">No fue posible cargar el reporte.</td></tr>';
         } finally {
             root.classList.remove('busy');
         }

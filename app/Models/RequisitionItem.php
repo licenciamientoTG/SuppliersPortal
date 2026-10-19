@@ -36,6 +36,9 @@ class RequisitionItem extends Model
         'contract_product_id',
         'unit_price',
         'currency_code',
+
+        // Importe estimado (RC-01, punto #4): product_service.estimated_price × quantity, congelado al capturar.
+        'estimated_amount',
     ];
 
     protected $casts = [
@@ -45,6 +48,7 @@ class RequisitionItem extends Model
         'cost_center_id' => 'integer',
         'quantity' => 'decimal:3',
         'es_inventariable' => 'boolean',
+        'estimated_amount' => 'decimal:2',
     ];
 
     // =========================================================================

@@ -130,7 +130,10 @@ class RequisitionPipelineReport
             'requester_name' => $requisition->requester_name,
             'cost_centers' => $centers->pluck('label')->implode(', '),
             'cost_center_ids' => $centers->pluck('id')->all(),
-            'estimated_amount' => $details['amounts']->has($id) ? round((float) $details['amounts']->get($id), 2) : null,
+            // Estimado (RC-01 #4): capturado con la requisición (producto.estimated_price × cantidad).
+            // Cotizado: lo cotizado en cotizaciones vigentes; antes de cotizar es null, no 0.
+            'estimated_amount' => $details['estimated_amounts']->has($id) ? round((float) $details['estimated_amounts']->get($id), 2) : null,
+            'quoted_amount' => $details['quoted_amounts']->has($id) ? round((float) $details['quoted_amounts']->get($id), 2) : null,
             'is_repse' => $details['repse']->contains($id),
             'status' => $status,
             'status_label' => RequisitionStatus::tryFrom($status)?->label() ?? $status,
@@ -178,11 +181,13 @@ class RequisitionPipelineReport
         if ($params['older_than_days'] > 0 && $row['age_days'] < $params['older_than_days']) {
             return false;
         }
-        if ($params['amount_from'] !== null && ($row['estimated_amount'] === null || $row['estimated_amount'] < $params['amount_from'])) {
+        // Filtra sobre el importe más certero disponible: lo cotizado si ya existe, si no el estimado.
+        $amount = $row['quoted_amount'] ?? $row['estimated_amount'];
+        if ($params['amount_from'] !== null && ($amount === null || $amount < $params['amount_from'])) {
             return false;
         }
 
-        return ! ($params['amount_to'] !== null && ($row['estimated_amount'] === null || $row['estimated_amount'] > $params['amount_to']));
+        return ! ($params['amount_to'] !== null && ($amount === null || $amount > $params['amount_to']));
     }
 
     /** Centros, importes cotizados, REPSE, aprobadores pendientes y OC por requisición. */
@@ -203,11 +208,18 @@ class RequisitionPipelineReport
                 'responsible_name' => $row->responsible_name,
             ])->values());
 
-        // Importe: lo cotizado en cotizaciones vigentes (la requisición no lleva precio).
-        $amounts = $load(fn (array $chunk) => DB::table('quotation_summaries')
+        // Cotizado: lo cotizado en cotizaciones vigentes.
+        $quotedAmounts = $load(fn (array $chunk) => DB::table('quotation_summaries')
             ->whereIn('requisition_id', $chunk)->whereNull('deleted_at')
             ->whereIn('approval_status', ['pending', 'approved', 'partially_approved'])
             ->groupBy('requisition_id')->select('requisition_id', DB::raw('SUM(total) as amount')))
+            ->mapWithKeys(fn ($row) => [(int) $row->requisition_id => (float) $row->amount]);
+
+        // Estimado (RC-01 #4): suma de requisition_items.estimated_amount, capturado con la requisición.
+        // Las partidas de antes de este cambio no lo tienen (null): no se simula un estimado que no existió.
+        $estimatedAmounts = $load(fn (array $chunk) => DB::table('requisition_items')
+            ->whereIn('requisition_id', $chunk)->whereNotNull('estimated_amount')
+            ->groupBy('requisition_id')->select('requisition_id', DB::raw('SUM(estimated_amount) as amount')))
             ->mapWithKeys(fn ($row) => [(int) $row->requisition_id => (float) $row->amount]);
 
         // REPSE: marca persistida en la requisición (Requisition::refreshRepseFlag()).
@@ -229,7 +241,7 @@ class RequisitionPipelineReport
             ->groupBy(fn ($row) => (int) $row->requisition_id)
             ->map(fn (Collection $rows) => $rows->pluck('folio')->filter()->unique()->values());
 
-        return compact('centers', 'amounts', 'repse', 'approvers', 'orders');
+        return ['centers' => $centers, 'quoted_amounts' => $quotedAmounts, 'estimated_amounts' => $estimatedAmounts, 'repse' => $repse, 'approvers' => $approvers, 'orders' => $orders];
     }
 
     private function kpis(Collection $rows): array

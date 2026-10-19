@@ -110,7 +110,7 @@ class RequisitionPipelineRc01Test extends TestCase
 
         $this->assertSame('Gerente Norte', $row['pending_approver']);
         $this->assertSame([$approver->id], $row['pending_approver_ids']);
-        $this->assertSame(1500.0, $row['estimated_amount']);
+        $this->assertSame(1500.0, $row['quoted_amount']);
         $this->assertSame(RequisitionPipelineReport::PURCHASING_QUEUE, $this->build()['rows']->firstWhere('id', $other->id)['pending_approver']);
         $this->assertSame([$requisition->id], $this->build(['pending_approver_id' => $approver->id])['rows']->pluck('id')->all());
     }
@@ -160,6 +160,44 @@ class RequisitionPipelineRc01Test extends TestCase
         $this->assertDatabaseHas('activity_log', ['log_name' => 'reportes', 'description' => 'Exportación RC-01 csv']);
 
         $this->actingAs($this->buyer)->get(route('requisition-pipeline-reports.export', ['format' => 'xlsx'] + $filters))->assertOk();
+    }
+
+    public function test_estimated_amount_sums_the_captured_items_when_there_is_no_quote_yet(): void
+    {
+        $requisition = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]);
+        RequisitionItem::where('requisition_id', $requisition->id)->update(['estimated_amount' => 800]);
+        $noEstimate = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]); // partida vieja, sin estimado capturado
+
+        $row = $this->build()['rows']->firstWhere('id', $requisition->id);
+        $noEstimateRow = $this->build()['rows']->firstWhere('id', $noEstimate->id);
+
+        $this->assertSame(800.0, $row['estimated_amount']);
+        $this->assertNull($row['quoted_amount']);
+        $this->assertNull($noEstimateRow['estimated_amount']);
+    }
+
+    public function test_quoted_amount_wins_over_the_estimate_once_there_is_a_quote(): void
+    {
+        $requisition = $this->requisition('2026-10-05 08:00', [['PENDING', 1], ['IN_QUOTATION', 1], ['QUOTED', 1]]);
+        RequisitionItem::where('requisition_id', $requisition->id)->update(['estimated_amount' => 800]);
+        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'approval_status' => 'pending', 'total' => 950]);
+
+        $row = $this->build()['rows']->firstWhere('id', $requisition->id);
+
+        $this->assertSame(800.0, $row['estimated_amount']);
+        $this->assertSame(950.0, $row['quoted_amount']);
+    }
+
+    public function test_amount_filter_falls_back_to_the_estimate_when_there_is_no_quote_yet(): void
+    {
+        $inRange = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]);
+        RequisitionItem::where('requisition_id', $inRange->id)->update(['estimated_amount' => 800]);
+        $outOfRange = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]);
+        RequisitionItem::where('requisition_id', $outOfRange->id)->update(['estimated_amount' => 100]);
+
+        $ids = $this->build(['amount_from' => 500, 'amount_to' => 1000])['rows']->pluck('id')->all();
+
+        $this->assertSame([$inRange->id], $ids);
     }
 
     public function test_users_without_permission_get_403(): void

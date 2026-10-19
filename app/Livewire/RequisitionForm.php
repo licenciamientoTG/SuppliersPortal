@@ -272,6 +272,8 @@ class RequisitionForm extends Component
                         'unit' => $item['unit'],
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
                         'notes' => $item['notes'] ?? null,
+                        // RC-01 #4: congelado al capturar, no se recalcula si el precio del catálogo cambia después.
+                        'estimated_amount' => round((float) $product->estimated_price * (float) $item['quantity'], 2),
                     ]);
 
                     if ($attachment = $existingAttachments[$index + 1] ?? null) {
@@ -312,6 +314,8 @@ class RequisitionForm extends Component
                         'unit' => $item['unit'],
                         'suggested_vendor_id' => $product->default_vendor_id ?? null,
                         'notes' => $item['notes'] ?? null,
+                        // RC-01 #4: congelado al capturar, no se recalcula si el precio del catálogo cambia después.
+                        'estimated_amount' => round((float) $product->estimated_price * (float) $item['quantity'], 2),
                     ]);
                 }
 
