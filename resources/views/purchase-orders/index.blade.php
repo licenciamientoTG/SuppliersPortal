@@ -200,7 +200,8 @@ $(document).ready(function() {
     // ==========================================
     const regularTable = $('#regular-orders-table').DataTable({
         processing: true,
-        serverSide: true,
+        // Sin serverSide: la ajax trae todas las órdenes de una vez, para que las
+        // exportaciones incluyan todos los renglones y no solo la página visible.
         ajax: {
             url: "{{ route('purchase-orders.datatable.regular') }}",
             type: 'GET'
@@ -224,12 +225,18 @@ $(document).ready(function() {
             {
                 extend: 'excel',
                 text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                className: 'btn btn-success btn-sm'
+                className: 'btn btn-success btn-sm',
+                exportOptions: {
+                    columns: ':not(:last-child)' // Excluir columna de Acciones
+                }
             },
             {
                 extend: 'copy',
                 text: '<i class="ti ti-copy me-1"></i> Copiar',
-                className: 'btn btn-warning btn-sm'
+                className: 'btn btn-warning btn-sm',
+                exportOptions: {
+                    columns: ':not(:last-child)'
+                }
             }
         ],
         drawCallback: function() {
@@ -247,7 +254,6 @@ $(document).ready(function() {
         if (directTable === null) {
             directTable = $('#direct-orders-table').DataTable({
                 processing: true,
-                serverSide: true,
                 ajax: {
                     url: "{{ route('purchase-orders.datatable.direct') }}",
                     type: 'GET'

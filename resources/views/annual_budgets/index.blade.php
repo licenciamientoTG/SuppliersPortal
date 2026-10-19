@@ -76,7 +76,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         const table = new DataTable('#tableBudgets', {
             processing: true,
-            serverSide: true,
+            // Sin serverSide: la ajax trae todo el catálogo filtrado de una vez, para que
+            // las exportaciones incluyan todos los renglones y no solo la página visible.
             dom: '<"top"Bf>rt<"bottom"lip>',
             pageLength: 25,
             buttons: [
@@ -90,19 +91,28 @@
                 {
                     extend: 'excel',
                     text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                    className: 'btn btn-success btn-sm'
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        columns: ':not(:last-child)' // Excluir columna de Acciones
+                    }
                 },
                 {
                     extend: 'copy',
                     text: '<i class="ti ti-copy me-1"></i> Copiar',
-                    className: 'btn btn-warning btn-sm'
+                    className: 'btn btn-warning btn-sm',
+                    exportOptions: {
+                        columns: ':not(:last-child)'
+                    }
                 },
                 {
                     extend: 'pdf',
                     text: '<i class="ti ti-file-text me-1"></i> PDF',
                     className: 'btn btn-info btn-sm',
                     orientation: 'landscape',
-                    pageSize: 'A4'
+                    pageSize: 'A4',
+                    exportOptions: {
+                        columns: ':not(:last-child)'
+                    }
                 }
             ],
             ajax: {
@@ -166,13 +176,15 @@
         });
 
         // ===== FILTROS =====
-        document.getElementById('filterFiscalYear').addEventListener('change', () => table.draw());
-        document.getElementById('filterStatus').addEventListener('change', () => table.draw());
+        // ajax.reload() (no draw()): sin serverSide, draw() solo redibuja localmente
+        // y no volvería a consultar al servidor con los filtros nuevos.
+        document.getElementById('filterFiscalYear').addEventListener('change', () => table.ajax.reload());
+        document.getElementById('filterStatus').addEventListener('change', () => table.ajax.reload());
 
         document.getElementById('btnReset').addEventListener('click', function() {
             document.getElementById('filterFiscalYear').value = '';
             document.getElementById('filterStatus').value = '';
-            table.draw();
+            table.ajax.reload();
         });
 
         // ===== ELIMINAR CON CONFIRMACIÓN =====

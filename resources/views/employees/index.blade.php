@@ -104,7 +104,8 @@
             const employeesTable = $('#employeesTable').DataTable({
                 responsive: false,
                 processing: true,
-                serverSide: true,
+                // Sin serverSide: la ajax trae todo el catálogo filtrado de una vez, para que
+                // las exportaciones incluyan todos los renglones y no solo la página visible.
                 dom: '<"top"Bf>rt<"bottom"lip>',
                 pageLength: 50,
                 order: [[2, 'asc']],
@@ -112,19 +113,28 @@
                     {
                         extend: 'excel',
                         text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                        className: 'btn btn-success btn-sm'
+                        className: 'btn btn-success btn-sm',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Excluir columna de Acciones
+                        }
                     },
                     {
                         extend: 'copy',
                         text: '<i class="ti ti-copy me-1"></i> Copiar',
-                        className: 'btn btn-warning btn-sm'
+                        className: 'btn btn-warning btn-sm',
+                        exportOptions: {
+                            columns: ':not(:last-child)'
+                        }
                     },
                     {
                         extend: 'pdf',
                         text: '<i class="ti ti-file-text me-1"></i> PDF',
                         className: 'btn btn-info btn-sm',
                         orientation: 'landscape',
-                        pageSize: 'A4'
+                        pageSize: 'A4',
+                        exportOptions: {
+                            columns: ':not(:last-child)'
+                        }
                     }
                 ],
                 ajax: {

@@ -237,18 +237,25 @@ $(document).ready(function() {
     // ================================================================
     const table = $('#rfqsTable').DataTable({
         processing: true,
-        serverSide: true,
+        // Sin serverSide: la ajax trae todas las RFQ filtradas de una vez, para que las
+        // exportaciones incluyan todos los renglones y no solo la página visible.
         dom: '<"top"Bf>rt<"bottom"lip>',
         buttons: [
             {
                 extend: 'excel',
                 text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                className: 'btn btn-success btn-sm'
+                className: 'btn btn-success btn-sm',
+                exportOptions: {
+                    columns: ':not(:last-child)' // Excluir columna de Acciones
+                }
             },
             {
                 extend: 'copy',
                 text: '<i class="ti ti-copy me-1"></i> Copiar',
-                className: 'btn btn-warning btn-sm'
+                className: 'btn btn-warning btn-sm',
+                exportOptions: {
+                    columns: ':not(:last-child)'
+                }
             }
         ],
         ajax: {
@@ -353,14 +360,16 @@ $(document).ready(function() {
     // ================================================================
     // APLICAR FILTROS
     // ================================================================
+    // ajax.reload() (no draw()): sin serverSide, draw() solo redibuja localmente
+    // y no volvería a consultar al servidor con los filtros nuevos.
     $('#applyFilters').on('click', function() {
-        table.draw();
+        table.ajax.reload();
     });
 
     // También filtrar al presionar Enter en los campos de fecha
     $('#filterDateFrom, #filterDateTo').on('keypress', function(e) {
         if (e.which === 13) {
-            table.draw();
+            table.ajax.reload();
         }
     });
 
@@ -460,7 +469,7 @@ $(document).ready(function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        table.draw();
+                        table.ajax.reload();
                         loadSummary();
                     });
                 }
@@ -523,7 +532,7 @@ $(document).ready(function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        table.draw();
+                        table.ajax.reload();
                         loadSummary();
                     });
                 }

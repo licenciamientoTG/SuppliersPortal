@@ -86,7 +86,8 @@
             const table = $('#productsTable').DataTable({
                 responsive: false,
                 processing: true,
-                serverSide: true,
+                // Sin serverSide: la ajax trae el catálogo completo de una vez, así los
+                // botones de exportación operan sobre todos los renglones y no solo la página visible.
                 dom: '<"top"Bf>rt<"bottom"lip>',
                 pageLength: 50,
                 buttons: [{
@@ -99,19 +100,28 @@
                     {
                         extend: 'excel',
                         text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                        className: 'btn btn-success btn-sm'
+                        className: 'btn btn-success btn-sm',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Excluir columna de Acciones
+                        }
                     },
                     {
                         extend: 'copy',
                         text: '<i class="ti ti-copy me-1"></i> Copiar',
-                        className: 'btn btn-warning btn-sm'
+                        className: 'btn btn-warning btn-sm',
+                        exportOptions: {
+                            columns: ':not(:last-child)'
+                        }
                     },
                     {
                         extend: 'pdf',
                         text: '<i class="ti ti-file-text me-1"></i> PDF',
                         className: 'btn btn-info btn-sm',
                         orientation: 'landscape',
-                        pageSize: 'A4'
+                        pageSize: 'A4',
+                        exportOptions: {
+                            columns: ':not(:last-child)'
+                        }
                     }
                 ],
                 ajax: {

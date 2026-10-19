@@ -49,7 +49,8 @@
         // Inicializar DataTable
         const table = $('#movementsTable').DataTable({
             processing: true,
-            serverSide: true,
+            // Sin serverSide: la ajax trae todos los movimientos de una vez, para que
+            // las exportaciones incluyan todos los renglones y no solo la página visible.
             dom: '<"top"Bf>rt<"bottom"lip>',
             pageLength: 25,
             buttons: [
@@ -63,12 +64,18 @@
                 {
                     extend: 'excel',
                     text: '<i class="ti ti-file-spreadsheet me-1"></i> Excel',
-                    className: 'btn btn-success btn-sm'
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        columns: ':not(:last-child)' // Excluir columna de Acciones
+                    }
                 },
                 {
                     extend: 'copy',
                     text: '<i class="ti ti-copy me-1"></i> Copiar',
-                    className: 'btn btn-warning btn-sm'
+                    className: 'btn btn-warning btn-sm',
+                    exportOptions: {
+                        columns: ':not(:last-child)'
+                    }
                 }
             ],
             ajax: {
