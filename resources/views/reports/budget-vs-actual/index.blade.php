@@ -65,6 +65,7 @@
         @can('reportes.budget_vs_actual.exportar')
             <div class="d-flex gap-2">
                 <a class="btn btn-outline-primary js-export" data-format="csv" href="{{ route('budget-vs-actual-reports.export', ['format' => 'csv']) }}" title="Renglones con los filtros aplicados"><i class="ti ti-file-text me-1" aria-hidden="true"></i>CSV</a>
+                <a class="btn btn-outline-danger js-export" data-format="pdf" href="{{ route('budget-vs-actual-reports.export', ['format' => 'pdf']) }}" title="Resumen ejecutivo: un renglón por centro de costo, ordenado por riesgo"><i class="ti ti-file-type-pdf me-1" aria-hidden="true"></i>PDF ejecutivo</a>
                 <a class="btn btn-primary js-export" id="bvaExportXlsx" data-format="xlsx" href="{{ route('budget-vs-actual-reports.export', ['format' => 'xlsx']) }}" title="Resumen con subtotales y detalle por documento"><i class="ti ti-file-spreadsheet me-1" aria-hidden="true"></i>Descargar Excel</a>
             </div>
         @endcan

@@ -7,13 +7,15 @@ use App\Models\CostCenter;
 use App\Models\ExpenseCategory;
 use App\Models\User;
 use App\Reports\Support\ReportSheet;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/** Exportación de RP-01: Excel (resumen + detalle por documento) y CSV (renglones). */
+/** Exportación de RP-01: Excel (resumen + detalle por documento), CSV (renglones) y PDF ejecutivo (por centro). */
 class BudgetVsActualExport
 {
     private const BUCKET_LABELS = ['reserved' => 'Reservado', 'committed' => 'Comprometido', 'accrued' => 'Devengado', 'released' => 'OC cancelada'];
@@ -22,13 +24,13 @@ class BudgetVsActualExport
 
     public function __construct(private readonly BudgetVsActualReport $report) {}
 
-    /** @return array{response: StreamedResponse, rows: int, detail_rows: int} */
+    /** @return array{response: StreamedResponse|Response, rows: int, detail_rows: int} */
     public function download(User $user, array $params, string $format): array
     {
         // El Excel agrega una hoja de detalle por documento con datos en vivo (documentLines()),
-        // que no coincidiría con el resumen congelado del corte histórico. El CSV solo repite
-        // las filas ya congeladas, así que ese sí es seguro.
-        abort_if($params['scope'] === 'CORTE' && $format !== 'csv', 422, 'En modo de fecha de corte solo se puede exportar a CSV.');
+        // que no coincidiría con el resumen congelado del corte histórico. El CSV y el PDF solo
+        // repiten los renglones/centros ya congelados, así que esos dos sí son seguros.
+        abort_if($params['scope'] === 'CORTE' && ! in_array($format, ['csv', 'pdf'], true), 422, 'En modo de fecha de corte solo se puede exportar a CSV o PDF.');
 
         $result = $this->report->build($user, $params);
         $filename = match ($params['scope']) {
@@ -39,6 +41,14 @@ class BudgetVsActualExport
 
         if ($format === 'csv') {
             return ['response' => ReportSheet::csv($this->columns($params), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count(), 'detail_rows' => 0];
+        }
+
+        if ($format === 'pdf') {
+            $rows = $this->centerSummaryRows($result);
+            $pdf = Pdf::loadView('reports.budget-vs-actual.pdf', ['header' => $this->headerLines($user, $params), 'rows' => $rows])
+                ->setPaper('letter', 'portrait');
+
+            return ['response' => $pdf->download($filename.'.pdf'), 'rows' => $rows->count(), 'detail_rows' => 0];
         }
 
         $documents = $this->report->documentLines($params, $result['rows']);
@@ -149,6 +159,32 @@ class BudgetVsActualExport
         }
 
         return $rows;
+    }
+
+    /**
+     * Una fila por centro de costo (no por renglón), para el PDF ejecutivo: el peor semáforo
+     * primero (ROJO, luego AMARILLO, luego VERDE) y, dentro de cada color, el % de avance más
+     * alto primero — así Dirección ve arriba lo que más urge revisar.
+     */
+    public function centerSummaryRows(array $result): Collection
+    {
+        $rank = ['ROJO' => 0, 'AMARILLO' => 1, 'VERDE' => 2];
+
+        return $result['rows']
+            ->groupBy('cost_center_id')
+            ->map(function (Collection $rows, $costCenterId) use ($result) {
+                $first = $rows->first();
+
+                return $result['cost_centers'][$costCenterId] + [
+                    'cost_center_id' => $costCenterId,
+                    'company_name' => $first['company_name'],
+                    'cost_center_code' => $first['cost_center_code'],
+                    'cost_center_name' => $first['cost_center_name'],
+                    'responsible_name' => $first['responsible_name'],
+                ];
+            })
+            ->sortBy(fn (array $row) => [$rank[$row['traffic_light']] ?? 3, -($row['progress_pct'] ?? 0)])
+            ->values();
     }
 
     private function headerLines(User $user, array $params): array

@@ -13,6 +13,7 @@ use App\Models\ExpenseCategory;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
 use App\Models\User;
+use App\Reports\Budget\BudgetVsActualExport;
 use App\Services\BudgetAllocationService;
 use App\Services\BudgetPositionSnapshotService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -394,6 +395,63 @@ class BudgetVsActualReportTest extends TestCase
         $this->assertSame('Tipo de fila', $lines[0][0]);
         $this->assertCount(2, $lines);
         $this->assertSame((string) $kept->annualBudget->costCenter->code, $lines[1][3]);
+    }
+
+    public function test_center_summary_rows_group_by_center_and_sort_the_riskiest_first(): void
+    {
+        $user = $this->viewer('accounting');
+        $company = Company::factory()->create();
+        $redCenter = $this->center($company);
+        $red = $this->line(1000, $redCenter, month: 3);
+        $this->commit($red, 'purchase_order', 1000); // 100% consumido -> ROJO (umbral por defecto: >= 100%)
+        $greenCenter = $this->center($company);
+        $green = $this->line(1000, $greenCenter, month: 3);
+        $this->commit($green, 'purchase_order', 100); // 10% consumido -> VERDE
+
+        $params = ['fiscal_year' => $this->year, 'period_month' => 3, 'scope' => 'MES', 'company_ids' => [], 'cost_center_ids' => [], 'expense_category_ids' => [], 'responsible_user_id' => null, 'include_cancelled_po' => false];
+        $built = app(\App\Reports\Budget\BudgetVsActualReport::class)->build($user, $params);
+        $rows = app(BudgetVsActualExport::class)->centerSummaryRows($built);
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('ROJO', $rows->first()['traffic_light']);
+        $this->assertSame($redCenter->id, $rows->first()['cost_center_id']);
+        $this->assertSame('VERDE', $rows->last()['traffic_light']);
+        $this->assertSame($greenCenter->id, $rows->last()['cost_center_id']);
+        $this->assertSame($redCenter->code, $rows->first()['cost_center_code']);
+    }
+
+    public function test_pdf_export_returns_a_pdf_scoped_to_the_active_filters(): void
+    {
+        $user = $this->exporter();
+        $company = Company::factory()->create();
+        $kept = $this->line(1000, $this->center($company));
+        $this->line(9000, $this->center());
+
+        $response = $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'pdf', 'fiscal_year' => $this->year, 'period_month' => 3, 'company_ids' => [$company->id],
+        ]))->assertOk();
+
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+    }
+
+    public function test_pdf_export_requires_the_export_permission(): void
+    {
+        $user = $this->viewer('department_head');
+
+        $this->actingAs($user)->get(route('budget-vs-actual-reports.export', ['format' => 'pdf']))->assertForbidden();
+    }
+
+    public function test_pdf_export_works_in_cutoff_scope(): void
+    {
+        $user = $this->exporter();
+        $line = $this->line(1000, $this->center(), month: 3);
+        app(BudgetPositionSnapshotService::class)->capture(now());
+
+        $this->actingAs($user)->get(route('budget-vs-actual-reports.export', [
+            'format' => 'pdf', 'scope' => 'CORTE', 'as_of_date' => now()->toDateString(),
+            'fiscal_year' => $this->year, 'period_month' => $line->month,
+        ]))->assertOk();
     }
 
     private function exporter(): User
