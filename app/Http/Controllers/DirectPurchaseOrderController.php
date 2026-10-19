@@ -7,6 +7,7 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderDocument;
 use App\Models\DirectPurchaseOrderItem;
+use App\Models\ExchangeRate;
 use App\Models\ExpenseCategory;
 use App\Models\ReceivingLocation;
 use App\Models\Supplier;
@@ -122,6 +123,8 @@ class DirectPurchaseOrderController extends Controller
             $supplier = Supplier::active()->findOrFail($request->supplier_id);
             $estimatedDays = (int) ($request->estimated_delivery_days ?? $supplier->avg_delivery_time ?? 30);
             $applicationMonth = now()->addDays($estimatedDays)->format('Y-m');
+            $currency = $request->input('currency', 'MXN');
+            $exchangeRate = ExchangeRate::rateToMxn($currency);
 
             $ocd = DirectPurchaseOrder::create([
                 'folio' => DirectPurchaseOrder::generateNextFolio(),
@@ -132,7 +135,8 @@ class DirectPurchaseOrderController extends Controller
                 'subtotal' => $totals['subtotal'],
                 'iva_amount' => $totals['iva'],
                 'total' => $totals['total'],
-                'currency' => 'MXN',
+                'currency' => $currency,
+                'exchange_rate' => $exchangeRate,
                 'payment_terms' => $request->payment_terms ?? $supplier->default_payment_terms ?? 'Contado',
                 'estimated_delivery_days' => $estimatedDays,
                 'required_approval_level' => null,
@@ -489,6 +493,8 @@ class DirectPurchaseOrderController extends Controller
             $supplier = Supplier::active()->findOrFail($request->supplier_id);
             $estimatedDays = (int) ($request->estimated_delivery_days ?? $supplier->avg_delivery_time ?? 30);
             $applicationMonth = now()->addDays($estimatedDays)->format('Y-m');
+            $currency = $request->input('currency', 'MXN');
+            $exchangeRate = ExchangeRate::rateToMxn($currency);
 
             $updateData = [
                 'supplier_id' => $request->supplier_id,
@@ -498,7 +504,8 @@ class DirectPurchaseOrderController extends Controller
                 'subtotal' => $totals['subtotal'],
                 'iva_amount' => $totals['iva'],
                 'total' => $totals['total'],
-                'currency' => 'MXN',
+                'currency' => $currency,
+                'exchange_rate' => $exchangeRate,
                 'payment_terms' => $request->payment_terms ?? $supplier->default_payment_terms ?? 'Contado',
                 'estimated_delivery_days' => $estimatedDays,
                 'status' => $wasReturned ? 'PENDING_APPROVAL' : 'DRAFT',
@@ -625,7 +632,9 @@ class DirectPurchaseOrderController extends Controller
         $directPurchaseOrder->loadMissing('items');
 
         foreach ($directPurchaseOrder->items as $item) {
-            foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, (float) $item->subtotal) as $allocation) {
+            $itemAmountMxn = $directPurchaseOrder->convertItemAmountToMxn((float) $item->subtotal);
+
+            foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, $itemAmountMxn) as $allocation) {
                 $budgetCheck = $this->validateBudgetAvailability(
                     $allocation['cost_center_id'],
                     $directPurchaseOrder->application_month,

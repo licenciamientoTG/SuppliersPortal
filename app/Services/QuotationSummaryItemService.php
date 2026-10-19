@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ExchangeRate;
 use App\Models\QuotationSummary;
 use App\Models\QuotationSummaryItem;
 use App\Models\RfqResponse;
@@ -97,10 +98,16 @@ class QuotationSummaryItemService
             $item->approver_notes = null;
         }
 
+        $currency = $response->currency ?? 'MXN';
+        $exchangeRate = ExchangeRate::rateToMxn($currency);
+
         $item->fill([
             'requisition_item_id' => $response->requisition_item_id,
             'quoted_quantity' => $quantity,
-            'unit_price' => (float) $response->unit_price,
+            'currency' => $currency,
+            'exchange_rate' => $exchangeRate,
+            'unit_price_original' => (float) $response->unit_price,
+            'unit_price' => round((float) $response->unit_price * $exchangeRate, 2),
             'iva_rate' => (float) ($response->iva_rate ?? 16),
         ]);
 

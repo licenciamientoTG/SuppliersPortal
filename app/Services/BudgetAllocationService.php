@@ -8,6 +8,7 @@ use App\Models\BudgetCommitment;
 use App\Models\BudgetMonthlyDistribution;
 use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
+use App\Models\ExchangeRate;
 use App\Models\PurchaseOrder;
 use App\Models\QuotationSummary;
 use App\Models\QuotationSummaryItem;
@@ -305,7 +306,7 @@ class BudgetAllocationService
                     'cost_center_id' => (int) $requisitionItem->cost_center_id,
                     'expense_category_id' => (int) $requisitionItem->expense_category_id,
                     'budget_cedula_id' => (int) $requisitionItem->budget_cedula_id,
-                    'amount' => (float) $response->subtotal,
+                    'amount' => ExchangeRate::convertToMxn((float) $response->subtotal, $response->currency ?? 'MXN'),
                     'year' => (int) substr($applicationMonth, 0, 4),
                     'month' => (int) substr($applicationMonth, 5, 2),
                     'application_month' => $applicationMonth,
@@ -832,7 +833,7 @@ class BudgetAllocationService
                             'cost_center_id' => (int) $item->cost_center_id,
                             'expense_category_id' => (int) $item->expense_category_id,
                             'budget_cedula_id' => $item->budget_cedula_id ? (int) $item->budget_cedula_id : null,
-                            'amount' => (float) $item->subtotal,
+                            'amount' => $order->convertItemAmountToMxn((float) $item->subtotal),
                             'year' => (int) substr((string) $order->application_month, 0, 4),
                             'month' => (int) substr((string) $order->application_month, 5, 2),
                             'application_month' => $order->application_month,

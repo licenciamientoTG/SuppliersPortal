@@ -90,6 +90,9 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
             // Justificación
             'justification' => ['required', 'string', 'min:100', 'max:2000'],
 
+            // Moneda de la orden (por defecto MXN)
+            'currency' => ['nullable', 'string', 'in:MXN,USD,EUR'],
+
             // Condiciones del Proveedor (Opcionales)
             'payment_terms' => ['nullable', 'string', 'max:100'],
             'estimated_delivery_days' => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -173,6 +176,7 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
         return [
             'supplier_id' => 'proveedor',
             'company_id' => 'empresa',
+            'currency' => 'moneda',
             'justification' => 'justificación',
             'items.*.cost_center_id' => 'centro de costo',
             'quotation_file' => 'cotización',
@@ -196,12 +200,20 @@ class SaveDirectPurchaseOrderRequest extends FormRequest
                     $validator->errors()->add($field, $message);
                 }
 
-                $total = $this->calculateTotal();
+                $nativeTotal = $this->calculateTotal();
+                $currency = $this->input('currency', 'MXN');
+
+                try {
+                    $total = \App\Models\ExchangeRate::convertToMxn($nativeTotal, $currency);
+                } catch (\RuntimeException $exception) {
+                    $validator->errors()->add('currency', $exception->getMessage());
+                    $total = $nativeTotal;
+                }
 
                 if ($total > 250000) {
                     $validator->errors()->add(
                         'total',
-                        'El total de la OCD ($'.number_format($total, 2).') excede el límite máximo de $250,000.00 MXN. Para compras mayores debe usar el proceso de requisición regular.'
+                        'El total de la OCD ($'.number_format($total, 2).' MXN) excede el límite máximo de $250,000.00 MXN. Para compras mayores debe usar el proceso de requisición regular.'
                     );
                 }
 

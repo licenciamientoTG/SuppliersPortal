@@ -32,6 +32,7 @@ class DirectPurchaseOrder extends Model
         'iva_amount',
         'total',
         'currency',
+        'exchange_rate',
         'payment_terms',
         'estimated_delivery_days',
         'required_approval_level',
@@ -81,6 +82,7 @@ class DirectPurchaseOrder extends Model
         'subtotal' => 'decimal:2',
         'iva_amount' => 'decimal:2',
         'total' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
         'effective_authorization_limit' => 'decimal:2',
         'approval_chain_snapshot' => 'array',
         'submitted_at' => 'datetime',
@@ -536,6 +538,15 @@ class DirectPurchaseOrder extends Model
             'iva_amount' => round((float) $result->iva_amount, 2),
             'total'      => round((float) $result->total, 2),
         ];
+    }
+
+    /**
+     * Convierte un monto en la moneda nativa de la OCD a MXN, usando el tipo
+     * de cambio capturado al crearla/editarla (no el vigente hoy).
+     */
+    public function convertItemAmountToMxn(float $amount): float
+    {
+        return round($amount * (float) $this->exchange_rate, 2);
     }
 
     /**

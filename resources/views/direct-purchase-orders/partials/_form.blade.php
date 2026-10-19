@@ -56,7 +56,7 @@
 
                     {{-- FILA 1: PROVEEDOR Y CONDICIONES --}}
                     <div class="row g-2 mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label class="form-label small fw-bold">Proveedor <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm input-group-select2">
                                 <span class="input-group-text"><i class="ti ti-building"></i></span>
@@ -73,6 +73,20 @@
                                 </select>
                             </div>
                             @error('supplier_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Moneda <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm input-group-select2">
+                                <span class="input-group-text"><i class="ti ti-currency-dollar"></i></span>
+                                <select name="currency" id="currency" class="form-select form-select-sm @error('currency') is-invalid @enderror" required>
+                                    @foreach(['MXN' => 'MXN', 'USD' => 'USD', 'EUR' => 'EUR'] as $value => $label)
+                                        <option value="{{ $value }}" {{ old('currency', $ocd?->currency ?? 'MXN') == $value ? 'selected' : '' }}>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @error('currency') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Condiciones de Pago</label>

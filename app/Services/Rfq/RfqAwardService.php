@@ -5,6 +5,7 @@ namespace App\Services\Rfq;
 use App\Enum\RequisitionStatus;
 use App\Exceptions\Rfq\AwardNotAllowedException;
 use App\Exceptions\Rfq\RfqAlreadyRejectedException;
+use App\Models\ExchangeRate;
 use App\Models\QuotationSummary;
 use App\Models\Rfq;
 use App\Notifications\BuyerWorkflowNotification;
@@ -65,12 +66,24 @@ class RfqAwardService
         }
 
         if ($responses->isNotEmpty()) {
+            try {
+                $subtotal = round($responses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->subtotal, $response->currency ?? 'MXN')), 2);
+                $ivaAmount = round($responses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->iva_amount, $response->currency ?? 'MXN')), 2);
+                $total = round($responses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->total, $response->currency ?? 'MXN')), 2);
+            } catch (Throwable $exception) {
+                $reasons[] = $exception->getMessage();
+
+                $subtotal = 0.0;
+                $ivaAmount = 0.0;
+                $total = 0.0;
+            }
+
             $summary = new QuotationSummary([
                 'requisition_id' => $rfq->requisition_id,
                 'rfq_id' => $rfq->id,
-                'subtotal' => (float) $responses->sum('subtotal'),
-                'iva_amount' => (float) $responses->sum('iva_amount'),
-                'total' => (float) $responses->sum('total'),
+                'subtotal' => $subtotal,
+                'iva_amount' => $ivaAmount,
+                'total' => $total,
                 'selected_supplier_id' => $supplierId,
                 'requested_by_user_id' => $rfq->requisition->requested_by,
             ]);
@@ -161,7 +174,19 @@ class RfqAwardService
             );
         }
 
-        $summary = DB::transaction(function () use ($rfq, $supplierId, $justification, $notes, $userId, $totals) {
+        $winningResponses = $rfq->rfqResponses
+            ->where('supplier_id', $supplierId)
+            ->where('status', 'SUBMITTED')
+            ->where('not_available', false)
+            ->values();
+
+        $convertedTotals = [
+            'subtotal' => round($winningResponses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->subtotal, $response->currency ?? 'MXN')), 2),
+            'iva' => round($winningResponses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->iva_amount, $response->currency ?? 'MXN')), 2),
+            'total' => round($winningResponses->sum(fn ($response) => ExchangeRate::convertToMxn((float) $response->total, $response->currency ?? 'MXN')), 2),
+        ];
+
+        $summary = DB::transaction(function () use ($rfq, $supplierId, $justification, $notes, $userId, $convertedTotals) {
             $existingSummary = QuotationSummary::query()
                 ->where('rfq_id', $rfq->id)
                 ->lockForUpdate()
@@ -183,9 +208,9 @@ class RfqAwardService
                 ['rfq_id' => $rfq->id],
                 [
                     'requisition_id' => $rfq->requisition_id,
-                    'subtotal' => (float) $totals->subtotal,
-                    'iva_amount' => (float) $totals->iva,
-                    'total' => (float) $totals->total,
+                    'subtotal' => $convertedTotals['subtotal'],
+                    'iva_amount' => $convertedTotals['iva'],
+                    'total' => $convertedTotals['total'],
                     'selected_supplier_id' => $supplierId,
                     'requested_by_user_id' => $rfq->requisition->requested_by,
                     'selected_by_user_id' => $userId,
