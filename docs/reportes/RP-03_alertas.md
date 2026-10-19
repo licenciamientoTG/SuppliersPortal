@@ -44,3 +44,7 @@ Fecha: 2026-10-06 · Rama: `feat/rp03-budget-alerts`
 - La base `dev_suppliersPortalDB` tiene pendiente `2026_09_29_000001_create_budget_alerts_and_exceptions_tables`
   (y otras 4); sin ella RP-03 y el registro de historial del observer fallan. Revisar producción.
 - Tiempo de respuesta medido en producción el 2026-10-09: menos de 0.5 s.
+- **Resumen diario suspendido (2026-10-19):** el envío programado en `routes/console.php` quedó
+  comentado porque el correo (`BudgetDailySummaryNotification`) aún no tiene formato institucional.
+  El comando `budget:send-daily-alerts` y sus pruebas siguen intactos; solo falta descomentar el
+  `Schedule::command(...)` cuando el formato esté listo.

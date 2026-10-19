@@ -44,7 +44,8 @@ Schedule::command('approval-delegations:expire')
     ->everyMinute()
     ->withoutOverlapping();
 
-Schedule::command('budget:send-daily-alerts')
-    ->dailyAt('06:00')
-    ->timezone('America/Ciudad_Juarez')
-    ->withoutOverlapping();
+// Suspendido: falta darle formato institucional al correo. Reactivar cuando esté listo.
+// Schedule::command('budget:send-daily-alerts')
+//     ->dailyAt('06:00')
+//     ->timezone('America/Ciudad_Juarez')
+//     ->withoutOverlapping();
