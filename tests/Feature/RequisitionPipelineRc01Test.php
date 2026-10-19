@@ -103,7 +103,7 @@ class RequisitionPipelineRc01Test extends TestCase
     {
         $approver = User::factory()->create(['name' => 'Gerente Norte']);
         $requisition = $this->requisition('2026-10-05 08:00', [['PENDING', 1], ['IN_QUOTATION', 1], ['QUOTED', 1], ['IN_APPROVAL', 1]]);
-        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'approval_status' => 'pending', 'current_approver_user_id' => $approver->id, 'total' => 1500]);
+        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'approval_status' => 'pending', 'current_approver_user_id' => $approver->id, 'subtotal' => 1500, 'total' => 1740]);
         $other = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]);
 
         $row = $this->build()['rows']->firstWhere('id', $requisition->id);
@@ -141,9 +141,9 @@ class RequisitionPipelineRc01Test extends TestCase
     {
         $otherCenter = CostCenter::factory()->create(['company_id' => $this->company->id]);
         $match = $this->requisition('2026-09-20 08:00', [['PENDING', 1], ['IN_QUOTATION', 1], ['QUOTED', 1], ['IN_APPROVAL', 1]]);
-        QuotationSummary::factory()->create(['requisition_id' => $match->id, 'total' => 900]);
+        QuotationSummary::factory()->create(['requisition_id' => $match->id, 'subtotal' => 900, 'total' => 1044]);
         $tooCheap = $this->requisition('2026-09-20 08:00', [['PENDING', 1], ['IN_QUOTATION', 1], ['QUOTED', 1], ['IN_APPROVAL', 1]]);
-        QuotationSummary::factory()->create(['requisition_id' => $tooCheap->id, 'total' => 100]);
+        QuotationSummary::factory()->create(['requisition_id' => $tooCheap->id, 'subtotal' => 100, 'total' => 116]);
         $tooNew = $this->requisition('2026-10-08 08:00', [['PENDING', 1]]);
         $wrongCenter = $this->requisition('2026-09-20 08:00', [['PENDING', 1]], [], null, $otherCenter);
 
@@ -160,6 +160,18 @@ class RequisitionPipelineRc01Test extends TestCase
         $this->assertDatabaseHas('activity_log', ['log_name' => 'reportes', 'description' => 'Exportación RC-01 csv']);
 
         $this->actingAs($this->buyer)->get(route('requisition-pipeline-reports.export', ['format' => 'xlsx'] + $filters))->assertOk();
+    }
+
+    public function test_quoted_amount_is_the_pre_tax_subtotal_not_the_total_with_iva(): void
+    {
+        $requisition = $this->requisition('2026-10-05 08:00', [['PENDING', 1]]);
+        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'subtotal' => 1000, 'iva_amount' => 160, 'total' => 1160]);
+
+        $row = $this->build()['rows']->firstWhere('id', $requisition->id);
+
+        // El compromiso presupuestal de RP-01 se arma sobre el subtotal (sin IVA); RC-01 debe
+        // cuadrar contra ese mismo criterio, no contra el total con impuesto.
+        $this->assertSame(1000.0, $row['quoted_amount']);
     }
 
     public function test_estimated_amount_sums_the_captured_items_when_there_is_no_quote_yet(): void
@@ -180,7 +192,7 @@ class RequisitionPipelineRc01Test extends TestCase
     {
         $requisition = $this->requisition('2026-10-05 08:00', [['PENDING', 1], ['IN_QUOTATION', 1], ['QUOTED', 1]]);
         RequisitionItem::where('requisition_id', $requisition->id)->update(['estimated_amount' => 800]);
-        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'approval_status' => 'pending', 'total' => 950]);
+        QuotationSummary::factory()->create(['requisition_id' => $requisition->id, 'approval_status' => 'pending', 'subtotal' => 950, 'total' => 1102]);
 
         $row = $this->build()['rows']->firstWhere('id', $requisition->id);
 

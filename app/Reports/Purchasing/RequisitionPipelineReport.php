@@ -208,11 +208,13 @@ class RequisitionPipelineReport
                 'responsible_name' => $row->responsible_name,
             ])->values());
 
-        // Cotizado: lo cotizado en cotizaciones vigentes.
+        // Cotizado: lo cotizado en cotizaciones vigentes, sin IVA (subtotal) — el mismo criterio
+        // con el que BudgetAllocationService arma el compromiso presupuestal de RP-01; usar el
+        // total con impuesto aquí rompería la conciliación entre ambos reportes.
         $quotedAmounts = $load(fn (array $chunk) => DB::table('quotation_summaries')
             ->whereIn('requisition_id', $chunk)->whereNull('deleted_at')
             ->whereIn('approval_status', ['pending', 'approved', 'partially_approved'])
-            ->groupBy('requisition_id')->select('requisition_id', DB::raw('SUM(total) as amount')))
+            ->groupBy('requisition_id')->select('requisition_id', DB::raw('SUM(subtotal) as amount')))
             ->mapWithKeys(fn ($row) => [(int) $row->requisition_id => (float) $row->amount]);
 
         // Estimado (RC-01 #4): suma de requisition_items.estimated_amount, capturado con la requisición.
