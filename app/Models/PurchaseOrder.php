@@ -48,6 +48,7 @@ class PurchaseOrder extends Model
         'received_at',
         'closed_at',
         'inactivity_warning_sent_at',
+        'supplier_acknowledged_at',
         'reception_notes',
         'supplier_delivered_at',
         'reception_deadline_at',
@@ -63,6 +64,7 @@ class PurchaseOrder extends Model
         'received_at' => 'datetime',
         'closed_at' => 'datetime',
         'inactivity_warning_sent_at' => 'datetime',
+        'supplier_acknowledged_at' => 'datetime',
         'supplier_delivered_at' => 'datetime',
         'reception_deadline_at' => 'datetime',
     ];
@@ -350,5 +352,20 @@ class PurchaseOrder extends Model
     public function getDaysUntilAutoClose(): int
     {
         return (int) now()->diffInDays($this->getAutoCloseDeadline(), false);
+    }
+
+    /**
+     * Marca el acuse automatico del proveedor (primera vez que ve la OC en
+     * el portal). No se sobrescribe una vez capturado.
+     */
+    public function markAcknowledgedBySupplier(): void
+    {
+        if ($this->supplier_acknowledged_at !== null) {
+            return;
+        }
+
+        $now = now();
+        static::query()->whereKey($this->getKey())->update(['supplier_acknowledged_at' => $now]);
+        $this->supplier_acknowledged_at = $now;
     }
 }

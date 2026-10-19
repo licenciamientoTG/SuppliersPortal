@@ -62,6 +62,7 @@ class DirectPurchaseOrder extends Model
         'received_at',
         'closed_at',
         'inactivity_warning_sent_at',
+        'supplier_acknowledged_at',
         'supplier_delivered_at',
         'reception_deadline_at',
         'physical_receiver_name',
@@ -96,6 +97,7 @@ class DirectPurchaseOrder extends Model
         'received_at' => 'datetime',
         'closed_at' => 'datetime',
         'inactivity_warning_sent_at' => 'datetime',
+        'supplier_acknowledged_at' => 'datetime',
         'supplier_delivered_at' => 'datetime',
         'reception_deadline_at' => 'datetime',
     ];
@@ -547,6 +549,21 @@ class DirectPurchaseOrder extends Model
     public function convertItemAmountToMxn(float $amount): float
     {
         return round($amount * (float) $this->exchange_rate, 2);
+    }
+
+    /**
+     * Marca el acuse automatico del proveedor (primera vez que ve la OCD en
+     * el portal). No se sobrescribe una vez capturado.
+     */
+    public function markAcknowledgedBySupplier(): void
+    {
+        if ($this->supplier_acknowledged_at !== null) {
+            return;
+        }
+
+        $now = now();
+        static::query()->whereKey($this->getKey())->update(['supplier_acknowledged_at' => $now]);
+        $this->supplier_acknowledged_at = $now;
     }
 
     /**

@@ -52,6 +52,8 @@ class SupplierDeliveryController extends Controller
         // Si una OC normal y una OCD comparten el mismo `id`, una pisa a la otra.
         $orders = $purchaseOrders->concat($directOrders)->sortByDesc('issued_at')->values();
 
+        $orders->each(fn ($order) => $order->markAcknowledgedBySupplier());
+
         return view('supplier.deliveries.index', compact('orders'));
     }
 
@@ -79,6 +81,7 @@ class SupplierDeliveryController extends Controller
                 ->with('error', 'Esta orden de compra no está en un estatus que permita registrar entrega.');
         }
 
+        $order->markAcknowledgedBySupplier();
         $order->loadMissing(['receivingLocation', 'items']);
         $location = $order->receivingLocation;
 
