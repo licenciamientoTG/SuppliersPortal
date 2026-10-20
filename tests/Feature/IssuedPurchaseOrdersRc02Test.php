@@ -10,6 +10,7 @@ use App\Models\DirectPurchaseOrderItem;
 use App\Models\ExpenseCategory;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Supplier;
 use App\Models\User;
@@ -64,16 +65,25 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         parent::tearDown();
     }
 
-    private function oc(array $orderAttrs = [], array $itemAttrs = [], array $reqItemAttrs = []): PurchaseOrder
+    /**
+     * PurchaseOrderFactory crea internamente su propia Requisition/QuotationSummary
+     * desechables (con una empresa aleatoria); aquí se sobreescribe requisition_id con una
+     * requisición real de $requisitionCompany para que company_id sea el que la prueba espera.
+     */
+    private function oc(array $orderAttrs = [], array $itemAttrs = [], array $reqItemAttrs = [], ?Company $requisitionCompany = null): PurchaseOrder
     {
+        $requisition = Requisition::factory()->create(['company_id' => ($requisitionCompany ?? $this->company)->id]);
+
         $order = PurchaseOrder::factory()->create(array_merge([
             'supplier_id' => $this->supplier->id,
+            'requisition_id' => $requisition->id,
             'status' => 'ISSUED',
             'issued_at' => now(),
             'created_by' => $this->buyer->id,
         ], $orderAttrs));
 
         $reqItem = RequisitionItem::factory()->create(array_merge([
+            'requisition_id' => $requisition->id,
             'cost_center_id' => $this->center->id,
             'expense_category_id' => $this->category->id,
         ], $reqItemAttrs));
@@ -132,6 +142,15 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
 
         $this->assertSame('OC', $row['type']);
         $this->assertSame('REQUISICION', $row['origin']);
+    }
+
+    public function test_oc_company_id_comes_from_its_own_requisition(): void
+    {
+        $order = $this->oc();
+
+        $row = $this->build()['rows']->firstWhere('order_id', $order->id);
+
+        $this->assertSame($this->company->id, $row['company_id']);
     }
 
     public function test_oc_with_contract_source_type_is_classified_as_contrato_origin(): void
@@ -231,8 +250,10 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         // OC sin ninguna partida (dato huérfano/legacy, no bloqueado por constraints de BD a
         // diferencia de una partida sin requisition_item_id, que sí es NOT NULL): no hay de
         // dónde derivar centro de costo, y la validación debe exponerlo, no ocultarlo.
+        $requisition = Requisition::factory()->create(['company_id' => $this->company->id]);
         $order = PurchaseOrder::factory()->create([
             'supplier_id' => $this->supplier->id,
+            'requisition_id' => $requisition->id,
             'status' => 'ISSUED',
             'issued_at' => now(),
             'created_by' => $this->buyer->id,
@@ -241,6 +262,31 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         $exceptionIds = $this->build()['exceptions']->pluck('order_id')->all();
 
         $this->assertContains($order->id, $exceptionIds);
+    }
+
+    public function test_a_full_scope_user_restricted_to_one_company_cannot_see_orphan_orders_of_another_company(): void
+    {
+        $otherCompany = Company::factory()->create();
+        $requisitionHere = Requisition::factory()->create(['company_id' => $this->company->id]);
+        $requisitionElsewhere = Requisition::factory()->create(['company_id' => $otherCompany->id]);
+        // Ambas OC sin partidas (huérfanas): no hay centro de costo del que derivar alcance,
+        // así que solo la empresa (requisition.company_id) puede acotarlas.
+        $orphanHere = PurchaseOrder::factory()->create([
+            'supplier_id' => $this->supplier->id, 'requisition_id' => $requisitionHere->id,
+            'status' => 'ISSUED', 'issued_at' => now(), 'created_by' => $this->buyer->id,
+        ]);
+        $orphanElsewhere = PurchaseOrder::factory()->create([
+            'supplier_id' => $this->supplier->id, 'requisition_id' => $requisitionElsewhere->id,
+            'status' => 'ISSUED', 'issued_at' => now(), 'created_by' => $this->buyer->id,
+        ]);
+
+        $accountant = User::factory()->create()->assignRole('buyer');
+        $accountant->companies()->attach($this->company->id);
+
+        $ids = $this->build([], $accountant)['rows']->pluck('order_id')->all();
+
+        $this->assertContains($orphanHere->id, $ids);
+        $this->assertNotContains($orphanElsewhere->id, $ids);
     }
 
     public function test_normal_oc_with_a_cost_center_is_not_an_exception(): void
@@ -296,7 +342,7 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         $otherBuyer = User::factory()->create()->assignRole('buyer');
 
         $here = $this->oc();
-        $elsewhereCompany = $this->oc([], [], ['cost_center_id' => $otherCenter->id]);
+        $elsewhereCompany = $this->oc([], [], ['cost_center_id' => $otherCenter->id], $otherCompany);
         $elsewhereSupplier = $this->ocd(['supplier_id' => $otherSupplier->id]);
         $byOtherBuyer = $this->oc(['created_by' => $otherBuyer->id]);
         $direct = $this->ocd();
@@ -304,6 +350,7 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         $folios = fn ($rows) => $rows->pluck('folio')->all();
 
         $byCompany = $folios($this->build(['company_ids' => [$this->company->id]])['rows']);
+        $this->assertContains($here->folio, $byCompany);
         $this->assertNotContains($elsewhereCompany->folio, $byCompany);
 
         $bySupplier = $folios($this->build(['supplier_id' => $this->supplier->id])['rows']);
@@ -353,5 +400,15 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString($order->folio, $response->streamedContent());
+    }
+
+    public function test_csv_export_formats_the_issued_date_as_text_not_an_excel_serial(): void
+    {
+        $this->oc(['issued_at' => '2026-10-20 08:00:00']);
+
+        $response = $this->actingAs($this->buyer)->get(route('issued-purchase-orders-reports.export', 'csv'));
+
+        $response->assertOk();
+        $this->assertStringContainsString('20/10/2026', $response->streamedContent());
     }
 }

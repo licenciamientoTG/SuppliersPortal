@@ -53,9 +53,10 @@ class IssuedPurchaseOrdersReport
     {
         $visibleCenterIds = $this->visibleCostCenters($user)->pluck('id')->all();
         $isFullScope = $user->hasRole('superadmin') || $user->hasRole(self::FULL_SCOPE_ROLES);
+        $visibleCompanyIds = $isFullScope && ! $user->hasRole('superadmin') ? $user->companies()->pluck('companies.id')->all() : [];
 
-        $rows = $this->ocRows($visibleCenterIds, $isFullScope)
-            ->concat($this->ocdRows($visibleCenterIds, $isFullScope))
+        $rows = $this->ocRows($visibleCenterIds, $visibleCompanyIds, $isFullScope)
+            ->concat($this->ocdRows($visibleCenterIds, $visibleCompanyIds, $isFullScope))
             ->filter(fn (array $row) => $this->matches($row, $params))
             ->sortByDesc('issued_at')
             ->values();
@@ -67,40 +68,61 @@ class IssuedPurchaseOrdersReport
         ];
     }
 
-    private function ocRows(array $visibleCenterIds, bool $isFullScope): Collection
+    private function ocRows(array $visibleCenterIds, array $visibleCompanyIds, bool $isFullScope): Collection
     {
         return PurchaseOrder::query()
             ->whereNotNull('issued_at')
             ->with(['supplier', 'requisition', 'creator', 'items.requisitionItem.costCenter', 'items.requisitionItem.contract'])
             ->get()
-            ->filter(fn (PurchaseOrder $order) => $this->isVisible($order->items->pluck('requisitionItem.costCenter.id'), $visibleCenterIds, $isFullScope))
+            ->filter(fn (PurchaseOrder $order) => $this->isVisible(
+                $order->requisition?->company_id,
+                $order->items->pluck('requisitionItem.costCenter.id'),
+                $visibleCenterIds,
+                $visibleCompanyIds,
+                $isFullScope
+            ))
             ->map(fn (PurchaseOrder $order) => $this->ocRow($order));
     }
 
-    private function ocdRows(array $visibleCenterIds, bool $isFullScope): Collection
+    private function ocdRows(array $visibleCenterIds, array $visibleCompanyIds, bool $isFullScope): Collection
     {
         return DirectPurchaseOrder::query()
             ->whereNotNull('issued_at')
             ->with(['supplier', 'creator', 'items.costCenter'])
             ->get()
-            ->filter(fn (DirectPurchaseOrder $order) => $this->isVisible($order->items->pluck('costCenter.id'), $visibleCenterIds, $isFullScope))
+            ->filter(fn (DirectPurchaseOrder $order) => $this->isVisible(
+                $order->primaryCompanyId(),
+                $order->items->pluck('costCenter.id'),
+                $visibleCenterIds,
+                $visibleCompanyIds,
+                $isFullScope
+            ))
             ->map(fn (DirectPurchaseOrder $order) => $this->ocdRow($order));
     }
 
     /**
      * Una orden sin ningún centro de costo ligado (dato huérfano/histórico) no se puede acotar
-     * por alcance — se muestra a los roles de alcance completo (para exponerla como excepción,
-     * igual que RC-03 no oculta validaciones en 0) y se oculta a los jefes de departamento
-     * (que solo deben ver lo que sí pueden atribuirse).
+     * por centro de costo — se expone solo a los roles de alcance completo (igual que RC-03 no
+     * oculta validaciones en 0), y solo dentro de las empresas que de verdad tienen asignadas
+     * ($visibleCompanyIds): un comprador/contador acotado a la empresa A no debe ver huérfanos
+     * de la empresa B solo porque su rol es de alcance completo. Los jefes de departamento no
+     * tienen alcance por empresa, así que nunca ven huérfanos (no hay nada que atribuirles).
      */
-    private function isVisible(Collection $centerIds, array $visibleCenterIds, bool $isFullScope): bool
+    private function isVisible(?int $companyId, Collection $centerIds, array $visibleCenterIds, array $visibleCompanyIds, bool $isFullScope): bool
     {
         $centerIds = $centerIds->filter();
-        if ($centerIds->isEmpty()) {
-            return $isFullScope;
+        if ($centerIds->isNotEmpty()) {
+            return $centerIds->intersect($visibleCenterIds)->isNotEmpty();
         }
 
-        return $centerIds->intersect($visibleCenterIds)->isNotEmpty();
+        if (! $isFullScope) {
+            return false;
+        }
+        if (empty($visibleCompanyIds)) {
+            return true;
+        }
+
+        return $companyId !== null && in_array($companyId, $visibleCompanyIds, true);
     }
 
     private function ocRow(PurchaseOrder $order): array

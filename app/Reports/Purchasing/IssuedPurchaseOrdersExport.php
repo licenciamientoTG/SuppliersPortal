@@ -24,11 +24,11 @@ class IssuedPurchaseOrdersExport
         $filename = 'oc-emitidas-'.now(config('app.timezone'))->format('Y-m-d');
 
         if ($format === 'csv') {
-            return ['response' => ReportSheet::csv($this->columns(), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count()];
+            return ['response' => ReportSheet::csv($this->columns('csv'), $result['rows'], $filename.'.csv'), 'rows' => $result['rows']->count()];
         }
 
         $book = new Spreadsheet;
-        ReportSheet::write($book->getActiveSheet(), 'OC emitidas', $this->headerLines($user, $params), $this->columns(), $result['rows'], 3);
+        ReportSheet::write($book->getActiveSheet(), 'OC emitidas', $this->headerLines($user, $params), $this->columns('xlsx'), $result['rows'], 3);
         $response = response()->streamDownload(fn () => (new Xlsx($book))->save('php://output'), $filename.'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
@@ -36,7 +36,7 @@ class IssuedPurchaseOrdersExport
         return ['response' => $response, 'rows' => $result['rows']->count()];
     }
 
-    private function columns(): array
+    private function columns(string $format): array
     {
         $value = fn (string $key) => fn (array $row) => $row[$key] ?? null;
 
@@ -54,16 +54,28 @@ class IssuedPurchaseOrdersExport
             ['IVA', $value('transferred_taxes'), ReportSheet::MONEY],
             ['Total', $value('total'), ReportSheet::MONEY],
             ['Total MXN', $value('total_mxn'), ReportSheet::MONEY],
-            ['Fecha de emisión (envío)', $this->date('sent_at'), ReportSheet::DATE],
-            ['Acuse del proveedor', $this->date('supplier_ack_at'), ReportSheet::DATE],
+            ['Fecha de emisión (envío)', $this->date('sent_at', $format), ReportSheet::DATE],
+            ['Acuse del proveedor', $this->date('supplier_ack_at', $format), ReportSheet::DATE],
             ['Horas a acuse', $value('hours_to_ack'), null],
             ['Excepción', fn (array $row) => $row['is_exception'] ? 'Sí' : 'No', null],
         ];
     }
 
-    private function date(string $key): callable
+    /**
+     * ReportSheet::csv() escribe el valor devuelto tal cual con fputcsv, sin aplicar el formato
+     * de columna (ese formato solo lo usa ReportSheet::write() para Excel); por eso csv necesita
+     * texto legible aquí en vez del serial de ExcelDate::PHPToExcel() que sí entiende xlsx.
+     */
+    private function date(string $key, string $format): callable
     {
-        return fn (array $row) => ! empty($row[$key]) ? ExcelDate::PHPToExcel(Carbon::parse($row[$key])->setTimezone(config('app.timezone'))) : null;
+        return function (array $row) use ($key, $format) {
+            if (empty($row[$key])) {
+                return null;
+            }
+            $date = Carbon::parse($row[$key])->setTimezone(config('app.timezone'));
+
+            return $format === 'csv' ? $date->format('d/m/Y H:i') : ExcelDate::PHPToExcel($date);
+        };
     }
 
     private function headerLines(User $user, array $params): array
