@@ -316,6 +316,21 @@ class PurchaseOrderAmendmentsRc04Test extends TestCase
         $this->assertSame([$this->actor->name, $secondActor->name], $rows->sortBy('occurred_at')->pluck('actor_name')->values()->all());
     }
 
+    public function test_a_rejected_ocd_after_a_return_does_not_produce_a_false_reissued_row(): void
+    {
+        $order = $this->ocd(['status' => 'REJECTED', 'rejected_at' => now()]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'RETURNED', 'comments' => 'Corregir precio.', 'approved_at' => '2026-10-10 08:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'REJECTED', 'comments' => 'No procede.', 'approved_at' => '2026-10-11 08:00:00',
+        ]);
+
+        $this->assertCount(0, $this->build()['rows']->where('order_id', $order->id)->where('event_type', 'REISSUED_AFTER_REVISION'));
+    }
+
     public function test_an_ocd_still_in_returned_status_does_not_produce_a_reissued_row(): void
     {
         $order = $this->ocd(['status' => 'RETURNED', 'returned_at' => now(), 'issued_at' => now()->subDay()]);
