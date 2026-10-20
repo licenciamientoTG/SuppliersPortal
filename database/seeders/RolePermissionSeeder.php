@@ -121,6 +121,8 @@ class RolePermissionSeeder extends Seeder
             'reportes.open_po_backlog.exportar',
             'reportes.purchase_orders_issued.ver',
             'reportes.purchase_orders_issued.exportar',
+            'reportes.po_amendments.ver',
+            'reportes.po_amendments.exportar',
             'puestos.administrar',
         ];
 
@@ -387,10 +389,10 @@ class RolePermissionSeeder extends Seeder
             foreach ([$staffRole, $buyerRole, $departmentHeadRole, $generalDirectorRole] as $exceptionRequesterRole) {
                 $exceptionRequesterRole->givePermissionTo('reportes.budget_alerts.excepcion.solicitar');
             }
-            $departmentHeadRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver', 'reportes.purchase_orders_issued.ver']);
-            $reportViewerRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver', 'reportes.purchase_orders_issued.ver']);
+            $departmentHeadRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver', 'reportes.purchase_orders_issued.ver', 'reportes.po_amendments.ver']);
+            $reportViewerRole->givePermissionTo(['reportes.budget_alerts.ver', 'reportes.budget_vs_actual.ver', 'reportes.requisition_pipeline.ver', 'reportes.open_po_backlog.ver', 'reportes.purchase_orders_issued.ver', 'reportes.po_amendments.ver']);
             foreach ([$buyerRole, $accountingRole, $generalDirectorRole] as $pipelineRole) {
-                $pipelineRole->givePermissionTo(['reportes.requisition_pipeline.ver', 'reportes.requisition_pipeline.exportar', 'reportes.open_po_backlog.ver', 'reportes.open_po_backlog.exportar', 'reportes.purchase_orders_issued.ver', 'reportes.purchase_orders_issued.exportar']);
+                $pipelineRole->givePermissionTo(['reportes.requisition_pipeline.ver', 'reportes.requisition_pipeline.exportar', 'reportes.open_po_backlog.ver', 'reportes.open_po_backlog.exportar', 'reportes.purchase_orders_issued.ver', 'reportes.purchase_orders_issued.exportar', 'reportes.po_amendments.ver', 'reportes.po_amendments.exportar']);
             }
 
             $generalDirectorRole->givePermissionTo([
