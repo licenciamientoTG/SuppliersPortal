@@ -196,19 +196,12 @@ en PHP de `issued_at`/`supplier_acknowledged_at`. Este borrador solo valida que 
 
 1. ~~**Tipo de cambio / `total_mxn`:**~~ **Resuelta 2026-10-20** — ya existe el feature (commit
    `02264af`), `total_mxn` se incluye en el reporte (ver §1, §2.1).
-2. **Sección "Excepciones" mostrando el 100% de las OCD:** ¿de acuerdo en que el reporte lo
-   exponga así (honesto pero puede verse "alarmante" al no haber filtro para ocultarlo), o
-   prefieres que el reporte simplemente aclare en un aviso de cabecera que esa validación no
-   aplica a OCD hasta que exista el catálogo de causales, en vez de listarlas una por una como
-   excepción? SUPUESTO si no hay respuesta: aviso de cabecera (no listar cada OCD individualmente
-   como excepción, para no generar ruido de algo que no es un error operativo sino un hueco de
-   control ya conocido y fuera del alcance de este reporte).
-3. **Estatus por default:** el prompt sugiere "todos menos BORRADOR". En OC regular no existe un
-   estatus "borrador" (el filtro real ya es `issued_at IS NOT NULL`); en OCD sí existe `DRAFT` pero
-   queda excluido por el mismo filtro de `issued_at`. ¿De acuerdo en que el filtro de estatus en
-   pantalla sea un multi-select libre (por default: todos los estatus que puede tener una orden ya
-   emitida) en vez de intentar replicar un "BORRADOR" que no aplica aquí? SUPUESTO si no hay
-   respuesta: sí.
+2. ~~**Sección "Excepciones" mostrando el 100% de las OCD:**~~ **Confirmada 2026-10-21 por el
+   usuario** — aviso de cabecera (no listar cada OCD individualmente como excepción). Pendiente:
+   el código hoy SÍ lista cada OCD en `exceptions` (ver §1/§5); falta cambiar la vista/export para
+   mostrar el aviso de cabecera en vez de listarlas una por una antes de integrar a `main`.
+3. ~~**Estatus por default:**~~ **Confirmada 2026-10-21 por el usuario** — multi-select libre, sin
+   excluir nada por default. Ya implementado así.
 4. **Comprador (`buyer_id`) para alcance de compradores:** el prompt dice "compradores ven solo
    sus OC si así lo define la matriz de roles actual". **Corrección 2026-10-20 a la SUPUESTO
    original:** `PurchaseOrder::scopeVisibleTo()` / `DirectPurchaseOrder::scopeVisibleTo()` NO es
@@ -220,12 +213,5 @@ en PHP de `issued_at`/`supplier_acknowledged_at`. Este borrador solo valida que 
    jefes de departamento ven solo los centros de costo donde son responsables). RC-02 sigue el
    mismo patrón (`visibleCostCenters()` reutilizado literal de `OpenPurchaseOrderBacklogReport`, no
    `scopeVisibleTo()`), para mantener un solo criterio de alcance entre los 3 reportes de Compras.
-5. **(Nueva, 2026-10-20) KPI "% sin acuse > 48h":** el acuse automático (commit `a6c4fc3`) nunca
-   se simuló retroactivo, así que toda orden emitida antes de ese despliegue en producción tiene
-   `supplier_ack_at = null` para siempre, aunque el proveedor sí la haya visto en su momento. El
-   usuario confirmó el despliegue a producción el 2026-10-20. SUPUESTO si no hay respuesta en
-   contrario: el KPI y la columna `hours_to_ack` solo se calculan sobre órdenes con `issued_at >=
-   2026-10-20`; las anteriores muestran `hours_to_ack = "N/A (anterior al acuse)"` en vez de
-   contar como "sin acuse" para no inflar el indicador con huecos históricos que nunca se van a
-   llenar. El umbral de 48 h es el que trae el prompt original; se asume vigente salvo que el
-   usuario diga otro.
+5. ~~**(Nueva, 2026-10-20) KPI "% sin acuse > 48h":**~~ **Confirmada 2026-10-21 por el usuario**
+   — corte en `ACK_TRACKING_SINCE = 2026-10-20` y umbral de 48 h, tal cual ya implementado.

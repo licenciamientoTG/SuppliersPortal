@@ -63,6 +63,10 @@
         <div id="ipoError" class="filter-error text-danger small mt-2" role="alert"></div>
     </section>
 
+    <div class="alert alert-warning mb-3" role="note">
+        Las órdenes de compra directa (OCD) no tienen hoy catálogo de causales ni liga a contrato/autorización, así que no aparecen listadas una por una en la columna "Excepción" — usa el KPI de % de compra directa para dimensionarlas.
+    </div>
+
     <div class="row g-2 mb-3" id="ipoKpis" aria-live="polite"></div>
 
     <section class="report-card">

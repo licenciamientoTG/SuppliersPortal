@@ -95,6 +95,7 @@ class IssuedPurchaseOrdersExport
             'Filtros: '.($filters ? collect($filters)->map(fn ($value, $key) => "{$key}: {$value}")->implode('; ') : 'ninguno'),
             'Generado por '.$user->name.' el '.now(config('app.timezone'))->format('d/m/Y H:i'),
             'Total MXN ya incluye la conversión de tipo de cambio donde aplica. El acuse se mide solo en órdenes emitidas a partir del '.IssuedPurchaseOrdersReport::ACK_TRACKING_SINCE.'.',
+            'Las órdenes de compra directa (OCD) no tienen hoy catálogo de causales ni liga a contrato/autorización, por eso no aparecen individualmente en la columna Excepción; usa el % de compra directa (ver KPI en pantalla) para dimensionarlas.',
         ];
     }
 }

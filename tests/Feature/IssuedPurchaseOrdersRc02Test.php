@@ -236,13 +236,15 @@ class IssuedPurchaseOrdersRc02Test extends TestCase
         $this->assertNull($row['hours_to_ack']);
     }
 
-    public function test_exceptions_include_every_ocd_regardless_of_cost_center(): void
+    public function test_ocd_is_not_listed_individually_in_exceptions(): void
     {
+        // Confirmado por el usuario (2026-10-21): el hueco de catalogo de causales para OCD se
+        // comunica con un aviso de cabecera, no listando cada OCD una por una como excepcion.
         $order = $this->ocd();
 
         $exceptionIds = $this->build()['exceptions']->pluck('order_id')->all();
 
-        $this->assertContains($order->id, $exceptionIds);
+        $this->assertNotContains($order->id, $exceptionIds);
     }
 
     public function test_exceptions_include_oc_without_any_cost_center_assigned(): void

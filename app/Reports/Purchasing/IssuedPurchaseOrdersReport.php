@@ -180,7 +180,9 @@ class IssuedPurchaseOrdersReport
             'sent_at' => $issuedAt?->toIso8601String(),
             'supplier_ack_at' => $ackAt?->toIso8601String(),
             'hours_to_ack' => ($issuedAt && $ackAt) ? round($issuedAt->diffInMinutes($ackAt) / 60, 2) : null,
-            'is_exception' => $type === 'OCD' || ! $specific['has_cost_center'],
+            // Las OCD no se listan aquí una por una: el hueco de catálogo de causales/autorización
+            // (§2.2 del plan) se comunica con un aviso de cabecera, confirmado por el usuario.
+            'is_exception' => ! $specific['has_cost_center'],
         ];
     }
 
