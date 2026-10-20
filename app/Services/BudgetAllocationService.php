@@ -131,19 +131,20 @@ class BudgetAllocationService
         });
     }
 
+    /**
+     * Libera los compromisos abiertos de la orden igual que releaseOrder(); existe
+     * como método propio porque el evento ISSUED->RETURNED del modelo la invoca
+     * directamente (no a través de releaseDirectPurchaseOrder()). Debe reutilizar
+     * releaseLine() y no solo marcar el compromiso como liberado: de lo contrario el
+     * monto se queda comprometido en la cédula/distribución aunque el compromiso ya
+     * esté RELEASED, y una reserva posterior (tras editar la OCD en revisión) lo
+     * vuelve a comprometer encima, duplicando el monto.
+     */
     public function releaseTrace(Model $order): void
     {
         DB::transaction(function () use ($order) {
             foreach ($this->getOrderBudgetLines($order) as $line) {
-                $commitments = $this->findCommitmentsForLine($order, $line)
-                    ->where('status', 'COMMITTED');
-
-                foreach ($commitments as $commitment) {
-                    $commitment->update([
-                        'status' => 'RELEASED',
-                        'released_at' => now(),
-                    ]);
-                }
+                $this->releaseLine($order, $line);
             }
         });
     }

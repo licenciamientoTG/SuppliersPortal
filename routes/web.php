@@ -464,6 +464,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/data', [\App\Http\Controllers\IssuedPurchaseOrdersReportController::class, 'data'])->name('data');
         Route::get('/export/{format}', [\App\Http\Controllers\IssuedPurchaseOrdersReportController::class, 'export'])->middleware('can:reportes.purchase_orders_issued.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
     });
+    Route::prefix('reportes/compras/modificaciones-oc')->name('purchase-order-amendments-reports.')->middleware('can:reportes.po_amendments.ver')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PurchaseOrderAmendmentsReportController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\PurchaseOrderAmendmentsReportController::class, 'data'])->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\PurchaseOrderAmendmentsReportController::class, 'export'])->middleware('can:reportes.po_amendments.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
