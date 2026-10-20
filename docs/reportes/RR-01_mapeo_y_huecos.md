@@ -37,12 +37,12 @@ Esto no es un reporte que se pueda construir "tal cual" el spec — antes hay qu
 
 ## 2. Hallazgos importantes que cambian el alcance
 
-### 2.1 El tipo BIEN/SERVICIO/HITO no es un dato que exista — es derivable solo a medias
+### 2.1 El tipo BIEN/SERVICIO/HITO — CORREGIDO 2026-10-20: sí es 100% determinable para ambos tipos de orden
 
-- `PurchaseOrderItem` (OC regular) **no tiene** `expense_category_id` — confirmado en el modelo, cero referencias. Las OC regulares no tienen forma de saber si el ítem es bien o servicio.
-- `DirectPurchaseOrderItem` (OCD) **sí** tiene `expenseCategory`, y `ExpenseCategory::isService()` ya existe (se usa en la validación de REPSE). Para OCD: `isService() → SERVICIO`, si no → `BIEN` (por eliminación, ya que el catálogo no distingue más categorías que servicio/no-servicio).
-- `HITO` (hito de servicio, entrega parcial contractual) **no existe en ningún lugar del sistema** — ni como estado, ni como concepto de negocio. No se puede derivar ni simular sin inventar datos.
-- Propuesta: `reception_type` = `SERVICIO`/`BIEN` para OCD (derivado de sus ítems), y `NO_DETERMINABLE` para toda recepción de OC regular. Se reporta así, con su leyenda, en vez de adivinar.
+- Corrección a la primera versión de este plan: busqué `expense_category_id` directo en `PurchaseOrderItem` y no está ahí, pero **sí es accesible por la cadena correcta**: `PurchaseOrderItem → requisitionItem() → RequisitionItem` (que tiene `expense_category_id` y `product_service_id` propios) `→ expenseCategory()`. Cada renglón de OC viene de un renglón de requisición que ya trae su categoría de gasto.
+- `DirectPurchaseOrderItem` (OCD) tiene `expense_category_id` directo en el ítem — más simple todavía.
+- `ExpenseCategory::isService()` ya existe (se usa en la validación de REPSE) y aplica igual para ambos: `isService() → SERVICIO`, si no → `BIEN`.
+- `HITO` (hito de servicio, entrega parcial contractual) **no existe en ningún lugar del sistema** — ni como estado, ni como concepto de negocio. No se puede derivar ni simular sin inventar datos. Se omite del catálogo de tipos; solo `BIEN`/`SERVICIO`, ambos 100% calculables, sin hueco.
 
 ### 2.2 No existe un segundo rol de "validación" — recibir y validar son el mismo acto, por el mismo usuario
 
@@ -51,14 +51,16 @@ Esto no es un reporte que se pueda construir "tal cual" el spec — antes hay qu
 - Consecuencia para el reporte: **toda recepción registrada ES la "recepción validada"** del spec (no hay un subconjunto de recepciones sin validar que excluir) — `validated_by` = `received_by`, `validated_at` = `received_at`, siempre, con eso documentado como limitación conocida, no como dato nuevo.
 - Consecuencia para el `sod_flag`: la variante "recibió = validó" sería **siempre verdadera** (no aporta nada, es trivial por construcción) — se omite. La variante que sí aporta es "quien recibió es el mismo que solicitó la requisición de esa orden" (comparando `received_by` contra `requisitions.requested_by` de la OC, o `created_by` de la OCD) — esa sí es una señal real de segregación de funciones y es la que se implementa.
 
-### 2.3 No hay control real de evidencia obligatoria — y por tanto no hay "evidencia incompleta" que filtrar con certeza
+### 2.3 Control de evidencia obligatoria — RESUELTO 2026-10-20, construido antes del reporte
 
-- Hoy la única regla dura en `ReceptionController::validateConformityFields()` es: si una partida es `NO_CONFORME`, exige `nonconformity_type`, notas ≥100 caracteres y ≥1 foto.
-- Si **todas** las partidas son `CONFORME` (el caso normal, mayoría de recepciones), no se exige ni remisión ni fotos — se puede guardar con cero archivos adjuntos.
-- No existe `reception_evidence_rules` (catálogo de evidencia exigida por categoría bien/servicio/hito) en ningún lugar.
-- Dos caminos posibles, ambos legítimos, para que decidas (ver §7, pregunta 1):
-  - (a) **Solo reportar la realidad de hoy**: `evidence_complete` se calcula contra una regla minimalista fija en código (ej. "al menos 1 archivo total, remisión o foto"), dejando explícito en el reporte que no hay control que lo haga obligatorio al guardar.
-  - (b) **Construir el control real primero** (nueva tabla `reception_evidence_rules` + validación en el backend que rechace guardar sin la evidencia exigida por tipo) — esto es trabajo de producto nuevo, no solo de reporte, y es justo lo que pide el criterio de aceptación #1 del spec.
+Decisión del usuario: la evidencia obligatoria es el **archivo de remisión, por evento** (no por partida — las fotos de no conformidad por partida siguen igual que antes, sin cambios). Se avisa al usuario que sin esa evidencia no se procesará el pago al proveedor. Las recepciones ya existentes quedan exceptuadas (no se tocan datos históricos; la regla solo aplica a partir de ahora).
+
+Implementado (rama `feat/rr01-receptions-evidence`, commit `de7acae`, con TDD):
+- `ReceptionController::store()` y `::storeDirect()`: `remission_file` pasó de `nullable` a `required`, con mensaje `"Debes adjuntar el archivo de remisión. Sin esta evidencia, la recepción no podrá usarse para procesar el pago al proveedor."`.
+- Vista `receptions/create.blade.php`: el campo ya no dice "(opcional)", lleva asterisco de obligatorio, atributo HTML `required`, y la validación JS de cliente (`validateRemissionFile()`) ya no deja pasar sin archivo (mismo mensaje).
+- `reception_evidence_rules` (catálogo de evidencia exigida por categoría bien/servicio) **no se construyó** — el usuario decidió que la regla es una sola (remisión siempre, sin distinción por tipo), así que no hace falta un catálogo, es una validación fija.
+- Pruebas nuevas en `tests/Feature/ReceptionFlowTest.php`: rechazo sin remisión y aceptación con remisión, para OC regular y para OCD (4 pruebas), TDD estricto (RED confirmado por la razón correcta, luego GREEN). Se agregó también un helper `createRegularOrder()` (no existía ninguna prueba HTTP de recepción de OC regular hasta ahora, solo de OCD).
+- Suite completa verificada: mismas 36 fallas preexistentes, cero regresiones (677 passed, antes 674).
 
 ### 2.4 No existe hash en ningún punto de carga de archivos del repo — hay que construirlo desde cero
 
