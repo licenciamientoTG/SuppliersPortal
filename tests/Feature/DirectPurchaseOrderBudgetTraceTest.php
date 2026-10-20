@@ -104,4 +104,32 @@ class DirectPurchaseOrderBudgetTraceTest extends TestCase
         $this->assertSame('COMMITTED', $commitment->status);
         $this->assertEquals(2076.40, (float) $this->distribution->fresh()->committed_amount);
     }
+
+    /**
+     * Ciclo real de edición post-emisión: ISSUED -> RETURNED -> se edita el precio
+     * de la partida -> se reenvía a aprobación -> ISSUED otra vez. El compromiso
+     * final debe reflejar el monto nuevo, no el que tenía antes de la edición.
+     */
+    public function test_a_price_change_during_revision_commits_the_new_amount_not_the_old_one(): void
+    {
+        $this->service->reserveDirectPurchaseOrder($this->order->fresh());
+        $this->order->fresh()->update(['status' => 'ISSUED']);
+
+        $this->order->fresh()->update(['status' => 'RETURNED']);
+
+        $this->order->items()->first()->update([
+            'unit_price' => 5000,
+            'subtotal' => 5000,
+            'iva_amount' => 0,
+            'total' => 5000,
+        ]);
+
+        $this->service->reserveDirectPurchaseOrder($this->order->fresh());
+        $this->order->fresh()->update(['status' => 'ISSUED']);
+
+        $this->assertEquals(5000.0, (float) $this->distribution->fresh()->committed_amount);
+        $open = BudgetCommitment::where('direct_purchase_order_id', $this->order->id)->where('status', 'COMMITTED')->get();
+        $this->assertCount(1, $open);
+        $this->assertEquals(5000.0, (float) $open->sum('committed_amount'));
+    }
 }

@@ -111,25 +111,38 @@ caracteres) y llena `rejected_by`/`rejected_at` además de registrar la fila en
 `purchase_order_approvals`. Ambos eventos son 100% confiables como fuente para
 RC-04 sin construir nada nuevo.
 
-### 2.4 `budget_commitments` no sirve como sustituto del snapshot antes/después
+### 2.4 `budget_commitments` no sirve como sustituto del snapshot antes/después — y tenía un bug real de doble conteo (corregido)
 
 Investigué si el historial de `budget_commitments` podría usarse como proxy para
-reconstruir el monto "antes" de una edición de OCD (cada fila tiene su propio
-`committed_amount` y pasa por `COMMITTED → RELEASED` en el ciclo
-devolución/reenvío). No sirve: `BudgetAllocationService::syncCommitmentTrace()`
-(usado cuando una OCD vuelve a `ISSUED` tras una revisión) busca compromisos
-existentes que ya calzan con la misma combinación centro de
-costo/categoría/mes/cédula (`findCommitmentsForLine`) y **solo les cambia el
-estatus** de `RELEASED`/`COMMITTED` — nunca actualiza `committed_amount` al nuevo
-total tras la edición. Si el usuario cambió el precio o la cantidad durante la
-revisión, el compromiso revivido queda con el monto **viejo**, no el nuevo.
+reconstruir el monto "antes" de una edición de OCD. No sirve como fuente de "qué
+cambió": cada fila solo trae el monto con el que se comprometió, sin ligarlo a un
+valor "anterior" explícito.
 
-Esto es un hallazgo colateral de integridad presupuestal (el monto comprometido
-puede quedar desfasado del total real de la OCD tras una edición en revisión),
-independiente de RC-04. Lo marco aquí porque descarta esa tabla como fuente para
-el reporte, pero **no lo estoy arreglando como parte de este plan** — si quieres
-que se registre como pendiente aparte lo agrego al backlog de Compras
-(`docs/pendientes_2026-08-28.json`); ver pregunta abierta §7.4.
+Al escribir la prueba de regresión para esto (TDD — ver
+`tests/Feature/DirectPurchaseOrderBudgetTraceTest.php`,
+`test_a_price_change_during_revision_commits_the_new_amount_not_the_old_one`),
+encontré que mi hipótesis original (que `syncCommitmentTrace()` revivía el
+compromiso con el monto viejo) era **incorrecta en el mecanismo, pero señalaba un
+bug real en otro método**: `BudgetAllocationService::releaseTrace()` — el método
+que el evento `ISSUED → RETURNED` del modelo dispara directamente — solo marcaba
+el compromiso como `RELEASED` sin devolver el monto a la cédula/distribución
+presupuestal (a diferencia de `releaseLine()`, que sí lo hace). En el flujo real
+de la aplicación esto no se nota porque
+`DirectPurchaseOrderController::return()` ya llama explícitamente a
+`releaseDirectPurchaseOrder()` **antes** de cambiar el estatus, así que para
+cuando el evento del modelo dispara `releaseTrace()` el compromiso ya está
+liberado y no hay nada que hacer. Pero si alguna vez algo más disparara esa
+transición de estatus sin pasar primero por `releaseDirectPurchaseOrder()` (un
+futuro endpoint, un comando, una corrección de datos), el monto se quedaría
+comprometido para siempre en la distribución mientras se crea un compromiso
+nuevo encima al reenviar — doble conteo real, confirmado por la prueba (RED:
+`7076.4` en vez de `5000.0`, exactamente la suma de ambos montos).
+
+**Corregido** (confirmado por el plan, "corregirlo ahora"): `releaseTrace()`
+ahora reutiliza `releaseLine()` igual que `releaseOrder()`, así que siempre
+libera también la distribución, sea quien sea el que la invoque. Commit de esta
+rama. No afecta ningún otro test del proyecto (verificado contra la misma falla
+preexistente en `main`).
 
 ## 3. Estado de los prerrequisitos del Paso 0
 
@@ -244,10 +257,11 @@ las decisiones de las secciones 4 y 7.
    por ahora. RC-04 se entrega primero solo con lo disponible hoy (cancelaciones,
    rechazos, devoluciones a revisión como evento, sin diff de campos ni delta de
    monto). Se evalúa como mejora futura.
-4. **Hallazgo colateral de `budget_commitments`** (sección 2.4): se **corrige
-   ahora**, como parte de este mismo trabajo — `syncCommitmentTrace()` debe
-   actualizar `committed_amount` al monto nuevo cuando revive un compromiso tras
-   una edición en revisión, no solo cambiar el estatus.
+4. **Hallazgo colateral de `budget_commitments`** (sección 2.4): se **corrigió**
+   como parte de este mismo trabajo — el diagnóstico original mencionaba
+   `syncCommitmentTrace()`, pero la prueba de regresión reveló que el método real
+   con el defecto es `releaseTrace()` (no liberaba la distribución al pasar de
+   `ISSUED` a `RETURNED`). Ya corregido y probado.
 5. **Reactivaciones**: **fuera de alcance** de RC-04 por ahora; no hay
    quién/cuándo/por qué auditado. Se podrían incluir después si se agregan
    `reactivated_by`/`reactivated_at`.
