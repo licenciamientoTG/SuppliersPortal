@@ -163,15 +163,22 @@ class PurchaseOrderAmendmentsReport
             });
     }
 
+    /**
+     * No se usan returned_at/approved_by del encabezado: prepareApprovalFlow() los limpia al
+     * reenviar una OCD por la ruta de resolución de autorizador (ver
+     * DirectPurchaseOrderController::prepareApprovalFlow(), ~línea 625), así que el encabezado
+     * no es fuente confiable para detectar que hubo una reemisión. El historial de aprobaciones
+     * nunca se borra, y approve() solo crea una fila APPROVED en el mismo momento en que el
+     * estatus pasa a ISSUED (nunca en niveles intermedios de una cadena de aprobación), así que
+     * emparejar cada RETURNED con el siguiente APPROVED del mismo registro reconstruye cada ciclo
+     * de devolución/reemisión de forma confiable, incluso si hubo varios.
+     */
     private function reissuedAfterRevisionRows(array $visibleCenterIds, array $visibleCompanyIds, bool $isFullScope): Collection
     {
         return DirectPurchaseOrder::query()
-            ->whereNotNull('returned_at')
-            ->where('status', 'ISSUED')
-            ->whereNotNull('issued_at')
-            ->with(['supplier', 'creator', 'approver', 'items.costCenter'])
+            ->whereHas('approvals', fn ($query) => $query->where('action', 'RETURNED'))
+            ->with(['supplier', 'creator', 'items.costCenter', 'approvals.approver'])
             ->get()
-            ->filter(fn (DirectPurchaseOrder $order) => Carbon::parse($order->issued_at)->gt(Carbon::parse($order->returned_at)))
             ->filter(fn (DirectPurchaseOrder $order) => $this->isVisible(
                 $order->primaryCompanyId(),
                 $order->items->pluck('costCenter.id'),
@@ -179,17 +186,38 @@ class PurchaseOrderAmendmentsReport
                 $visibleCompanyIds,
                 $isFullScope
             ))
-            ->map(fn (DirectPurchaseOrder $order) => $this->row(
-                $order,
-                'OCD',
-                'REISSUED_AFTER_REVISION',
-                $order->primaryCompanyId(),
-                $this->costCenterLabel($order->items->pluck('costCenter')->filter()->unique('id')),
-                $order->convertItemAmountToMxn((float) $order->total),
-                $order->issued_at,
-                $order->approver?->name,
-                null
-            ));
+            ->flatMap(fn (DirectPurchaseOrder $order) => $this->reissuancesFor($order));
+    }
+
+    private function reissuancesFor(DirectPurchaseOrder $order): Collection
+    {
+        $events = $order->approvals->whereIn('action', ['RETURNED', 'APPROVED', 'REJECTED'])->sortBy('approved_at')->values();
+
+        $rows = collect();
+        $awaitingReissue = false;
+        foreach ($events as $event) {
+            if ($event->action === 'RETURNED') {
+                $awaitingReissue = true;
+
+                continue;
+            }
+            if ($event->action === 'APPROVED' && $awaitingReissue) {
+                $rows->push($this->row(
+                    $order,
+                    'OCD',
+                    'REISSUED_AFTER_REVISION',
+                    $order->primaryCompanyId(),
+                    $this->costCenterLabel($order->items->pluck('costCenter')->filter()->unique('id')),
+                    $order->convertItemAmountToMxn((float) $order->total),
+                    $event->approved_at,
+                    $event->approver?->name,
+                    null
+                ));
+            }
+            $awaitingReissue = false;
+        }
+
+        return $rows;
     }
 
     /** Ver isVisible() de IssuedPurchaseOrdersReport (RC-02): mismo criterio de alcance. */

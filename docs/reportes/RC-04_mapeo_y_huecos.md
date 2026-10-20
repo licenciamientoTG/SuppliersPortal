@@ -275,12 +275,32 @@ de estos cuatro tipos únicamente:
   (sección 2.3).
 - `RETURNED_TO_REVISION` (solo OCD) — fuente:
   `odc_direct_purchase_order_approvals` acción `RETURNED` (sección 2.2).
-- `REISSUED_AFTER_REVISION` (solo OCD) — fuente: siguiente acción `APPROVED` en
-  `odc_direct_purchase_order_approvals` después de un `RETURNED` para la misma
-  OCD, con `issued_at` posterior a ese `RETURNED`.
+- `REISSUED_AFTER_REVISION` (solo OCD) — fuente: para cada acción `RETURNED` en
+  `odc_direct_purchase_order_approvals`, la siguiente acción `APPROVED` del mismo
+  registro. **Corregido tras la revisión de Codex** (ver más abajo): la primera
+  versión usaba el encabezado (`returned_at`/`approved_by`), pero
+  `DirectPurchaseOrderController::prepareApprovalFlow()` limpia esas columnas al
+  reenviar una OCD por la ruta de resolución de autorizador, así que se perdían
+  reemisiones reales. Reconstruirlo desde el historial de aprobaciones (que nunca
+  se borra) también reconstruye cada ciclo de devolución/reemisión, no solo el
+  más reciente.
 
 Ningún evento incluye diff de campos ni monto "antes" — solo el monto actual de
 la orden, etiquetado como tal en la UI/exportación.
+
+## 9. Revisión de Codex (deliverable 3, previo a merge)
+
+Corrí `codex exec review` sobre la rama comparada contra `main`, pidiéndole que
+validara el fix presupuestal (sección 2.4) y el reporte completo. Encontró un
+hallazgo real **[P1]**: `reissuedAfterRevisionRows()` dependía de
+`returned_at`/`approved_by` del encabezado de la OCD, que
+`prepareApprovalFlow()` limpia al reenviar por la ruta de resolución de
+autorizador — perdiendo reemisiones reales y sin reconstruir ciclos múltiples,
+contradiciendo lo que esta misma sección ya pedía. Corregido con TDD: ahora se
+reconstruye desde el historial de `odc_direct_purchase_order_approvals`
+(emparejando cada `RETURNED` con el siguiente `APPROVED` del mismo registro),
+con pruebas nuevas para el caso del encabezado limpiado y para dos ciclos de
+devolución/reemisión. Sin otros hallazgos.
 
 Además, como parte de este trabajo (pregunta 4): corregir
 `BudgetAllocationService::syncCommitmentTrace()` para que, al revivir un

@@ -245,15 +245,14 @@ class PurchaseOrderAmendmentsRc04Test extends TestCase
 
     public function test_an_ocd_reissued_after_a_return_produces_a_reissued_after_revision_event_row(): void
     {
-        $order = $this->ocd([
-            'status' => 'ISSUED',
-            'returned_at' => '2026-10-10 08:00:00',
-            'issued_at' => '2026-10-20 09:00:00',
-            'approved_by' => $this->actor->id,
-        ]);
+        $order = $this->ocd(['status' => 'ISSUED', 'issued_at' => '2026-10-20 09:00:00', 'approved_by' => $this->actor->id]);
         DirectPurchaseOrderApproval::create([
             'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
             'action' => 'RETURNED', 'comments' => 'Corregir precio.', 'approved_at' => '2026-10-10 08:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'APPROVED', 'comments' => null, 'approved_at' => '2026-10-20 09:00:00',
         ]);
 
         $row = $this->build()['rows']->firstWhere('event_type', 'REISSUED_AFTER_REVISION');
@@ -265,9 +264,65 @@ class PurchaseOrderAmendmentsRc04Test extends TestCase
         $this->assertTrue(Carbon::parse($row['occurred_at'])->eq(Carbon::parse('2026-10-20 09:00:00')));
     }
 
+    /**
+     * prepareApprovalFlow() limpia returned_at/returned_by del encabezado cuando una OCD se
+     * reenvía por la ruta de resolución de autorizador (ver DirectPurchaseOrderController.php
+     * ~line 625), así que el encabezado no es fuente confiable para detectar la reemisión — debe
+     * reconstruirse desde el historial de aprobaciones, que nunca se borra. Este test reproduce
+     * exactamente ese estado (returned_at ya en null aunque sí hubo una devolución y reaprobación).
+     */
+    public function test_a_reissue_is_detected_even_when_the_header_returned_at_was_reset_by_a_resubmission(): void
+    {
+        $order = $this->ocd(['status' => 'ISSUED', 'issued_at' => '2026-10-20 09:00:00', 'approved_by' => $this->actor->id, 'returned_at' => null, 'returned_by' => null]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'RETURNED', 'comments' => 'Corregir precio.', 'approved_at' => '2026-10-10 08:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'APPROVED', 'comments' => null, 'approved_at' => '2026-10-20 09:00:00',
+        ]);
+
+        $row = $this->build()['rows']->firstWhere('event_type', 'REISSUED_AFTER_REVISION');
+
+        $this->assertNotNull($row);
+        $this->assertSame($order->id, $row['order_id']);
+    }
+
+    public function test_two_return_and_reissue_cycles_produce_two_reissued_after_revision_rows(): void
+    {
+        $order = $this->ocd(['status' => 'ISSUED', 'issued_at' => '2026-10-25 09:00:00', 'approved_by' => $this->actor->id]);
+        $secondActor = User::factory()->create();
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'RETURNED', 'comments' => 'Primera devolución.', 'approved_at' => '2026-10-10 08:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'APPROVED', 'comments' => null, 'approved_at' => '2026-10-12 09:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $secondActor->id,
+            'action' => 'RETURNED', 'comments' => 'Segunda devolución.', 'approved_at' => '2026-10-15 08:00:00',
+        ]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $secondActor->id,
+            'action' => 'APPROVED', 'comments' => null, 'approved_at' => '2026-10-25 09:00:00',
+        ]);
+
+        $rows = $this->build()['rows']->where('order_id', $order->id)->where('event_type', 'REISSUED_AFTER_REVISION');
+
+        $this->assertCount(2, $rows);
+        $this->assertSame([$this->actor->name, $secondActor->name], $rows->sortBy('occurred_at')->pluck('actor_name')->values()->all());
+    }
+
     public function test_an_ocd_still_in_returned_status_does_not_produce_a_reissued_row(): void
     {
-        $this->ocd(['status' => 'RETURNED', 'returned_at' => now(), 'issued_at' => now()->subDay()]);
+        $order = $this->ocd(['status' => 'RETURNED', 'returned_at' => now(), 'issued_at' => now()->subDay()]);
+        DirectPurchaseOrderApproval::create([
+            'direct_purchase_order_id' => $order->id, 'approval_level' => 1, 'approver_user_id' => $this->actor->id,
+            'action' => 'RETURNED', 'comments' => 'x', 'approved_at' => now(),
+        ]);
 
         $this->assertCount(0, $this->build()['rows']->where('event_type', 'REISSUED_AFTER_REVISION'));
     }
