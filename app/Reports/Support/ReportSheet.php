@@ -4,11 +4,14 @@ namespace App\Reports\Support;
 
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Escritura común de los reportes en Excel y CSV. Una columna es [encabezado, fn(fila) => valor, formato|null].
+ * Escritura común de los reportes en Excel y CSV. Una columna es [encabezado, fn(fila) => valor, formato|null]
+ * o [encabezado, fn(fila) => valor, formato|null, forzarTexto] cuando el valor viene de datos no confiables
+ * (p. ej. un nombre de archivo cargado por un usuario) y no debe interpretarse nunca como fórmula.
  */
 class ReportSheet
 {
@@ -21,6 +24,23 @@ class ReportSheet
     public const DATETIME = 'dd/mm/yyyy hh:mm';
 
     public const MONTH = 'mmm-yyyy';
+
+    /** Caracteres que un lector de hojas de cálculo interpreta como inicio de fórmula. */
+    private const FORMULA_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
+
+    /**
+     * Antepone un apóstrofo a un valor de texto no confiable que empiece con un carácter
+     * que un lector de hojas de cálculo (Excel, Sheets) interpretaría como fórmula, para
+     * que un CSV con ese valor no se ejecute como fórmula al abrirse.
+     */
+    public static function sanitizeFormula(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        return in_array($value[0], self::FORMULA_PREFIXES, true) ? "'".$value : $value;
+    }
 
     /**
      * Escribe el bloque de título, los encabezados y las filas con formato tipado y filtro automático.
@@ -43,7 +63,14 @@ class ReportSheet
         $first = $headingRow + 1;
         $line = $first;
         foreach ($rows as $row) {
-            $sheet->fromArray(array_map(fn ($column) => $column[1]($row), $columns), null, 'A'.$line, true);
+            $values = array_map(fn ($column) => $column[1]($row), $columns);
+            $sheet->fromArray($values, null, 'A'.$line, true);
+            foreach ($columns as $index => $column) {
+                if ($column[3] ?? false) {
+                    $letter = Coordinate::stringFromColumnIndex($index + 1);
+                    $sheet->setCellValueExplicit($letter.$line, (string) ($values[$index] ?? ''), DataType::TYPE_STRING);
+                }
+            }
             if ($isBold && $isBold($row)) {
                 $sheet->getStyle("A{$line}:{$lastColumn}{$line}")->getFont()->setBold(true);
             }
@@ -72,7 +99,9 @@ class ReportSheet
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, array_column($columns, 0));
             foreach ($rows as $row) {
-                fputcsv($out, array_map(fn ($column) => $column[1]($row), $columns));
+                fputcsv($out, array_map(fn ($column) => ($column[3] ?? false)
+                    ? self::sanitizeFormula($column[1]($row))
+                    : $column[1]($row), $columns));
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);

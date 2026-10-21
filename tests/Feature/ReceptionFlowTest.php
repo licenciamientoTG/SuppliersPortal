@@ -2,31 +2,34 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureSupplierIsApproved;
 use App\Jobs\SendDeliveryAlertDay0Job;
 use App\Jobs\SendDeliveryAlertDay2Job;
 use App\Jobs\SendDeliveryAlertDay3Job;
 use App\Mail\DeliveryAlertDay0Mail;
 use App\Mail\DeliveryAlertDay2Mail;
 use App\Mail\DeliveryAlertDay3Mail;
-use App\Models\DirectPurchaseOrder;
-use App\Models\Reception;
-use App\Models\ReceptionItem;
-use App\Http\Middleware\EnsureSupplierIsApproved;
 use App\Models\Company;
 use App\Models\CostCenter;
+use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderItem;
 use App\Models\ExpenseCategory;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\ReceivingLocation;
+use App\Models\Reception;
+use App\Models\ReceptionItem;
+use App\Models\Requisition;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\ReceptionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -41,7 +44,7 @@ class ReceptionFlowTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['supplier', 'receiver', 'buyer', 'superadmin', 'staff'] as $role) {
+        foreach (['supplier', 'receiver', 'buyer', 'superadmin', 'staff', 'accounting'] as $role) {
             Role::findOrCreate($role, 'web');
         }
     }
@@ -56,7 +59,7 @@ class ReceptionFlowTest extends TestCase
         $this->withoutMiddleware(EnsureSupplierIsApproved::class);
 
         [$order, , $supplier] = $this->createDirectOrder(['status' => 'ISSUED']);
-        $publicTestDisk = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'suppliersportal-test-public';
+        $publicTestDisk = sys_get_temp_dir().DIRECTORY_SEPARATOR.'suppliersportal-test-public';
         config()->set('filesystems.disks.public.root', $publicTestDisk);
         if (! is_dir($publicTestDisk)) {
             mkdir($publicTestDisk, 0777, true);
@@ -164,7 +167,7 @@ class ReceptionFlowTest extends TestCase
         $this->assertSame(0.0, (float) $item->refresh()->quantity_received);
     }
 
-    public function test_reception_can_be_registered_without_remission_file(): void
+    public function test_direct_order_reception_is_rejected_without_remission_file(): void
     {
         Notification::fake();
 
@@ -183,9 +186,84 @@ class ReceptionFlowTest extends TestCase
             ]],
         ]);
 
+        $response->assertSessionHasErrors('remission_file');
+        $this->assertDatabaseCount('receptions', 0);
+    }
+
+    public function test_direct_order_reception_is_registered_with_remission_file(): void
+    {
+        Notification::fake();
+        Storage::fake('public');
+
+        [$order, $location] = $this->createDirectOrder(['status' => 'ISSUED']);
+        $item = $order->items()->first();
+        $receiver = User::factory()->create();
+        $receiver->assignRole('receiver');
+
+        $response = $this->actingAs($receiver)->post(route('receptions.store-direct', $order), [
+            'receiving_location_id' => $location->id,
+            'received_at' => now()->format('Y-m-d H:i:s'),
+            'remission_file' => UploadedFile::fake()->create('remision.pdf', 100, 'application/pdf'),
+            'items' => [[
+                'receivable_item_id' => $item->id,
+                'quantity_received' => 5,
+                'conformity' => 'CONFORME',
+            ]],
+        ]);
+
         $response->assertSessionHasNoErrors();
         $reception = Reception::firstOrFail();
-        $this->assertNull($reception->remission_path);
+        $this->assertNotNull($reception->remission_path);
+        Storage::disk('public')->assertExists($reception->remission_path);
+    }
+
+    public function test_regular_order_reception_is_rejected_without_remission_file(): void
+    {
+        Notification::fake();
+
+        [$order, $location] = $this->createRegularOrder();
+        $item = $order->items()->first();
+        $receiver = User::factory()->create();
+        $receiver->assignRole('receiver');
+
+        $response = $this->actingAs($receiver)->post(route('receptions.store', $order), [
+            'receiving_location_id' => $location->id,
+            'received_at' => now()->format('Y-m-d H:i:s'),
+            'items' => [[
+                'receivable_item_id' => $item->id,
+                'quantity_received' => 5,
+                'conformity' => 'CONFORME',
+            ]],
+        ]);
+
+        $response->assertSessionHasErrors('remission_file');
+        $this->assertDatabaseCount('receptions', 0);
+    }
+
+    public function test_regular_order_reception_is_registered_with_remission_file(): void
+    {
+        Notification::fake();
+        Storage::fake('public');
+
+        [$order, $location] = $this->createRegularOrder();
+        $item = $order->items()->first();
+        $receiver = User::factory()->create();
+        $receiver->assignRole('receiver');
+
+        $response = $this->actingAs($receiver)->post(route('receptions.store', $order), [
+            'receiving_location_id' => $location->id,
+            'received_at' => now()->format('Y-m-d H:i:s'),
+            'remission_file' => UploadedFile::fake()->create('remision.pdf', 100, 'application/pdf'),
+            'items' => [[
+                'receivable_item_id' => $item->id,
+                'quantity_received' => 5,
+                'conformity' => 'CONFORME',
+            ]],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $reception = Reception::firstOrFail();
+        $this->assertNotNull($reception->remission_path);
     }
 
     public function test_receiver_role_can_receive_at_any_location(): void
@@ -276,6 +354,48 @@ class ReceptionFlowTest extends TestCase
         ]);
 
         return [$order->fresh(['items', 'supplier', 'receivingLocation']), $location, $supplier];
+    }
+
+    private function createRegularOrder(array $attributes = []): array
+    {
+        $creator = User::factory()->create();
+        $supplier = Supplier::factory()->create();
+
+        $company = Company::factory()->create(['name' => 'TotalGas']);
+        $requisition = Requisition::factory()->create([
+            'company_id' => $company->id,
+            'requested_by' => $creator->id,
+        ]);
+        $location = ReceivingLocation::factory()->create([
+            'company_id' => $company->id,
+            'name' => 'Estacion prueba OC',
+            'type' => 'service_station',
+        ]);
+
+        $order = PurchaseOrder::create(array_merge([
+            'folio' => uniqid('OC-2026-'),
+            'requisition_id' => $requisition->id,
+            'supplier_id' => $supplier->id,
+            'receiving_location_id' => $location->id,
+            'status' => 'ISSUED',
+            'created_by' => $creator->id,
+            'issued_at' => now(),
+            'subtotal' => 500,
+            'iva_amount' => 0,
+            'total' => 500,
+        ], $attributes));
+
+        PurchaseOrderItem::factory()->create([
+            'purchase_order_id' => $order->id,
+            'quantity' => 5,
+            'quantity_received' => 0,
+            'unit_price' => 100,
+            'subtotal' => 500,
+            'iva_amount' => 0,
+            'total' => 500,
+        ]);
+
+        return [$order->fresh(['items', 'supplier', 'receivingLocation']), $location];
     }
 
     private function createDeliveredOrderWithAlertRecipients(): array

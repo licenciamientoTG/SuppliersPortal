@@ -5,21 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ReceptionItem extends Model
 {
     use HasFactory;
 
-    const CONFORMITY_OK   = 'CONFORME';
+    const CONFORMITY_OK = 'CONFORME';
+
     const CONFORMITY_FAIL = 'NO_CONFORME';
 
     const NONCONFORMITY_TYPES = [
-        'defective'         => 'Producto defectuoso',
-        'wrong_specs'       => 'Especificaciones incorrectas',
-        'wrong_product'     => 'Producto diferente al solicitado',
+        'defective' => 'Producto defectuoso',
+        'wrong_specs' => 'Especificaciones incorrectas',
+        'wrong_product' => 'Producto diferente al solicitado',
         'damaged_packaging' => 'Daño en empaque/producto',
-        'other'             => 'Otro',
+        'other' => 'Otro',
     ];
 
     protected $fillable = [
@@ -35,7 +37,7 @@ class ReceptionItem extends Model
 
     protected $casts = [
         'quantity_received' => 'decimal:3',
-        'photos'            => 'array',
+        'photos' => 'array',
     ];
 
     // ─── Relaciones ───────────────────────────────────────────────────────────
@@ -48,6 +50,11 @@ class ReceptionItem extends Model
     public function receivableItem(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ReceptionAttachment::class);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

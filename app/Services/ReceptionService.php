@@ -7,6 +7,7 @@ use App\Models\DirectPurchaseOrderItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Reception;
+use App\Models\ReceptionAttachment;
 use App\Models\ReceptionItem;
 use App\Models\User;
 use App\Notifications\ReceptionCompletedNotification;
@@ -51,6 +52,8 @@ class ReceptionService
                 'received_at' => $data['received_at'] ?? now(),
             ]);
 
+            $this->recordRemissionAttachment($reception, $data, $receiver);
+
             // 2. Procesar cada línea recibida
             $itemClass = $this->resolveItemClass($order);
 
@@ -66,7 +69,7 @@ class ReceptionService
                 $quantityReceived = max(0, (float) ($lineData['quantity_received'] ?? 0));
                 $conformity = $lineData['conformity'] ?? ReceptionItem::CONFORMITY_OK;
 
-                ReceptionItem::create([
+                $receptionItem = ReceptionItem::create([
                     'reception_id' => $reception->id,
                     'receivable_item_type' => get_class($item),
                     'receivable_item_id' => $item->id,
@@ -76,6 +79,8 @@ class ReceptionService
                     'nonconformity_notes' => $lineData['nonconformity_notes'] ?? null,
                     'photos' => $lineData['photos'] ?? null,
                 ]);
+
+                $this->recordPhotoAttachments($reception, $receptionItem, $lineData, $receiver);
 
                 // Solo se acumulan las cantidades CONFORMES en el ítem de la orden.
                 // Si el ítem es NO_CONFORME, queda pendiente para que el proveedor
@@ -294,6 +299,62 @@ class ReceptionService
                     "La cantidad recibida del item {$itemId} ({$requestedQuantity}) supera la cantidad pendiente ({$pending})."
                 );
             }
+        }
+    }
+
+    /**
+     * Registra el adjunto de remisión (por evento) con su SHA-256, cuando el llamador
+     * aportó el hash y la metadata del archivo (controlador HTTP). Si no se aportan
+     * (p. ej. llamadas directas al servicio desde pruebas), no se crea ninguna fila.
+     */
+    private function recordRemissionAttachment(Reception $reception, array $data, User $uploader): void
+    {
+        if (empty($data['remission_path']) || empty($data['remission_sha256'])) {
+            return;
+        }
+
+        $meta = $data['remission_meta'] ?? [];
+
+        ReceptionAttachment::create([
+            'reception_id' => $reception->id,
+            'attachable_type' => ReceptionAttachment::TYPE_REMISSION,
+            'reception_item_id' => null,
+            'path' => $data['remission_path'],
+            'original_name' => $meta['original_name'] ?? null,
+            'mime_type' => $meta['mime_type'] ?? null,
+            'size' => $meta['size'] ?? null,
+            'sha256' => $data['remission_sha256'],
+            'hash_origin' => ReceptionAttachment::HASH_ORIGIN_EN_CARGA,
+            'uploaded_by' => $uploader->id,
+            'uploaded_at' => now(),
+        ]);
+    }
+
+    /**
+     * Registra los adjuntos fotográficos de una partida (por evidencia de no conformidad)
+     * con su SHA-256, cuando el llamador aportó 'photo_attachments' con la metadata de
+     * cada archivo ya almacenado.
+     */
+    private function recordPhotoAttachments(Reception $reception, ReceptionItem $receptionItem, array $lineData, User $uploader): void
+    {
+        foreach ($lineData['photo_attachments'] ?? [] as $photo) {
+            if (empty($photo['path']) || empty($photo['sha256'])) {
+                continue;
+            }
+
+            ReceptionAttachment::create([
+                'reception_id' => $reception->id,
+                'attachable_type' => ReceptionAttachment::TYPE_PHOTO,
+                'reception_item_id' => $receptionItem->id,
+                'path' => $photo['path'],
+                'original_name' => $photo['original_name'] ?? null,
+                'mime_type' => $photo['mime_type'] ?? null,
+                'size' => $photo['size'] ?? null,
+                'sha256' => $photo['sha256'],
+                'hash_origin' => ReceptionAttachment::HASH_ORIGIN_EN_CARGA,
+                'uploaded_by' => $uploader->id,
+                'uploaded_at' => now(),
+            ]);
         }
     }
 

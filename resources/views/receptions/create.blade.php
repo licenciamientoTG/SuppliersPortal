@@ -266,12 +266,15 @@
 
                         <div class="col-md-4">
                             <label class="form-label small fw-bold" for="remission_file">
-                                Archivo de Remisión <span class="text-muted fw-normal">(opcional)</span>
+                                Archivo de Remisión <span class="text-danger">*</span>
                             </label>
                             <input type="file" name="remission_file" id="remission_file"
                                    class="form-control form-control-sm @error('remission_file') is-invalid @enderror"
-                                   accept=".pdf,.jpg,.jpeg,.png">
-                            <div class="form-text">PDF, JPG o PNG · Máx. 10 MB</div>
+                                   accept=".pdf,.jpg,.jpeg,.png"
+                                   required>
+                            <div class="form-text text-danger">
+                                PDF, JPG o PNG · Máx. 10 MB · Obligatorio: sin esta evidencia no se procesará el pago al proveedor.
+                            </div>
                             @error('remission_file')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -597,7 +600,12 @@ $(document).ready(function () {
     // ─── Validaciones antes de submit ────────────────────────────────────────
     function validateRemissionFile() {
         const file = document.getElementById('remission_file').files[0];
-        if (!file) return { valid: true }; // la remisión es opcional
+        if (!file) {
+            return {
+                valid: false,
+                message: 'Debes adjuntar el archivo de remisión. Sin esta evidencia, la recepción no podrá usarse para procesar el pago al proveedor.',
+            };
+        }
 
         const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
         if (!allowed.includes(file.type)) {

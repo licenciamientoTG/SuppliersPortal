@@ -14,8 +14,10 @@ class Reception extends Model
 {
     use HasFactory, SoftDeletes;
 
-    const STATUS_PENDING   = 'PENDING';    // Iniciada, aún no finalizada
-    const STATUS_PARTIAL   = 'PARTIAL';    // Guardada con cantidades menores a las ordenadas
+    const STATUS_PENDING = 'PENDING';    // Iniciada, aún no finalizada
+
+    const STATUS_PARTIAL = 'PARTIAL';    // Guardada con cantidades menores a las ordenadas
+
     const STATUS_COMPLETED = 'COMPLETED';  // Todos los ítems de este evento fueron procesados
 
     protected $fillable = [
@@ -65,6 +67,17 @@ class Reception extends Model
         return $this->hasMany(ReceptionItem::class);
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ReceptionAttachment::class);
+    }
+
+    public function remissionAttachment(): HasOne
+    {
+        return $this->hasOne(ReceptionAttachment::class)
+            ->where('attachable_type', ReceptionAttachment::TYPE_REMISSION);
+    }
+
     public function financialProvision(): HasOne
     {
         return $this->hasOne(FinancialProvision::class);
@@ -75,7 +88,6 @@ class Reception extends Model
      * GENERACIÓN DE FOLIO
      * =========================================
      */
-
     public static function generateNextFolio(): string
     {
         $year = now()->year;
@@ -97,7 +109,6 @@ class Reception extends Model
      * VERIFICADORES DE ESTADO
      * =========================================
      */
-
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
@@ -116,20 +127,20 @@ class Reception extends Model
     public function getStatusLabel(): string
     {
         return match ($this->status) {
-            self::STATUS_PENDING   => 'Pendiente',
-            self::STATUS_PARTIAL   => 'Parcial',
+            self::STATUS_PENDING => 'Pendiente',
+            self::STATUS_PARTIAL => 'Parcial',
             self::STATUS_COMPLETED => 'Completada',
-            default                => 'Desconocido',
+            default => 'Desconocido',
         };
     }
 
     public function getStatusBadgeClass(): string
     {
         return match ($this->status) {
-            self::STATUS_PENDING   => 'warning',
-            self::STATUS_PARTIAL   => 'primary',
+            self::STATUS_PENDING => 'warning',
+            self::STATUS_PARTIAL => 'primary',
             self::STATUS_COMPLETED => 'success',
-            default                => 'secondary',
+            default => 'secondary',
         };
     }
 
@@ -138,7 +149,6 @@ class Reception extends Model
      * SCOPES
      * =========================================
      */
-
     public function scopeCompleted($query)
     {
         return $query->where('status', self::STATUS_COMPLETED);

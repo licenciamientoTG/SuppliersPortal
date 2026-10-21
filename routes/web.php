@@ -469,6 +469,12 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/data', [\App\Http\Controllers\PurchaseOrderAmendmentsReportController::class, 'data'])->name('data');
         Route::get('/export/{format}', [\App\Http\Controllers\PurchaseOrderAmendmentsReportController::class, 'export'])->middleware('can:reportes.po_amendments.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
     });
+    Route::prefix('reportes/recepciones/evidencia')->name('receptions-evidence-reports.')->middleware('can:reportes.receptions_evidence.ver')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'data'])->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'export'])->middleware('can:reportes.receptions_evidence.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+        Route::post('/adjuntos/{attachment}/verificar-hash', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'verifyHash'])->name('verify-hash');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
