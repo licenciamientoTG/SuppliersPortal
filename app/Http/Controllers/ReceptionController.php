@@ -278,10 +278,16 @@ class ReceptionController extends Controller
             return back()->withErrors($conformityErrors)->withInput();
         }
 
-        $remissionPath = $request->hasFile('remission_file')
-            ? $request->file('remission_file')->store('remisiones', 'public')
-            : null;
+        $remissionFile = $request->file('remission_file');
+        $remissionSha256 = $remissionFile ? hash_file('sha256', $remissionFile->getRealPath()) : null;
+        $remissionPath = $remissionFile ? $remissionFile->store('remisiones', 'public') : null;
         $validated['remission_path'] = $remissionPath;
+        $validated['remission_sha256'] = $remissionSha256;
+        $validated['remission_meta'] = $remissionFile ? [
+            'original_name' => $remissionFile->getClientOriginalName(),
+            'mime_type' => $remissionFile->getClientMimeType(),
+            'size' => $remissionFile->getSize(),
+        ] : null;
 
         // Guardar fotos por ítem
         $validated['items'] = $this->storeItemPhotos($request, $validated['items']);
@@ -372,10 +378,16 @@ class ReceptionController extends Controller
             return back()->withErrors($conformityErrors)->withInput();
         }
 
-        $remissionPath = $request->hasFile('remission_file')
-            ? $request->file('remission_file')->store('remisiones', 'public')
-            : null;
+        $remissionFile = $request->file('remission_file');
+        $remissionSha256 = $remissionFile ? hash_file('sha256', $remissionFile->getRealPath()) : null;
+        $remissionPath = $remissionFile ? $remissionFile->store('remisiones', 'public') : null;
         $validated['remission_path'] = $remissionPath;
+        $validated['remission_sha256'] = $remissionSha256;
+        $validated['remission_meta'] = $remissionFile ? [
+            'original_name' => $remissionFile->getClientOriginalName(),
+            'mime_type' => $remissionFile->getClientMimeType(),
+            'size' => $remissionFile->getSize(),
+        ] : null;
 
         $validated['items'] = $this->storeItemPhotos($request, $validated['items']);
 
@@ -459,12 +471,23 @@ class ReceptionController extends Controller
             $files = $request->file("items.{$i}.photos");
             if (! empty($files)) {
                 $paths = [];
+                $attachments = [];
                 foreach ($files as $file) {
-                    $paths[] = $file->store('recepciones/fotos', 'public');
+                    $path = $file->store('recepciones/fotos', 'public');
+                    $paths[] = $path;
+                    $attachments[] = [
+                        'path' => $path,
+                        'sha256' => hash_file('sha256', $file->getRealPath()),
+                        'original_name' => $file->getClientOriginalName(),
+                        'mime_type' => $file->getClientMimeType(),
+                        'size' => $file->getSize(),
+                    ];
                 }
                 $itemData['photos'] = $paths;
+                $itemData['photo_attachments'] = $attachments;
             } else {
                 $itemData['photos'] = null;
+                $itemData['photo_attachments'] = [];
             }
         }
         unset($itemData);
