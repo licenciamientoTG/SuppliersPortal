@@ -50,11 +50,11 @@ class ReceptionsEvidenceExport
             ['Folio recepción', $value('reception_folio'), null],
             ['Tipo de orden', $value('order_type'), null],
             ['Folio OC/OCD', $value('po_folio'), null],
-            ['Proveedor', $value('supplier_name'), null],
+            ['Proveedor', $value('supplier_name'), null, true],
             ['Tipo (bien/servicio)', $value('reception_type'), null],
             ['Fecha de recepción', $this->date('reception_date', $format), ReportSheet::DATETIME],
             ['Ubicación', $value('location_name'), null],
-            ['Recibió / validó', $value('received_by_name'), null],
+            ['Recibió / validó', $value('received_by_name'), null, true],
             ['Conflicto de segregación', fn (array $row) => $row['sod_flag'] ? 'Sí' : 'No', null],
             ['Archivos de evidencia', $value('evidence_count'), null],
             ['Evidencia completa', fn (array $row) => $row['evidence_complete'] ? 'Sí' : 'No', null],
@@ -75,7 +75,7 @@ class ReceptionsEvidenceExport
             ['SHA-256', $value('sha256'), null],
             ['Origen del hash', $value('hash_origin'), null],
             ['Cargado el', fn (array $row) => $row['uploaded_at'] ? Carbon::parse($row['uploaded_at'])->setTimezone(config('app.timezone'))->format('d/m/Y H:i') : null, null],
-            ['Cargado por', $value('uploaded_by_name'), null],
+            ['Cargado por', $value('uploaded_by_name'), null, true],
         ];
     }
 

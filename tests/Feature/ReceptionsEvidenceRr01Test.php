@@ -568,4 +568,40 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $this->assertSame(DataType::TYPE_STRING, $cell->getDataType());
         $this->assertSame('=1+1', $cell->getValue());
     }
+
+    public function test_xlsx_export_writes_a_supplier_or_receiver_name_as_text_so_it_cannot_run_as_a_formula(): void
+    {
+        $this->supplier->update(['company_name' => '=1+1']);
+        [$order, , $item] = $this->createOcd();
+        $this->receive($order, $item, User::factory()->create(['name' => '=2+2']));
+
+        $response = $this->actingAs($this->buyer)->get(route('receptions-evidence-reports.export', 'xlsx'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'rr01-xlsx-').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $sheet = IOFactory::load($path)->getSheetByName('Recepciones');
+        unlink($path);
+
+        $supplierCell = $sheet->getCell('D7');
+        $this->assertSame(DataType::TYPE_STRING, $supplierCell->getDataType());
+        $this->assertSame('=1+1', $supplierCell->getValue());
+
+        $receiverCell = $sheet->getCell('H7');
+        $this->assertSame(DataType::TYPE_STRING, $receiverCell->getDataType());
+        $this->assertSame('=2+2', $receiverCell->getValue());
+    }
+
+    public function test_csv_export_neutralizes_a_supplier_name_that_looks_like_a_formula(): void
+    {
+        $this->supplier->update(['company_name' => '=1+1']);
+        [$order, , $item] = $this->createOcd();
+        $this->receive($order, $item, User::factory()->create());
+
+        $response = $this->actingAs($this->buyer)->get(route('receptions-evidence-reports.export', 'csv'));
+
+        $response->assertOk();
+        $this->assertStringContainsString("'=1+1", $response->streamedContent());
+        $this->assertStringNotContainsString(',=1+1,', $response->streamedContent());
+    }
 }
