@@ -144,6 +144,30 @@
         </table>`;
     }
 
+    function itemRow(item) {
+        const conformity = item.conformity === 'CONFORME'
+            ? '<span class="badge bg-success">Conforme</span>'
+            : '<span class="badge bg-danger">No conforme</span>';
+
+        return `<tr>
+            <td>${esc(item.description)}</td>
+            <td class="num">${esc(item.quantity_received)}</td>
+            <td>${conformity}</td>
+        </tr>`;
+    }
+
+    function itemsTable(reception) {
+        const rows = (reception.items || []).map(itemRow).join('');
+        if (! rows) {
+            return '<em class="text-muted small">Sin renglones registrados.</em>';
+        }
+
+        return `<table class="table table-sm mb-0">
+            <thead><tr><th>Renglón</th><th class="num">Cantidad recibida</th><th>Conformidad</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    }
+
     function row(r) {
         const sod = r.sod_flag ? '<span class="badge bg-danger">Sí</span>' : '<span class="text-muted">No</span>';
         const complete = r.evidence_complete ? '<span class="badge bg-success">Sí</span>' : '<span class="badge bg-warning text-dark">No</span>';
@@ -162,7 +186,11 @@
             <td>${complete}</td>
         </tr>`;
         const detail = `<tr class="d-none" id="detail-${r.reception_id}" data-detail-for="${r.reception_id}">
-            <td></td><td colspan="11">${attachmentsTable(r)}</td>
+            <td></td>
+            <td colspan="11">
+                <div class="mb-2"><strong class="small text-muted text-uppercase">Renglones recibidos</strong>${itemsTable(r)}</div>
+                <div><strong class="small text-muted text-uppercase">Archivos de evidencia</strong>${attachmentsTable(r)}</div>
+            </td>
         </tr>`;
 
         return main + detail;

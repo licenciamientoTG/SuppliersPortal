@@ -604,4 +604,46 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $this->assertStringContainsString("'=1+1", $response->streamedContent());
         $this->assertStringNotContainsString(',=1+1,', $response->streamedContent());
     }
+
+    public function test_deleting_a_reception_item_nulls_its_attachment_instead_of_a_second_cascade_path(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('recepciones/fotos/foto.jpg', 'contenido');
+
+        [$order, , $item] = $this->createOcd();
+        $reception = $this->receive($order, $item, User::factory()->create());
+        $receptionItem = $reception->items()->firstOrFail();
+
+        $attachment = ReceptionAttachment::create([
+            'reception_id' => $reception->id,
+            'attachable_type' => ReceptionAttachment::TYPE_PHOTO,
+            'reception_item_id' => $receptionItem->id,
+            'path' => 'recepciones/fotos/foto.jpg',
+            'sha256' => hash('sha256', 'contenido'),
+            'hash_origin' => ReceptionAttachment::HASH_ORIGIN_EN_CARGA,
+            'uploaded_by' => $this->buyer->id,
+            'uploaded_at' => now(),
+        ]);
+
+        $receptionItem->delete();
+
+        $this->assertDatabaseHas('reception_attachments', ['id' => $attachment->id, 'reception_item_id' => null]);
+    }
+
+    public function test_xlsx_export_includes_a_lines_sheet_with_the_received_items(): void
+    {
+        [$order, , $item] = $this->createOcd();
+        $reception = $this->receive($order, $item, User::factory()->create());
+
+        $response = $this->actingAs($this->buyer)->get(route('receptions-evidence-reports.export', 'xlsx'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'rr01-xlsx-').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $sheet = IOFactory::load($path)->getSheetByName('Renglones');
+        unlink($path);
+
+        $this->assertNotNull($sheet);
+        $this->assertSame($reception->folio, $sheet->getCell('A4')->getValue());
+    }
 }

@@ -11,7 +11,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/** Exportación de RR-01: Excel (hoja de recepciones + hoja de archivos) y CSV (solo recepciones). */
+/** Exportación de RR-01: Excel (hoja de recepciones + hoja de renglones + hoja de archivos) y CSV (solo recepciones). */
 class ReceptionsEvidenceExport
 {
     public function __construct(private readonly ReceptionsEvidenceReport $report) {}
@@ -28,6 +28,12 @@ class ReceptionsEvidenceExport
 
         $book = new Spreadsheet;
         ReportSheet::write($book->getActiveSheet(), 'Recepciones', $this->headerLines($user, $params), $this->receptionColumns('xlsx'), $result['rows'], 2);
+
+        $itemRows = $result['rows']->flatMap(fn (array $row) => $row['items']->map(fn (array $item) => array_merge($item, [
+            'reception_folio' => $row['reception_folio'],
+            'po_folio' => $row['po_folio'],
+        ])));
+        ReportSheet::write($book->createSheet(), 'Renglones', ['RR-01 · Renglones recibidos por recepción'], $this->itemColumns(), $itemRows, 2);
 
         $attachmentRows = $result['rows']->flatMap(fn (array $row) => $row['attachments']->map(fn (array $attachment) => array_merge($attachment, [
             'reception_folio' => $row['reception_folio'],
@@ -58,6 +64,19 @@ class ReceptionsEvidenceExport
             ['Conflicto de segregación', fn (array $row) => $row['sod_flag'] ? 'Sí' : 'No', null],
             ['Archivos de evidencia', $value('evidence_count'), null],
             ['Evidencia completa', fn (array $row) => $row['evidence_complete'] ? 'Sí' : 'No', null],
+        ];
+    }
+
+    private function itemColumns(): array
+    {
+        $value = fn (string $key) => fn (array $row) => $row[$key] ?? null;
+
+        return [
+            ['Folio recepción', $value('reception_folio'), null],
+            ['Folio OC/OCD', $value('po_folio'), null],
+            ['Renglón', $value('description'), null, true],
+            ['Cantidad recibida', $value('quantity_received'), null],
+            ['Conformidad', fn (array $row) => $row['conformity'] === 'CONFORME' ? 'Conforme' : 'No conforme', null],
         ];
     }
 
