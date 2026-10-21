@@ -13,6 +13,7 @@ use App\Models\ReceptionAttachment;
 use App\Models\ReceptionItem;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 
@@ -115,7 +116,7 @@ class ReceptionsEvidenceReport
         $isFullScope = $this->isFullScope($user);
         $row = [
             'company_id' => $reception->receivingLocation?->company_id,
-            'cost_center_ids' => $this->costCenterIds($reception->items),
+            'cost_center_ids' => $this->costCenterIds($this->receivedItems($reception->items)),
         ];
 
         return $this->isVisible(
@@ -137,7 +138,7 @@ class ReceptionsEvidenceReport
 
     private function rows(): Collection
     {
-        return Reception::query()
+        $receptions = Reception::query()
             ->with([
                 'receivable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
                     PurchaseOrder::class => ['supplier', 'requisition'],
@@ -149,16 +150,23 @@ class ReceptionsEvidenceReport
                 'attachments.uploader',
             ])
             ->get()
-            ->filter(fn (Reception $reception) => $reception->receivable !== null)
-            ->map(fn (Reception $reception) => $this->row($reception));
+            ->filter(fn (Reception $reception) => $reception->receivable !== null);
+
+        // Se precarga la cadena de categoría de gasto de TODOS los renglones de TODAS las
+        // recepciones en un solo lote (en vez de una vez por recepción), para no ejecutar
+        // consultas proporcionales al histórico completo en cada carga del reporte.
+        // flatMap() degrada a una Collection base (sin loadMorph); se envuelve de regreso.
+        $allItems = EloquentCollection::make($receptions->flatMap(fn (Reception $reception) => $reception->items));
+        $this->loadItemCategories($allItems);
+
+        return $receptions->map(fn (Reception $reception) => $this->row($reception));
     }
 
     private function row(Reception $reception): array
     {
         $order = $reception->receivable;
         $isDirect = $order instanceof DirectPurchaseOrder;
-
-        $this->loadItemCategories($reception->items);
+        $receivedItems = $this->receivedItems($reception->items);
 
         $items = $reception->items->map(fn (ReceptionItem $item) => [
             'po_line' => $item->receivable_item_id,
@@ -190,11 +198,11 @@ class ReceptionsEvidenceReport
                 ? route('direct-purchase-orders.show', $order->id)
                 : route('purchase-orders.show', $order->id),
             'company_id' => $reception->receivingLocation?->company_id,
-            'cost_center_ids' => $this->costCenterIds($reception->items),
+            'cost_center_ids' => $this->costCenterIds($receivedItems),
             'location_id' => $reception->receivingLocation?->id,
             'location_name' => $reception->receivingLocation?->name,
             'supplier_name' => $order->supplier?->company_name,
-            'reception_type' => $this->receptionType($reception->items),
+            'reception_type' => $this->receptionType($receivedItems),
             'reception_date' => $receivedAt?->toIso8601String(),
             'received_by_id' => $reception->received_by,
             'received_by_name' => $reception->receiver?->name,
@@ -218,6 +226,16 @@ class ReceptionsEvidenceReport
             PurchaseOrderItem::class => ['requisitionItem.expenseCategory'],
             DirectPurchaseOrderItem::class => ['expenseCategory'],
         ]);
+    }
+
+    /**
+     * Partidas con cantidad recibida > 0: una recepción parcial crea ReceptionItem también
+     * para los renglones en cero (pendientes), que no deben contar para el alcance ni para
+     * el tipo bien/servicio de este evento — nada se recibió de ellos todavía.
+     */
+    private function receivedItems(Collection $items): Collection
+    {
+        return $items->filter(fn (ReceptionItem $item) => (float) $item->quantity_received > 0)->values();
     }
 
     /** Centros de costo tocados por las partidas recibidas (OC vía su requisition_item, OCD directo). */

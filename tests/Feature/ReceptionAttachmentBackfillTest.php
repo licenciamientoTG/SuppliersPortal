@@ -54,6 +54,26 @@ class ReceptionAttachmentBackfillTest extends TestCase
         $this->assertDatabaseCount('reception_attachments', 1);
     }
 
+    public function test_backfill_skips_photos_of_a_soft_deleted_reception_without_crashing(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('recepciones/fotos/borrada.jpg', 'contenido foto borrada');
+        Storage::disk('public')->put('recepciones/fotos/viva.jpg', 'contenido foto viva');
+
+        $liveReception = $this->createReception(['folio' => 'REC-2026-0001']);
+        $liveItem = $this->createReceptionItem($liveReception, ['photos' => ['recepciones/fotos/viva.jpg']]);
+
+        $deletedReception = $this->createReception(['folio' => 'REC-2026-0002']);
+        $this->createReceptionItem($deletedReception, ['photos' => ['recepciones/fotos/borrada.jpg']]);
+        $deletedReception->delete();
+
+        $this->artisan('receptions:backfill-attachment-hashes')->assertExitCode(0);
+
+        $this->assertDatabaseCount('reception_attachments', 1);
+        $photo = ReceptionAttachment::where('reception_item_id', $liveItem->id)->firstOrFail();
+        $this->assertSame(hash('sha256', 'contenido foto viva'), $photo->sha256);
+    }
+
     public function test_backfill_reports_missing_files_without_crashing_or_creating_rows(): void
     {
         Storage::fake('public');

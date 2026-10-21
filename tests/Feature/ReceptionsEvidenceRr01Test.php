@@ -314,6 +314,51 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $this->assertCount(0, $this->build([], $head)['rows']);
     }
 
+    public function test_a_zero_quantity_line_does_not_broaden_scope_or_change_the_reception_type(): void
+    {
+        // Recepción parcial de una OCD con 2 renglones: el de bien se recibe completo, el de
+        // servicio queda pendiente (cantidad 0). Ni el centro de costo ni la categoría del
+        // renglón pendiente deben contar para este evento — nada se recibió de él todavía.
+        $costCenterReceived = CostCenter::factory()->create(['company_id' => $this->company->id]);
+        $costCenterPending = CostCenter::factory()->create(['company_id' => $this->company->id]);
+        $location = ReceivingLocation::factory()->create(['company_id' => $this->company->id]);
+
+        $order = DirectPurchaseOrder::create([
+            'folio' => uniqid('OCD-2026-'), 'supplier_id' => $this->supplier->id,
+            'cost_center_id' => $costCenterReceived->id, 'receiving_location_id' => $location->id,
+            'application_month' => '2026-05', 'justification' => 'x', 'subtotal' => 200, 'iva_amount' => 32,
+            'total' => 232, 'currency' => 'MXN', 'status' => 'ISSUED', 'created_by' => $this->buyer->id, 'issued_at' => now(),
+        ]);
+        $goodItem = DirectPurchaseOrderItem::factory()->create([
+            'direct_purchase_order_id' => $order->id, 'expense_category_id' => $this->goodCategory->id,
+            'cost_center_id' => $costCenterReceived->id, 'quantity' => 5, 'quantity_received' => 0, 'unit_price' => 20,
+        ]);
+        $pendingServiceItem = DirectPurchaseOrderItem::factory()->create([
+            'direct_purchase_order_id' => $order->id, 'expense_category_id' => $this->serviceCategory->id,
+            'cost_center_id' => $costCenterPending->id, 'quantity' => 3, 'quantity_received' => 0, 'unit_price' => 20,
+        ]);
+
+        $receiver = User::factory()->create();
+        $reception = app(ReceptionService::class)->receive($order->fresh(), [
+            ['receivable_item_id' => $goodItem->id, 'quantity_received' => 5, 'conformity' => ReceptionItem::CONFORMITY_OK],
+            ['receivable_item_id' => $pendingServiceItem->id, 'quantity_received' => 0, 'conformity' => ReceptionItem::CONFORMITY_OK],
+        ], $receiver, [
+            'receiving_location_id' => $location->id, 'received_at' => now(),
+            'remission_path' => 'remisiones/remision.pdf', 'remission_sha256' => hash('sha256', 'x'.uniqid()),
+        ]);
+
+        $row = $this->build()['rows']->firstWhere('reception_id', $reception->id);
+        $this->assertSame('BIEN', $row['reception_type']);
+
+        $headOfPending = User::factory()->create()->assignRole('department_head');
+        $costCenterPending->update(['responsible_user_id' => $headOfPending->id]);
+        $this->assertCount(0, $this->build([], $headOfPending)['rows']);
+
+        $headOfReceived = User::factory()->create()->assignRole('department_head');
+        $costCenterReceived->update(['responsible_user_id' => $headOfReceived->id]);
+        $this->assertCount(1, $this->build([], $headOfReceived)['rows']);
+    }
+
     public function test_department_head_sees_receptions_touching_their_own_cost_center(): void
     {
         $head = User::factory()->create()->assignRole('department_head');

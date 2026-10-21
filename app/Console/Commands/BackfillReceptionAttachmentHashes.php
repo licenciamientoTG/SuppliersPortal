@@ -62,7 +62,7 @@ class BackfillReceptionAttachmentHashes extends Command
 
     private function backfillPhotos($disk): void
     {
-        ReceptionItem::whereNotNull('photos')->chunkById(100, function ($items) use ($disk) {
+        ReceptionItem::whereNotNull('photos')->whereHas('reception')->chunkById(100, function ($items) use ($disk) {
             foreach ($items as $item) {
                 $recordedPaths = ReceptionAttachment::where('reception_item_id', $item->id)
                     ->where('attachable_type', ReceptionAttachment::TYPE_PHOTO)
