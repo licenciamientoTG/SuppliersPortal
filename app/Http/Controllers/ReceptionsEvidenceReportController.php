@@ -19,14 +19,10 @@ class ReceptionsEvidenceReportController extends Controller
 
     public function index(Request $request)
     {
-        $visibleCompanyIds = $this->report->visibleCompanyIds($request->user());
+        $visibleCompanyIds = $this->report->visibleCompanyIdsForFilters($request->user());
 
-        $companies = Company::query()
-            ->when($visibleCompanyIds !== null, fn ($q) => $q->whereIn('id', $visibleCompanyIds))
-            ->orderBy('name')->get(['id', 'name']);
-        $locations = ReceivingLocation::query()
-            ->when($visibleCompanyIds !== null, fn ($q) => $q->whereIn('company_id', $visibleCompanyIds))
-            ->orderBy('name')->get(['id', 'name', 'company_id']);
+        $companies = Company::query()->whereIn('id', $visibleCompanyIds)->orderBy('name')->get(['id', 'name']);
+        $locations = ReceivingLocation::query()->whereIn('company_id', $visibleCompanyIds)->orderBy('name')->get(['id', 'name', 'company_id']);
         $receivers = User::query()->orderBy('name')->get(['id', 'name']);
 
         return view('reports.receptions-evidence.index', compact('companies', 'locations', 'receivers'));
@@ -55,8 +51,10 @@ class ReceptionsEvidenceReportController extends Controller
      * Verificación de hash bajo demanda: relee el archivo del disco y compara su SHA-256
      * contra el almacenado al momento de la carga (o del backfill).
      */
-    public function verifyHash(ReceptionAttachment $attachment)
+    public function verifyHash(Request $request, ReceptionAttachment $attachment)
     {
+        abort_unless($this->report->isReceptionVisible($request->user(), $attachment->reception), 403);
+
         $disk = Storage::disk($attachment->disk ?: 'public');
 
         if (! $disk->exists($attachment->path)) {

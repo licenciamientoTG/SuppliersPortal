@@ -2,6 +2,8 @@
 
 namespace App\Reports\Purchasing;
 
+use App\Models\Company;
+use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderItem;
 use App\Models\PurchaseOrder;
@@ -28,20 +30,55 @@ class ReceptionsEvidenceReport
     /** Roles que ven todo el universo de sus empresas asignadas (o todo si no tienen). */
     public const FULL_SCOPE_ROLES = ['superadmin', 'general_director', 'accounting', 'buyer'];
 
-    /** Empresas que el usuario puede consultar; null = sin restricción (ve todas). */
+    /**
+     * Empresas que el usuario puede consultar cuando tiene alcance completo; null = sin
+     * restricción (ve todas). Para roles de alcance acotado, ver responsibleCostCenterIds().
+     */
     public function visibleCompanyIds(User $user): ?array
     {
         if ($user->hasRole('superadmin')) {
             return null;
         }
 
-        if ($user->hasRole(self::FULL_SCOPE_ROLES)) {
-            $ids = $user->companies()->pluck('companies.id')->all();
-
-            return empty($ids) ? null : $ids;
+        if (! $user->hasRole(self::FULL_SCOPE_ROLES)) {
+            return [];
         }
 
-        return [];
+        $ids = $user->companies()->pluck('companies.id')->all();
+
+        return empty($ids) ? null : $ids;
+    }
+
+    /**
+     * Centros de costo de los que el usuario es responsable (alcance acotado, igual que
+     * RC-01..04): quien no tiene alcance completo solo ve recepciones de órdenes cuyas
+     * partidas pertenecen a un centro de costo bajo su responsabilidad.
+     */
+    public function responsibleCostCenterIds(User $user): array
+    {
+        return CostCenter::query()->where('responsible_user_id', $user->id)->pluck('id')->all();
+    }
+
+    private function isFullScope(User $user): bool
+    {
+        return $user->hasRole('superadmin') || $user->hasRole(self::FULL_SCOPE_ROLES);
+    }
+
+    /**
+     * Empresas a ofrecer en los filtros de pantalla, para cualquier rol: las asignadas (o
+     * todas) para alcance completo, o las de los centros de costo bajo su responsabilidad.
+     */
+    public function visibleCompanyIdsForFilters(User $user): array
+    {
+        if ($this->isFullScope($user)) {
+            $companyIds = $this->visibleCompanyIds($user);
+
+            return $companyIds ?? Company::query()->pluck('id')->all();
+        }
+
+        return CostCenter::query()
+            ->whereIn('id', $this->responsibleCostCenterIds($user))
+            ->pluck('company_id')->unique()->values()->all();
     }
 
     /**
@@ -50,10 +87,12 @@ class ReceptionsEvidenceReport
      */
     public function build(User $user, array $params): array
     {
-        $visibleCompanyIds = $this->visibleCompanyIds($user);
+        $isFullScope = $this->isFullScope($user);
+        $visibleCompanyIds = $isFullScope ? $this->visibleCompanyIds($user) : null;
+        $visibleCostCenterIds = $isFullScope ? [] : $this->responsibleCostCenterIds($user);
 
         $rows = $this->rows()
-            ->filter(fn (array $row) => $visibleCompanyIds === null || in_array($row['company_id'], $visibleCompanyIds, true))
+            ->filter(fn (array $row) => $this->isVisible($row, $isFullScope, $visibleCompanyIds, $visibleCostCenterIds))
             ->filter(fn (array $row) => $this->matches($row, $params))
             ->sortByDesc('reception_date')
             ->values();
@@ -62,6 +101,38 @@ class ReceptionsEvidenceReport
             'rows' => $rows,
             'kpis' => $this->kpis($rows),
         ];
+    }
+
+    /**
+     * Visibilidad de una recepción puntual (usada por el endpoint de verificación de hash,
+     * que no puede exponer archivos de recepciones fuera del alcance del usuario).
+     */
+    public function isReceptionVisible(User $user, Reception $reception): bool
+    {
+        $reception->loadMissing(['receivingLocation', 'items.receivableItem']);
+        $this->loadItemCategories($reception->items);
+
+        $isFullScope = $this->isFullScope($user);
+        $row = [
+            'company_id' => $reception->receivingLocation?->company_id,
+            'cost_center_ids' => $this->costCenterIds($reception->items),
+        ];
+
+        return $this->isVisible(
+            $row,
+            $isFullScope,
+            $isFullScope ? $this->visibleCompanyIds($user) : null,
+            $isFullScope ? [] : $this->responsibleCostCenterIds($user),
+        );
+    }
+
+    private function isVisible(array $row, bool $isFullScope, ?array $visibleCompanyIds, array $visibleCostCenterIds): bool
+    {
+        if ($isFullScope) {
+            return $visibleCompanyIds === null || in_array($row['company_id'], $visibleCompanyIds, true);
+        }
+
+        return array_intersect($row['cost_center_ids'], $visibleCostCenterIds) !== [];
     }
 
     private function rows(): Collection
@@ -119,6 +190,7 @@ class ReceptionsEvidenceReport
                 ? route('direct-purchase-orders.show', $order->id)
                 : route('purchase-orders.show', $order->id),
             'company_id' => $reception->receivingLocation?->company_id,
+            'cost_center_ids' => $this->costCenterIds($reception->items),
             'location_id' => $reception->receivingLocation?->id,
             'location_name' => $reception->receivingLocation?->name,
             'supplier_name' => $order->supplier?->company_name,
@@ -146,6 +218,24 @@ class ReceptionsEvidenceReport
             PurchaseOrderItem::class => ['requisitionItem.expenseCategory'],
             DirectPurchaseOrderItem::class => ['expenseCategory'],
         ]);
+    }
+
+    /** Centros de costo tocados por las partidas recibidas (OC vía su requisition_item, OCD directo). */
+    private function costCenterIds(Collection $items): array
+    {
+        return $items->map(function (ReceptionItem $item) {
+            $receivableItem = $item->receivableItem;
+
+            if ($receivableItem instanceof DirectPurchaseOrderItem) {
+                return $receivableItem->cost_center_id;
+            }
+
+            if ($receivableItem instanceof PurchaseOrderItem) {
+                return $receivableItem->requisitionItem?->cost_center_id;
+            }
+
+            return null;
+        })->filter()->unique()->values()->all();
     }
 
     private function itemDescription(ReceptionItem $item): ?string

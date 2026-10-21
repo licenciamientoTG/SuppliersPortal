@@ -326,7 +326,7 @@ class ReceptionService
             'sha256' => $data['remission_sha256'],
             'hash_origin' => ReceptionAttachment::HASH_ORIGIN_EN_CARGA,
             'uploaded_by' => $uploader->id,
-            'uploaded_at' => $reception->received_at,
+            'uploaded_at' => now(),
         ]);
     }
 
@@ -353,7 +353,7 @@ class ReceptionService
                 'sha256' => $photo['sha256'],
                 'hash_origin' => ReceptionAttachment::HASH_ORIGIN_EN_CARGA,
                 'uploaded_by' => $uploader->id,
-                'uploaded_at' => $reception->received_at,
+                'uploaded_at' => now(),
             ]);
         }
     }

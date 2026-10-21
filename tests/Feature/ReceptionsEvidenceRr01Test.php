@@ -303,7 +303,7 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $this->assertNotContains($receptionElsewhere->id, $ids);
     }
 
-    public function test_department_head_without_assigned_companies_sees_nothing(): void
+    public function test_department_head_without_a_responsible_cost_center_sees_nothing(): void
     {
         [$order, , $item] = $this->createOcd();
         $receiver = User::factory()->create();
@@ -312,6 +312,37 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $head = User::factory()->create()->assignRole('department_head');
 
         $this->assertCount(0, $this->build([], $head)['rows']);
+    }
+
+    public function test_department_head_sees_receptions_touching_their_own_cost_center(): void
+    {
+        $head = User::factory()->create()->assignRole('department_head');
+        $costCenter = CostCenter::factory()->create(['company_id' => $this->company->id, 'responsible_user_id' => $head->id]);
+        $otherCostCenter = CostCenter::factory()->create(['company_id' => $this->company->id]);
+        $location = ReceivingLocation::factory()->create(['company_id' => $this->company->id]);
+
+        $mineOrder = DirectPurchaseOrder::create([
+            'folio' => uniqid('OCD-2026-'), 'supplier_id' => $this->supplier->id,
+            'cost_center_id' => $costCenter->id, 'receiving_location_id' => $location->id,
+            'application_month' => '2026-05', 'justification' => 'x', 'subtotal' => 100, 'iva_amount' => 16,
+            'total' => 116, 'currency' => 'MXN', 'status' => 'ISSUED', 'created_by' => $this->buyer->id, 'issued_at' => now(),
+        ]);
+        $mineItem = DirectPurchaseOrderItem::factory()->create([
+            'direct_purchase_order_id' => $mineOrder->id, 'expense_category_id' => $this->goodCategory->id,
+            'cost_center_id' => $costCenter->id, 'quantity' => 5, 'quantity_received' => 0, 'unit_price' => 20, 'iva_rate' => 16,
+        ]);
+
+        [$notMineOrder, , $notMineItem] = $this->createOcd([], null, null);
+        DirectPurchaseOrderItem::query()->where('direct_purchase_order_id', $notMineOrder->id)->update(['cost_center_id' => $otherCostCenter->id]);
+
+        $receiver = User::factory()->create();
+        $mineReception = $this->receive($mineOrder->fresh(), $mineItem, $receiver);
+        $notMineReception = $this->receive($notMineOrder, $notMineItem, $receiver);
+
+        $ids = $this->build([], $head)['rows']->pluck('reception_id')->all();
+
+        $this->assertContains($mineReception->id, $ids);
+        $this->assertNotContains($notMineReception->id, $ids);
     }
 
     public function test_filters_by_reception_type_received_by_and_evidence(): void
@@ -379,6 +410,27 @@ class ReceptionsEvidenceRr01Test extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString($reception->folio, $response->streamedContent());
+    }
+
+    public function test_verify_hash_endpoint_enforces_company_scope(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('remisiones/remision.pdf', 'contenido remision ajeno');
+
+        $otherCompany = Company::factory()->create();
+        [$order, , $item] = $this->createOcd([], null, $otherCompany);
+        $reception = $this->receive($order, $item, User::factory()->create(), [
+            'remission_path' => 'remisiones/remision.pdf',
+            'remission_sha256' => hash('sha256', 'contenido remision ajeno'),
+        ]);
+        $attachment = ReceptionAttachment::where('reception_id', $reception->id)->firstOrFail();
+
+        $scopedBuyer = User::factory()->create()->assignRole('buyer');
+        $scopedBuyer->companies()->attach($this->company->id);
+
+        $this->actingAs($scopedBuyer)
+            ->postJson(route('receptions-evidence-reports.verify-hash', $attachment))
+            ->assertForbidden();
     }
 
     public function test_verify_hash_endpoint_confirms_a_matching_file(): void

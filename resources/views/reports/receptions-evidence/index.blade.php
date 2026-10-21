@@ -122,15 +122,26 @@
     function attachmentRow(reception, attachment, index) {
         const attachmentId = `${reception.reception_id}-${index}`;
         return `<tr class="attachment-row" data-attachment-parent="${reception.reception_id}">
-            <td></td>
-            <td colspan="4">${esc(attachment.attachable_type)} · ${esc(attachment.file_name)}</td>
-            <td colspan="2" class="hash">${esc(attachment.sha256)} <span class="badge bg-light text-dark">${esc(attachment.hash_origin)}</span></td>
-            <td colspan="2">${date(attachment.uploaded_at)} · ${esc(attachment.uploaded_by_name)}</td>
-            <td colspan="3">
+            <td>${esc(attachment.attachable_type)} · ${esc(attachment.file_name)}</td>
+            <td class="hash">${esc(attachment.sha256)} <span class="badge bg-light text-dark">${esc(attachment.hash_origin)}</span></td>
+            <td>${date(attachment.uploaded_at)} · ${esc(attachment.uploaded_by_name)}</td>
+            <td>
                 <button type="button" class="btn btn-sm btn-outline-secondary js-verify-hash" data-attachment-id="${attachment.id ?? ''}" data-target="verify-${attachmentId}">Verificar hash</button>
                 <span id="verify-${attachmentId}" class="small ms-2"></span>
             </td>
         </tr>`;
+    }
+
+    function attachmentsTable(reception) {
+        const rows = (reception.attachments || []).map((a, i) => attachmentRow(reception, a, i)).join('');
+        if (! rows) {
+            return '<em class="text-muted small">Sin archivos registrados.</em>';
+        }
+
+        return `<table class="table table-sm mb-0">
+            <thead><tr><th>Archivo</th><th>SHA-256</th><th>Cargado</th><th>Verificación</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
     }
 
     function row(r) {
@@ -151,7 +162,7 @@
             <td>${complete}</td>
         </tr>`;
         const detail = `<tr class="d-none" id="detail-${r.reception_id}" data-detail-for="${r.reception_id}">
-            <td></td><td colspan="11">${(r.attachments || []).map((a, i) => attachmentRow(r, a, i)).join('') || '<em class="text-muted small">Sin archivos registrados.</em>'}</td>
+            <td></td><td colspan="11">${attachmentsTable(r)}</td>
         </tr>`;
 
         return main + detail;
