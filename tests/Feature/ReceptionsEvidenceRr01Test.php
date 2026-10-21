@@ -22,8 +22,11 @@ use App\Reports\Purchasing\ReceptionsEvidenceReport;
 use App\Services\ReceptionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -520,5 +523,49 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $response = $this->actingAs($this->buyer)->postJson(route('receptions-evidence-reports.verify-hash', $attachment));
 
         $response->assertStatus(404)->assertJson(['matches' => false]);
+    }
+
+    public function test_building_the_report_runs_a_fixed_number_of_queries_regardless_of_reception_count(): void
+    {
+        [$order1, , $item1] = $this->createOcd();
+        $this->receive($order1, $item1, User::factory()->create());
+        $this->build();
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $this->build();
+        $queriesForOneReception = count(DB::getQueryLog());
+
+        [$order2, , $item2] = $this->createOcd();
+        $this->receive($order2, $item2, User::factory()->create());
+        [$order3, , $item3] = $this->createOcd();
+        $this->receive($order3, $item3, User::factory()->create());
+
+        DB::flushQueryLog();
+        $this->build();
+        $queriesForThreeReceptions = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame($queriesForOneReception, $queriesForThreeReceptions);
+    }
+
+    public function test_xlsx_export_writes_an_uploaded_file_name_as_text_so_it_cannot_run_as_a_formula(): void
+    {
+        [$order, , $item] = $this->createOcd();
+        $this->receive($order, $item, User::factory()->create(), [
+            'remission_meta' => ['original_name' => '=1+1', 'mime_type' => 'application/pdf', 'size' => 123],
+        ]);
+
+        $response = $this->actingAs($this->buyer)->get(route('receptions-evidence-reports.export', 'xlsx'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'rr01-xlsx-').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $sheet = IOFactory::load($path)->getSheetByName('Archivos');
+        unlink($path);
+
+        $cell = $sheet->getCell('D4');
+        $this->assertSame(DataType::TYPE_STRING, $cell->getDataType());
+        $this->assertSame('=1+1', $cell->getValue());
     }
 }

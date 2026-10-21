@@ -69,7 +69,7 @@ class ReceptionsEvidenceExport
             ['Folio recepción', $value('reception_folio'), null],
             ['Folio OC/OCD', $value('po_folio'), null],
             ['Tipo de archivo', $value('attachable_type'), null],
-            ['Nombre de archivo', $value('file_name'), null],
+            ['Nombre de archivo', $value('file_name'), null, true],
             ['Tipo MIME', $value('mime_type'), null],
             ['Tamaño (bytes)', $value('file_size'), null],
             ['SHA-256', $value('sha256'), null],

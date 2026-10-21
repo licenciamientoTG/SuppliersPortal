@@ -146,7 +146,7 @@ class ReceptionsEvidenceReport
                 ]),
                 'receivingLocation',
                 'receiver',
-                'items',
+                'items.receivableItem',
                 'attachments.uploader',
             ])
             ->get()
