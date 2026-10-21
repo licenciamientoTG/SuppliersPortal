@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Reports\Purchasing\ReceptionsEvidenceReport;
 use App\Services\ReceptionService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -605,7 +606,7 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $this->assertStringNotContainsString(',=1+1,', $response->streamedContent());
     }
 
-    public function test_deleting_a_reception_item_nulls_its_attachment_instead_of_a_second_cascade_path(): void
+    public function test_deleting_a_reception_item_directly_is_blocked_while_an_attachment_still_references_it(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('recepciones/fotos/foto.jpg', 'contenido');
@@ -614,7 +615,7 @@ class ReceptionsEvidenceRr01Test extends TestCase
         $reception = $this->receive($order, $item, User::factory()->create());
         $receptionItem = $reception->items()->firstOrFail();
 
-        $attachment = ReceptionAttachment::create([
+        ReceptionAttachment::create([
             'reception_id' => $reception->id,
             'attachable_type' => ReceptionAttachment::TYPE_PHOTO,
             'reception_item_id' => $receptionItem->id,
@@ -625,9 +626,13 @@ class ReceptionsEvidenceRr01Test extends TestCase
             'uploaded_at' => now(),
         ]);
 
-        $receptionItem->delete();
+        // reception_item_id es ON DELETE NO ACTION (sin ella, SQL Server rechaza la migración por
+        // rutas de cascada duplicadas hacia receptions). Borrar el renglón solo, dejando el adjunto
+        // huérfano, debe fallar: el renglón nunca se borra así en la app (siempre junto con toda la
+        // recepción, que ya limpia los adjuntos primero vía reception_id).
+        $this->expectException(QueryException::class);
 
-        $this->assertDatabaseHas('reception_attachments', ['id' => $attachment->id, 'reception_item_id' => null]);
+        $receptionItem->delete();
     }
 
     public function test_xlsx_export_includes_a_lines_sheet_with_the_received_items(): void

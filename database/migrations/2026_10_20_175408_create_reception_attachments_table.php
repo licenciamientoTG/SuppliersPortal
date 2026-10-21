@@ -18,12 +18,14 @@ return new class extends Migration
 
             // REMISSION (por evento) o PHOTO (por partida, solo cuando reception_item_id no es null)
             $table->string('attachable_type', 20);
-            // sin cascada: reception_items ya cascada desde receptions, y reception_id (arriba) también;
-            // una segunda cascada hacia receptions por esta columna es la misma ruta duplicada que
-            // SQL Server rechaza (error 1785). El renglón de recepción nunca se borra por sí solo
-            // (siempre junto con la recepción completa), así que basta con desvincular el adjunto.
+            // sin acción en cascada: reception_items ya cascada desde receptions, y reception_id
+            // (arriba) también; una segunda acción en cascada hacia receptions por esta columna
+            // (incluyendo "set null") es la misma ruta duplicada que SQL Server rechaza (error 1785:
+            // "may cause cycles or multiple cascade paths"). El renglón de recepción nunca se borra
+            // por sí solo (siempre junto con la recepción completa, que ya limpia estos adjuntos vía
+            // reception_id), así que no se necesita ninguna acción aquí.
             $table->foreignId('reception_item_id')->nullable()
-                ->constrained('reception_items')->nullOnDelete();
+                ->constrained('reception_items')->noActionOnDelete();
 
             $table->string('disk', 40)->default('public');
             $table->string('path', 500);
