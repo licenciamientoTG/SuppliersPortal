@@ -33,7 +33,12 @@
                             <td class="fw-semibold">{{ $invoice->uuid }}</td>
                             <td>{{ class_basename($invoice->receivable_type) }} #{{ $invoice->receivable_id }}</td>
                             <td>${{ number_format((float) $invoice->total, 2) }} {{ $invoice->currency }}</td>
-                            <td><span class="badge bg-{{ $invoice->getStatusBadgeClass() }}">{{ $invoice->getStatusLabel() }}</span></td>
+                            <td>
+                                <span class="badge bg-{{ $invoice->getStatusBadgeClass() }}">{{ $invoice->getStatusLabel() }}</span>
+                                @if($invoice->status === \App\Models\SupplierInvoice::STATUS_REJECTED && $invoice->rejection_reason)
+                                    <div class="small text-muted mt-1">{{ $invoice->rejection_reason }}</div>
+                                @endif
+                            </td>
                             <td>
                                 @if($invoice->financialProvision)
                                     {{ $invoice->financialProvision->reception?->folio }}

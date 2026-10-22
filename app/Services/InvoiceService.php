@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
 use App\Models\PurchaseOrder;
-use App\Models\Company;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\User;
@@ -15,18 +15,17 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Throwable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Throwable;
 
 class InvoiceService
 {
     public function __construct(
         private CfdiXmlParser $parser,
         private FinancialProvisionService $financialProvisionService,
-    ) {
-    }
+    ) {}
 
     public function upload(
         Supplier $supplier,
@@ -98,11 +97,7 @@ class InvoiceService
 
     public function reject(SupplierInvoice $invoice, string $reason): SupplierInvoice
     {
-        $invoice->update([
-            'status' => SupplierInvoice::STATUS_REJECTED,
-            'rejected_at' => now(),
-            'rejection_reason' => $reason,
-        ]);
+        $invoice->markRejected($reason);
 
         return $invoice->fresh();
     }

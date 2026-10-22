@@ -102,6 +102,12 @@ class SupplierInvoiceController extends Controller
                 ]);
         }
 
+        if ($invoice->status === SupplierInvoice::STATUS_REJECTED) {
+            return redirect()
+                ->route('supplier.invoices.index')
+                ->with('error', "Tu factura {$invoice->uuid} fue rechazada: {$invoice->rejection_reason}");
+        }
+
         return redirect()
             ->route('supplier.invoices.index')
             ->with('success', "Factura {$invoice->uuid} cargada correctamente.");

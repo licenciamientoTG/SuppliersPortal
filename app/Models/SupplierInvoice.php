@@ -12,10 +12,13 @@ class SupplierInvoice extends Model
     use HasFactory;
 
     public const STATUS_UPLOADED = 'UPLOADED';
+
     public const STATUS_LINKED = 'LINKED';
+
     public const STATUS_REJECTED = 'REJECTED';
 
     public const ORIGIN_SUPPLIER = 'supplier';
+
     public const ORIGIN_FINANCE = 'finance';
 
     protected $fillable = [
@@ -74,6 +77,15 @@ class SupplierInvoice extends Model
     public function supplierUploader(): BelongsTo
     {
         return $this->belongsTo(Supplier::class, 'uploaded_by_supplier_id');
+    }
+
+    public function markRejected(string $reason): void
+    {
+        $this->update([
+            'status' => self::STATUS_REJECTED,
+            'rejected_at' => now(),
+            'rejection_reason' => $reason,
+        ]);
     }
 
     public function getStatusLabel(): string

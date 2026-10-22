@@ -22,6 +22,9 @@
                     <dt class="col-sm-3">IVA</dt><dd class="col-sm-9">${{ number_format((float) $invoice->iva_amount, 2) }}</dd>
                     <dt class="col-sm-3">Total</dt><dd class="col-sm-9">${{ number_format((float) $invoice->total, 2) }} {{ $invoice->currency }}</dd>
                     <dt class="col-sm-3">Estado</dt><dd class="col-sm-9"><span class="badge bg-{{ $invoice->getStatusBadgeClass() }}">{{ $invoice->getStatusLabel() }}</span></dd>
+                    @if($invoice->status === \App\Models\SupplierInvoice::STATUS_REJECTED)
+                        <dt class="col-sm-3">Motivo de rechazo</dt><dd class="col-sm-9">{{ $invoice->rejection_reason }}</dd>
+                    @endif
                     <dt class="col-sm-3">Archivos</dt>
                     <dd class="col-sm-9">
                         <a href="{{ asset('storage/' . $invoice->xml_path) }}" target="_blank" class="btn btn-outline-secondary btn-sm">XML</a>
