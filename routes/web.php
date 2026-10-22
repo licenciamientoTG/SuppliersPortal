@@ -808,8 +808,6 @@ Route::middleware(['auth', 'lock', 'module.access:payments_billing'])->group(fun
     Route::get('/financial-provisions/{financialProvision}', [FinancialProvisionController::class, 'show'])->name('financial-provisions.show');
     Route::post('/financial-provisions/{financialProvision}/link-invoice', [FinancialProvisionController::class, 'linkInvoice'])
         ->name('financial-provisions.link-invoice');
-    Route::post('/financial-provisions/{financialProvision}/adjustments', [FinancialProvisionController::class, 'authorizeAdjustment'])
-        ->name('financial-provisions.adjustments.store');
 });
 
 // ============================================================================

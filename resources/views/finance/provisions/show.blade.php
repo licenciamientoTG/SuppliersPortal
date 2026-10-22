@@ -67,20 +67,6 @@
                     @endif
                 @endif
 
-                @if($provision->status === \App\Models\FinancialProvision::STATUS_DISCREPANCY_REVIEW)
-                    <hr>
-                    <form method="POST" action="{{ route('financial-provisions.adjustments.store', $provision) }}">
-                        @csrf
-                        <label class="form-label">Monto del ajuste</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" value="{{ $provision->difference_amount }}" required>
-                        <label class="form-label mt-2">Motivo</label>
-                        <input type="text" name="reason" class="form-control" required>
-                        <label class="form-label mt-2">Notas</label>
-                        <textarea name="notes" class="form-control" rows="3"></textarea>
-                        <button class="btn btn-success btn-sm mt-2">Autorizar Ajuste</button>
-                    </form>
-                @endif
-
                 @if($provision->adjustments->isNotEmpty())
                     <hr>
                     <h6>Ajustes autorizados</h6>

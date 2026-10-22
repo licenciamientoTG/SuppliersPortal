@@ -36,16 +36,16 @@ class FinancialProvisionServiceTest extends TestCase
         ]);
         $nonConforming->setRelation('receivableItem', $nonConformingOrderItem);
 
-        $reception = new Reception();
+        $reception = new Reception;
         $reception->setRelation('items', collect([$conforming, $nonConforming]));
 
-        $amount = (new FinancialProvisionService())->calculateProvisionAmount($reception);
+        $amount = (new FinancialProvisionService)->calculateProvisionAmount($reception);
 
         $this->assertSame(232.0, $amount);
     }
 
-    public function test_discrepancy_tolerance_is_one_cent(): void
+    public function test_invoice_amount_tolerance_is_five_cents(): void
     {
-        $this->assertSame(0.01, FinancialProvisionService::DISCREPANCY_TOLERANCE);
+        $this->assertSame(0.05, FinancialProvisionService::INVOICE_AMOUNT_TOLERANCE);
     }
 }

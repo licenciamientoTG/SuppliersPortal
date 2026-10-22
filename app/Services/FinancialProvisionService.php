@@ -4,14 +4,14 @@ namespace App\Services;
 
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
-use App\Models\FinancialProvisionAdjustment;
 use App\Models\PurchaseOrder;
 use App\Models\Reception;
 use App\Models\ReceptionItem;
 use App\Models\SupplierInvoice;
 use App\Models\User;
-use App\Notifications\FinancialProvisionDiscrepancyNotification;
 use App\Notifications\FinancialProvisionPendingInvoiceNotification;
+use App\Notifications\InvoiceRejectedByToleranceNotification;
+use App\Notifications\SupplierInvoiceRejectedNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +20,9 @@ use Throwable;
 
 class FinancialProvisionService
 {
-    public const DISCREPANCY_TOLERANCE = 0.01;
+    public const INVOICE_AMOUNT_TOLERANCE = 0.05;
+
+    public function __construct(private SafeNotificationService $safeNotifications = new SafeNotificationService) {}
 
     public function createForReception(Reception $reception): FinancialProvision
     {
@@ -92,17 +94,20 @@ class FinancialProvisionService
     {
         return DB::transaction(function () use ($provision, $invoice) {
             $difference = round((float) $invoice->total - (float) $provision->provision_amount, 2);
-            $hasDiscrepancy = abs($difference) >= self::DISCREPANCY_TOLERANCE;
+
+            if (abs($difference) > self::INVOICE_AMOUNT_TOLERANCE) {
+                $this->rejectForAmountMismatch($provision, $invoice, $difference);
+
+                return $provision->fresh(['invoice', 'adjustments']);
+            }
 
             $provision->update([
                 'supplier_invoice_id' => $invoice->id,
                 'invoice_amount' => $invoice->total,
                 'difference_amount' => $difference,
-                'status' => $hasDiscrepancy
-                    ? FinancialProvision::STATUS_DISCREPANCY_REVIEW
-                    : FinancialProvision::STATUS_INVOICED,
+                'status' => FinancialProvision::STATUS_INVOICED,
                 'invoiced_at' => now(),
-                'closed_at' => $hasDiscrepancy ? null : now(),
+                'closed_at' => now(),
             ]);
 
             $invoice->update([
@@ -111,34 +116,32 @@ class FinancialProvisionService
                 'linked_at' => now(),
             ]);
 
-            if ($hasDiscrepancy) {
-                $this->notifyAccounting(new FinancialProvisionDiscrepancyNotification($provision->fresh(['invoice', 'reception'])));
-            }
-
             return $provision->fresh(['invoice', 'adjustments']);
         });
     }
 
-    public function authorizeAdjustment(FinancialProvision $provision, User $user, float $amount, string $reason, ?string $notes = null): FinancialProvision
+    private function rejectForAmountMismatch(FinancialProvision $provision, SupplierInvoice $invoice, float $difference): void
     {
-        return DB::transaction(function () use ($provision, $user, $amount, $reason, $notes) {
-            FinancialProvisionAdjustment::create([
-                'financial_provision_id' => $provision->id,
-                'supplier_invoice_id' => $provision->supplier_invoice_id,
-                'authorized_by' => $user->id,
-                'amount' => $amount,
-                'reason' => $reason,
-                'notes' => $notes,
-                'authorized_at' => now(),
-            ]);
+        $expected = number_format((float) $provision->provision_amount, 2);
+        $invoiced = number_format((float) $invoice->total, 2);
+        $gap = number_format(abs($difference), 2);
+        $direction = $difference > 0 ? 'por arriba' : 'por debajo';
 
-            $provision->update([
-                'status' => FinancialProvision::STATUS_CLOSED_WITH_ADJUSTMENT,
-                'closed_at' => now(),
-            ]);
+        $reason = "El importe facturado (\${$invoiced}) difiere \${$gap} ({$direction}) del importe esperado de la orden de compra (\${$expected}), "
+            .'fuera de la tolerancia de $'.number_format(self::INVOICE_AMOUNT_TOLERANCE, 2)
+            .'. Favor de emitir una factura que coincida exactamente con la orden de compra.';
 
-            return $provision->fresh(['invoice', 'adjustments']);
-        });
+        $invoice->markRejected($reason);
+
+        $this->notifyAccounting(new InvoiceRejectedByToleranceNotification($invoice->fresh()));
+
+        $this->safeNotifications->notify(
+            new SupplierInvoiceRejectedNotification($invoice->fresh()),
+            [$provision->supplier ?? $invoice->supplier],
+            'de rechazo de factura por tolerancia de importe',
+            $invoice->uuid,
+            allowSupplier: true,
+        );
     }
 
     private function resolveIvaRate(Model $orderItem): float
@@ -163,6 +166,7 @@ class FinancialProvisionService
 
         if ($order instanceof PurchaseOrder) {
             $order->loadMissing('requisition');
+
             return $order->requisition?->cost_center_id;
         }
 
