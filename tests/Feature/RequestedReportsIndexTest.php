@@ -24,13 +24,13 @@ class RequestedReportsIndexTest extends TestCase
         return User::factory()->create()->assignRole(Role::findOrCreate('superadmin', 'web'));
     }
 
-    public function test_catalog_has_the_31_requested_reports_with_unique_codes_and_feasibility(): void
+    public function test_catalog_has_the_30_requested_reports_with_unique_codes_and_feasibility(): void
     {
         $reports = collect(config('requested_reports.reports'));
 
-        $this->assertCount(31, $reports);
-        $this->assertCount(31, $reports->pluck('code')->unique());
-        $this->assertSame(range(1, 31), $reports->pluck('feasibility')->sort()->values()->all());
+        $this->assertCount(30, $reports);
+        $this->assertCount(30, $reports->pluck('code')->unique());
+        $this->assertSame(range(1, 30), $reports->pluck('feasibility')->sort()->values()->all());
         $this->assertEmpty($reports->pluck('domain')->diff(array_keys(config('requested_reports.domains'))));
     }
 
@@ -44,7 +44,7 @@ class RequestedReportsIndexTest extends TestCase
             $response->assertSeeText($report['code'])->assertSeeText($report['name']);
         }
 
-        $this->assertSame(31, substr_count($response->getContent(), 'data-requested-report='));
+        $this->assertSame(30, substr_count($response->getContent(), 'data-requested-report='));
     }
 
     public function test_sidebar_links_to_the_section(): void

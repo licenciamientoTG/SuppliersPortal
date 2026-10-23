@@ -4,7 +4,7 @@
 |--------------------------------------------------------------------------
 | Reportes solicitados por Contabilidad y Finanzas (sección temporal)
 |--------------------------------------------------------------------------
-| Catálogo de los 31 reportes de docs/reportes/prompts_reportes_portal_proveedores.md.
+| Catálogo de los 30 reportes de docs/reportes/prompts_reportes_portal_proveedores.md.
 | "feasibility" es el orden de factibilidad (1 = más factible) según el estado actual
 | del portal; "existing_report" apunta al reporte de Reportería que ya cubre una parte.
 */
@@ -42,7 +42,7 @@ return [
             'fields' => ['Folio, fecha, tipo e importe', 'Centro de costo y renglón origen y destino', 'Motivo, solicitante y autorizador', 'Nivel de autorización aplicado y documento soporte'],
         ],
         [
-            'code' => 'RP-03', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 16, 'existing_report' => null, 'report_route' => 'budget-alert-reports.index',
+            'code' => 'RP-03', 'domain' => 'A', 'phase' => 'F1', 'feasibility' => 15, 'existing_report' => null, 'report_route' => 'budget-alert-reports.index',
             'name' => 'Alertas de agotamiento, sobregiro y excepciones autorizadas',
             'purpose' => 'Aviso antes del sobregiro, no en el cierre, y el listado auditable de cada compra autorizada sin presupuesto con el nombre de quien la autorizó.',
             'frequency' => 'Batch diario + disparo por evento',
@@ -78,7 +78,7 @@ return [
             'fields' => ['Folio, fecha, proveedor y renglón', 'Cantidad ordenada, recibida y pendiente; importe pendiente', 'Fecha prometida, días de atraso y vigencia', 'OC abiertas: monto máximo, consumido, saldo y % de agotamiento'],
         ],
         [
-            'code' => 'RC-04', 'domain' => 'B', 'phase' => 'F1', 'feasibility' => 18, 'existing_report' => null,
+            'code' => 'RC-04', 'domain' => 'B', 'phase' => 'F1', 'feasibility' => 17, 'existing_report' => null,
             'name' => 'Modificaciones, adendas y cancelaciones de OC',
             'purpose' => 'Detecta la práctica de aprobar barato y subir después: todo aumento posterior a la autorización queda con nombre, monto y fecha.',
             'frequency' => 'Bajo demanda',
@@ -114,7 +114,7 @@ return [
             'fields' => ['OC, renglón, proveedor y fecha de recepción', 'Días transcurridos, cantidad y precio de OC', 'Importe a provisionar sin IVA, moneda y tipo de cambio', 'Cuenta contable, centro de costo y renglón presupuestal'],
         ],
         [
-            'code' => 'RR-03', 'domain' => 'C', 'phase' => 'F1', 'feasibility' => 13, 'existing_report' => null,
+            'code' => 'RR-03', 'domain' => 'C', 'phase' => 'F1', 'feasibility' => 12, 'existing_report' => null,
             'name' => 'Excepciones de flujo',
             'purpose' => 'El termómetro de qué tan real es el proceso: documentos que rompieron la secuencia esperada (hechos consumados en lugar de control previo).',
             'frequency' => 'Semanal',
@@ -123,7 +123,7 @@ return [
             'fields' => ['Factura sin recepción, recepción sin OC, OC directa no autorizada', 'Factura anterior a la OC, recepción posterior a la vigencia', 'Documento, proveedor, importe, usuario y fecha', 'Estatus de regularización y responsable'],
         ],
         [
-            'code' => 'RF-01', 'domain' => 'D', 'phase' => 'F1', 'feasibility' => 12, 'existing_report' => null,
+            'code' => 'RF-01', 'domain' => 'D', 'phase' => 'F1', 'feasibility' => 11, 'existing_report' => null,
             'name' => 'Bitácora de validación de CFDI',
             'purpose' => 'Por qué se rechazan las facturas y a quién más, para corregir al proveedor con datos y medir si el motor de validación está bien calibrado.',
             'frequency' => 'Tiempo real',
@@ -132,16 +132,7 @@ return [
             'fields' => ['Fecha, UUID, RFC emisor, empresa receptora y total', 'Tipo de comprobante y resultado (aceptado/rechazado)', 'Código de rechazo y regla incumplida', 'Mensaje al proveedor, número de intento y canal'],
         ],
         [
-            'code' => 'RF-02', 'domain' => 'D', 'phase' => 'F1', 'feasibility' => 11, 'existing_report' => null,
-            'name' => 'Resultado del cotejo triple y desviaciones',
-            'purpose' => 'El sobreprecio y la sobrefacturación cuantificados en pesos (OC vs. recepción vs. factura) y quién libera las desviaciones.',
-            'frequency' => 'Diaria',
-            'consumers' => 'Compras, Contraloría, Cuentas por pagar',
-            'granularity' => 'Una factura cotejada, con detalle por renglón.',
-            'fields' => ['UUID, OC, recepción y renglón', 'Precio OC vs. facturado; cantidad recibida vs. facturada', 'Importe y % de desviación contra la tolerancia', 'Resultado y usuario que autorizó el desvío'],
-        ],
-        [
-            'code' => 'RF-03', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 27, 'existing_report' => null,
+            'code' => 'RF-03', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 26, 'existing_report' => null,
             'name' => 'IVA acreditable y conciliación para la DIOT',
             'purpose' => 'La DIOT armada desde el origen y la conciliación del IVA acreditable del portal contra la balanza contable.',
             'frequency' => 'Mensual',
@@ -150,7 +141,7 @@ return [
             'fields' => ['RFC, razón social, tipo de tercero y de operación', 'Base gravada por tasa: 16 %, 8 %, 0 %, exento, no objeto', 'IVA trasladado, pagado en el mes y retenido', 'IVA acreditable y pendiente de acreditar (PPD sin REP)'],
         ],
         [
-            'code' => 'RF-04', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 22, 'existing_report' => null,
+            'code' => 'RF-04', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 21, 'existing_report' => null,
             'name' => 'Retenciones efectuadas y su entero',
             'purpose' => 'Control de que se retuvo lo que correspondía y se enteró lo que se retuvo; evita gastos no deducibles y créditos fiscales.',
             'frequency' => 'Mensual',
@@ -159,7 +150,7 @@ return [
             'fields' => ['UUID, proveedor, tipo de persona, concepto y base', 'Retención de ISR y de IVA; importe retenido', 'Mes de causación, mes de entero y declaración', 'CFDI de retenciones emitido, cuando aplique'],
         ],
         [
-            'code' => 'RF-05', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 25, 'existing_report' => null,
+            'code' => 'RF-05', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 24, 'existing_report' => null,
             'name' => 'Control de complementos de pago (REP)',
             'purpose' => 'El IVA que todavía no se puede acreditar y la lista exacta de proveedores a quienes reclamar su complemento de pago.',
             'frequency' => 'Semanal, con corte al inicio de cada mes',
@@ -168,7 +159,7 @@ return [
             'fields' => ['UUID de la factura, fecha y monto del pago', 'Parcialidad y saldo insoluto', 'UUID y fecha del REP, días transcurridos y estatus de plazo', 'Diferencia pagado vs. REP y efecto en el semáforo'],
         ],
         [
-            'code' => 'RF-06', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 24, 'existing_report' => null,
+            'code' => 'RF-06', 'domain' => 'D', 'phase' => 'F2', 'feasibility' => 23, 'existing_report' => null,
             'name' => 'CFDI de egreso, anticipos y ajustes',
             'purpose' => 'Control del dinero entregado por adelantado y de los saldos a favor: notas de crédito y anticipos pendientes de aplicar.',
             'frequency' => 'Mensual',
@@ -177,7 +168,7 @@ return [
             'fields' => ['UUID del egreso, UUID relacionados y tipo de relación', 'Motivo: devolución, descuento, bonificación o anticipo', 'Importe, IVA y saldo del anticipo antes y después', 'Efecto en la cuenta por pagar, la póliza y el presupuesto'],
         ],
         [
-            'code' => 'RF-07', 'domain' => 'D', 'phase' => 'F3', 'feasibility' => 31, 'existing_report' => null,
+            'code' => 'RF-07', 'domain' => 'D', 'phase' => 'F3', 'feasibility' => 30, 'existing_report' => null,
             'name' => 'Conciliación del portal contra el repositorio del SAT',
             'purpose' => 'Certeza de que lo deducido existe y sigue vigente; detecta facturas canceladas por el proveedor después de provisionarlas o pagarlas.',
             'frequency' => 'Mensual',
@@ -186,7 +177,7 @@ return [
             'fields' => ['UUID, RFC emisor, fecha y total', 'Estatus en el SAT y en el portal', 'Tipo de diferencia (faltante, cancelado tras provisionar o pagar, duplicado)', 'Importe expuesto, acción sugerida y responsable'],
         ],
         [
-            'code' => 'RT-01', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 23, 'existing_report' => null,
+            'code' => 'RT-01', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 22, 'existing_report' => null,
             'name' => 'Programación semanal de pagos por vencimiento',
             'purpose' => 'La propuesta de pago lista para autorizar y generar el layout bancario, garantizando que nada bloqueado se cuele.',
             'frequency' => 'Semanal, con día y hora de corte fijos',
@@ -195,7 +186,7 @@ return [
             'fields' => ['Proveedor, banco y CLABE validada', 'UUID, folio de OC, importe y moneda', 'Vencimiento, días de atraso, prioridad y pronto pago', 'Bloqueos activos y totales por empresa, banco y semana'],
         ],
         [
-            'code' => 'RT-02', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 21, 'existing_report' => null,
+            'code' => 'RT-02', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 20, 'existing_report' => null,
             'name' => 'Antigüedad de saldos por proveedor',
             'purpose' => 'La foto del pasivo real con proveedores y del riesgo de suspensión de suministro; alimenta la revelación en estados financieros.',
             'frequency' => 'Semanal y al cierre mensual',
@@ -204,7 +195,7 @@ return [
             'fields' => ['Proveedor, RFC y saldo total', 'Por vencer, 1-30, 31-60, 61-90 y más de 90 días', 'Moneda extranjera y su equivalente en pesos', 'Documentos en disputa o bloqueados y días de crédito'],
         ],
         [
-            'code' => 'RT-03', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 20, 'existing_report' => null,
+            'code' => 'RT-03', 'domain' => 'E', 'phase' => 'F1', 'feasibility' => 19, 'existing_report' => null,
             'name' => 'Estado de cuenta de proveedor',
             'purpose' => 'Que el proveedor se conteste solo "¿cuándo me pagan?" desde el portal, viendo exactamente el mismo documento que Cuentas por pagar.',
             'frequency' => 'Bajo demanda y envío automático mensual',
@@ -213,7 +204,7 @@ return [
             'fields' => ['Fecha, tipo de documento, UUID o folio y OC', 'Cargo, abono y saldo acumulado', 'Fecha de vencimiento y estatus', 'Motivo de bloqueo o disputa y fecha estimada de pago'],
         ],
         [
-            'code' => 'RT-04', 'domain' => 'E', 'phase' => 'F3', 'feasibility' => 29, 'existing_report' => null,
+            'code' => 'RT-04', 'domain' => 'E', 'phase' => 'F3', 'feasibility' => 28, 'existing_report' => null,
             'name' => 'Proyección de salidas de efectivo a 13 semanas',
             'purpose' => 'Visibilidad del flujo más allá de la semana en curso, construida con el compromiso ya contraído en el portal.',
             'frequency' => 'Semanal',
@@ -222,7 +213,7 @@ return [
             'fields' => ['Cuentas por pagar vencidas y por vencer', 'Compromiso de OC no facturado con fecha esperada', 'Contratos recurrentes y pagos fijos', 'Total proyectado, disponible estimado y brecha'],
         ],
         [
-            'code' => 'RK-01', 'domain' => 'F', 'phase' => 'F2', 'feasibility' => 26, 'existing_report' => null,
+            'code' => 'RK-01', 'domain' => 'F', 'phase' => 'F2', 'feasibility' => 25, 'existing_report' => null,
             'name' => 'Auxiliar de pólizas generadas y archivo de exportación',
             'purpose' => 'Trazabilidad entre cada asiento contable y el documento que lo originó; elimina la recaptura en contabilidad.',
             'frequency' => 'Diaria y al cierre',
@@ -231,7 +222,7 @@ return [
             'fields' => ['Folio, tipo, fecha y concepto de la póliza', 'Cuenta contable, centro de costo, cargo y abono', 'Referencia a UUID, OC, recepción y pago', 'Estatus de exportación y folio del sistema contable'],
         ],
         [
-            'code' => 'RK-02', 'domain' => 'F', 'phase' => 'F2', 'feasibility' => 30, 'existing_report' => null,
+            'code' => 'RK-02', 'domain' => 'F', 'phase' => 'F2', 'feasibility' => 29, 'existing_report' => null,
             'name' => 'Conciliación del portal contra la contabilidad',
             'purpose' => 'El cierre del círculo: exhibe los asientos de proveedores hechos fuera del portal hasta que la diferencia llegue a cero.',
             'frequency' => 'Mensual',
@@ -240,7 +231,7 @@ return [
             'fields' => ['Cuenta, empresa, saldo en portal y en contabilidad', 'Diferencia y su clasificación', 'Provisión no exportada, póliza manual, cancelación o diferencia cambiaria', 'Documento y responsable asociados'],
         ],
         [
-            'code' => 'RM-01', 'domain' => 'G', 'phase' => 'F2', 'feasibility' => 17, 'existing_report' => null,
+            'code' => 'RM-01', 'domain' => 'G', 'phase' => 'F2', 'feasibility' => 16, 'existing_report' => null,
             'name' => 'Matriz de cumplimiento y semáforo de proveedores',
             'purpose' => 'El riesgo de toda la base de proveedores en una vista, con el monto expuesto al lado, para decidir un bloqueo con información.',
             'frequency' => 'Tiempo real con recálculo diario',
@@ -258,7 +249,7 @@ return [
             'fields' => ['Proveedor y tipo de documento', 'Fecha de emisión, vencimiento y días restantes', 'Estatus, responsable interno y recordatorios enviados', 'Efecto al vencer: amarillo, rojo o bloqueo'],
         ],
         [
-            'code' => 'RM-03', 'domain' => 'G', 'phase' => 'F3', 'feasibility' => 19, 'existing_report' => null,
+            'code' => 'RM-03', 'domain' => 'G', 'phase' => 'F3', 'feasibility' => 18, 'existing_report' => null,
             'name' => 'Auditoría mensual de proveedores REPSE',
             'purpose' => 'El expediente mensual que sostiene la deducción y el acreditamiento en servicios especializados, y base de las informativas IMSS/INFONAVIT.',
             'frequency' => 'Mensual',
@@ -276,7 +267,7 @@ return [
             'fields' => ['RFC, razón social y situación en el 69-B', 'Fecha de publicación y número de oficio', 'Operaciones históricas: número, importe y ejercicios', 'IVA e ISR expuestos, acción tomada y plazo'],
         ],
         [
-            'code' => 'RA-01', 'domain' => 'H', 'phase' => 'F2', 'feasibility' => 15, 'existing_report' => null,
+            'code' => 'RA-01', 'domain' => 'H', 'phase' => 'F2', 'feasibility' => 14, 'existing_report' => null,
             'name' => 'Bitácora de excepciones, liberaciones y overrides',
             'purpose' => 'El registro de todas las veces que el proceso cedió, con monto y responsable. Es lo primero que pide un auditor.',
             'frequency' => 'Continua',
@@ -285,7 +276,7 @@ return [
             'fields' => ['Fecha, usuario, rol e IP', 'Tipo: sobregiro, liberación fiscal, tolerancia, pago urgente o alta incompleta', 'Documento afectado e importe', 'Motivo, autorizador y evidencia'],
         ],
         [
-            'code' => 'RA-02', 'domain' => 'H', 'phase' => 'F3', 'feasibility' => 14, 'existing_report' => null,
+            'code' => 'RA-02', 'domain' => 'H', 'phase' => 'F3', 'feasibility' => 13, 'existing_report' => null,
             'name' => 'Segregación de funciones e integridad de accesos',
             'purpose' => 'Verifica que la matriz de roles no se degrade con el uso (perfiles prestados, permisos incompatibles, cuentas inactivas).',
             'frequency' => 'Mensual',
@@ -294,7 +285,7 @@ return [
             'fields' => ['Usuario, roles y combinaciones incompatibles', 'Documentos donde se materializó el conflicto', 'Altas, bajas y cambios de rol del periodo', 'Último acceso y cuentas inactivas'],
         ],
         [
-            'code' => 'RA-03', 'domain' => 'H', 'phase' => 'F3', 'feasibility' => 28, 'existing_report' => null,
+            'code' => 'RA-03', 'domain' => 'H', 'phase' => 'F3', 'feasibility' => 27, 'existing_report' => null,
             'name' => 'Tablero de indicadores de Contraloría',
             'purpose' => 'La medición del control, no de la operación: metas concretas por indicador y su avance con datos del propio sistema.',
             'frequency' => 'Mensual',
