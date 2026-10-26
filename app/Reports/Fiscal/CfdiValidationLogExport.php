@@ -41,9 +41,9 @@ class CfdiValidationLogExport
 
         return [
             ['Fecha/hora', $this->date('attempted_at', $format), ReportSheet::DATE],
-            ['UUID', $value('uuid'), null],
-            ['RFC emisor', $value('issuer_rfc'), null],
-            ['Emisor', $value('issuer_name'), null],
+            ['UUID', $value('uuid'), null, true],
+            ['RFC emisor', $value('issuer_rfc'), null, true],
+            ['Emisor', $value('issuer_name'), null, true],
             ['Empresa receptora', $value('company_name'), null],
             ['Tipo', $value('cfdi_type'), null],
             ['Total', $value('total'), ReportSheet::MONEY],

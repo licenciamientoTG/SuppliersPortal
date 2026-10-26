@@ -53,6 +53,27 @@ class CfdiValidationLogReportControllerTest extends TestCase
         $this->assertSame('A', $response->json('rows.0.uuid'));
     }
 
+    public function test_export_sanitizes_formula_injection_from_untrusted_xml_fields(): void
+    {
+        $role = Role::findOrCreate('accounting', 'web');
+        $role->givePermissionTo(['reportes.cfdi_validation_log.ver', 'reportes.cfdi_validation_log.exportar']);
+        $user = User::factory()->create();
+        $user->assignRole('accounting');
+
+        $this->createLog([
+            'uuid' => '=1+1',
+            'issuer_name' => '=HYPERLINK("http://evil")',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('cfdi-validation-log-reports.export', 'csv'));
+
+        $response->assertOk();
+        $content = $response->streamedContent();
+        $this->assertStringNotContainsString(',=1+1,', $content);
+        $this->assertStringContainsString("'=1+1", $content);
+        $this->assertStringContainsString("'=HYPERLINK", $content);
+    }
+
     public function test_export_without_exportar_permission_gets_403(): void
     {
         $role = Role::findOrCreate('report_viewer', 'web');

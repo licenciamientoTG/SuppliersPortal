@@ -103,6 +103,22 @@ class CfdiValidationLogReportTest extends TestCase
         $this->assertSame('A', $result['rows']->first()['uuid']);
     }
 
+    public function test_filtering_does_not_change_the_true_historical_attempt_number(): void
+    {
+        $company = Company::factory()->create();
+        $user = User::factory()->create();
+        $user->assignRole('superadmin');
+
+        $this->createLog(['company_id' => $company->id, 'uuid' => 'X', 'attempted_at' => now()->subMinutes(10), 'result' => CfdiValidationLog::RESULT_ACCEPTED]);
+        $this->createLog(['company_id' => $company->id, 'uuid' => 'X', 'attempted_at' => now()->subMinutes(5), 'result' => CfdiValidationLog::RESULT_REJECTED]);
+        $this->createLog(['company_id' => $company->id, 'uuid' => 'X', 'attempted_at' => now(), 'result' => CfdiValidationLog::RESULT_REJECTED]);
+
+        $result = (new CfdiValidationLogReport)->build($user, ['result' => CfdiValidationLog::RESULT_REJECTED]);
+
+        $attemptNumbers = $result['rows']->sortBy('attempted_at')->pluck('attempt_no')->values()->all();
+        $this->assertSame([2, 3], $attemptNumbers);
+    }
+
     public function test_kpis_report_first_attempt_rejection_rate_and_top_code(): void
     {
         $company = Company::factory()->create();

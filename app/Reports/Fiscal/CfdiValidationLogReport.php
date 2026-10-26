@@ -47,11 +47,7 @@ class CfdiValidationLogReport
             $query->whereIn('company_id', $visibleCompanyIds);
         }
 
-        $this->applyFilters($query, $params);
-
-        $rows = $this->toRowsWithAttemptNo($query->get());
-
-        return ['rows' => $rows, 'kpis' => $this->kpis($rows)];
+        return $this->buildFrom($query, $params);
     }
 
     /** Vista del proveedor: solo sus propios intentos, sin alcance por empresa. */
@@ -59,9 +55,17 @@ class CfdiValidationLogReport
     {
         $query = $this->baseQuery()->where('supplier_id', $supplier->id);
 
-        $this->applyFilters($query, $params);
+        return $this->buildFrom($query, $params);
+    }
 
-        $rows = $this->toRowsWithAttemptNo($query->get());
+    /**
+     * attempt_no se calcula sobre TODO el universo visible (alcance de empresa/proveedor),
+     * antes de aplicar resultado/código/fechas: esos son filtros de pantalla y no deben
+     * alterar la posición histórica real de un intento ni las tasas de las KPI.
+     */
+    private function buildFrom(Builder $query, array $params): array
+    {
+        $rows = $this->toRowsWithAttemptNo($query->get())->filter(fn (array $row) => $this->matches($row, $params))->values();
 
         return ['rows' => $rows, 'kpis' => $this->kpis($rows)];
     }
@@ -71,23 +75,25 @@ class CfdiValidationLogReport
         return CfdiValidationLog::query()->with(['company', 'supplier', 'user', 'rejectionCode']);
     }
 
-    private function applyFilters(Builder $query, array $params): void
+    private function matches(array $row, array $params): bool
     {
-        if (! empty($params['result'])) {
-            $query->where('result', $params['result']);
+        if (! empty($params['result']) && $row['result'] !== $params['result']) {
+            return false;
         }
-        if (! empty($params['rejection_code'])) {
-            $query->whereIn('rejection_code', (array) $params['rejection_code']);
+        if (! empty($params['rejection_code']) && ! in_array($row['rejection_code'], (array) $params['rejection_code'], true)) {
+            return false;
         }
-        if (! empty($params['supplier_id'])) {
-            $query->where('supplier_id', $params['supplier_id']);
+        if (! empty($params['supplier_id']) && $row['supplier_id'] !== $params['supplier_id']) {
+            return false;
         }
-        if (! empty($params['date_from'])) {
-            $query->where('attempted_at', '>=', Carbon::parse($params['date_from'])->startOfDay());
+        if (! empty($params['date_from']) && (! $row['attempted_at'] || Carbon::parse($row['attempted_at'])->lt(Carbon::parse($params['date_from'])->startOfDay()))) {
+            return false;
         }
-        if (! empty($params['date_to'])) {
-            $query->where('attempted_at', '<=', Carbon::parse($params['date_to'])->endOfDay());
+        if (! empty($params['date_to']) && (! $row['attempted_at'] || Carbon::parse($row['attempted_at'])->gt(Carbon::parse($params['date_to'])->endOfDay()))) {
+            return false;
         }
+
+        return true;
     }
 
     /**
