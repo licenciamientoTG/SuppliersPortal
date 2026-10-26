@@ -40,7 +40,7 @@ class CfdiValidationLogReport
      */
     public function build(User $user, array $params): array
     {
-        $query = CfdiValidationLog::query()->with(['company', 'supplier', 'user', 'rejectionCode']);
+        $query = $this->baseQuery();
 
         $visibleCompanyIds = $this->visibleCompanyIds($user);
         if ($visibleCompanyIds !== null) {
@@ -49,7 +49,7 @@ class CfdiValidationLogReport
 
         $this->applyFilters($query, $params);
 
-        $rows = $this->withAttemptNo($query->get());
+        $rows = $this->toRowsWithAttemptNo($query->get());
 
         return ['rows' => $rows, 'kpis' => $this->kpis($rows)];
     }
@@ -57,15 +57,18 @@ class CfdiValidationLogReport
     /** Vista del proveedor: solo sus propios intentos, sin alcance por empresa. */
     public function buildForSupplier(Supplier $supplier, array $params): array
     {
-        $query = CfdiValidationLog::query()
-            ->with(['company', 'rejectionCode'])
-            ->where('supplier_id', $supplier->id);
+        $query = $this->baseQuery()->where('supplier_id', $supplier->id);
 
         $this->applyFilters($query, $params);
 
-        $rows = $this->withAttemptNo($query->get());
+        $rows = $this->toRowsWithAttemptNo($query->get());
 
         return ['rows' => $rows, 'kpis' => $this->kpis($rows)];
+    }
+
+    private function baseQuery(): Builder
+    {
+        return CfdiValidationLog::query()->with(['company', 'supplier', 'user', 'rejectionCode']);
     }
 
     private function applyFilters(Builder $query, array $params): void
@@ -92,27 +95,53 @@ class CfdiValidationLogReport
      * PHP (no persistido) para que nunca quede desfasado. Las filas sin UUID (XML_MALFORMADO)
      * no tienen grupo de reintentos: cada una es su propio intento 1.
      */
-    private function withAttemptNo(Collection $logs): Collection
+    private function toRowsWithAttemptNo(Collection $logs): Collection
     {
         return $logs
             ->groupBy(fn (CfdiValidationLog $log) => $log->uuid ?? 'no-uuid-'.$log->id)
             ->flatMap(function (Collection $group) {
-                return $group->sortBy('attempted_at')->values()->map(function (CfdiValidationLog $log, int $index) {
-                    $log->attempt_no = $index + 1;
-
-                    return $log;
-                });
+                return $group->sortBy('attempted_at')->values()
+                    ->map(fn (CfdiValidationLog $log, int $index) => $this->row($log, $index + 1));
             })
             ->sortByDesc('attempted_at')
             ->values();
     }
 
+    private function row(CfdiValidationLog $log, int $attemptNo): array
+    {
+        return [
+            'id' => $log->id,
+            'attempted_at' => $log->attempted_at?->toIso8601String(),
+            'uuid' => $log->uuid,
+            'issuer_rfc' => $log->issuer_rfc,
+            'issuer_name' => $log->issuer_name,
+            'receiver_rfc' => $log->receiver_rfc,
+            'company_id' => $log->company_id,
+            'company_name' => $log->company?->name,
+            'cfdi_type' => $log->cfdi_type,
+            'total' => $log->total !== null ? (float) $log->total : null,
+            'currency' => $log->currency,
+            'result' => $log->result,
+            'rejection_code' => $log->rejection_code,
+            'rule_description' => $log->rejectionCode?->rule_description,
+            'supplier_message' => $log->rejectionCode?->supplier_message,
+            'attempt_no' => $attemptNo,
+            'channel' => $log->channel,
+            'supplier_id' => $log->supplier_id,
+            'supplier_name' => $log->supplier?->company_name,
+            'user_id' => $log->user_id,
+            'user_name' => $log->user?->name,
+            'supplier_invoice_id' => $log->supplier_invoice_id,
+            'xml_sha256' => $log->xml_sha256,
+        ];
+    }
+
     private function kpis(Collection $rows): array
     {
-        $uuidGroups = $rows->filter(fn (CfdiValidationLog $log) => $log->uuid !== null)->groupBy('uuid');
+        $uuidGroups = $rows->filter(fn (array $row) => $row['uuid'] !== null)->groupBy('uuid');
 
         $firstAttemptRejected = $uuidGroups->filter(
-            fn (Collection $group) => optional($group->firstWhere('attempt_no', 1))->result === CfdiValidationLog::RESULT_REJECTED
+            fn (Collection $group) => optional($group->firstWhere('attempt_no', 1))['result'] === CfdiValidationLog::RESULT_REJECTED
         )->count();
 
         $topRejectionCode = $rows->where('result', CfdiValidationLog::RESULT_REJECTED)

@@ -38,7 +38,7 @@ class CfdiValidationLogReportTest extends TestCase
         $result = (new CfdiValidationLogReport)->build($user, []);
 
         $this->assertCount(1, $result['rows']);
-        $this->assertSame($companyA->id, $result['rows']->first()->company_id);
+        $this->assertSame($companyA->id, $result['rows']->first()['company_id']);
     }
 
     public function test_user_without_role_and_without_companies_sees_nothing(): void
@@ -85,7 +85,7 @@ class CfdiValidationLogReportTest extends TestCase
         ]);
 
         $this->assertCount(1, $result['rows']);
-        $this->assertSame('C', $result['rows']->first()->uuid);
+        $this->assertSame('C', $result['rows']->first()['uuid']);
     }
 
     public function test_supplier_view_only_shows_its_own_attempts(): void
@@ -100,7 +100,7 @@ class CfdiValidationLogReportTest extends TestCase
         $result = (new CfdiValidationLogReport)->buildForSupplier($supplierA, []);
 
         $this->assertCount(1, $result['rows']);
-        $this->assertSame('A', $result['rows']->first()->uuid);
+        $this->assertSame('A', $result['rows']->first()['uuid']);
     }
 
     public function test_kpis_report_first_attempt_rejection_rate_and_top_code(): void
