@@ -7,6 +7,7 @@ use App\Models\Supplier;
 use App\Services\CfdiXmlParser;
 use App\Services\FinancialProvisionService;
 use App\Services\InvoiceService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Mockery;
@@ -15,6 +16,8 @@ use Tests\TestCase;
 
 class InvoiceServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_invalid_xml_is_reported_as_validation_error(): void
     {
         $parser = Mockery::mock(CfdiXmlParser::class);

@@ -50,15 +50,20 @@ class CfdiXmlParser
             throw new RuntimeException('El XML no contiene un total válido.');
         }
 
+        $issuerName = trim((string) ($issuer['Nombre'] ?? $issuer['nombre'] ?? ''));
+        $cfdiType = trim((string) ($attributes['TipoDeComprobante'] ?? $attributes['tipoDeComprobante'] ?? ''));
+
         return [
             'uuid' => $uuid,
             'issuer_rfc' => $issuerRfc,
+            'issuer_name' => $issuerName !== '' ? $issuerName : null,
             'receiver_rfc' => $receiverRfc,
             'subtotal' => $subtotal,
             'iva_amount' => $this->sumIva($xml),
             'total' => $total,
             'currency' => strtoupper((string) ($attributes['Moneda'] ?? $attributes['moneda'] ?? 'MXN')),
             'issued_at' => $this->parseDate((string) ($attributes['Fecha'] ?? $attributes['fecha'] ?? '')),
+            'cfdi_type' => $cfdiType !== '' ? $cfdiType : null,
         ];
     }
 
