@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\CfdiRejectionCode;
+use App\Models\CfdiValidationLog;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
 use App\Models\PurchaseOrder;
@@ -22,7 +24,10 @@ class FinancialProvisionService
 {
     public const INVOICE_AMOUNT_TOLERANCE = 0.05;
 
-    public function __construct(private SafeNotificationService $safeNotifications = new SafeNotificationService) {}
+    public function __construct(
+        private SafeNotificationService $safeNotifications = new SafeNotificationService,
+        private CfdiValidationLogger $validationLogger = new CfdiValidationLogger,
+    ) {}
 
     public function createForReception(Reception $reception): FinancialProvision
     {
@@ -132,6 +137,24 @@ class FinancialProvisionService
             .'. Favor de emitir una factura que coincida exactamente con la orden de compra.';
 
         $invoice->markRejected($reason);
+
+        $this->validationLogger->log([
+            'attempted_at' => now(),
+            'uuid' => $invoice->uuid,
+            'issuer_rfc' => $invoice->issuer_rfc,
+            'receiver_rfc' => $invoice->receiver_rfc,
+            'company_id' => $this->validationLogger->resolveCompanyId($invoice->receiver_rfc),
+            'total' => $invoice->total,
+            'currency' => $invoice->currency,
+            'result' => CfdiValidationLog::RESULT_REJECTED,
+            'rejection_code' => CfdiRejectionCode::TOLERANCIA_IMPORTE_EXCEDIDA,
+            'channel' => $invoice->uploaded_origin === SupplierInvoice::ORIGIN_SUPPLIER
+                ? CfdiValidationLog::CHANNEL_PORTAL
+                : CfdiValidationLog::CHANNEL_INTERNAL,
+            'supplier_id' => $invoice->supplier_id,
+            'user_id' => $invoice->uploaded_by,
+            'supplier_invoice_id' => $invoice->id,
+        ]);
 
         $this->notifyAccounting(new InvoiceRejectedByToleranceNotification($invoice->fresh()));
 
