@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\CfdiRejectionCode;
+use App\Models\CfdiValidationLog;
 use App\Models\Company;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
@@ -25,6 +27,7 @@ class InvoiceService
     public function __construct(
         private CfdiXmlParser $parser,
         private FinancialProvisionService $financialProvisionService,
+        private CfdiValidationLogger $validationLogger = new CfdiValidationLogger,
     ) {}
 
     public function upload(
@@ -35,17 +38,36 @@ class InvoiceService
         ?User $uploader,
         string $origin,
     ): SupplierInvoice {
+        $xmlContents = $xmlFile->get();
+
+        $logContext = [
+            'xml_sha256' => hash('sha256', $xmlContents),
+            'channel' => $origin === SupplierInvoice::ORIGIN_SUPPLIER
+                ? CfdiValidationLog::CHANNEL_PORTAL
+                : CfdiValidationLog::CHANNEL_INTERNAL,
+            'supplier_id' => $supplier->id,
+            'user_id' => $uploader?->id,
+        ];
+
         try {
-            $data = $this->parser->parse($xmlFile->get());
+            $data = $this->parser->parse($xmlContents);
+        } catch (CfdiParseException $exception) {
+            $this->logRejection($logContext, $exception->partialData(), $exception->rejectionCode());
+
+            throw ValidationException::withMessages([
+                'xml_file' => $exception->getMessage(),
+            ]);
         } catch (RuntimeException $exception) {
+            $this->logRejection($logContext, [], CfdiRejectionCode::XML_MALFORMADO);
+
             throw ValidationException::withMessages([
                 'xml_file' => $exception->getMessage(),
             ]);
         }
 
-        $this->validateInvoiceData($supplier, $data);
+        $this->validateInvoiceData($supplier, $data, $logContext);
 
-        return DB::transaction(function () use ($supplier, $order, $xmlFile, $pdfFile, $uploader, $origin, $data) {
+        return DB::transaction(function () use ($supplier, $order, $xmlFile, $pdfFile, $uploader, $origin, $data, $logContext) {
             $xmlPath = $xmlFile->store("supplier-invoices/{$supplier->id}/xml", 'public');
             $pdfPath = $pdfFile->store("supplier-invoices/{$supplier->id}/pdf", 'public');
 
@@ -69,10 +91,27 @@ class InvoiceService
                     'uploaded_origin' => $origin,
                     'status' => SupplierInvoice::STATUS_UPLOADED,
                 ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                Storage::disk('public')->delete([$xmlPath, $pdfPath]);
+                $this->logDuplicateIfRaceLost($data['uuid'], $data, $logContext);
+                throw $e;
             } catch (\Throwable $e) {
                 Storage::disk('public')->delete([$xmlPath, $pdfPath]);
                 throw $e;
             }
+
+            $this->validationLogger->log(array_merge($logContext, [
+                'uuid' => $data['uuid'],
+                'issuer_rfc' => $data['issuer_rfc'],
+                'issuer_name' => $data['issuer_name'] ?? null,
+                'receiver_rfc' => $data['receiver_rfc'],
+                'company_id' => $this->validationLogger->resolveCompanyId($data['receiver_rfc']),
+                'cfdi_type' => $data['cfdi_type'] ?? null,
+                'total' => $data['total'],
+                'currency' => $data['currency'],
+                'result' => CfdiValidationLog::RESULT_ACCEPTED,
+                'supplier_invoice_id' => $invoice->id,
+            ]));
 
             $provision = FinancialProvision::where('supplier_id', $supplier->id)
                 ->where('receivable_type', get_class($order))
@@ -111,21 +150,27 @@ class InvoiceService
         };
     }
 
-    private function validateInvoiceData(Supplier $supplier, array $data): void
+    private function validateInvoiceData(Supplier $supplier, array $data, array $logContext): void
     {
         if (($data['issuer_rfc'] ?? '') === '') {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::RFC_EMISOR_AUSENTE);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El XML no contiene el RFC del emisor.',
             ]);
         }
 
         if (($data['receiver_rfc'] ?? '') === '') {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::RFC_RECEPTOR_AUSENTE);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El XML no contiene el RFC del receptor.',
             ]);
         }
 
         if (($data['issuer_rfc'] ?? '') !== strtoupper((string) $supplier->rfc)) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::RFC_NO_COINCIDE);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El RFC emisor del XML no coincide con el RFC del proveedor.',
             ]);
@@ -133,6 +178,8 @@ class InvoiceService
 
         $efosStatus = $supplier->efos_status;
         if (in_array($efosStatus, ['Definitivo', 'Presunto'], true)) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::EFOS_69B);
+
             throw ValidationException::withMessages([
                 'xml_file' => "El proveedor aparece en la lista 69-B del SAT (EFOS) con situación {$efosStatus}. No se puede registrar la factura.",
             ]);
@@ -145,22 +192,63 @@ class InvoiceService
             ->map(fn (string $rfc) => strtoupper(trim($rfc)));
 
         if ($activeCompanyRfcs->isNotEmpty() && ! $activeCompanyRfcs->contains($data['receiver_rfc'])) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::RFC_RECEPTOR_INVALIDO);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El RFC receptor del XML no corresponde a una empresa activa de TotalGas.',
             ]);
         }
 
         if (($data['total'] ?? 0) <= 0) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::TOTAL_INVALIDO);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El XML no contiene un total válido.',
             ]);
         }
 
         if (SupplierInvoice::where('uuid', $data['uuid'])->exists()) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::UUID_DUPLICADO);
+
             throw ValidationException::withMessages([
                 'xml_file' => 'El UUID de esta factura ya fue registrado.',
             ]);
         }
+    }
+
+    /**
+     * El pre-chequeo de UUID duplicado en validateInvoiceData() corre antes de la
+     * transacción: si dos cargas del mismo UUID lo superan a la vez, el índice único de BD
+     * rechaza el INSERT que llega segundo. Ese intento perdido también debe quedar en la
+     * bitácora (RF-01) en vez de desaparecer sin motivo registrado.
+     */
+    private function logDuplicateIfRaceLost(string $uuid, array $data, array $logContext): void
+    {
+        if (SupplierInvoice::where('uuid', $uuid)->exists()) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::UUID_DUPLICADO);
+        }
+    }
+
+    /**
+     * Escribe el intento rechazado en cfdi_validation_logs (RF-01). $data puede venir
+     * incompleto (p. ej. XML_MALFORMADO, antes de que exista cualquier dato parseado).
+     */
+    private function logRejection(array $logContext, array $data, string $rejectionCode): void
+    {
+        $receiverRfc = $data['receiver_rfc'] ?? null;
+
+        $this->validationLogger->log(array_merge($logContext, [
+            'uuid' => $data['uuid'] ?? null,
+            'issuer_rfc' => $data['issuer_rfc'] ?? null,
+            'issuer_name' => $data['issuer_name'] ?? null,
+            'receiver_rfc' => $receiverRfc,
+            'company_id' => $this->validationLogger->resolveCompanyId($receiverRfc),
+            'cfdi_type' => $data['cfdi_type'] ?? null,
+            'total' => $data['total'] ?? null,
+            'currency' => $data['currency'] ?? null,
+            'result' => CfdiValidationLog::RESULT_REJECTED,
+            'rejection_code' => $rejectionCode,
+        ]));
     }
 
     private function notifyAccounting(object $notification, ?SupplierInvoice $invoice = null): void

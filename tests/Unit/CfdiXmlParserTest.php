@@ -25,7 +25,7 @@ class CfdiXmlParserTest extends TestCase
 </cfdi:Comprobante>
 XML;
 
-        $data = (new CfdiXmlParser())->parse($xml);
+        $data = (new CfdiXmlParser)->parse($xml);
 
         $this->assertSame('11111111-2222-3333-4444-555555555555', $data['uuid']);
         $this->assertSame('SUP010101AB1', $data['issuer_rfc']);
@@ -37,12 +37,31 @@ XML;
         $this->assertSame('2026-05-18 10:30:00', $data['issued_at']->format('Y-m-d H:i:s'));
     }
 
+    public function test_parser_extracts_issuer_name_and_cfdi_type(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Fecha="2026-05-18T10:30:00" Moneda="MXN" SubTotal="100.00" Total="116.00" TipoDeComprobante="I">
+  <cfdi:Emisor Rfc="SUP010101AB1" Nombre="Proveedor de Pruebas SA de CV"/>
+  <cfdi:Receptor Rfc="TGA010101AA1" Nombre="TotalGas"/>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital UUID="11111111-2222-3333-4444-555555555555"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
+XML;
+
+        $data = (new CfdiXmlParser)->parse($xml);
+
+        $this->assertSame('Proveedor de Pruebas SA de CV', $data['issuer_name']);
+        $this->assertSame('I', $data['cfdi_type']);
+    }
+
     public function test_parser_reports_invalid_xml_with_specific_message(): void
     {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('El XML de factura no es válido:');
 
-        (new CfdiXmlParser())->parse('<cfdi:Comprobante');
+        (new CfdiXmlParser)->parse('<cfdi:Comprobante');
     }
 
     public function test_parser_requires_receiver_rfc(): void
@@ -61,6 +80,6 @@ XML;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('El XML no contiene el RFC del receptor.');
 
-        (new CfdiXmlParser())->parse($xml);
+        (new CfdiXmlParser)->parse($xml);
     }
 }

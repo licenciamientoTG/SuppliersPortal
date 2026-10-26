@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\CfdiRejectionCode;
+use App\Models\CfdiValidationLog;
 use App\Models\DirectPurchaseOrder;
 use App\Models\FinancialProvision;
 use App\Models\Reception;
@@ -53,6 +55,22 @@ class InvoiceAmountToleranceTest extends TestCase
         $this->assertNotNull($invoice->rejected_at);
         $this->assertStringContainsString('0.06', $invoice->rejection_reason);
         $this->assertStringContainsString('orden de compra', $invoice->rejection_reason);
+    }
+
+    public function test_rejection_by_tolerance_logs_in_the_cfdi_validation_bitacora(): void
+    {
+        $provision = $this->createProvision(1000.00);
+        $invoice = $this->createInvoice($provision, 1000.06);
+
+        app(FinancialProvisionService::class)->reconcile($provision, $invoice);
+
+        $this->assertDatabaseHas('cfdi_validation_logs', [
+            'uuid' => $invoice->uuid,
+            'result' => CfdiValidationLog::RESULT_REJECTED,
+            'rejection_code' => CfdiRejectionCode::TOLERANCIA_IMPORTE_EXCEDIDA,
+            'supplier_id' => $invoice->supplier_id,
+            'supplier_invoice_id' => $invoice->id,
+        ]);
     }
 
     public function test_rejected_invoice_notifies_supplier_and_accounting(): void
