@@ -198,6 +198,93 @@ class CfdiValidationLogTest extends TestCase
         ]);
     }
 
+    public function test_real_parser_rejection_for_missing_receiver_rfc_logs_its_specific_code_with_partial_data(): void
+    {
+        $order = PurchaseOrder::factory()->create();
+        $supplier = $order->supplier;
+
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Fecha="2026-05-18T10:30:00" Moneda="MXN" SubTotal="100.00" Total="116.00">
+  <cfdi:Emisor Rfc="%s" Nombre="Proveedor"/>
+  <cfdi:Receptor Nombre="TotalGas"/>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital UUID="11111111-2222-3333-4444-555555555555"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
+XML;
+        $xml = sprintf($xml, strtoupper($supplier->rfc));
+
+        $service = new InvoiceService(new CfdiXmlParser, Mockery::mock(FinancialProvisionService::class));
+
+        try {
+            $service->upload(
+                supplier: $supplier,
+                order: $order,
+                xmlFile: UploadedFile::fake()->createWithContent('factura.xml', $xml),
+                pdfFile: UploadedFile::fake()->create('factura.pdf', 10, 'application/pdf'),
+                uploader: null,
+                origin: SupplierInvoice::ORIGIN_SUPPLIER,
+            );
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException) {
+            // esperado
+        }
+
+        $this->assertDatabaseHas('cfdi_validation_logs', [
+            'uuid' => '11111111-2222-3333-4444-555555555555',
+            'issuer_rfc' => strtoupper($supplier->rfc),
+            'result' => CfdiValidationLog::RESULT_REJECTED,
+            'rejection_code' => CfdiRejectionCode::RFC_RECEPTOR_AUSENTE,
+        ]);
+    }
+
+    /**
+     * No es viable simular una carrera real de dos requests en SQLite in-memory de un solo
+     * proceso: se ejercita directamente la unidad responsable (logDuplicateIfRaceLost),
+     * reproduciendo el estado que deja una carrera perdida (el INSERT falla pero el UUID
+     * ya existe porque el otro intento concurrente ganó).
+     */
+    public function test_duplicate_insert_failure_logs_uuid_duplicado_when_the_uuid_already_exists(): void
+    {
+        $order = PurchaseOrder::factory()->create();
+        $supplier = $order->supplier;
+        SupplierInvoice::create([
+            'supplier_id' => $supplier->id,
+            'receivable_type' => get_class($order),
+            'receivable_id' => $order->id,
+            'uuid' => 'RACE-UUID',
+            'xml_path' => 'x.xml',
+            'pdf_path' => 'x.pdf',
+            'issuer_rfc' => strtoupper($supplier->rfc),
+            'receiver_rfc' => 'TGA010101AA1',
+            'subtotal' => 100.00,
+            'iva_amount' => 16.00,
+            'total' => 116.00,
+            'currency' => 'MXN',
+            'uploaded_origin' => SupplierInvoice::ORIGIN_SUPPLIER,
+            'status' => SupplierInvoice::STATUS_UPLOADED,
+        ]);
+
+        $service = new InvoiceService(Mockery::mock(CfdiXmlParser::class), Mockery::mock(FinancialProvisionService::class));
+        $method = new \ReflectionMethod($service, 'logDuplicateIfRaceLost');
+        $method->invoke($service, 'RACE-UUID', ['uuid' => 'RACE-UUID', 'issuer_rfc' => strtoupper($supplier->rfc)], ['channel' => CfdiValidationLog::CHANNEL_PORTAL, 'supplier_id' => $supplier->id]);
+
+        $this->assertDatabaseHas('cfdi_validation_logs', [
+            'uuid' => 'RACE-UUID',
+            'rejection_code' => CfdiRejectionCode::UUID_DUPLICADO,
+        ]);
+    }
+
+    public function test_insert_failure_for_a_uuid_that_does_not_exist_does_not_log_duplicate(): void
+    {
+        $service = new InvoiceService(Mockery::mock(CfdiXmlParser::class), Mockery::mock(FinancialProvisionService::class));
+        $method = new \ReflectionMethod($service, 'logDuplicateIfRaceLost');
+        $method->invoke($service, 'NEVER-EXISTED', ['uuid' => 'NEVER-EXISTED'], ['channel' => CfdiValidationLog::CHANNEL_PORTAL]);
+
+        $this->assertDatabaseCount('cfdi_validation_logs', 0);
+    }
+
     private function serviceParsing(Supplier $supplier, array $data): InvoiceService
     {
         $parser = Mockery::mock(CfdiXmlParser::class);

@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\CfdiRejectionCode;
 use Carbon\Carbon;
-use RuntimeException;
 use SimpleXMLElement;
 
 class CfdiXmlParser
@@ -14,7 +14,7 @@ class CfdiXmlParser
         $xml = simplexml_load_string($xmlContents);
 
         if (! $xml instanceof SimpleXMLElement) {
-            throw new RuntimeException($this->formatXmlErrors());
+            throw new CfdiParseException($this->formatXmlErrors(), CfdiRejectionCode::XML_MALFORMADO);
         }
 
         libxml_clear_errors();
@@ -29,25 +29,38 @@ class CfdiXmlParser
         $taxStamp = $this->taxStampAttributes($xml, $namespaces);
 
         $uuid = strtoupper(trim((string) ($taxStamp['UUID'] ?? '')));
-        if ($uuid === '') {
-            throw new RuntimeException('El XML no contiene UUID de timbre fiscal.');
-        }
-
         $issuerRfc = strtoupper(trim((string) ($issuer['Rfc'] ?? $issuer['rfc'] ?? '')));
-        if ($issuerRfc === '') {
-            throw new RuntimeException('El XML no contiene el RFC del emisor.');
+        $receiverRfc = strtoupper(trim((string) ($receiver['Rfc'] ?? $receiver['rfc'] ?? '')));
+
+        if ($uuid === '') {
+            throw new CfdiParseException('El XML no contiene UUID de timbre fiscal.', CfdiRejectionCode::XML_MALFORMADO, [
+                'issuer_rfc' => $issuerRfc !== '' ? $issuerRfc : null,
+                'receiver_rfc' => $receiverRfc !== '' ? $receiverRfc : null,
+            ]);
         }
 
-        $receiverRfc = strtoupper(trim((string) ($receiver['Rfc'] ?? $receiver['rfc'] ?? '')));
+        if ($issuerRfc === '') {
+            throw new CfdiParseException('El XML no contiene el RFC del emisor.', CfdiRejectionCode::RFC_EMISOR_AUSENTE, [
+                'uuid' => $uuid,
+            ]);
+        }
+
         if ($receiverRfc === '') {
-            throw new RuntimeException('El XML no contiene el RFC del receptor.');
+            throw new CfdiParseException('El XML no contiene el RFC del receptor.', CfdiRejectionCode::RFC_RECEPTOR_AUSENTE, [
+                'uuid' => $uuid,
+                'issuer_rfc' => $issuerRfc,
+            ]);
         }
 
         $subtotal = round((float) ($attributes['SubTotal'] ?? $attributes['subTotal'] ?? 0), 2);
         $total = round((float) ($attributes['Total'] ?? $attributes['total'] ?? 0), 2);
 
         if ($total <= 0) {
-            throw new RuntimeException('El XML no contiene un total válido.');
+            throw new CfdiParseException('El XML no contiene un total válido.', CfdiRejectionCode::TOTAL_INVALIDO, [
+                'uuid' => $uuid,
+                'issuer_rfc' => $issuerRfc,
+                'receiver_rfc' => $receiverRfc,
+            ]);
         }
 
         $issuerName = trim((string) ($issuer['Nombre'] ?? $issuer['nombre'] ?? ''));

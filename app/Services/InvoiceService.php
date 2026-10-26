@@ -51,6 +51,12 @@ class InvoiceService
 
         try {
             $data = $this->parser->parse($xmlContents);
+        } catch (CfdiParseException $exception) {
+            $this->logRejection($logContext, $exception->partialData(), $exception->rejectionCode());
+
+            throw ValidationException::withMessages([
+                'xml_file' => $exception->getMessage(),
+            ]);
         } catch (RuntimeException $exception) {
             $this->logRejection($logContext, [], CfdiRejectionCode::XML_MALFORMADO);
 
@@ -85,6 +91,10 @@ class InvoiceService
                     'uploaded_origin' => $origin,
                     'status' => SupplierInvoice::STATUS_UPLOADED,
                 ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                Storage::disk('public')->delete([$xmlPath, $pdfPath]);
+                $this->logDuplicateIfRaceLost($data['uuid'], $data, $logContext);
+                throw $e;
             } catch (\Throwable $e) {
                 Storage::disk('public')->delete([$xmlPath, $pdfPath]);
                 throw $e;
@@ -203,6 +213,19 @@ class InvoiceService
             throw ValidationException::withMessages([
                 'xml_file' => 'El UUID de esta factura ya fue registrado.',
             ]);
+        }
+    }
+
+    /**
+     * El pre-chequeo de UUID duplicado en validateInvoiceData() corre antes de la
+     * transacción: si dos cargas del mismo UUID lo superan a la vez, el índice único de BD
+     * rechaza el INSERT que llega segundo. Ese intento perdido también debe quedar en la
+     * bitácora (RF-01) en vez de desaparecer sin motivo registrado.
+     */
+    private function logDuplicateIfRaceLost(string $uuid, array $data, array $logContext): void
+    {
+        if (SupplierInvoice::where('uuid', $uuid)->exists()) {
+            $this->logRejection($logContext, $data, CfdiRejectionCode::UUID_DUPLICADO);
         }
     }
 
