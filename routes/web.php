@@ -475,6 +475,11 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('/export/{format}', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'export'])->middleware('can:reportes.receptions_evidence.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
         Route::post('/adjuntos/{attachment}/verificar-hash', [\App\Http\Controllers\ReceptionsEvidenceReportController::class, 'verifyHash'])->name('verify-hash');
     });
+    Route::prefix('reportes/fiscal/bitacora-cfdi')->name('cfdi-validation-log-reports.')->middleware('can:reportes.cfdi_validation_log.ver')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CfdiValidationLogReportController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\CfdiValidationLogReportController::class, 'data'])->name('data');
+        Route::get('/export/{format}', [\App\Http\Controllers\CfdiValidationLogReportController::class, 'export'])->middleware('can:reportes.cfdi_validation_log.exportar')->whereIn('format', ['xlsx', 'csv'])->name('export');
+    });
     Route::group([], function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
@@ -714,6 +719,10 @@ Route::middleware(['auth:supplier'])->prefix('supplier')->name('supplier.')->gro
         Route::get('/create', [SupplierInvoiceController::class, 'create'])->name('create');
         Route::post('/', [SupplierInvoiceController::class, 'store'])->name('store');
     });
+
+    Route::middleware(\App\Http\Middleware\EnsureSupplierIsApproved::class)
+        ->get('/mis-cargas', [\App\Http\Controllers\SupplierCfdiValidationLogController::class, 'index'])
+        ->name('cfdi-log.index');
 });
 
 // ============================================================================

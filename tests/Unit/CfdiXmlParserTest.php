@@ -25,7 +25,7 @@ class CfdiXmlParserTest extends TestCase
 </cfdi:Comprobante>
 XML;
 
-        $data = (new CfdiXmlParser())->parse($xml);
+        $data = (new CfdiXmlParser)->parse($xml);
 
         $this->assertSame('11111111-2222-3333-4444-555555555555', $data['uuid']);
         $this->assertSame('SUP010101AB1', $data['issuer_rfc']);
@@ -50,7 +50,7 @@ XML;
 </cfdi:Comprobante>
 XML;
 
-        $data = (new CfdiXmlParser())->parse($xml);
+        $data = (new CfdiXmlParser)->parse($xml);
 
         $this->assertSame('Proveedor de Pruebas SA de CV', $data['issuer_name']);
         $this->assertSame('I', $data['cfdi_type']);
@@ -61,7 +61,7 @@ XML;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('El XML de factura no es válido:');
 
-        (new CfdiXmlParser())->parse('<cfdi:Comprobante');
+        (new CfdiXmlParser)->parse('<cfdi:Comprobante');
     }
 
     public function test_parser_requires_receiver_rfc(): void
@@ -80,6 +80,6 @@ XML;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('El XML no contiene el RFC del receptor.');
 
-        (new CfdiXmlParser())->parse($xml);
+        (new CfdiXmlParser)->parse($xml);
     }
 }

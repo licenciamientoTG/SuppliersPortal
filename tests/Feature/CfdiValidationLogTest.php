@@ -11,7 +11,6 @@ use App\Models\SupplierInvoice;
 use App\Services\CfdiXmlParser;
 use App\Services\FinancialProvisionService;
 use App\Services\InvoiceService;
-use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
