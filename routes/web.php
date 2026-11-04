@@ -484,6 +484,7 @@ Route::middleware(['auth', 'lock'])->group(function () {
         Route::get('budget_movements/dashboard/critical', [BudgetMovementWorkflowController::class, 'dashboard'])->name('budget_movements.dashboard');
         Route::get('budget_movements/check-budget/availability', [BudgetMovementController::class, 'checkBudgetAvailability'])->name('budget_movements.check_budget');
         Route::get('budget_movements/budget-snapshot', [BudgetMovementWorkflowController::class, 'budgetSnapshot'])->name('budget_movements.budget-snapshot');
+        Route::get('budget_movements/cedula-balances', [BudgetMovementWorkflowController::class, 'cedulaBalances'])->name('budget_movements.cedula-balances');
         Route::get('budget_movements/settings', [BudgetMovementWorkflowController::class, 'settings'])->name('budget_movements.settings');
         Route::put('budget_movements/settings', [BudgetMovementWorkflowController::class, 'saveSettings'])->name('budget_movements.settings.update');
         Route::post('budget_movements/{budgetMovement}/origin-approve', [BudgetMovementWorkflowController::class, 'approveOrigin'])->name('budget_movements.origin-approve');

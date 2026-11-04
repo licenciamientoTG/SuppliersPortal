@@ -221,6 +221,32 @@ class BudgetMovementWorkflowTest extends TestCase
         ]))->assertOk()->assertJsonPath('available_amount', 3500)->assertJsonPath('projected_available_amount', 2500)->assertJsonPath('has_sufficient_available', true);
     }
 
+    public function test_subaccount_list_receives_available_balance_per_subaccount(): void
+    {
+        $emptyCedula = BudgetCedula::factory()->create(['expense_category_id' => $this->category->id]);
+        $budget = AnnualBudget::create(['cost_center_id' => $this->destination->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 5000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $budget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 2, 'assigned_amount' => 5000, 'consumed_amount' => 1200, 'committed_amount' => 300, 'created_by' => $this->director->id]);
+        $query = ['cost_center_id' => $this->destination->id, 'fiscal_year' => now()->year, 'month' => 2, 'expense_category_id' => $this->category->id, 'context' => 'destination'];
+
+        $response = $this->actingAs($this->requester)->getJson(route('budget_movements.cedula-balances', $query))->assertOk();
+        $this->assertEquals(3500, $response->json('balances.'.$this->cedula->id));
+        $this->assertNull($response->json('balances.'.$emptyCedula->id));
+
+        $this->actingAs($this->originOwner)->getJson(route('budget_movements.cedula-balances', $query))->assertForbidden();
+    }
+
+    public function test_transfer_origin_options_are_limited_to_the_requesters_companies(): void
+    {
+        $sameCompany = CostCenter::factory()->create(['company_id' => $this->destination->company_id]);
+        $otherCompany = CostCenter::factory()->create();
+
+        $centers = $this->actingAs($this->requester)->get(route('budget_movements.create'))->assertOk()->viewData('originCostCenters');
+
+        $this->assertTrue($centers->contains($sameCompany));
+        $this->assertTrue($centers->contains($this->destination));
+        $this->assertFalse($centers->contains($otherCompany));
+    }
+
     public function test_user_cannot_view_another_center_as_a_single_center_preview(): void
     {
         $this->actingAs($this->requester)->getJson(route('budget_movements.budget-snapshot', [

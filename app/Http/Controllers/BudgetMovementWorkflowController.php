@@ -119,6 +119,45 @@ class BudgetMovementWorkflowController extends Controller
         ]);
     }
 
+    /**
+     * Disponible por subcuenta de una cuenta, para mostrarlo como badge en el select de
+     * subcuentas. Mismas reglas de acceso que budgetSnapshot.
+     */
+    public function cedulaBalances(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'cost_center_id' => ['required', 'integer', Rule::exists('cost_centers', 'id')],
+            'fiscal_year' => ['required', 'integer', 'between:2020,2100'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'expense_category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
+            'context' => ['required', Rule::in(['single', 'origin', 'destination'])],
+        ]);
+
+        $actor = $request->user();
+        if ($data['context'] === 'origin') {
+            abort_unless($this->ownedCenters($actor)->exists(), 403, 'No tienes centros de costo asignados como responsable.');
+        } else {
+            abort_unless($this->ownedCenters($actor)->whereKey($data['cost_center_id'])->exists(), 403, 'Solo puedes consultar el presupuesto de centros de costo de los que eres responsable.');
+        }
+
+        $budget = AnnualBudget::query()
+            ->where('cost_center_id', $data['cost_center_id'])
+            ->where('fiscal_year', $data['fiscal_year'])
+            ->first();
+        $balances = $budget
+            ? BudgetMonthlyDistribution::query()
+                ->where('annual_budget_id', $budget->id)
+                ->where('month', $data['month'])
+                ->where('expense_category_id', $data['expense_category_id'])
+                ->whereNotNull('budget_cedula_id')
+                ->get()
+                ->groupBy('budget_cedula_id')
+                ->map(fn (Collection $rows) => round((float) $rows->sum(fn (BudgetMonthlyDistribution $row) => $row->getAvailableAmount()), 2))
+            : collect();
+
+        return response()->json(['has_budget' => $budget !== null, 'balances' => $balances]);
+    }
+
     public function store(SaveBudgetMovementRequest $request): RedirectResponse|JsonResponse
     {
         $actor = $request->user();
@@ -171,7 +210,9 @@ class BudgetMovementWorkflowController extends Controller
         $ownedCostCenters = $this->ownedCenters($request->user())->get();
         $budgetMovement->load('details');
 
-        return view('budget_movements.workflow.edit', array_merge($this->formData($ownedCostCenters), compact('budgetMovement')));
+        $originIds = $budgetMovement->details->where('detail_type', BudgetMovementDetail::TYPE_ORIGIN)->pluck('cost_center_id')->all();
+
+        return view('budget_movements.workflow.edit', array_merge($this->formData($ownedCostCenters, $originIds), compact('budgetMovement')));
     }
 
     public function update(SaveBudgetMovementRequest $request, BudgetMovement $budgetMovement): RedirectResponse|JsonResponse
@@ -362,9 +403,28 @@ class BudgetMovementWorkflowController extends Controller
         return back()->with('success', 'Configuración de autorización guardada.');
     }
 
-    private function formData(Collection $ownedCostCenters): array
+    /**
+     * Centros que se ofrecen como origen de una transferencia: los activos de las empresas
+     * a las que pertenecen los centros del usuario (más los propios y, al editar, el origen ya
+     * guardado para no perderlo). Es un filtro de captura; la autorización no cambia.
+     */
+    private function originCenterOptions(Collection $ownedCostCenters, array $includeIds = []): Collection
     {
-        return ['ownedCostCenters' => $ownedCostCenters, 'originCostCenters' => CostCenter::active()->with('responsible:id,name')->orderBy('name')->get(), 'expenseCategories' => ExpenseCategory::orderBy('name')->get(), 'budgetCedulas' => BudgetCedula::active()->notDeleted()->orderBy('name')->get(['id', 'expense_category_id', 'name']), 'currentYear' => now()->year];
+        $companyIds = $ownedCostCenters->pluck('company_id')->filter()->unique()->values();
+
+        return CostCenter::query()
+            ->where(fn ($query) => $query
+                ->where(fn ($active) => $active->active()->whereIn('company_id', $companyIds))
+                ->orWhereIn('id', $ownedCostCenters->pluck('id'))
+                ->orWhereIn('id', array_filter($includeIds)))
+            ->with('responsible:id,name')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function formData(Collection $ownedCostCenters, array $includeOriginIds = []): array
+    {
+        return ['ownedCostCenters' => $ownedCostCenters, 'originCostCenters' => $this->originCenterOptions($ownedCostCenters, $includeOriginIds), 'expenseCategories' => ExpenseCategory::orderBy('name')->get(), 'budgetCedulas' => BudgetCedula::active()->notDeleted()->orderBy('name')->get(['id', 'expense_category_id', 'name']), 'currentYear' => now()->year];
     }
 
     private function syncDetails(BudgetMovement $movement, array $data): void
