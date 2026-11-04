@@ -384,12 +384,9 @@ class BudgetMovementWorkflowController extends Controller
     private function ensureCanSubmit(User $actor, array $data): void
     {
         $centerId = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER ? $data['destination_cost_center_id'] : $data['cost_center_id'];
+        // Transferir entre cuentas del mismo centro está permitido; SaveBudgetMovementRequest
+        // solo exige que origen y destino difieran en centro, mes, cuenta o subcuenta.
         abort_unless($this->ownedCenters($actor)->whereKey($centerId)->exists(), 403, 'Solo puedes solicitar movimientos para centros de costo de los que eres responsable.');
-        if ($data['movement_type'] === BudgetMovement::TYPE_TRANSFER) {
-            if ((int) $data['origin_cost_center_id'] === (int) $data['destination_cost_center_id']) {
-                throw ValidationException::withMessages(['destination_cost_center_id' => 'El centro de costo destino debe ser diferente al centro de costo origen.']);
-            }
-        }
     }
 
     /**

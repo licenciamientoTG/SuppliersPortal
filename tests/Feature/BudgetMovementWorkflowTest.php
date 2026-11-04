@@ -91,14 +91,27 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->assertDatabaseCount('budget_movements', 0);
     }
 
-    public function test_transfer_with_same_origin_and_destination_center_is_a_field_error(): void
+    public function test_transfer_between_accounts_of_the_same_cost_center_is_allowed(): void
     {
-        $this->origin->update(['responsible_user_id' => $this->requester->id]);
+        $otherCategory = ExpenseCategory::factory()->create();
+        $otherCedula = BudgetCedula::factory()->create(['expense_category_id' => $otherCategory->id]);
+        $payload = array_merge($this->transferPayload(), [
+            'origin_cost_center_id' => $this->destination->id, 'origin_month' => 2,
+            'origin_expense_category_id' => $otherCategory->id, 'origin_budget_cedula_id' => $otherCedula->id,
+        ]);
+
+        $this->actingAs($this->requester)->postJson(route('budget_movements.store'), $payload)->assertOk();
+        $this->assertDatabaseCount('budget_movements', 1);
+    }
+
+    public function test_transfer_to_the_exact_same_budget_line_is_a_field_error(): void
+    {
         $payload = array_merge($this->transferPayload(), ['origin_cost_center_id' => $this->destination->id, 'origin_month' => 2]);
 
         $this->actingAs($this->requester)->postJson(route('budget_movements.store'), $payload)
             ->assertUnprocessable()
             ->assertJsonValidationErrors('destination_cost_center_id');
+        $this->assertDatabaseCount('budget_movements', 0);
     }
 
     public function test_only_cost_center_owner_can_submit_a_movement(): void

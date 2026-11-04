@@ -156,7 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 require(`${prefix}_expense_category_id`, `Selecciona la cuenta ${label}.`);
                 require(`${prefix}_budget_cedula_id`, `Selecciona la subcuenta ${label}.`);
             });
-            if (value('origin_cost_center_id') && value('origin_cost_center_id') === value('destination_cost_center_id')) errors.destination_cost_center_id = 'El centro de costo destino debe ser diferente al centro de costo origen.';
+            const sameAsOrigin = ['cost_center_id', 'month', 'expense_category_id', 'budget_cedula_id'].every(field => value(`origin_${field}`) && value(`origin_${field}`) === value(`destination_${field}`));
+            if (sameAsOrigin) errors.destination_budget_cedula_id = 'El origen y el destino son la misma partida. Cambia al menos el centro de costo, el mes, la cuenta o la subcuenta.';
         } else {
             require('cost_center_id', 'Selecciona el centro de costo.');
             require('month', 'Selecciona el mes.');
