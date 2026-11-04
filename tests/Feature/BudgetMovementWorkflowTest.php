@@ -152,6 +152,23 @@ class BudgetMovementWorkflowTest extends TestCase
             ->assertSee('Suplente Vigente');
     }
 
+    public function test_superadmin_can_validate_the_origin_of_a_transfer(): void
+    {
+        Role::findOrCreate('superadmin');
+        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadmin->assignRole('superadmin');
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+
+        $this->actingAs($superadmin)->get(route('budget_movements.show', $movement))->assertOk()
+            ->assertSee('Puedes validar la salida de presupuesto del centro origen como Superadministrador')
+            ->assertSee('(tú tienes ese rol)');
+        $this->actingAs($superadmin)->post(route('budget_movements.origin-approve', $movement))->assertRedirect();
+
+        $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_PENDING_EXECUTIVE]);
+        $this->assertDatabaseHas('budget_movement_decisions', ['budget_movement_id' => $movement->id, 'stage' => 'ORIGEN', 'action' => 'APROBADO', 'actor_user_id' => $superadmin->id]);
+    }
+
     public function test_detail_explains_an_inactive_substitute_and_the_return_reason(): void
     {
         $substitute = User::factory()->create(['is_active' => true, 'name' => 'Suplente Futuro']);

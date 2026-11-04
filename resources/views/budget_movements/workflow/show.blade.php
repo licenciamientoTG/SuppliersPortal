@@ -60,6 +60,7 @@
                 @endforeach
             </ul>
         @endif
+        @if(!empty($r['also']))<p class="bm-owner-next mb-0"><i class="ti ti-shield-check" aria-hidden="true"></i> {{ $r['also'] }}</p>@endif
         @if($r['alert'])<div class="alert alert-warning mb-0 mt-2"><i class="ti ti-alert-triangle" aria-hidden="true"></i> {{ $r['alert'] }}</div>@endif
         @if(!empty($r['reason']) && $r['reason']['text'])
             <blockquote class="bm-reason">
@@ -80,7 +81,8 @@
     @endif
     @if($canOriginApprove)
         <section class="bm-card bm-action">
-            <h2>Te toca validar la salida de presupuesto de tu centro</h2>
+            @php($ownsOrigin = $movement->details->firstWhere('detail_type', 'ORIGEN')?->costCenter?->responsible_user_id === auth()->id())
+            <h2>{{ $ownsOrigin ? 'Te toca validar la salida de presupuesto de tu centro' : 'Puedes validar la salida de presupuesto del centro origen como Superadministrador' }}</h2>
             <p class="text-muted">Si la aceptas pasa a Dirección General; si algo no cuadra, devuélvela con el motivo para que el solicitante la corrija.</p>
             <div class="d-flex flex-wrap gap-2 align-items-start">
                 <form method="POST" action="{{ route('budget_movements.origin-approve', $movement) }}">@csrf<button class="btn btn-success">Aceptar transferencia</button></form>

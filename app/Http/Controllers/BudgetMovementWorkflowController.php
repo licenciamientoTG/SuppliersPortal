@@ -241,7 +241,8 @@ class BudgetMovementWorkflowController extends Controller
                     'tone' => 'info', 'title' => 'Esperando la validación del centro origen',
                     'verb' => 'Puede validar o devolver',
                     'people' => array_values(array_filter([$person($originCenter?->responsible, 'Responsable de '.($originCenter ? $originCenter->code.' · '.$originCenter->name : 'el centro origen'))])),
-                    'alert' => $originCenter?->responsible ? null : 'El centro origen no tiene responsable asignado, así que nadie puede validar esta transferencia. Pide a un administrador que lo asigne.',
+                    'also' => 'También puede validarla o devolverla cualquier Superadministrador'.($viewer->hasRole('superadmin') ? ' (tú tienes ese rol).' : '.'),
+                    'alert' => $originCenter?->responsible ? null : 'El centro origen no tiene responsable asignado; mientras no se asigne, solo un Superadministrador puede validar esta transferencia.',
                     'next' => 'Después pasa a Dirección General'.($directors ? ': '.collect($directors)->pluck('name')->join(', ', ' o ') : '').'.',
                 ];
             case BudgetMovement::STATUS_PENDING_EXECUTIVE:
@@ -612,7 +613,16 @@ class BudgetMovementWorkflowController extends Controller
 
     private function canOriginApprove(User $actor, BudgetMovement $m): bool
     {
-        return $m->status === BudgetMovement::STATUS_PENDING_ORIGIN && $m->isTransfer() && (int) $m->originDetails()->value('cost_center_id') !== 0 && CostCenter::whereKey($m->originDetails()->value('cost_center_id'))->where('responsible_user_id', $actor->id)->exists();
+        if ($m->status !== BudgetMovement::STATUS_PENDING_ORIGIN || ! $m->isTransfer()) {
+            return false;
+        }
+        // El superadministrador también puede validar (o devolver) en nombre del centro origen.
+        if ($actor->hasRole('superadmin')) {
+            return true;
+        }
+        $originCenterId = (int) $m->originDetails()->value('cost_center_id');
+
+        return $originCenterId !== 0 && CostCenter::whereKey($originCenterId)->where('responsible_user_id', $actor->id)->exists();
     }
 
     private function visibleTo(User $user)
