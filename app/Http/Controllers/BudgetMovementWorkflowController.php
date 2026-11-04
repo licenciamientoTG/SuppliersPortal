@@ -201,7 +201,91 @@ class BudgetMovementWorkflowController extends Controller
             'canOriginApprove' => $this->canOriginApprove($request->user(), $budgetMovement),
             'canExecutiveApprove' => $this->approvalSettings()?->canApprove($request->user()) && $budgetMovement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE,
             'canReverse' => $budgetMovement->isApproved() && $budgetMovement->reversals->isEmpty() && $this->visibleTo($request->user())->whereKey($budgetMovement->id)->exists(),
+            'responsibility' => $this->responsibility($budgetMovement, $request->user()),
         ]);
+    }
+
+    /**
+     * Quién tiene la solicitud en su paso actual (o quién la cerró), para mostrarlo en el detalle.
+     * Usa las mismas reglas que canOriginApprove y BudgetMovementApprovalSetting::canApprove.
+     */
+    private function responsibility(BudgetMovement $movement, User $viewer): array
+    {
+        $person = fn (?User $user, string $role, ?string $note = null) => $user
+            ? ['name' => $user->name, 'role' => $role, 'note' => $note, 'is_you' => $user->id === $viewer->id]
+            : null;
+        $lastDecision = fn (string $action) => $movement->decisions->where('action', $action)->sortByDesc('created_at')->first();
+        $settings = $this->approvalSettings()?->loadMissing(['director', 'substitute']);
+        $executives = function () use ($settings, $person) {
+            $people = [$person($settings?->director, 'Director General · titular')];
+            $note = null;
+            $substitute = $settings?->substitute;
+            if ($substitute) {
+                $period = $settings->substitute_starts_at?->format('d/m/Y H:i').' al '.$settings->substitute_ends_at?->format('d/m/Y H:i');
+                if (in_array($substitute->id, $settings->executiveApproverIds(), true)) {
+                    $people[] = $person($substitute, 'Suplente de Dirección', 'Suplencia vigente del '.$period.'.');
+                } else {
+                    $note = $substitute->name.' es suplente del '.$period.'; fuera de ese periodo no puede autorizar.';
+                }
+            }
+
+            return [array_values(array_filter($people)), $note];
+        };
+
+        switch ($movement->status) {
+            case BudgetMovement::STATUS_PENDING_ORIGIN:
+                $originCenter = $movement->details->firstWhere('detail_type', BudgetMovementDetail::TYPE_ORIGIN)?->costCenter;
+                [$directors] = $executives();
+
+                return [
+                    'tone' => 'info', 'title' => 'Esperando la validación del centro origen',
+                    'verb' => 'Puede validar o devolver',
+                    'people' => array_values(array_filter([$person($originCenter?->responsible, 'Responsable de '.($originCenter ? $originCenter->code.' · '.$originCenter->name : 'el centro origen'))])),
+                    'alert' => $originCenter?->responsible ? null : 'El centro origen no tiene responsable asignado, así que nadie puede validar esta transferencia. Pide a un administrador que lo asigne.',
+                    'next' => 'Después pasa a Dirección General'.($directors ? ': '.collect($directors)->pluck('name')->join(', ', ' o ') : '').'.',
+                ];
+            case BudgetMovement::STATUS_PENDING_EXECUTIVE:
+                [$directors, $note] = $executives();
+
+                return [
+                    'tone' => 'info', 'title' => 'Esperando la autorización de Dirección General',
+                    'verb' => count($directors) > 1 ? 'Cualquiera de estas personas puede autorizar o rechazar' : 'Puede autorizar o rechazar',
+                    'people' => $directors,
+                    'alert' => $directors ? null : 'No hay un Director General configurado, así que nadie puede autorizar esta solicitud. Un superadministrador debe configurarlo en Movimientos presupuestales > Configuración.',
+                    'next' => $note,
+                ];
+            case BudgetMovement::STATUS_RETURNED:
+                $returned = $lastDecision(BudgetMovementDecision::ACTION_RETURNED);
+
+                return [
+                    'tone' => 'warning', 'title' => 'Devuelta para corrección',
+                    'verb' => 'Debe corregirla y reenviarla',
+                    'people' => array_values(array_filter([$person($movement->creator, 'Solicitante')])),
+                    'alert' => null,
+                    'reason' => $returned ? ['by' => $returned->actor?->name, 'text' => $returned->comments, 'at' => $returned->created_at] : null,
+                    'next' => null,
+                ];
+            case BudgetMovement::STATUS_APPROVED:
+                return [
+                    'tone' => 'success', 'title' => 'Autorizada y aplicada al presupuesto',
+                    'verb' => 'Autorizó',
+                    'people' => array_values(array_filter([$person($movement->approver, BudgetMovement::LEVEL_LABELS[$movement->approval_level] ?? 'Dirección', $movement->approved_at ? 'El '.$movement->approved_at->format('d/m/Y \a \l\a\s H:i').'.' : null)])),
+                    'alert' => null, 'next' => null,
+                ];
+            case BudgetMovement::STATUS_REJECTED:
+                $rejected = $lastDecision(BudgetMovementDecision::ACTION_REJECTED);
+
+                return [
+                    'tone' => 'danger', 'title' => 'Rechazada',
+                    'verb' => 'Rechazó',
+                    'people' => array_values(array_filter([$person($rejected?->actor, 'Dirección General', $rejected ? 'El '.$rejected->created_at->format('d/m/Y \a \l\a\s H:i').'.' : null)])),
+                    'alert' => null,
+                    'reason' => $rejected ? ['by' => $rejected->actor?->name, 'text' => $rejected->comments, 'at' => $rejected->created_at] : null,
+                    'next' => null,
+                ];
+            default:
+                return ['tone' => 'info', 'title' => 'Estado: '.$movement->status, 'verb' => null, 'people' => [], 'alert' => null, 'next' => null];
+        }
     }
 
     public function edit(Request $request, BudgetMovement $budgetMovement): View

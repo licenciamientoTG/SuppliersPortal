@@ -130,6 +130,48 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_REJECTED, 'approved_by' => $this->director->id]);
     }
 
+    public function test_detail_shows_who_has_the_request_at_each_step(): void
+    {
+        $this->originOwner->update(['name' => 'Responsable Origen']);
+        $this->director->update(['name' => 'Enrique Director']);
+        $substitute = User::factory()->create(['is_active' => true, 'name' => 'Suplente Vigente']);
+        BudgetMovementApprovalSetting::query()->update(['substitute_user_id' => $substitute->id, 'substitute_starts_at' => now()->subHour(), 'substitute_ends_at' => now()->addHour()]);
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+
+        $this->actingAs($this->requester)->get(route('budget_movements.show', $movement))->assertOk()
+            ->assertSee('Esperando la validación del centro origen')
+            ->assertSee('Responsable Origen')
+            ->assertSee('Después pasa a Dirección General: Enrique Director o Suplente Vigente.');
+
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+        $this->actingAs($this->requester)->get(route('budget_movements.show', $movement))->assertOk()
+            ->assertSee('Esperando la autorización de Dirección General')
+            ->assertSee('Cualquiera de estas personas puede autorizar o rechazar')
+            ->assertSee('Enrique Director')
+            ->assertSee('Suplente Vigente');
+    }
+
+    public function test_detail_explains_an_inactive_substitute_and_the_return_reason(): void
+    {
+        $substitute = User::factory()->create(['is_active' => true, 'name' => 'Suplente Futuro']);
+        BudgetMovementApprovalSetting::query()->update(['substitute_user_id' => $substitute->id, 'substitute_starts_at' => now()->addDay(), 'substitute_ends_at' => now()->addDays(2)]);
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+
+        $this->actingAs($this->requester)->get(route('budget_movements.show', $movement))->assertOk()
+            ->assertSee('Puede autorizar o rechazar')
+            ->assertSee('fuera de ese periodo no puede autorizar');
+
+        $movement->fresh()->update(['status' => BudgetMovement::STATUS_PENDING_ORIGIN]);
+        $this->actingAs($this->originOwner)->post(route('budget_movements.return', $movement), ['comments' => 'Falta la cotizacion del proveedor.']);
+        $this->actingAs($this->requester)->get(route('budget_movements.show', $movement))->assertOk()
+            ->assertSee('Devuelta para corrección')
+            ->assertSee('Falta la cotizacion del proveedor.')
+            ->assertSee('Te toca corregirla');
+    }
+
     public function test_active_temporary_substitute_can_take_the_executive_decision(): void
     {
         $substitute = User::factory()->create(['is_active' => true]);
