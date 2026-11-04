@@ -86,11 +86,12 @@
             <p class="text-muted">Si la aceptas pasa a Dirección General; si algo no cuadra, devuélvela con el motivo para que el solicitante la corrija.</p>
             <div class="d-flex flex-wrap gap-2 align-items-start">
                 <form method="POST" action="{{ route('budget_movements.origin-approve', $movement) }}">@csrf<button class="btn btn-success">Aceptar transferencia</button></form>
-                <details class="bm-decision">
+                <details class="bm-decision" @if($errors->has('comments')) open @endif>
                     <summary class="btn btn-outline-danger">Devolver para corrección</summary>
                     <form method="POST" action="{{ route('budget_movements.return', $movement) }}" class="mt-2">@csrf
                         <label class="form-label" for="returnComments">¿Qué debe corregirse?</label>
-                        <textarea required minlength="10" maxlength="1000" class="form-control mb-2" id="returnComments" name="comments" rows="3"></textarea>
+                        <textarea required minlength="10" maxlength="1000" class="form-control mb-2 @error('comments') is-invalid @enderror" id="returnComments" name="comments" rows="3">{{ old('comments') }}</textarea>
+                        @error('comments')<div class="invalid-feedback d-block mb-2">{{ $message }}</div>@enderror
                         <button class="btn btn-danger">Devolver</button>
                     </form>
                 </details>
@@ -103,11 +104,12 @@
             <p class="text-muted">Al aprobar se actualiza el presupuesto de inmediato y no se puede deshacer; solo se corrige con una reversa.</p>
             <div class="d-flex flex-wrap gap-2 align-items-start">
                 <form method="POST" action="{{ route('budget_movements.approve', $movement) }}">@csrf<button class="btn btn-success">Aprobar y aplicar</button></form>
-                <details class="bm-decision">
+                <details class="bm-decision" @if($errors->has('comments')) open @endif>
                     <summary class="btn btn-outline-danger">Rechazar</summary>
                     <form method="POST" action="{{ route('budget_movements.reject', $movement) }}" class="mt-2">@csrf
                         <label class="form-label" for="rejectComments">Motivo del rechazo</label>
-                        <textarea required minlength="10" maxlength="1000" class="form-control mb-2" id="rejectComments" name="comments" rows="3"></textarea>
+                        <textarea required minlength="10" maxlength="1000" class="form-control mb-2 @error('comments') is-invalid @enderror" id="rejectComments" name="comments" rows="3">{{ old('comments') }}</textarea>
+                        @error('comments')<div class="invalid-feedback d-block mb-2">{{ $message }}</div>@enderror
                         <button class="btn btn-danger">Confirmar rechazo</button>
                     </form>
                 </details>
@@ -182,7 +184,8 @@
             <p class="text-muted">La reversa sigue el flujo de autorización habitual y conserva este movimiento como referencia.</p>
             <form method="POST" action="{{ route('budget_movements.reverse', $movement) }}">@csrf
                 <label class="form-label" for="reverseJustification">Motivo de la reversa</label>
-                <textarea name="justification" id="reverseJustification" class="form-control mb-2" rows="2" required minlength="10" maxlength="1000"></textarea>
+                <textarea name="justification" id="reverseJustification" class="form-control mb-2 @error('justification') is-invalid @enderror" rows="2" required minlength="10" maxlength="1000">{{ old('justification') }}</textarea>
+                @error('justification')<div class="invalid-feedback d-block mb-2">{{ $message }}</div>@enderror
                 <button class="btn btn-outline-danger">Crear reversa</button>
             </form>
         </section>

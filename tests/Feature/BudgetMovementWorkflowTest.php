@@ -237,6 +237,47 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_REJECTED, 'approved_by' => $substitute->id]);
     }
 
+    public function test_approving_without_enough_origin_balance_returns_a_clear_message_and_applies_nothing(): void
+    {
+        $originBudget = AnnualBudget::create(['cost_center_id' => $this->origin->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 500, 'status' => 'APROBADO', 'created_by' => $this->director->id]);
+        BudgetMonthlyDistribution::create(['annual_budget_id' => $originBudget->id, 'budget_cedula_id' => $this->cedula->id, 'expense_category_id' => $this->category->id, 'month' => 1, 'assigned_amount' => 500, 'created_by' => $this->director->id]);
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+
+        $show = route('budget_movements.show', $movement);
+        $this->actingAs($this->director)->from($show)->post(route('budget_movements.approve', $movement))
+            ->assertRedirect($show)
+            ->assertSessionHasErrors(['workflow' => 'No se aplicó el movimiento: '.$this->origin->name.' ya no tiene saldo suficiente en '.$this->cedula->name.' (Enero). Disponible: $500.00; se requieren $1,000.00. Puedes rechazarlo o pedir que se corrija el monto.']);
+
+        $this->assertDatabaseHas('budget_movements', ['id' => $movement->id, 'status' => BudgetMovement::STATUS_PENDING_EXECUTIVE]);
+        $this->assertDatabaseHas('budget_monthly_distributions', ['annual_budget_id' => $originBudget->id, 'month' => 1, 'assigned_amount' => 500]);
+    }
+
+    public function test_acting_on_a_request_that_was_already_handled_shows_a_message_instead_of_an_error_page(): void
+    {
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $show = route('budget_movements.show', $movement);
+        Role::findOrCreate('superadmin');
+        $superadmin = User::factory()->create(['is_active' => true]);
+        $superadmin->assignRole('superadmin');
+
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+        $this->actingAs($this->director)->from($show)->post(route('budget_movements.reject', $movement), ['comments' => 'corto'])
+            ->assertRedirect($show)
+            ->assertSessionHasErrors(['comments' => 'Explica el motivo del rechazo con al menos 10 caracteres.']);
+
+        // El superadmin ya no puede validar el origen: otra persona lo hizo antes.
+        $this->actingAs($superadmin)->from($show)->post(route('budget_movements.return', $movement), ['comments' => 'Revisar el mes de origen.'])
+            ->assertRedirect($show)
+            ->assertSessionHasErrors(['workflow' => 'Esta solicitud ya no está pendiente de validación del origen, así que no se puede devolver. Revisa el historial.']);
+        $movement->fresh()->update(['status' => BudgetMovement::STATUS_REJECTED]);
+        $this->actingAs($this->director)->from($show)->post(route('budget_movements.reject', $movement), ['comments' => 'No procede por prioridad operativa.'])
+            ->assertRedirect($show)
+            ->assertSessionHasErrors('workflow');
+    }
+
     public function test_executive_approval_applies_the_transfer_atomically(): void
     {
         $originBudget = AnnualBudget::create(['cost_center_id' => $this->origin->id, 'fiscal_year' => now()->year, 'total_annual_amount' => 5000, 'status' => 'APROBADO', 'created_by' => $this->director->id]);

@@ -333,11 +333,11 @@ class BudgetMovementWorkflowController extends Controller
     public function reverse(Request $request, BudgetMovement $budgetMovement): RedirectResponse
     {
         $this->ensureVisible($request->user(), $budgetMovement);
-        abort_unless($budgetMovement->isApproved(), 422, 'Solo se pueden revertir movimientos aprobados.');
-        abort_if($budgetMovement->reversals()->exists(), 422, 'Este movimiento ya tiene una reversa registrada.');
-        $data = $request->validate(['justification' => ['required', 'string', 'min:10', 'max:1000']]);
+        $this->requireOr($budgetMovement->isApproved(), 'Solo se pueden revertir movimientos aprobados.');
+        $this->requireOr(! $budgetMovement->reversals()->exists(), 'Este movimiento ya tiene una reversa registrada.');
+        $data = $request->validate(['justification' => ['required', 'string', 'min:10', 'max:1000']], $this->textMessages('justification', 'el motivo de la reversa'));
         $budgetMovement->load('details');
-        $settings = $this->settingsOrFail();
+        $settings = $this->settingsForSubmission();
 
         $reversal = DB::transaction(function () use ($budgetMovement, $request, $data) {
             $type = match ($budgetMovement->movement_type) {
@@ -398,11 +398,13 @@ class BudgetMovementWorkflowController extends Controller
 
     public function approveOrigin(Request $request, BudgetMovement $budgetMovement): RedirectResponse
     {
+        $this->ensureVisible($request->user(), $budgetMovement);
+        $this->requireOr($budgetMovement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 'Esta solicitud ya no está pendiente de validación del origen; probablemente alguien más ya la atendió. Revisa el historial.');
         abort_unless($this->canOriginApprove($request->user(), $budgetMovement), 403);
-        $settings = $this->settingsOrFail();
+        $settings = $this->settingsForSubmission();
         DB::transaction(function () use ($budgetMovement, $request) {
             $movement = BudgetMovement::query()->lockForUpdate()->findOrFail($budgetMovement->id);
-            abort_unless($movement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 422, 'La solicitud ya no está pendiente de tu validación.');
+            $this->requireOr($movement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 'Esta solicitud ya no está pendiente de validación del origen; probablemente alguien más ya la atendió. Revisa el historial.');
             $movement->update(['status' => BudgetMovement::STATUS_PENDING_EXECUTIVE]);
             $this->record($movement, BudgetMovementDecision::STAGE_ORIGIN, BudgetMovementDecision::ACTION_APPROVED, $request->user());
         });
@@ -413,11 +415,13 @@ class BudgetMovementWorkflowController extends Controller
 
     public function returnToRequester(Request $request, BudgetMovement $budgetMovement): RedirectResponse
     {
-        $data = $request->validate(['comments' => ['required', 'string', 'min:10', 'max:1000']]);
+        $data = $request->validate(['comments' => ['required', 'string', 'min:10', 'max:1000']], $this->textMessages('comments', 'qué debe corregirse'));
+        $this->ensureVisible($request->user(), $budgetMovement);
+        $this->requireOr($budgetMovement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 'Esta solicitud ya no está pendiente de validación del origen, así que no se puede devolver. Revisa el historial.');
         abort_unless($this->canOriginApprove($request->user(), $budgetMovement), 403);
         DB::transaction(function () use ($budgetMovement, $request, $data) {
             $movement = BudgetMovement::query()->lockForUpdate()->findOrFail($budgetMovement->id);
-            abort_unless($movement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 422);
+            $this->requireOr($movement->status === BudgetMovement::STATUS_PENDING_ORIGIN, 'Esta solicitud ya no está pendiente de validación del origen, así que no se puede devolver. Revisa el historial.');
             $movement->update(['status' => BudgetMovement::STATUS_RETURNED]);
             $this->record($movement, BudgetMovementDecision::STAGE_ORIGIN, BudgetMovementDecision::ACTION_RETURNED, $request->user(), $data['comments']);
         });
@@ -431,9 +435,9 @@ class BudgetMovementWorkflowController extends Controller
         abort_unless($this->approvalSettings()?->canApprove($request->user()), 403);
         DB::transaction(function () use ($budgetMovement, $request) {
             $movement = BudgetMovement::query()->lockForUpdate()->with(['details.costCenter', 'details.expenseCategory'])->findOrFail($budgetMovement->id);
-            abort_unless($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 422, 'La solicitud ya no está pendiente de aprobación ejecutiva.');
+            $this->requireOr($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 'Esta solicitud ya no está pendiente de autorización; probablemente alguien más ya la atendió. Revisa el historial.');
             if ($this->isCrossCompanyTransfer($movement)) {
-                abort_unless($movement->decisions()->where('stage', BudgetMovementDecision::STAGE_ORIGIN)->where('action', BudgetMovementDecision::ACTION_APPROVED)->exists(), 422, 'Una transferencia entre empresas requiere primero la validación del centro de costo origen.');
+                $this->requireOr($movement->decisions()->where('stage', BudgetMovementDecision::STAGE_ORIGIN)->where('action', BudgetMovementDecision::ACTION_APPROVED)->exists(), 'Una transferencia entre empresas requiere primero la validación del centro de costo origen.');
                 abort_unless($this->approvalSettings()?->canApprove($request->user()), 403, 'La transferencia entre empresas requiere aprobación de Dirección.');
             }
             $this->applyMovement($movement, $request->user()->id);
@@ -450,11 +454,11 @@ class BudgetMovementWorkflowController extends Controller
 
     public function rejectExecutive(Request $request, BudgetMovement $budgetMovement): RedirectResponse
     {
-        $data = $request->validate(['comments' => ['required', 'string', 'min:10', 'max:1000']]);
+        $data = $request->validate(['comments' => ['required', 'string', 'min:10', 'max:1000']], $this->textMessages('comments', 'el motivo del rechazo'));
         abort_unless($this->approvalSettings()?->canApprove($request->user()), 403);
         DB::transaction(function () use ($budgetMovement, $request, $data) {
             $movement = BudgetMovement::query()->lockForUpdate()->findOrFail($budgetMovement->id);
-            abort_unless($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 422);
+            $this->requireOr($movement->status === BudgetMovement::STATUS_PENDING_EXECUTIVE, 'Esta solicitud ya no está pendiente de autorización, así que no se puede rechazar. Revisa el historial.');
             $movement->update(['status' => BudgetMovement::STATUS_REJECTED, 'approved_by' => $request->user()->id, 'approved_at' => now()]);
             $this->record($movement, BudgetMovementDecision::STAGE_EXECUTIVE, BudgetMovementDecision::ACTION_REJECTED, $request->user(), $data['comments']);
         });
@@ -478,10 +482,20 @@ class BudgetMovementWorkflowController extends Controller
             'substitute_user_id' => ['nullable', 'different:director_user_id', Rule::exists('users', 'id')],
             'substitute_starts_at' => ['nullable', 'required_with:substitute_user_id', 'date'],
             'substitute_ends_at' => ['nullable', 'required_with:substitute_user_id', 'date', 'after:substitute_starts_at'],
+        ], [
+            'director_user_id.required' => 'Selecciona al Director General titular.',
+            'director_user_id.exists' => 'El titular seleccionado no existe.',
+            'substitute_user_id.different' => 'El suplente debe ser una persona distinta al titular.',
+            'substitute_user_id.exists' => 'El suplente seleccionado no existe.',
+            'substitute_starts_at.required_with' => 'Indica desde cuándo es válida la suplencia.',
+            'substitute_starts_at.date' => 'La fecha de inicio de la suplencia no es válida.',
+            'substitute_ends_at.required_with' => 'Indica hasta cuándo es válida la suplencia.',
+            'substitute_ends_at.date' => 'La fecha de fin de la suplencia no es válida.',
+            'substitute_ends_at.after' => 'El fin de la suplencia debe ser posterior a su inicio.',
         ]);
-        abort_unless(User::role('general_director')->whereKey($data['director_user_id'])->where('is_active', true)->exists(), 422, 'El titular debe ser un Director General activo.');
+        $this->requireOr(User::role('general_director')->whereKey($data['director_user_id'])->where('is_active', true)->exists(), 'El titular debe ser un usuario activo con el rol de Director General (general_director).', 'director_user_id');
         if (! empty($data['substitute_user_id'])) {
-            abort_unless(User::whereKey($data['substitute_user_id'])->where('is_active', true)->exists(), 422, 'El suplente debe ser un usuario activo.');
+            $this->requireOr(User::whereKey($data['substitute_user_id'])->where('is_active', true)->exists(), 'El suplente debe ser un usuario activo.', 'substitute_user_id');
         }
         BudgetMovementApprovalSetting::query()->firstOrNew()->fill(array_merge($data, ['updated_by' => $request->user()->id]))->save();
 
@@ -560,7 +574,7 @@ class BudgetMovementWorkflowController extends Controller
     {
         $settings = $this->approvalSettings();
         if (! $settings?->director_user_id) {
-            throw ValidationException::withMessages(['approval_settings' => 'No se puede enviar la solicitud: no hay un Director General configurado para autorizar movimientos presupuestales. Pide a un superadministrador que lo configure en Movimientos presupuestales > Configuración.']);
+            throw ValidationException::withMessages(['approval_settings' => 'No se puede continuar: no hay un Director General configurado para autorizar movimientos presupuestales. Pide a un superadministrador que lo configure en Movimientos presupuestales > Configuración.']);
         }
 
         return $settings;
@@ -578,12 +592,26 @@ class BudgetMovementWorkflowController extends Controller
         return redirect($url)->with('success', $message);
     }
 
-    private function settingsOrFail(): BudgetMovementApprovalSetting
+    /**
+     * Regla de negocio de una acción del flujo. Si no se cumple, regresa a la pantalla anterior
+     * con el mensaje (o lo devuelve como JSON 422) en lugar de mostrar una página de error;
+     * dentro de una transacción, la excepción además revierte lo que se hubiera aplicado.
+     */
+    /** Mensajes en español para un campo de texto libre de 10 a 1000 caracteres. */
+    private function textMessages(string $field, string $label): array
     {
-        $settings = $this->approvalSettings();
-        abort_unless($settings?->director_user_id, 422, 'La autorización ejecutiva de movimientos presupuestales no está configurada.');
+        return [
+            "{$field}.required" => "Escribe {$label}.",
+            "{$field}.min" => 'Explica '.$label.' con al menos 10 caracteres.',
+            "{$field}.max" => ucfirst($label).' no debe exceder 1000 caracteres.',
+        ];
+    }
 
-        return $settings;
+    private function requireOr(bool $condition, string $message, string $field = 'workflow'): void
+    {
+        if (! $condition) {
+            throw ValidationException::withMessages([$field => $message]);
+        }
     }
 
     private function record(BudgetMovement $m, string $stage, string $action, User $actor, ?string $comments = null): void
@@ -660,11 +688,16 @@ class BudgetMovementWorkflowController extends Controller
     private function applyMovement(BudgetMovement $movement, int $actorId): void
     {
         foreach ($movement->details as $detail) {
-            $budget = AnnualBudget::where('cost_center_id', $detail->cost_center_id)->where('fiscal_year', $movement->fiscal_year)->firstOrFail();
+            $budget = AnnualBudget::where('cost_center_id', $detail->cost_center_id)->where('fiscal_year', $movement->fiscal_year)->first();
+            $this->requireOr($budget !== null, sprintf('No se aplicó el movimiento: %s no tiene presupuesto anual registrado para %d. Registra el presupuesto o rechaza la solicitud.', $detail->costCenter?->name ?? 'el centro de costo', $movement->fiscal_year));
             $distributions = BudgetMonthlyDistribution::where('annual_budget_id', $budget->id)->where('month', $detail->month)->where('expense_category_id', $detail->expense_category_id)->when($detail->budget_cedula_id, fn ($q) => $q->where('budget_cedula_id', $detail->budget_cedula_id))->lockForUpdate()->get();
             if ($detail->amount < 0) {
                 $available = $distributions->sum(fn ($d) => $d->getAvailableAmount());
-                abort_if($available < abs((float) $detail->amount), 422, 'El centro origen ya no cuenta con presupuesto disponible.');
+                $this->requireOr($available >= abs((float) $detail->amount), sprintf(
+                    'No se aplicó el movimiento: %s ya no tiene saldo suficiente en %s (%s). Disponible: $%s; se requieren $%s. Puedes rechazarlo o pedir que se corrija el monto.',
+                    $detail->costCenter?->name ?? 'el centro origen', $detail->budgetCedula?->name ?? $detail->expenseCategory?->name ?? 'la subcuenta', $detail->month_name,
+                    number_format($available, 2), number_format(abs((float) $detail->amount), 2),
+                ));
                 $remaining = abs((float) $detail->amount);
                 foreach ($distributions->sortByDesc(fn ($d) => $d->getAvailableAmount()) as $distribution) {
                     $take = min($remaining, max(0, $distribution->getAvailableAmount()));
