@@ -71,6 +71,36 @@ class BudgetMovementWorkflowTest extends TestCase
         $this->actingAs($this->requester)->get(route('budget_movements.edit', $movement))->assertOk();
     }
 
+    public function test_ajax_submission_returns_redirect_url_as_json(): void
+    {
+        $this->actingAs($this->requester)->postJson(route('budget_movements.store'), $this->transferPayload())
+            ->assertOk()
+            ->assertJsonPath('redirect', route('budget_movements.show', BudgetMovement::firstOrFail()));
+    }
+
+    public function test_missing_approval_settings_is_reported_as_a_form_error_not_an_error_page(): void
+    {
+        BudgetMovementApprovalSetting::query()->delete();
+
+        $this->actingAs($this->requester)->postJson(route('budget_movements.store'), $this->transferPayload())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('approval_settings');
+        $this->actingAs($this->requester)->from(route('budget_movements.create'))->post(route('budget_movements.store'), $this->transferPayload())
+            ->assertRedirect(route('budget_movements.create'))
+            ->assertSessionHasErrors('approval_settings');
+        $this->assertDatabaseCount('budget_movements', 0);
+    }
+
+    public function test_transfer_with_same_origin_and_destination_center_is_a_field_error(): void
+    {
+        $this->origin->update(['responsible_user_id' => $this->requester->id]);
+        $payload = array_merge($this->transferPayload(), ['origin_cost_center_id' => $this->destination->id, 'origin_month' => 2]);
+
+        $this->actingAs($this->requester)->postJson(route('budget_movements.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('destination_cost_center_id');
+    }
+
     public function test_only_cost_center_owner_can_submit_a_movement(): void
     {
         $outsider = User::factory()->create(['is_active' => true]);

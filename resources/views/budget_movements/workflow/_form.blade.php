@@ -7,6 +7,7 @@
 @endphp
 <form method="POST" enctype="multipart/form-data" action="{{ $movement ? route('budget_movements.update', $movement) : route('budget_movements.store') }}" id="budgetMovementForm">
     @csrf @if($movement) @method('PUT') @endif
+    <div id="bmFormErrors" class="alert alert-danger d-none" role="alert" tabindex="-1"><strong>No se pudo enviar la solicitud. Corrige lo siguiente:</strong><ul class="mb-0 mt-1"></ul><small class="d-block mt-2">Tus datos siguen capturados; no necesitas volver a llenar el formulario.</small></div>
     <section class="bm-form-section"><span class="bm-kicker">1. Tipo de solicitud</span><h2>¿Qué necesitas hacer?</h2>
         <div class="row g-3"><div class="col-md-4"><label class="form-label">Movimiento</label><select name="movement_type" id="movement_type" class="form-select" required><option value="AMPLIACION" @selected(old('movement_type',$movement?->movement_type)==='AMPLIACION')>Ampliar presupuesto</option><option value="TRANSFERENCIA" @selected(old('movement_type',$movement?->movement_type)==='TRANSFERENCIA')>Transferir presupuesto</option><option value="REDUCCION" @selected(old('movement_type',$movement?->movement_type)==='REDUCCION')>Reducir presupuesto</option></select></div><div class="col-md-4"><label class="form-label">Año fiscal</label><input class="form-control" type="number" name="fiscal_year" value="{{ old('fiscal_year',$movement?->fiscal_year ?? $currentYear) }}" required></div><div class="col-md-4"><label class="form-label">Fecha</label><input class="form-control" type="date" name="movement_date" value="{{ old('movement_date',optional($movement?->movement_date)->format('Y-m-d') ?? now()->format('Y-m-d')) }}" required></div></div>
     </section>
@@ -88,7 +89,127 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('input', () => { formatWhileTyping(); refreshVisiblePreviews(); });
         input.addEventListener('blur', () => { formatOnBlur(); refreshVisiblePreviews(); });
     });
-    form.addEventListener('submit', event => { document.querySelectorAll('.js-money-input').forEach(input => { input.value = rawMoney(input.value); }); const button = event.submitter; button.disabled = true; button.textContent = 'Enviando…'; });
+    // ---- Validación y envío por JS: los errores se muestran sin recargar, así no se pierde lo capturado. ----
+    const isEdit = @json((bool) $movement);
+    const errorBox = document.querySelector('#bmFormErrors');
+    const submitButton = form.querySelector('.bm-save');
+    const submitLabel = submitButton.textContent;
+    const fieldFor = name => {
+        const field = form.elements[name];
+        if (field instanceof RadioNodeList) return [...field].find(item => !item.disabled) || field[0];
+        return field || null;
+    };
+    const anchorFor = field => {
+        const group = field.closest('.input-group');
+        if (group) return group;
+        const select2Box = field.nextElementSibling;
+        return select2Box?.classList.contains('select2') ? select2Box : field;
+    };
+    const clearFieldError = field => {
+        if (!field) return;
+        field.classList.remove('is-invalid');
+        anchorFor(field).classList.remove('bm-invalid');
+        const feedback = anchorFor(field).nextElementSibling;
+        if (feedback?.classList.contains('js-field-error')) feedback.remove();
+    };
+    const clearErrors = () => {
+        errorBox.classList.add('d-none');
+        errorBox.querySelector('ul').innerHTML = '';
+        form.querySelectorAll('.js-field-error').forEach(item => item.remove());
+        form.querySelectorAll('.is-invalid').forEach(item => item.classList.remove('is-invalid'));
+        form.querySelectorAll('.bm-invalid').forEach(item => item.classList.remove('bm-invalid'));
+    };
+    const showErrors = errors => {
+        const list = errorBox.querySelector('ul');
+        const messages = new Set();
+        Object.entries(errors).forEach(([name, value]) => {
+            const message = Array.isArray(value) ? value[0] : value;
+            messages.add(message);
+            const field = fieldFor(name);
+            if (!field || field.type === 'hidden') return;
+            clearFieldError(field);
+            field.classList.add('is-invalid');
+            const anchor = anchorFor(field);
+            anchor.classList.add('bm-invalid');
+            const feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback d-block js-field-error';
+            feedback.textContent = message;
+            anchor.insertAdjacentElement('afterend', feedback);
+        });
+        messages.forEach(message => { const item = document.createElement('li'); item.textContent = message; list.append(item); });
+        errorBox.classList.remove('d-none');
+        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorBox.focus({ preventScroll: true });
+    };
+    const validateForm = () => {
+        const errors = {};
+        const value = name => String(fieldFor(name)?.value ?? '').trim();
+        const require = (name, message) => { if (!value(name)) errors[name] = message; };
+        if (!value('movement_type')) errors.movement_type = 'Selecciona el tipo de movimiento.';
+        const year = Number(value('fiscal_year'));
+        if (!Number.isInteger(year) || year < 2020 || year > 2050) errors.fiscal_year = 'El año fiscal debe estar entre 2020 y 2050.';
+        require('movement_date', 'Indica la fecha del movimiento.');
+        if (type.value === 'TRANSFERENCIA') {
+            [['origin', 'origen'], ['destination', 'destino']].forEach(([prefix, label]) => {
+                require(`${prefix}_cost_center_id`, `Selecciona el centro de costo ${label}.`);
+                require(`${prefix}_month`, `Selecciona el mes ${label}.`);
+                require(`${prefix}_expense_category_id`, `Selecciona la cuenta ${label}.`);
+                require(`${prefix}_budget_cedula_id`, `Selecciona la subcuenta ${label}.`);
+            });
+            if (value('origin_cost_center_id') && value('origin_cost_center_id') === value('destination_cost_center_id')) errors.destination_cost_center_id = 'El centro de costo destino debe ser diferente al centro de costo origen.';
+        } else {
+            require('cost_center_id', 'Selecciona el centro de costo.');
+            require('month', 'Selecciona el mes.');
+            require('expense_category_id', 'Selecciona la cuenta.');
+            require('budget_cedula_id', 'Selecciona la subcuenta.');
+        }
+        const amount = Number(rawMoney(amountInput()?.value));
+        if (!(amount > 0)) errors.total_amount = 'Captura un monto mayor a 0.';
+        else if (amount > 999999999.99) errors.total_amount = 'El monto es demasiado grande.';
+        const file = form.elements.supporting_document?.files?.[0];
+        if (!file && !isEdit) errors.supporting_document = 'Adjunta el documento justificativo.';
+        if (file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'docx'].includes(extension)) errors.supporting_document = 'El documento justificativo debe ser PDF, JPG, PNG, XLSX o DOCX.';
+            else if (file.size > 10 * 1024 * 1024) errors.supporting_document = 'El documento justificativo no debe pesar más de 10 MB.';
+        }
+        const justification = value('justification');
+        if (justification.length < 10) errors.justification = 'La justificación debe tener al menos 10 caracteres.';
+        else if (justification.length > 1000) errors.justification = 'La justificación no debe exceder 1000 caracteres.';
+        return errors;
+    };
+    const resetButton = () => { submitButton.disabled = false; submitButton.textContent = submitLabel; };
+    form.addEventListener('input', event => clearFieldError(event.target));
+    form.addEventListener('change', event => clearFieldError(event.target));
+    $(form).on('select2:select select2:clear', 'select', function () { clearFieldError(this); });
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        clearErrors();
+        const errors = validateForm();
+        if (Object.keys(errors).length) return showErrors(errors);
+        submitButton.disabled = true;
+        submitButton.textContent = 'Enviando…';
+        const body = new FormData(form);
+        if (amountInput()) body.set('total_amount', rawMoney(amountInput().value));
+        let response;
+        try {
+            response = await fetch(form.action, { method: 'POST', body, credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+        } catch (error) {
+            resetButton();
+            return showErrors({ _network: 'No hubo conexión con el servidor. Revisa tu conexión a internet e intenta de nuevo.' });
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload.redirect) { window.location.href = payload.redirect; return; }
+        resetButton();
+        if (response.status === 422 && payload.errors) return showErrors(payload.errors);
+        const fallback = {
+            403: 'No tienes permiso para registrar este movimiento. Verifica que seas responsable del centro de costo seleccionado.',
+            413: 'El documento adjunto es demasiado grande para el servidor. Usa un archivo más ligero (máximo 10 MB).',
+            419: 'Tu sesión expiró. Copia tu justificación, recarga la página e inicia sesión de nuevo.',
+            422: 'El servidor rechazó la solicitud.',
+        }[response.status];
+        showErrors({ _server: payload.message && response.status !== 500 ? payload.message : (fallback || `Ocurrió un error inesperado en el servidor (código ${response.status}). Intenta de nuevo; si persiste, avisa a sistemas.`) });
+    });
     toggle();
 });
 </script>

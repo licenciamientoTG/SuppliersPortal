@@ -129,6 +129,11 @@ class SaveBudgetMovementRequest extends FormRequest
             'total_amount.numeric' => 'El monto total debe ser un número.',
             'total_amount.min' => 'El monto total debe ser mayor a 0.',
             'total_amount.max' => 'El monto total es demasiado grande.',
+            'supporting_document.required' => 'Adjunta el documento justificativo.',
+            'supporting_document.file' => 'El documento justificativo no se pudo subir. Intenta adjuntarlo de nuevo.',
+            'supporting_document.uploaded' => 'El documento justificativo no se pudo subir; puede ser demasiado grande (máximo 10 MB).',
+            'supporting_document.max' => 'El documento justificativo no debe pesar más de 10 MB.',
+            'supporting_document.mimes' => 'El documento justificativo debe ser PDF, JPG, PNG, XLSX o DOCX.',
 
             // Mensajes para ORIGEN (Transferencias y Reducciones)
             'origin_cost_center_id.required' => 'Debe seleccionar el centro de costo origen.',

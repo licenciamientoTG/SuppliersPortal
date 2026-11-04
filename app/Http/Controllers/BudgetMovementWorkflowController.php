@@ -22,6 +22,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BudgetMovementWorkflowController extends Controller
@@ -118,12 +119,12 @@ class BudgetMovementWorkflowController extends Controller
         ]);
     }
 
-    public function store(SaveBudgetMovementRequest $request): RedirectResponse
+    public function store(SaveBudgetMovementRequest $request): RedirectResponse|JsonResponse
     {
         $actor = $request->user();
         $data = $request->validated();
         $this->ensureCanSubmit($actor, $data);
-        $settings = $this->settingsOrFail();
+        $settings = $this->settingsForSubmission();
 
         $movement = DB::transaction(function () use ($data, $actor, $request) {
             $status = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER
@@ -148,7 +149,7 @@ class BudgetMovementWorkflowController extends Controller
             $this->notifyExecutives($settings, $movement, 'Tienes una solicitud de movimiento presupuestal pendiente de aprobación.');
         }
 
-        return redirect()->route('budget_movements.show', $movement)->with('success', 'Solicitud enviada correctamente.');
+        return $this->submitted($request, $movement, 'Solicitud enviada correctamente.');
     }
 
     public function show(Request $request, BudgetMovement $budgetMovement): View
@@ -173,13 +174,13 @@ class BudgetMovementWorkflowController extends Controller
         return view('budget_movements.workflow.edit', array_merge($this->formData($ownedCostCenters), compact('budgetMovement')));
     }
 
-    public function update(SaveBudgetMovementRequest $request, BudgetMovement $budgetMovement): RedirectResponse
+    public function update(SaveBudgetMovementRequest $request, BudgetMovement $budgetMovement): RedirectResponse|JsonResponse
     {
         $actor = $request->user();
         abort_unless($budgetMovement->created_by === $actor->id && $budgetMovement->isReturned(), 403);
         $data = $request->validated();
         $this->ensureCanSubmit($actor, $data);
-        $settings = $this->settingsOrFail();
+        $settings = $this->settingsForSubmission();
 
         $movement = DB::transaction(function () use ($budgetMovement, $data, $actor, $request) {
             $status = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER ? BudgetMovement::STATUS_PENDING_ORIGIN : BudgetMovement::STATUS_PENDING_EXECUTIVE;
@@ -200,7 +201,7 @@ class BudgetMovementWorkflowController extends Controller
             $this->notifyExecutives($settings, $movement, 'La solicitud corregida requiere aprobación ejecutiva.');
         }
 
-        return redirect()->route('budget_movements.show', $movement)->with('success', 'Solicitud corregida y reenviada.');
+        return $this->submitted($request, $movement, 'Solicitud corregida y reenviada.');
     }
 
     public function reverse(Request $request, BudgetMovement $budgetMovement): RedirectResponse
@@ -385,7 +386,9 @@ class BudgetMovementWorkflowController extends Controller
         $centerId = $data['movement_type'] === BudgetMovement::TYPE_TRANSFER ? $data['destination_cost_center_id'] : $data['cost_center_id'];
         abort_unless($this->ownedCenters($actor)->whereKey($centerId)->exists(), 403, 'Solo puedes solicitar movimientos para centros de costo de los que eres responsable.');
         if ($data['movement_type'] === BudgetMovement::TYPE_TRANSFER) {
-            abort_if((int) $data['origin_cost_center_id'] === (int) $data['destination_cost_center_id'], 422, 'El centro origen debe ser diferente al destino.');
+            if ((int) $data['origin_cost_center_id'] === (int) $data['destination_cost_center_id']) {
+                throw ValidationException::withMessages(['destination_cost_center_id' => 'El centro de costo destino debe ser diferente al centro de costo origen.']);
+            }
         }
     }
 
@@ -405,6 +408,32 @@ class BudgetMovementWorkflowController extends Controller
     private function approvalSettings(): ?BudgetMovementApprovalSetting
     {
         return BudgetMovementApprovalSetting::query()->first();
+    }
+
+    /**
+     * Al capturar una solicitud, la falta de configuración se reporta como error de
+     * formulario (no como página 422) para que el usuario no pierda lo capturado.
+     */
+    private function settingsForSubmission(): BudgetMovementApprovalSetting
+    {
+        $settings = $this->approvalSettings();
+        if (! $settings?->director_user_id) {
+            throw ValidationException::withMessages(['approval_settings' => 'No se puede enviar la solicitud: no hay un Director General configurado para autorizar movimientos presupuestales. Pide a un superadministrador que lo configure en Movimientos presupuestales > Configuración.']);
+        }
+
+        return $settings;
+    }
+
+    private function submitted(Request $request, BudgetMovement $movement, string $message): RedirectResponse|JsonResponse
+    {
+        $url = route('budget_movements.show', $movement);
+        if ($request->expectsJson()) {
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => $url]);
+        }
+
+        return redirect($url)->with('success', $message);
     }
 
     private function settingsOrFail(): BudgetMovementApprovalSetting
