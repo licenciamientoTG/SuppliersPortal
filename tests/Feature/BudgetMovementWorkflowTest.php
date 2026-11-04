@@ -152,6 +152,37 @@ class BudgetMovementWorkflowTest extends TestCase
             ->assertSee('Suplente Vigente');
     }
 
+    public function test_workflow_email_shows_the_approval_route_and_attaches_the_evidence(): void
+    {
+        $this->director->update(['name' => 'Enrique Director']);
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.origin-approve', $movement));
+
+        $mail = (new \App\Notifications\BudgetMovementWorkflowNotification($movement, 'Una transferencia fue validada por el centro origen y requiere aprobación ejecutiva.'))->toMail($this->director);
+        $html = (string) $mail->render();
+
+        $this->assertSame('Te toca autorizar: Transferencia #'.$movement->id.' · $1,000.00', $mail->subject);
+        $this->assertCount(1, $mail->attachments);
+        $this->assertSame('soporte.pdf', $mail->attachments[0]['options']['as']);
+        $this->assertStringContainsString('Ahora: tú', $html);
+        $this->assertStringContainsString('Evidencia adjunta:', $html);
+        $this->assertStringContainsString('Revisar y autorizar', $html);
+    }
+
+    public function test_workflow_email_to_the_requester_does_not_attach_evidence(): void
+    {
+        $this->actingAs($this->requester)->post(route('budget_movements.store'), $this->transferPayload());
+        $movement = BudgetMovement::firstOrFail();
+        $this->actingAs($this->originOwner)->post(route('budget_movements.return', $movement), ['comments' => 'Falta la cotizacion del proveedor.']);
+
+        $mail = (new \App\Notifications\BudgetMovementWorkflowNotification($movement, 'Tu transferencia fue devuelta para corrección.'))->toMail($this->requester);
+
+        $this->assertSame('Devuelta para corrección: Transferencia #'.$movement->id, $mail->subject);
+        $this->assertCount(0, $mail->attachments);
+        $this->assertStringContainsString('Falta la cotizacion del proveedor.', (string) $mail->render());
+    }
+
     public function test_superadmin_can_validate_the_origin_of_a_transfer(): void
     {
         Role::findOrCreate('superadmin');
