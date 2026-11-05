@@ -12,8 +12,10 @@ use App\Models\CostCenter;
 use App\Models\DirectPurchaseOrder;
 use App\Models\DirectPurchaseOrderItem;
 use App\Models\ExpenseCategory;
+use App\Models\ReceivingLocation;
 use App\Models\User;
 use App\Services\BudgetAllocationService;
+use App\Services\ReceptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -131,5 +133,33 @@ class DirectPurchaseOrderBudgetTraceTest extends TestCase
         $open = BudgetCommitment::where('direct_purchase_order_id', $this->order->id)->where('status', 'COMMITTED')->get();
         $this->assertCount(1, $open);
         $this->assertEquals(5000.0, (float) $open->sum('committed_amount'));
+    }
+
+    /**
+     * ReceptionController::storeDirect precarga las partidas antes de llamar al
+     * servicio; el consumo debe calcularse con las cantidades ya recibidas en esta
+     * recepción, no con las que estaban en memoria antes de capturarla.
+     */
+    public function test_full_reception_with_preloaded_items_consumes_the_whole_commitment(): void
+    {
+        $this->service->reserveDirectPurchaseOrder($this->order->fresh());
+        $this->order->fresh()->update(['status' => 'ISSUED']);
+
+        $location = ReceivingLocation::factory()->create(['is_active' => true, 'portal_blocked' => false]);
+        $this->order->update(['receiving_location_id' => $location->id]);
+
+        $order = DirectPurchaseOrder::findOrFail($this->order->id)->load(['items', 'supplier', 'receivingLocation']);
+        $item = $order->items->first();
+
+        app(ReceptionService::class)->receive($order, [[
+            'receivable_item_id' => $item->id,
+            'quantity_received' => 1,
+            'conformity' => 'CONFORME',
+        ]], User::factory()->create(), ['receiving_location_id' => $location->id]);
+
+        $this->assertSame('RECEIVED', $order->fresh()->status);
+        $commitment = BudgetCommitment::where('direct_purchase_order_id', $this->order->id)->sole();
+        $this->assertEquals(2076.40, (float) $commitment->consumed_amount);
+        $this->assertEquals(2076.40, (float) $this->distribution->fresh()->consumed_amount);
     }
 }

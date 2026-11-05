@@ -49,12 +49,21 @@ class ApprovalDecisionService
 
         if ($context['is_delegated']) {
             DB::afterCommit(function () use ($principalUserId, $decision, $approvable) {
-                $principal = User::find($principalUserId);
-                app(SafeNotificationService::class)->notify(
-                    new DelegatedApprovalActionNotification($decision, $approvable),
-                    $principal ? [$principal] : [],
-                    'de acción delegada de autorización',
-                );
+                // Corre dentro de commit(): una excepción aquí haría que la decisión ya
+                // confirmada se reportara como error al usuario.
+                try {
+                    $principal = User::find($principalUserId);
+                    app(SafeNotificationService::class)->notify(
+                        new DelegatedApprovalActionNotification($decision, $approvable),
+                        $principal ? [$principal] : [],
+                        'de acción delegada de autorización',
+                    );
+                } catch (\Throwable $exception) {
+                    \Illuminate\Support\Facades\Log::error('No se pudo notificar al titular la acción delegada.', [
+                        'approval_decision_id' => $decision->id,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
             });
         }
 

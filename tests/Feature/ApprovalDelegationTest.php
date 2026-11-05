@@ -155,9 +155,11 @@ class ApprovalDelegationTest extends TestCase
 
         $this->actingAs($delegate)
             ->post(route('direct-purchase-orders.approve', $order))
+            ->assertSessionHasNoErrors()
             ->assertRedirect();
 
         $this->assertSame('ISSUED', $order->fresh()->status);
+        $this->assertNotNull($order->fresh()->issued_at, 'La OCD emitida debe registrar issued_at.');
         $this->assertDatabaseHas('approval_decisions', [
             'approvable_type' => DirectPurchaseOrder::class,
             'approvable_id' => $order->id,
@@ -166,6 +168,43 @@ class ApprovalDelegationTest extends TestCase
             'approval_delegation_id' => $delegation->id,
             'action' => 'APPROVED',
         ]);
+    }
+
+    /**
+     * Reenvío que cambia de flujo por centro de costo a jerarquía: los pasos de la
+     * ronda anterior deben quedar SUPERSEDED y la aprobación debe emitir la OCD.
+     */
+    public function test_switching_from_cost_center_flow_to_hierarchy_supersedes_stale_steps(): void
+    {
+        Notification::fake();
+        [$principal, $oldManager] = $this->authorizers();
+        $order = DirectPurchaseOrder::factory()->create([
+            'status' => 'PENDING_APPROVAL',
+            'assigned_approver_id' => $principal->id,
+            'total' => 500,
+            'budget_reserved_at' => now(),
+        ]);
+        $staleStep = $order->approvalSteps()->create([
+            'step_order' => 1,
+            'round' => 1,
+            'cost_center_id' => \App\Models\CostCenter::factory()->create()->id,
+            'responsible_user_id' => $oldManager->id,
+            'principal_user_id' => $oldManager->id,
+            'source' => 'manager',
+            'status' => 'PENDING',
+        ]);
+
+        // La OCD ya no tiene partidas con centro de costo resoluble: la nueva ronda va por jerarquía.
+        $this->assertFalse(app(\App\Services\CostCenterApprovalFlowService::class)->initialize($order));
+        $this->assertSame(\App\Models\CostCenterApprovalStep::SUPERSEDED, $staleStep->fresh()->status);
+
+        $this->actingAs($principal)
+            ->post(route('direct-purchase-orders.approve', $order))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame('ISSUED', $order->fresh()->status);
+        $this->assertNotNull($order->fresh()->issued_at);
     }
 
     public function test_authorizer_can_render_delegation_module_and_unified_inbox(): void

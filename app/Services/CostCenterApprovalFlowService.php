@@ -25,6 +25,11 @@ class CostCenterApprovalFlowService
         $steps = $this->approvalStepsFor($approvable);
 
         if ($steps === []) {
+            // La nueva ronda se resolverá fuera de este flujo (p. ej. por jerarquía):
+            // los pasos de la ronda anterior no deben seguir pendientes, o la
+            // aprobación intentaría avanzar un paso que ya no corresponde.
+            $approvable->approvalSteps()->update(['status' => CostCenterApprovalStep::SUPERSEDED]);
+
             return false;
         }
 

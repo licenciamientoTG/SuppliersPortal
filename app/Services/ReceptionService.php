@@ -113,6 +113,10 @@ class ReceptionService
 
         // Notificar al creador de la orden y al equipo de Compras (fuera de la transacción
         // para garantizar que el commit ya ocurrió antes de despachar el trabajo).
+        // Las partidas en memoria (p. ej. precargadas por el controlador) no ven los
+        // increment() hechos sobre otras instancias; sin recargarlas, el consumo se
+        // calcularía con el avance anterior a esta recepción.
+        $order->load('items');
         app(BudgetAllocationService::class)->consumeOrder($order);
         app(FinancialProvisionService::class)->createForReception($reception);
 

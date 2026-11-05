@@ -236,7 +236,11 @@ class DirectPurchaseOrderController extends Controller
                 $this->budgetAllocationService->reserveDirectPurchaseOrder($directPurchaseOrder);
             }
 
-            if (! $this->costCenterApprovalFlow->advance($directPurchaseOrder, Auth::user(), $request->input('comments'))) {
+            // Solo las OCD con flujo por centro de costo tienen pasos; las que se
+            // resolvieron por jerarquía (fallback) se aprueban en un solo paso.
+            $usesCostCenterFlow = $directPurchaseOrder->approvalSteps()->where('status', 'PENDING')->exists();
+
+            if ($usesCostCenterFlow && ! $this->costCenterApprovalFlow->advance($directPurchaseOrder, Auth::user(), $request->input('comments'))) {
                 DB::commit();
 
                 return redirect()->route('direct-purchase-orders.show', $directPurchaseOrder)->with('success', 'Aprobación registrada; la orden avanzó al siguiente responsable.');
@@ -245,6 +249,7 @@ class DirectPurchaseOrderController extends Controller
                 'status' => 'ISSUED',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
+                'issued_at' => now(),
             ]);
 
             $this->budgetAllocationService->commitOrder($directPurchaseOrder);
@@ -256,7 +261,7 @@ class DirectPurchaseOrderController extends Controller
                 'comments' => $request->input('comments'),
                 'approved_at' => now(),
             ]);
-            if (! $directPurchaseOrder->approvalSteps()->exists()) {
+            if (! $usesCostCenterFlow) {
                 $this->approvalDecisions->record($directPurchaseOrder, $principalId, Auth::user(), 'APPROVED', $request->input('comments'));
             }
 
@@ -692,17 +697,26 @@ class DirectPurchaseOrderController extends Controller
      */
     private function notifySupplierAboutApprovedOrder(DirectPurchaseOrder $directPurchaseOrder): void
     {
-        $directPurchaseOrder->loadMissing('supplier', 'creator');
-        $this->safeNotifications->notify(
-            new DirectPurchaseOrderApprovedNotification($directPurchaseOrder),
-            User::role('buyer')->get()->concat(
-                $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : []
-            ),
-            'de aprobación al proveedor',
-            $directPurchaseOrder->folio,
-            route('direct-purchase-orders.show', $directPurchaseOrder),
-            true,
-        );
+        try {
+            $directPurchaseOrder->loadMissing('supplier', 'creator');
+            $this->safeNotifications->notify(
+                new DirectPurchaseOrderApprovedNotification($directPurchaseOrder),
+                User::role('buyer')->get()->concat(
+                    $directPurchaseOrder->supplier ? [$directPurchaseOrder->supplier] : []
+                ),
+                'de aprobación al proveedor',
+                $directPurchaseOrder->folio,
+                route('direct-purchase-orders.show', $directPurchaseOrder),
+                true,
+            );
+        } catch (\Throwable $exception) {
+            // Se ejecuta después del commit: un fallo aquí (p. ej. no existe el rol
+            // buyer) no debe mostrarse como "Error al aprobar" ni provocar un rollBack.
+            Log::error('No se pudo notificar la aprobación de la OCD.', [
+                'folio' => $directPurchaseOrder->folio,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function syncItems(DirectPurchaseOrder $directPurchaseOrder, array $items): void
