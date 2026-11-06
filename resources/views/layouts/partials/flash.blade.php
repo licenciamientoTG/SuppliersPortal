@@ -1,10 +1,15 @@
 {{-- resources/views/partials/flash.blade.php --}}
+@php
+    // Las vistas que muestran sus propios errores junto a cada campo definen
+    // @section('hide_global_errors') para no repetir la lista aquí.
+    $showValidationErrors = $errors->any() && ! $__env->hasSection('hide_global_errors');
+@endphp
 @if (session()->has('success') ||
         session()->has('error') ||
         session()->has('warning') ||
         session()->has('danger') ||
         session()->has('info') ||
-        $errors->any())
+        $showValidationErrors)
     {{-- Fallback Bootstrap (si no hay SweetAlert) --}}
     <div class="d-none container mt-2" id="flash-fallback">
         @foreach (['success', 'warning', 'danger', 'error', 'info'] as $lvl)
@@ -14,7 +19,7 @@
                 </div>
             @endif
         @endforeach
-        @if ($errors->any())
+        @if ($showValidationErrors)
             <div class="alert alert-danger">
                 <strong>Hubo errores:</strong>
                 <ul class="mb-0">
@@ -37,7 +42,7 @@
                 warning: @json(session('warning')),
                 danger: @json(session('danger')),
                 info: @json(session('info')),
-                errors: @json($errors->any() ? $errors->all() : []),
+                errors: @json($showValidationErrors ? $errors->all() : []),
             };
 
             if (hasSwal) {

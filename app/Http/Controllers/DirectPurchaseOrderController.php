@@ -21,6 +21,7 @@ use App\Services\ApprovalDelegationService;
 use App\Services\AuthorizerResolutionService;
 use App\Services\BudgetAllocationService;
 use App\Services\CostCenterApprovalFlowService;
+use App\Services\DirectPurchaseOrderBudgetPreviewService;
 use App\Services\PricingService;
 use App\Services\SafeNotificationService;
 use Carbon\Carbon;
@@ -596,6 +597,49 @@ class DirectPurchaseOrderController extends Controller
         }
     }
 
+    /**
+     * Vista previa del presupuesto disponible por partida mientras se captura la OCD.
+     * Solo lectura: no aparta presupuesto ni reemplaza la validación al guardar.
+     */
+    public function budgetPreview(Request $request, DirectPurchaseOrderBudgetPreviewService $preview)
+    {
+        $data = $request->validate([
+            'currency' => ['nullable', 'string', 'in:MXN,USD,EUR'],
+            'supplier_id' => ['nullable', 'integer'],
+            'estimated_delivery_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'direct_purchase_order_id' => ['nullable', 'integer'],
+            'items' => ['nullable', 'array', 'max:100'],
+            'items.*.cost_center_id' => ['nullable', 'integer'],
+            'items.*.product_service_id' => ['nullable', 'integer'],
+            'items.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+        ]);
+
+        $user = Auth::user();
+
+        $days = $data['estimated_delivery_days']
+            ?? (isset($data['supplier_id']) ? Supplier::query()->whereKey($data['supplier_id'])->value('avg_delivery_time') : null);
+
+        $allowedCostCenterIds = $user->costCenters()
+            ->where('cost_center_user.is_active', true)
+            ->pluck('cost_centers.id')
+            ->map(fn ($id) => (int) $id);
+
+        // Solo la OCD propia puede "devolverse" su presupuesto apartado.
+        $ocd = isset($data['direct_purchase_order_id'])
+            ? DirectPurchaseOrder::query()->whereKey($data['direct_purchase_order_id'])->where('created_by', $user->id)->first()
+            : null;
+
+        return response()->json($preview->preview(
+            $user,
+            $data['items'] ?? [],
+            $data['currency'] ?? 'MXN',
+            $preview->applicationMonth($days ? (int) $days : null),
+            $allowedCostCenterIds,
+            $ocd,
+        ));
+    }
+
     private function prepareApprovalFlow(DirectPurchaseOrder $directPurchaseOrder): void
     {
         $directPurchaseOrder->loadMissing('creator.employee', 'items', 'items.costCenter');
@@ -636,30 +680,61 @@ class DirectPurchaseOrderController extends Controller
     {
         $directPurchaseOrder->loadMissing('items');
 
+        // Misma regla con la que se aparta el presupuesto (getOrderBudgetLines): las
+        // partidas que caen en el mismo centro + cuenta + cédula consumen un solo saldo,
+        // así que se validan sumadas y no una por una.
+        $groups = [];
         foreach ($directPurchaseOrder->items as $item) {
             $itemAmountMxn = $directPurchaseOrder->convertItemAmountToMxn((float) $item->subtotal);
+            $cedulaId = $item->budget_cedula_id ? (int) $item->budget_cedula_id : null;
 
             foreach (app(\App\Services\CostCenterDistributionService::class)->expand((int) $item->cost_center_id, $itemAmountMxn) as $allocation) {
-                $budgetCheck = $this->validateBudgetAvailability(
-                    $allocation['cost_center_id'],
-                    $directPurchaseOrder->application_month,
-                    (int) $item->expense_category_id,
-                    (float) $allocation['amount'],
-                    $item->budget_cedula_id ? (int) $item->budget_cedula_id : null
-                );
+                $key = implode('|', [$allocation['cost_center_id'], $item->expense_category_id, $cedulaId ?? 'null']);
 
-                if (! ($budgetCheck['available'] ?? false)) {
-                    $exception = \App\Models\BudgetException::query()->where('document_type', 'direct_purchase_order')
-                        ->where('document_id', $directPurchaseOrder->id)->where('document_line_id', $item->id)
-                        ->where('cost_center_id', $allocation['cost_center_id'])->where('status', 'APPROVED')->whereNull('used_at')->first();
-                    $available = (float) ($budgetCheck['assigned_amount'] ?? 0) - (float) ($budgetCheck['consumed_amount'] ?? 0) - (float) ($budgetCheck['committed_amount'] ?? 0);
-                    $shortfall = max(0, round((float) $allocation['amount'] - $available, 2));
-                    if ($exception && $shortfall <= (float) $exception->approved_excess + 0.01) {
-                        continue;
-                    }
-                    throw new \RuntimeException('Presupuesto insuficiente: '.$budgetCheck['message']);
-                }
+                $groups[$key] ??= [
+                    'cost_center_id' => (int) $allocation['cost_center_id'],
+                    'expense_category_id' => (int) $item->expense_category_id,
+                    'budget_cedula_id' => $cedulaId,
+                    'amount' => 0.0,
+                    'item_ids' => [],
+                ];
+                $groups[$key]['amount'] = round($groups[$key]['amount'] + (float) $allocation['amount'], 2);
+                $groups[$key]['item_ids'][] = $item->id;
             }
+        }
+
+        foreach ($groups as $group) {
+            $budgetCheck = $this->validateBudgetAvailability(
+                $group['cost_center_id'],
+                $directPurchaseOrder->application_month,
+                $group['expense_category_id'],
+                $group['amount'],
+                $group['budget_cedula_id']
+            );
+
+            if ($budgetCheck['available'] ?? false) {
+                continue;
+            }
+
+            // Las excepciones se aprueban por partida; cubren el faltante del grupo en conjunto.
+            $approvedExcess = (float) \App\Models\BudgetException::query()
+                ->where('document_type', 'direct_purchase_order')
+                ->where('document_id', $directPurchaseOrder->id)
+                ->whereIn('document_line_id', array_unique($group['item_ids']))
+                ->where('cost_center_id', $group['cost_center_id'])
+                ->where('status', 'APPROVED')
+                ->whereNull('used_at')
+                ->sum('approved_excess');
+
+            $available = (float) ($budgetCheck['assigned_amount'] ?? 0) - (float) ($budgetCheck['consumed_amount'] ?? 0) - (float) ($budgetCheck['committed_amount'] ?? 0);
+            $shortfall = max(0, round($group['amount'] - $available, 2));
+
+            if ($approvedExcess > 0 && $shortfall <= $approvedExcess + 0.01) {
+                continue;
+            }
+
+            $lines = count(array_unique($group['item_ids']));
+            throw new \RuntimeException('Presupuesto insuficiente'.($lines > 1 ? " (suma de {$lines} partidas con la misma cédula)" : '').': '.$budgetCheck['message']);
         }
     }
 

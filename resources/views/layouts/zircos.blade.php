@@ -231,7 +231,7 @@
                         </div>
                     @endif
 
-                    @if (isset($errors) && $errors->any())
+                    @if (isset($errors) && $errors->any() && ! $__env->hasSection('hide_global_errors'))
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <strong>Ocurrieron errores:</strong>
                             <ul class="mb-0">

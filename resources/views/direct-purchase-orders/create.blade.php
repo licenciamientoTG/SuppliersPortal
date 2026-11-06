@@ -4,6 +4,8 @@
 
 @section('page.title', 'Nueva OCD')
 
+@section('hide_global_errors', '1')
+
 @section('page.breadcrumbs')
     <li class="breadcrumb-item"><a href="{{ route('purchase-orders.index') }}">Órdenes</a></li>
     <li class="breadcrumb-item active">Nueva Directa</li>
@@ -26,15 +28,7 @@
     </div>
 @endif
 
-{{-- Error de presupuesto específico --}}
-@error('budget')
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="ti ti-alert-circle me-2"></i>
-        <strong>Error de Presupuesto: </strong> {{ $message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-@enderror
-
+{{-- Los errores de validación (incluido el de presupuesto) se muestran una sola vez, dentro del formulario. --}}
 @include('direct-purchase-orders.partials._form')
 
 @endsection

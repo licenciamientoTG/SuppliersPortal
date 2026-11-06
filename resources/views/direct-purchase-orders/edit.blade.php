@@ -4,6 +4,8 @@
 
 @section('page.title', 'Editar OCD')
 
+@section('hide_global_errors', '1')
+
 @section('page.breadcrumbs')
     <li class="breadcrumb-item"><a href="{{ route('purchase-orders.index') }}">Órdenes</a></li>
     <li class="breadcrumb-item"><a href="{{ route('direct-purchase-orders.show', $directPurchaseOrder->id) }}">{{ $directPurchaseOrder->folio ?? 'BORRADOR' }}</a></li>
@@ -20,19 +22,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 
-@if($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="ti ti-alert-circle me-2"></i>
-        <strong>Errores al guardar:</strong>
-        <ul class="mb-0 mt-1">
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-@endif
-
+{{-- Los errores de validación se muestran una sola vez, dentro del formulario. --}}
 @include('direct-purchase-orders.partials._form')
 
 @endsection
