@@ -109,6 +109,24 @@ class DirectPurchaseOrderFormRenderTest extends TestCase
         $this->assertStringNotContainsString('Días Entrega', $html);
     }
 
+    public function test_every_select_inside_a_select2_input_group_is_initialized(): void
+    {
+        [$html, $scripts] = $this->renderForm();
+
+        // El CSS oculta el <select> nativo dentro de .input-group-select2; si no se
+        // inicializa con Select2, el campo queda invisible (pasó con Moneda).
+        preg_match_all('/input-group-select2">.*?<select[^>]*\bid="([^"]+)"/s', $html, $matches);
+
+        $this->assertNotEmpty($matches[1]);
+        foreach ($matches[1] as $id) {
+            $this->assertMatchesRegularExpression(
+                '/\$\(\'[^\']*#'.preg_quote($id, '/').'\b[^\']*\'\)\.select2\(/',
+                $scripts,
+                "El select #{$id} está oculto por .input-group-select2 pero no se inicializa con Select2."
+            );
+        }
+    }
+
     public function test_flash_partial_hides_validation_list_only_when_the_view_asks(): void
     {
         $errorBag = (new ViewErrorBag)->put('default', new MessageBag(['supplier_id' => ['Mensaje de prueba']]));

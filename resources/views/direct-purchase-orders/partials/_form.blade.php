@@ -989,6 +989,14 @@ $(document).ready(function() {
         }
     });
 
+    // Moneda vive en un input-group-select2, cuyo CSS oculta el <select> nativo:
+    // sin Select2 el campo quedaba invisible y no se podía elegir.
+    $('#currency').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        minimumResultsForSearch: Infinity
+    });
+
     $('#payment_terms').select2({
         theme: 'bootstrap-5',
         width: '100%',
