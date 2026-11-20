@@ -86,7 +86,7 @@
 
     {{-- Modal: Promover a usuario staff --}}
     <div class="modal fade" id="promoteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
             <div class="modal-content" id="promoteModalContent">
                 <div class="modal-body text-center py-5">
                     <div class="spinner-border text-primary" role="status"></div>
@@ -382,12 +382,19 @@
                         employeesTable.ajax.reload(null, false);
                         Swal.fire({ icon: 'success', title: '¡Listo!', text: data.message, timer: 3000, showConfirmButton: false });
                     } else if (status === 422 && data.errors) {
+                        let firstInvalid = null;
                         Object.entries(data.errors).forEach(([field, messages]) => {
-                            const input = form.querySelector(`[name="${field}"]`);
-                            const errEl = document.getElementById(`err-${field}`);
-                            if (input) input.classList.add('is-invalid');
+                            // "roles.0" → "roles": los errores de arreglos se muestran en el contenedor del grupo.
+                            const key   = field.split('.')[0];
+                            const input = form.querySelector(`[name="${key}"]`);
+                            const errEl = document.getElementById(`err-${key}`);
+                            if (input) {
+                                input.classList.add('is-invalid');
+                                firstInvalid = firstInvalid || input;
+                            }
                             if (errEl) errEl.textContent = messages[0];
                         });
+                        if (firstInvalid && firstInvalid.type !== 'file') firstInvalid.focus();
                     } else {
                         const errEl = document.getElementById('promoteGeneralError');
                         if (errEl) { errEl.textContent = data.error || 'Ocurrió un error.'; errEl.classList.remove('d-none'); }
