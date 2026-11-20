@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -27,7 +27,7 @@ class EmployeeCatalogTest extends TestCase
         $response = $this->actingAs($user)->get('/employees');
 
         $response->assertOk()
-                 ->assertViewHas('companies');
+            ->assertViewHas('companies');
     }
 
     public function test_buyer_is_forbidden_from_employees_index(): void
@@ -65,7 +65,7 @@ class EmployeeCatalogTest extends TestCase
         $response = $this->actingAs($user)->getJson('/employees/datatable');
 
         $response->assertOk()
-                 ->assertJsonStructure(['data', 'recordsTotal', 'recordsFiltered']);
+            ->assertJsonStructure(['data', 'recordsTotal', 'recordsFiltered']);
     }
 
     public function test_datatable_filters_by_is_active(): void
@@ -96,6 +96,29 @@ class EmployeeCatalogTest extends TestCase
         $response = $this->actingAs($user)->getJson('/employees/datatable?company=Empresa A');
         $response->assertJsonCount(1, 'data');
         $this->assertEquals('Empresa A', $response->json('data.0.company'));
+    }
+
+    public function test_datatable_shows_and_filters_by_user_account(): void
+    {
+        $linked = User::factory()->create(['email' => 'con.usuario@petrotal.com.mx']);
+        Employee::factory()->create(['first_name' => 'Con', 'user_id' => $linked->id]);
+        Employee::factory()->create(['first_name' => 'Sin', 'user_id' => null]);
+
+        $user = User::factory()->create();
+        $user->assignRole('superadmin');
+
+        $response = $this->actingAs($user)->getJson('/employees/datatable?has_user=yes');
+        $response->assertJsonCount(1, 'data');
+        $this->assertStringContainsString('Con usuario', $response->json('data.0.has_user'));
+        $this->assertStringContainsString('con.usuario@petrotal.com.mx', $response->json('data.0.has_user'));
+
+        $response = $this->actingAs($user)->getJson('/employees/datatable?has_user=no');
+        $response->assertJsonCount(1, 'data');
+        $this->assertStringContainsString('Sin usuario', $response->json('data.0.has_user'));
+
+        $response = $this->actingAs($user)->getJson('/employees/datatable?has_user=');
+        $response->assertJsonCount(2, 'data')
+            ->assertJsonPath('user_counts', ['all' => 2, 'yes' => 1, 'no' => 1]);
     }
 
     public function test_datatable_searches_by_full_name(): void

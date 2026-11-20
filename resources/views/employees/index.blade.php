@@ -33,6 +33,25 @@
                         <option value="NO">Inactivos</option>
                     </select>
                 </div>
+                <div class="col-md-auto">
+                    <span class="form-label d-block mb-1" id="filterUserLabel" style="font-size: 12px;">Usuario en el sistema</span>
+                    <div class="btn-group btn-group-sm" role="group" aria-labelledby="filterUserLabel">
+                        <input type="radio" class="btn-check" name="filterUser" id="filterUserAll" value="" autocomplete="off" checked>
+                        <label class="btn btn-outline-secondary" for="filterUserAll">
+                            Todos <span class="employee-count" data-count="all"></span>
+                        </label>
+
+                        <input type="radio" class="btn-check" name="filterUser" id="filterUserYes" value="yes" autocomplete="off">
+                        <label class="btn btn-outline-success" for="filterUserYes">
+                            <i class="ti ti-user-check me-1" aria-hidden="true"></i>Con usuario <span class="employee-count" data-count="yes"></span>
+                        </label>
+
+                        <input type="radio" class="btn-check" name="filterUser" id="filterUserNo" value="no" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="filterUserNo">
+                            <i class="ti ti-user-off me-1" aria-hidden="true"></i>Sin usuario <span class="employee-count" data-count="no"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             @if (session('success'))
@@ -50,6 +69,7 @@
                             <th style="width: 60px;">#</th>
                             <th>No. Empleado</th>
                             <th>Nombre Completo</th>
+                            <th style="width: 130px;">Usuario</th>
                             <th>Empresa</th>
                             <th>Departamento</th>
                             <th>Puesto</th>
@@ -98,6 +118,25 @@
     </div>
 @endsection
 
+@push('styles')
+    <style>
+        .employee-count {
+            font-variant-numeric: tabular-nums;
+            opacity: .75;
+            margin-left: .15rem;
+        }
+        .employee-count:empty { display: none; }
+        .employee-user {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .employee-user--none {
+            color: var(--bs-secondary-color);
+        }
+    </style>
+@endpush
+
 @push('scripts')
     <script>
         $(function () {
@@ -143,6 +182,15 @@
                     data: function (d) {
                         d.is_active = $('#filterStatus').val();
                         d.company = $('#filterCompany').val();
+                        d.has_user = $('input[name="filterUser"]:checked').val();
+                    },
+                    dataSrc: function (json) {
+                        const counts = json.user_counts || {};
+                        $('.employee-count').each(function () {
+                            const value = counts[$(this).data('count')];
+                            $(this).text(value === undefined ? '' : value.toLocaleString('es-MX'));
+                        });
+                        return json.data;
                     },
                     error: function (xhr) {
                         console.error('Error en DataTable:', xhr.responseText);
@@ -159,6 +207,7 @@
                     { data: 'id',              name: 'id',              width: '60px' },
                     { data: 'employee_number', name: 'employee_number' },
                     { data: 'full_name',       name: 'full_name',       searchable: true, orderable: true },
+                    { data: 'has_user',        name: 'has_user',        searchable: false, orderable: true },
                     { data: 'company',         name: 'company' },
                     { data: 'department',      name: 'department' },
                     { data: 'job_title',       name: 'job_title' },
@@ -187,7 +236,7 @@
                 }
             });
 
-            $('#filterStatus, #filterCompany').on('change', function() {
+            $('#filterStatus, #filterCompany, input[name="filterUser"]').on('change', function() {
                 employeesTable.ajax.reload();
             });
 

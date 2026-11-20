@@ -158,18 +158,36 @@ class EmployeeController extends Controller
     public function datatable(Request $request): JsonResponse
     {
         $query = Employee::query()
+            ->with('user:id,email')
             ->select(['id', 'employee_number', 'first_name', 'last_name', 'company', 'department', 'job_title', 'leader', 'is_active', 'user_id', 'photo']);
 
-        return DataTables::of($query)
-            ->filter(function ($query) use ($request) {
-                if (! $request->has('is_active')) {
-                    $query->where('is_active', 'SI');
-                } elseif ($request->filled('is_active')) {
-                    $query->where('is_active', $request->input('is_active'));
-                }
+        // Filtros de estado y empresa, compartidos por la tabla y los contadores de usuario.
+        $applyBaseFilters = function ($query) use ($request) {
+            if (! $request->has('is_active')) {
+                $query->where('is_active', 'SI');
+            } elseif ($request->filled('is_active')) {
+                $query->where('is_active', $request->input('is_active'));
+            }
 
-                if ($request->filled('company')) {
-                    $query->where('company', $request->input('company'));
+            if ($request->filled('company')) {
+                $query->where('company', $request->input('company'));
+            }
+        };
+
+        $counts = Employee::query()
+            ->tap($applyBaseFilters)
+            ->selectRaw('COUNT(*) AS total, COUNT(user_id) AS with_user')
+            ->toBase()
+            ->first();
+
+        return DataTables::of($query)
+            ->filter(function ($query) use ($request, $applyBaseFilters) {
+                $applyBaseFilters($query);
+
+                if ($request->input('has_user') === 'yes') {
+                    $query->whereNotNull('user_id');
+                } elseif ($request->input('has_user') === 'no') {
+                    $query->whereNull('user_id');
                 }
 
                 if ($request->filled('search.value')) {
@@ -210,6 +228,20 @@ class EmployeeController extends Controller
             ->orderColumn('full_name', function ($query, $order) {
                 $query->orderByRaw("CONCAT(first_name, ' ', last_name) $order");
             })
+            ->addColumn('has_user', function (Employee $row) {
+                if ($row->user_id === null) {
+                    return '<span class="employee-user employee-user--none">Sin usuario</span>';
+                }
+
+                $email = $row->user?->email ?? 'Usuario vinculado';
+
+                return '<span class="badge bg-success-subtle text-success employee-user"
+                              data-bs-toggle="tooltip"
+                              title="'.e($email).'">
+                            <i class="ti ti-user-check me-1" aria-hidden="true"></i>Con usuario
+                        </span>';
+            })
+            ->orderColumn('has_user', 'CASE WHEN user_id IS NULL THEN 1 ELSE 0 END $1')
             ->editColumn('is_active', function (Employee $row) {
                 return $row->is_active === 'SI'
                     ? '<span class="badge bg-success">SI</span>'
@@ -241,7 +273,12 @@ class EmployeeController extends Controller
 
                 return $photoBtn.$promoteBtn;
             })
-            ->rawColumns(['photo', 'is_active', 'actions'])
+            ->rawColumns(['photo', 'has_user', 'is_active', 'actions'])
+            ->with('user_counts', [
+                'all' => (int) ($counts->total ?? 0),
+                'yes' => (int) ($counts->with_user ?? 0),
+                'no' => (int) (($counts->total ?? 0) - ($counts->with_user ?? 0)),
+            ])
             ->make(true);
     }
 
